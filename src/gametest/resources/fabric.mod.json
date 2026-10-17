@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "diffusicraft-gametest",
+	"version": "1.0.0",
+	"name": "Diffusicraft Game Tests",
+	"description": "Client game tests for Diffusicraft. Development only, never shipped.",
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"io.github.elpideus.diffusicraft.gametest.ResourceScreensGameTest"
+		]
+	},
+	"depends": {
+		"diffusicraft": "*",
+		"fabric-client-gametest-api-v1": "*"
+	}
+}

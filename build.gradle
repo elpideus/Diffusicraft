@@ -51,6 +51,18 @@ loom {
 	}
 }
 
+// Client game tests (src/gametest): drive the real game through the Diffusicraft screens and save screenshots to
+// build/run/clientGameTest/screenshots. Run with `./gradlew runClientGameTest -PnoDevMods` (see docs/DEVELOPMENT.md).
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = 'diffusicraft-gametest'
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true
+	}
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
