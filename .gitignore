@@ -38,3 +38,6 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# log4j output of unit tests that bootstrap Minecraft classes
+/logs/
