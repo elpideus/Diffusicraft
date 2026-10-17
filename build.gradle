@@ -3,19 +3,7 @@ plugins {
 	id 'maven-publish'
 }
 
-// -----------------------------------------------------------------------------
-// Inference variant
-//   ./gradlew build                     -> CPU build (works everywhere, CoreML on Apple Silicon)
-//   ./gradlew build -Pinference=cuda    -> NVIDIA CUDA build (needs CUDA + cuDNN on the system)
-// The variant only changes which ONNX Runtime artifact is bundled; the code is identical.
-// -----------------------------------------------------------------------------
-def inferenceVariant = (project.findProperty('inference') ?: 'cpu').toString().toLowerCase()
-if (!(inferenceVariant in ['cpu', 'cuda'])) {
-	throw new GradleException("Unknown -Pinference=${inferenceVariant}; expected 'cpu' or 'cuda'")
-}
-def onnxArtifact = inferenceVariant == 'cuda' ? 'onnxruntime_gpu' : 'onnxruntime'
-
-version = "${project.mod_version}+${project.minecraft_version}" + (inferenceVariant == 'cpu' ? '' : "-${inferenceVariant}")
+version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
 base {
@@ -68,9 +56,10 @@ dependencies {
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
-	// Terrain Diffusion runs through ONNX Runtime. Bundled as a jar-in-jar.
-	implementation "com.microsoft.onnxruntime:${onnxArtifact}:${project.onnxruntime_version}"
-	include "com.microsoft.onnxruntime:${onnxArtifact}:${project.onnxruntime_version}"
+	// Terrain Diffusion runs through ONNX Runtime. The CPU build is bundled as a jar-in-jar; GPU builds are
+	// downloaded at runtime by the resource manager (see docs/RUNTIMES.md and runtime-manifest.json).
+	implementation "com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}"
+	include "com.microsoft.onnxruntime:onnxruntime:${project.onnxruntime_version}"
 
 	testImplementation platform("org.junit:junit-bom:${project.junit_version}")
 	testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -88,6 +77,9 @@ test {
 	if (!project.hasProperty('withModels')) {
 		useJUnitPlatform { excludeTags 'models' }
 	}
+	// Forward -Pdiffusicraft.* and -Ponnxruntime.* (e.g. diffusicraft.modelDir, diffusicraft.device) to the tests.
+	systemProperties project.properties.findAll { k, v -> k.startsWith('diffusicraft.') || k.startsWith('onnxruntime.') }
+	testLogging.showStandardStreams = project.hasProperty('withModels')
 	testLogging {
 		events 'failed', 'skipped'
 		exceptionFormat 'full'
@@ -99,7 +91,6 @@ processResources {
 		version          : project.version,
 		minecraft_version: project.minecraft_version,
 		loader_version   : project.loader_version,
-		inference_variant: inferenceVariant,
 	]
 	inputs.properties props
 

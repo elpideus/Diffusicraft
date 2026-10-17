@@ -1,0 +1,439 @@
+{
+	"schema": 1,
+	"runtimes": [
+		{
+			"id": "cuda",
+			"name": "NVIDIA CUDA",
+			"vendor": "NVIDIA",
+			"device": "CUDA",
+			"description": "Runs Terrain Diffusion on NVIDIA GPUs from the GeForce 16 and RTX 20 series (Turing) onwards. Needs NVIDIA driver 580 or newer.",
+			"components": [
+				{
+					"id": "onnxruntime-1.31.0-cuda13",
+					"name": "ONNX Runtime 1.31.0 (CUDA 13)",
+					"role": "onnxruntime",
+					"license": "MIT",
+					"license_url": "https://github.com/microsoft/onnxruntime/blob/v1.31.0/LICENSE",
+					"archives": {
+						"linux-x64": [
+							{
+								"url": "https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime_gpu/1.31.0/onnxruntime_gpu-1.31.0.jar",
+								"size": 403425544,
+								"sha256": "299d9a25e2612d130de63802e0883b7062dc967285cabadc4ca46e86de7498f2",
+								"files": [
+									{
+										"entry": "ai/onnxruntime/native/linux-x64/libonnxruntime.so",
+										"name": "libonnxruntime.so",
+										"size": 33076832,
+										"packed": 12275938,
+										"sha256": "7a7a2cfec3da75774dd8116e6a31fe466b46f5f6901e3fa87350d9391a840bfa"
+									},
+									{
+										"entry": "ai/onnxruntime/native/linux-x64/libonnxruntime4j_jni.so",
+										"name": "libonnxruntime4j_jni.so",
+										"size": 96544,
+										"packed": 29799,
+										"sha256": "f76a908c67996c3c5a599c93ffd935586377f6389c83e0923f4c1a864655cc44"
+									},
+									{
+										"entry": "ai/onnxruntime/native/linux-x64/libonnxruntime_providers_shared.so",
+										"name": "libonnxruntime_providers_shared.so",
+										"size": 14632,
+										"packed": 1623,
+										"sha256": "c6a12593396095f5670160e284c35d1700b7708cf3037b7042e2a5200ccae772"
+									},
+									{
+										"entry": "ai/onnxruntime/native/linux-x64/libonnxruntime_providers_cuda.so",
+										"name": "libonnxruntime_providers_cuda.so",
+										"size": 284437160,
+										"packed": 231043741,
+										"sha256": "0bc5fde331dae7844992787754b6515cc4cfd5e9d3e7331c9c1e37e09bdc1043"
+									}
+								]
+							}
+						],
+						"win-x64": [
+							{
+								"url": "https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime_gpu/1.31.0/onnxruntime_gpu-1.31.0.jar",
+								"size": 403425544,
+								"sha256": "299d9a25e2612d130de63802e0883b7062dc967285cabadc4ca46e86de7498f2",
+								"files": [
+									{
+										"entry": "ai/onnxruntime/native/win-x64/onnxruntime.dll",
+										"name": "onnxruntime.dll",
+										"size": 17719608,
+										"packed": 6200954,
+										"sha256": "803f8a910dfe88527f0ac6d391f9e30535843fa632e5e3a1644229215641fb3f"
+									},
+									{
+										"entry": "ai/onnxruntime/native/win-x64/onnxruntime4j_jni.dll",
+										"name": "onnxruntime4j_jni.dll",
+										"size": 100152,
+										"packed": 40415,
+										"sha256": "84a47525ffea3f9fc7bee68e2cce9e1154e79a6ae6b22a72c8b702f443dc92f1"
+									},
+									{
+										"entry": "ai/onnxruntime/native/win-x64/onnxruntime_providers_shared.dll",
+										"name": "onnxruntime_providers_shared.dll",
+										"size": 21816,
+										"packed": 12344,
+										"sha256": "3de94f50b6de9cb84dc8a3f3ec3da1d34001126c84c20cdb0bc7c432106a876e"
+									},
+									{
+										"entry": "ai/onnxruntime/native/win-x64/onnxruntime_providers_cuda.dll",
+										"name": "onnxruntime_providers_cuda.dll",
+										"size": 196824888,
+										"packed": 152856979,
+										"sha256": "d3a8aeda8cb33b4c3add3397ae0b86931d6a931e290975d56d8f657b8f9ff99a"
+									}
+								]
+							}
+						]
+					}
+				},
+				{
+					"id": "cuda-13.4",
+					"name": "NVIDIA CUDA 13 runtime, cuBLAS, cuRAND, NVRTC",
+					"role": "libraries",
+					"license": "NVIDIA CUDA Toolkit EULA",
+					"license_url": "https://docs.nvidia.com/cuda/eula/index.html",
+					"system_libraries": {
+						"linux-x64": [
+							"libcudart.so.13",
+							"libcublasLt.so.13",
+							"libcublas.so.13",
+							"libcurand.so.10"
+						],
+						"win-x64": [
+							"cudart64_13.dll",
+							"cublasLt64_13.dll",
+							"cublas64_13.dll",
+							"curand64_10.dll"
+						]
+					},
+					"archives": {
+						"linux-x64": [
+							{
+								"url": "https://files.pythonhosted.org/packages/98/8a/3431271f6344874b8f1ac03f16b3d679c91493f8da63f716160403e6d0a0/nvidia_cuda_runtime-13.4.92-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+								"size": 2494438,
+								"sha256": "9641f797da20ce1dd8e779b6e96d08cf9ba564cec8e8225458811ee26423f3a5",
+								"files": [
+									{
+										"entry": "nvidia/cu13/lib/libcudart.so.13",
+										"name": "libcudart.so.13",
+										"size": 798496,
+										"packed": 232408,
+										"sha256": "7fb00519a24512bf677b59e87921e5c05aac8246ceb6a57435c0d9dfeef364f6"
+									}
+								]
+							},
+							{
+								"url": "https://files.pythonhosted.org/packages/7a/38/bdd540bf511d2c9b6f9efc71a81c60cb88e295be0b9312b61d19bbed2212/nvidia_cublas-13.8.0.4-py3-none-manylinux_2_27_x86_64.whl",
+								"size": 439317144,
+								"sha256": "9f17797dfcc048694461f4e47de17d2e3c25adf172ef723d2db0a07cd8744b89",
+								"files": [
+									{
+										"entry": "nvidia/cu13/lib/libcublasLt.so.13",
+										"name": "libcublasLt.so.13",
+										"size": 545528240,
+										"packed": 387772377,
+										"sha256": "a1821093b6b29ff871a07532071f3eaf6996d549d54f53235763abc12b8ad19f"
+									},
+									{
+										"entry": "nvidia/cu13/lib/libcublas.so.13",
+										"name": "libcublas.so.13",
+										"size": 57594520,
+										"packed": 51263841,
+										"sha256": "59dd485de6657bc8e1ff5f0f73de74c15f5a3e4648747e2288e342da1f60866c"
+									}
+								]
+							},
+							{
+								"url": "https://files.pythonhosted.org/packages/07/73/3ee8e5b4cb891401e603ffd3a59b35c6afe785fd2de123afe7c7029603dc/nvidia_curand-10.4.4.72-py3-none-manylinux_2_27_x86_64.whl",
+								"size": 61498332,
+								"sha256": "25c3457ae7a224fdd484dab90b0fc5dc0e842fab5db3012afa4a5bd2af4eb7e5",
+								"files": [
+									{
+										"entry": "nvidia/cu13/lib/libcurand.so.10",
+										"name": "libcurand.so.10",
+										"size": 126468312,
+										"packed": 60987434,
+										"sha256": "21bb4e5731e8bc3f1656b9c51f4a56ebcd27c3173e6ee80b82a2b3c0c8bd2473"
+									}
+								]
+							},
+							{
+								"url": "https://files.pythonhosted.org/packages/56/9c/1342ebb460ce2afd014ec5a002adc99108e3c53a6b70f399cf64dd1f267d/nvidia_cuda_nvrtc-13.4.92-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl",
+								"size": 53301733,
+								"sha256": "5ce8c97b00b232c4f50c8c4b5a3b68cafee08bdb82ea86f2052ff01d03194f4a",
+								"files": [
+									{
+										"entry": "nvidia/cu13/lib/libnvrtc-builtins.so.13.4",
+										"name": "libnvrtc-builtins.so.13.4",
+										"size": 7108552,
+										"packed": 3215632,
+										"sha256": "86414f3c350953a8a09de5eca9b9e8fe919d6289426c5ba9dbab365a3fe827d6"
+									},
+									{
+										"entry": "nvidia/cu13/lib/libnvrtc.so.13",
+										"name": "libnvrtc.so.13",
+										"size": 126425752,
+										"packed": 50056083,
+										"sha256": "d8f82e7019fe990bcd9efe4c5c444c036ddf2d5df95090d3965ae62be2009a2c"
+									}
+								]
+							}
+						],
+						"win-x64": [
+							{
+								"url": "https://files.pythonhosted.org/packages/86/00/d5436004268f049214193659ebc36550b5ef3925c3d13b4cc980e13be6f5/nvidia_cuda_runtime-13.4.92-py3-none-win_amd64.whl",
+								"size": 2778543,
+								"sha256": "08dca5e4aba480c2fd5b55075c0fa71b84ef9dcf0521f2d58baa14a803a7311c",
+								"files": [
+									{
+										"entry": "nvidia/cu13/bin/x86_64/cudart64_13.dll",
+										"name": "cudart64_13.dll",
+										"size": 551024,
+										"packed": 215509,
+										"sha256": "d26fd1c2629594759af569a5252f94e4568d4ebeca67dc323834deb141aa278a"
+									}
+								]
+							},
+							{
+								"url": "https://files.pythonhosted.org/packages/a3/df/f1246959833e2c437db8be3e5b477f66b87f8817821ed40de6c7561c9a36/nvidia_cublas-13.8.0.4-py3-none-win_amd64.whl",
+								"size": 423266897,
+								"sha256": "8c5494423bb8a46822cb6b0cb95d7fa4be2d7b96a31155dff083839ec8297910",
+								"files": [
+									{
+										"entry": "nvidia/cu13/bin/x86_64/cublasLt64_13.dll",
+										"name": "cublasLt64_13.dll",
+										"size": 493474416,
+										"packed": 372350161,
+										"sha256": "cad63434448e7141629e240ea093ad596a7ef6a0f67b468ba9bc1df6e1eeee33"
+									},
+									{
+										"entry": "nvidia/cu13/bin/x86_64/cublas64_13.dll",
+										"name": "cublas64_13.dll",
+										"size": 54873200,
+										"packed": 50740237,
+										"sha256": "60bbba8868290311e9c1657b2193ddec667744eb555ff843f87acb7c039f9efa"
+									}
+								]
+							},
+							{
+								"url": "https://files.pythonhosted.org/packages/e2/d4/f59ab342b82ff05ff27d674acd470ba625d788bf71338f7da6c89669d6b9/nvidia_curand-10.4.4.72-py3-none-win_amd64.whl",
+								"size": 56731059,
+								"sha256": "e0bce83e083ef25976ee74f59e8f067c15149a74538f1be6c2462e286e7c9c68",
+								"files": [
+									{
+										"entry": "nvidia/cu13/bin/x86_64/curand64_10.dll",
+										"name": "curand64_10.dll",
+										"size": 60045424,
+										"packed": 56218147,
+										"sha256": "2ae1d341cd7da1dab91e2215c62f627e0e0288ff54cdc9003e908746584b5b2b"
+									}
+								]
+							},
+							{
+								"url": "https://files.pythonhosted.org/packages/64/5b/aa91896f64444eff1dd7f189f4db05046c7f0ba08c0f531283c1c1aac581/nvidia_cuda_nvrtc-13.4.92-py3-none-win_amd64.whl",
+								"size": 46972283,
+								"sha256": "6af7ac5372920f6a7a560d0699348560fe44cb52c1d722d6afd3119f8af948c4",
+								"files": [
+									{
+										"entry": "nvidia/cu13/bin/x86_64/nvrtc-builtins64_134.dll",
+										"name": "nvrtc-builtins64_134.dll",
+										"size": 7243376,
+										"packed": 3303137,
+										"sha256": "73768e90526e8a43d5eb356f0ffad198468e8c15e95d45a84c6c4b12fb9aa02f"
+									},
+									{
+										"entry": "nvidia/cu13/bin/x86_64/nvrtc64_130_0.dll",
+										"name": "nvrtc64_130_0.dll",
+										"size": 106038896,
+										"packed": 43639054,
+										"sha256": "c92027e5eae58b6f272cafb438bf59b55deb02bd326b183956e84e0a180dbd14"
+									}
+								]
+							}
+						]
+					}
+				},
+				{
+					"id": "cudnn-9.27.0-cuda13",
+					"name": "NVIDIA cuDNN 9.27",
+					"role": "libraries",
+					"license": "NVIDIA cuDNN Software License Agreement",
+					"license_url": "https://docs.nvidia.com/deeplearning/cudnn/backend/latest/reference/eula.html",
+					"system_libraries": {
+						"linux-x64": [
+							"libcudnn.so.9",
+							"libcudnn_graph.so.9",
+							"libcudnn_ops.so.9",
+							"libcudnn_cnn.so.9"
+						],
+						"win-x64": [
+							"cudnn64_9.dll",
+							"cudnn_graph64_9.dll",
+							"cudnn_ops64_9.dll",
+							"cudnn_cnn64_9.dll"
+						]
+					},
+					"archives": {
+						"linux-x64": [
+							{
+								"url": "https://files.pythonhosted.org/packages/af/75/96ea5c5368eb595c39d629cde08a66227a864e71ccb0e593add2612bb952/nvidia_cudnn_cu13-9.27.0.42-py3-none-manylinux_2_27_x86_64.whl",
+								"size": 536771498,
+								"sha256": "9677e76f21862eb5da7ee5ed69d544738b2d8b5c3ce7e5ec125c5592e6cdbdc8",
+								"files": [
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn_graph.so.9",
+										"name": "libcudnn_graph.so.9",
+										"size": 134437112,
+										"packed": 53159968,
+										"sha256": "67df1f319154780e3ac7ef606d838c142b96f9c1b77e0ec95d7a5139d16e2800"
+									},
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn_engines_precompiled.so.9",
+										"name": "libcudnn_engines_precompiled.so.9",
+										"size": 272654912,
+										"packed": 210780227,
+										"sha256": "0edc16383897f60dd4466776d2421d5351e023fd2950ac62bf5cf68ee399f42b"
+									},
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn_engines_runtime_compiled.so.9",
+										"name": "libcudnn_engines_runtime_compiled.so.9",
+										"size": 44075680,
+										"packed": 20954274,
+										"sha256": "334022cd6b47115ced9e3a289963d204705abfccefec052fd85234cb1d0e6355"
+									},
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn_engines_tensor_ir.so.9",
+										"name": "libcudnn_engines_tensor_ir.so.9",
+										"size": 216026256,
+										"packed": 75889694,
+										"sha256": "4b47408d368863e5f37aeb019d8a05224213cf74335ce3ca6a8ba11d39ce70b3"
+									},
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn_heuristic.so.9",
+										"name": "libcudnn_heuristic.so.9",
+										"size": 96473904,
+										"packed": 34531264,
+										"sha256": "a24474ae86db461aa5ab7cc2470fb9b88e09449d8bd6a8bba5d26eff20db2e29"
+									},
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn_ops.so.9",
+										"name": "libcudnn_ops.so.9",
+										"size": 39855912,
+										"packed": 35611912,
+										"sha256": "d301a6ffb44b5d8cf04f67f3b49037e1a31801a5365892b03b74f171deba19e2"
+									},
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn_cnn.so.9",
+										"name": "libcudnn_cnn.so.9",
+										"size": 4203992,
+										"packed": 1439292,
+										"sha256": "4ca0f1d4fbb79f3a428cf4c56b98001c3e02ee254793366a9b4dee6bd6688f38"
+									},
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn_ext.so.9",
+										"name": "libcudnn_ext.so.9",
+										"size": 8402008,
+										"packed": 3907309,
+										"sha256": "baa699ebf17baa1bdb9c1720c373329a9caaab35d1050148d427186e1c7a7a00"
+									},
+									{
+										"entry": "nvidia/cudnn/lib/libcudnn.so.9",
+										"name": "libcudnn.so.9",
+										"size": 133336,
+										"packed": 43087,
+										"sha256": "4c3ccb552ee0c43aacca7498e12914fbda31be4fcb52cbdc1aaa87e78fb96e19"
+									}
+								]
+							}
+						],
+						"win-x64": [
+							{
+								"url": "https://files.pythonhosted.org/packages/87/6a/e55ff0ac26a5c6e2b21f41c9d04ad096b4ed6da593fba7e25845c61b0532/nvidia_cudnn_cu13-9.27.0.42-py3-none-win_amd64.whl",
+								"size": 436469905,
+								"sha256": "7d96f634adafd55c72231eb0500ca77ab109ec8ebff7b33000b76e081bc4558e",
+								"files": [
+									{
+										"entry": "nvidia/cudnn/bin/cudnn_graph64_9.dll",
+										"name": "cudnn_graph64_9.dll",
+										"size": 116132464,
+										"packed": 48000207,
+										"sha256": "ccc90435b2fd37b5ddd6a9fa0fd053ad8f46c2dc8b0a6256ef0ebea7f3efbace"
+									},
+									{
+										"entry": "nvidia/cudnn/bin/cudnn_engines_precompiled64_9.dll",
+										"name": "cudnn_engines_precompiled64_9.dll",
+										"size": 231660656,
+										"packed": 198094908,
+										"sha256": "5d9b829228ae18594dafedf718d9612606c8ce6d199aa7151bea53e863baeefe"
+									},
+									{
+										"entry": "nvidia/cudnn/bin/cudnn_engines_runtime_compiled64_9.dll",
+										"name": "cudnn_engines_runtime_compiled64_9.dll",
+										"size": 39266928,
+										"packed": 18924122,
+										"sha256": "8e65eeb0a4a3b7afa48ea3ca71c4b88e355199f85485b6fc0badcc97ebc552ef"
+									},
+									{
+										"entry": "nvidia/cudnn/bin/cudnn_engines_tensor_ir64_9.dll",
+										"name": "cudnn_engines_tensor_ir64_9.dll",
+										"size": 156272,
+										"packed": 70044,
+										"sha256": "51afb44ce4b901ccdac1434f9fc9d8d707b690f39ae1e2a6ffca98c5fd9dfa96"
+									},
+									{
+										"entry": "nvidia/cudnn/bin/cudnn_heuristic64_9.dll",
+										"name": "cudnn_heuristic64_9.dll",
+										"size": 94795376,
+										"packed": 34324022,
+										"sha256": "c0439ee74a3dbec8ecf56fecbc6ac2506efcce702453e36119649545d02509c3"
+									},
+									{
+										"entry": "nvidia/cudnn/bin/cudnn_ops64_9.dll",
+										"name": "cudnn_ops64_9.dll",
+										"size": 37462128,
+										"packed": 35208630,
+										"sha256": "2bd7f4122eaeccb85538c2a6f7923d7254ad77d7b7149fed0a8139f1e3cf0b07"
+									},
+									{
+										"entry": "nvidia/cudnn/bin/cudnn_cnn64_9.dll",
+										"name": "cudnn_cnn64_9.dll",
+										"size": 1533040,
+										"packed": 1155789,
+										"sha256": "7dd1bcc6d8f00ad635f6a8a2cd076faba21626f3412e13c61a6bece3f88eacb1"
+									},
+									{
+										"entry": "nvidia/cudnn/bin/cudnn_ext64_9.dll",
+										"name": "cudnn_ext64_9.dll",
+										"size": 130160,
+										"packed": 63256,
+										"sha256": "a0e0e2e8e8e4678956bbef93fdccc4730bd5edf9b23d38bff49030ebba1940a6"
+									},
+									{
+										"entry": "nvidia/cudnn/bin/cudnn64_9.dll",
+										"name": "cudnn64_9.dll",
+										"size": 270448,
+										"packed": 121298,
+										"sha256": "0016bd73ac9192537ae5af6a3f05814316726dad1d1da44f113f0a9ef00ae34c"
+									}
+								]
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"id": "rocm",
+			"name": "AMD ROCm (experimental)",
+			"vendor": "AMD",
+			"device": "ROCM",
+			"description": "Runs Terrain Diffusion on AMD Radeon/Instinct GPUs with ROCm on Linux. Needs a ROCm build of ONNX Runtime 1.31 for Java; see docs/RUNTIMES.md.",
+			"components": []
+		}
+	]
+}
