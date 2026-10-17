@@ -2,7 +2,10 @@
 	"required": true,
 	"package": "io.github.elpideus.diffusicraft.client.mixin",
 	"compatibilityLevel": "JAVA_25",
-	"client": [],
+	"client": [
+		"CreateWorldScreenMoreTabMixin",
+		"GuiMixin"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	}

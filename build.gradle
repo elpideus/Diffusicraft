@@ -65,6 +65,9 @@ dependencies {
 	testImplementation 'org.junit.jupiter:junit-jupiter'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+	// Optional integration: the config screen button in Mod Menu. Compile-only; Mod Menu is not required.
+	clientCompileOnly "maven.modrinth:modmenu:${project.modmenu_version}"
+
 	// Dev-runtime mods (client run only). See gradle/dev-mods.gradle.
 }
 
