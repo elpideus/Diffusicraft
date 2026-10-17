@@ -1,9 +1,37 @@
 # Diffusicraft
 
 Next-generation world generation for Minecraft (Fabric, 26.3+), driven by
-[Terrain Diffusion](https://github.com/xandergos/terrain-diffusion): a diffusion
-model trained on real-world elevation and climate data. The goal is a world
-that feels like Skyrim or The Witcher, but grounded in real geography, climate
-and geology.
+[Terrain Diffusion](https://github.com/xandergos/terrain-diffusion), a diffusion model trained on real-world
+elevation and climate data. The goal is a world that feels like Skyrim or The Witcher, but is grounded in real
+geography, climate and geology.
 
-> Status: early development. See [docs/](docs/) for the design.
+> **Status: early development.** The terrain pipeline, the GPU runtimes and the resource manager work. The world
+> generator that turns them into blocks is next. See the [roadmap](docs/ROADMAP.md).
+
+## What works today
+
+- **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m
+  per pixel. It is thread-safe for parallel chunk generation and cached in memory and on disk.
+- **CPU, NVIDIA and AMD.**
+  - The CPU build is bundled.
+  - The NVIDIA CUDA runtime is a one-click download from official sources. It is about 6× faster than the CPU.
+  - AMD ROCm (MIGraphX) is experimental, with your own ONNX Runtime build.
+- **A resource screen.** It opens at first launch, and later from Create World > More or Mod Menu. It downloads the
+  models (2.3 GB) and the GPU runtime in the background. Before anything downloads, it shows the licenses to accept.
+  It also caps GPU memory so shaders keep theirs.
+
+## Requirements
+
+- Minecraft 26.3, Fabric Loader 0.19.5+, Fabric API, Java 25.
+- About 2.3 GB of disk space for the models. The CUDA runtime adds 1.1–2 GB, shared by every instance.
+- For NVIDIA: a GeForce 16 / RTX 20 series GPU or newer, with driver 580+.
+
+## Documentation
+
+Everything is in [docs/](docs/README.md): runtimes, configuration, models, architecture, development and performance.
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT. Terrain Diffusion and its weights are MIT-licensed by Alexander Goslin. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for everything else.

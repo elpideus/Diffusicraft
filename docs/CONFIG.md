@@ -1,0 +1,106 @@
+# Configuration
+
+Diffusicraft keeps its settings in `config/diffusicraft.json` inside the game directory. Most settings can be changed
+in the resource screen (Create World > *More* > *Diffusicraft Resources...*, or through Mod Menu), which saves the
+file for you. If you edit the file by hand, do it while the game is closed.
+
+```json
+{
+  "device": "AUTO",
+  "gpuIndex": 0,
+  "gpuMemoryLimitMb": 0,
+  "cpuThreads": 0,
+  "showSetupScreen": true,
+  "useSystemLibraries": true,
+  "storagePath": "",
+  "rocmNativePath": ""
+}
+```
+
+Missing fields take the defaults above. Invalid values are clamped.
+
+## Fields
+
+### `device`
+
+Which hardware generates terrain. In the resource screen this is *Device*.
+
+| Value | Meaning |
+|---|---|
+| `AUTO` | The installed GPU runtime if there is one (CUDA, then ROCm), otherwise the CPU |
+| `CPU` | Always the CPU, even when a GPU runtime is installed |
+| `CUDA` | NVIDIA CUDA |
+| `ROCM` | AMD ROCm/MIGraphX |
+
+If the chosen device fails to start, the models load on the CPU and the log says why. A change takes effect after a
+restart, because ONNX Runtime loads its native library once per process. See [RUNTIMES.md](RUNTIMES.md).
+
+### `gpuIndex`
+
+Which GPU to use on a machine with several, counting from 0.
+
+### `gpuMemoryLimitMb`
+
+A cap on the memory ONNX Runtime may claim on the GPU, so the game, Distant Horizons and shader packs keep theirs.
+In the resource screen this is *GPU memory*.
+
+| Value | Meaning |
+|---|---|
+| `0` | Automatic: 60% of the GPU's memory, at least 2 GB (7.2 GB on a 12 GB card) |
+| `-1` | No cap |
+| any other number | The cap in MiB |
+
+It applies to CUDA. The MIGraphX provider takes no cap.
+
+### `cpuThreads`
+
+Threads per inference run on the CPU. `0` uses every physical core. Lower it to keep cores free for the game while
+terrain generates.
+
+### `showSetupScreen`
+
+Whether the resource screen opens at launch while the models are missing, or while an NVIDIA GPU has no runtime
+installed. In the resource screen this is *Show at startup*.
+
+### `useSystemLibraries`
+
+Reuse a CUDA toolkit and cuDNN already installed on the system instead of downloading them. Read at startup.
+
+### `storagePath`
+
+Where models and runtimes are stored. Read at startup. By default it is a per-user directory that every Minecraft
+instance and launcher shares, so the 2.3 GB of models and the GPU runtime are downloaded once:
+
+| OS | Default |
+|---|---|
+| Windows | `%LOCALAPPDATA%\Diffusicraft` |
+| macOS | `~/Library/Application Support/Diffusicraft` |
+| Linux | `$XDG_DATA_HOME/diffusicraft` (usually `~/.local/share/diffusicraft`) |
+
+If the default directory cannot be written, `diffusicraft/` in the game directory is used instead. A relative
+`storagePath` is resolved against the game directory. Inside the storage directory:
+
+```text
+models/<revision>/          Terrain Diffusion files (see MODELS.md)
+runtimes/<platform>/<id>/   GPU runtime components, e.g. runtimes/linux-x64/cudnn-9.27.0-cuda13
+runtimes/<platform>/rocm/   where a user-provided ROCm build goes
+.lock                       held while an instance downloads; other instances wait
+```
+
+You can delete the directory at any time. The resource screen downloads what is missing again.
+
+### `rocmNativePath`
+
+The folder containing a ROCm build of ONNX Runtime. If empty, `runtimes/<platform>/rocm` inside the storage directory
+is used. Read at startup. See [RUNTIMES.md](RUNTIMES.md#amd-rocm).
+
+## Dedicated servers
+
+Servers have no resource screen. At start they:
+
+1. Download the models if they are missing (progress goes to the log).
+2. Download the CUDA runtime only when `device` is `CUDA`. With `AUTO` on a machine with an NVIDIA GPU, they log how
+   to enable it.
+
+The same storage rules apply. On a server, consider setting `storagePath` to a directory next to the server, so
+that it does not depend on the service user's home directory.

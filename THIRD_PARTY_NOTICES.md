@@ -24,3 +24,8 @@ Team, licensed under the Apache License, Version 2.0
 
 ## ONNX Runtime — MIT
 - https://github.com/microsoft/onnxruntime — Copyright (c) Microsoft Corporation
+
+## NVIDIA CUDA and cuDNN — NVIDIA license agreements (downloaded, not redistributed)
+The optional NVIDIA CUDA runtime is downloaded on the player's request from NVIDIA's own packages on PyPI, after the
+player accepts the NVIDIA CUDA Toolkit EULA and the NVIDIA cuDNN Software License Agreement in game. Diffusicraft does
+not include or redistribute any NVIDIA software. See docs/RUNTIMES.md.
