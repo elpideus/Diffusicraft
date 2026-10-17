@@ -1,0 +1,141 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+// -----------------------------------------------------------------------------
+// Inference variant
+//   ./gradlew build                     -> CPU build (works everywhere, CoreML on Apple Silicon)
+//   ./gradlew build -Pinference=cuda    -> NVIDIA CUDA build (needs CUDA + cuDNN on the system)
+// The variant only changes which ONNX Runtime artifact is bundled; the code is identical.
+// -----------------------------------------------------------------------------
+def inferenceVariant = (project.findProperty('inference') ?: 'cpu').toString().toLowerCase()
+if (!(inferenceVariant in ['cpu', 'cuda'])) {
+	throw new GradleException("Unknown -Pinference=${inferenceVariant}; expected 'cpu' or 'cuda'")
+}
+def onnxArtifact = inferenceVariant == 'cuda' ? 'onnxruntime_gpu' : 'onnxruntime'
+
+version = "${project.mod_version}+${project.minecraft_version}" + (inferenceVariant == 'cpu' ? '' : "-${inferenceVariant}")
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	// Modrinth maven: used for optional compat targets and the dev-runtime modpack (see docs/DEVELOPMENT.md).
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = 'Modrinth'
+				url = 'https://api.modrinth.com/maven'
+			}
+		}
+		filter {
+			includeGroup 'maven.modrinth'
+		}
+	}
+	mavenCentral()
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"diffusicraft" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+
+	runs {
+		configureEach {
+			ideConfigGenerated true
+			vmArgs '-Xmx6G'
+		}
+		client {
+			// Keep model downloads and worlds out of the source tree.
+			runDir 'run'
+		}
+		server {
+			runDir 'run-server'
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Terrain Diffusion runs through ONNX Runtime. Bundled as a jar-in-jar.
+	implementation "com.microsoft.onnxruntime:${onnxArtifact}:${project.onnxruntime_version}"
+	include "com.microsoft.onnxruntime:${onnxArtifact}:${project.onnxruntime_version}"
+
+	testImplementation platform("org.junit:junit-bom:${project.junit_version}")
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// Dev-runtime mods (client run only). See gradle/dev-mods.gradle.
+}
+
+apply from: 'gradle/dev-mods.gradle'
+
+test {
+	useJUnitPlatform()
+	maxHeapSize = '4G'
+	// Tests that need the real ONNX models are tagged "models" and skipped unless -PwithModels is set.
+	if (!project.hasProperty('withModels')) {
+		useJUnitPlatform { excludeTags 'models' }
+	}
+	testLogging {
+		events 'failed', 'skipped'
+		exceptionFormat 'full'
+	}
+}
+
+processResources {
+	def props = [
+		version          : project.version,
+		minecraft_version: project.minecraft_version,
+		loader_version   : project.loader_version,
+		inference_variant: inferenceVariant,
+	]
+	inputs.properties props
+
+	filesMatching("fabric.mod.json") {
+		expand props
+	}
+	filesMatching("diffusicraft-build.properties") {
+		expand props
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = 'UTF-8'
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName" }
+	}
+	from("THIRD_PARTY_NOTICES.md")
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+}

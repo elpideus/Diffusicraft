@@ -1,0 +1,23 @@
+// -----------------------------------------------------------------------------
+// Dev-runtime modpack
+//
+// Mods listed here are put on the *runtime* classpath of `./gradlew runClient` /
+// `runServer` only. They are never bundled into the Diffusicraft jar and never
+// become hard dependencies. Versions come from Modrinth's maven
+// (maven.modrinth:<slug>:<version-id-or-number>).
+//
+// Disable the whole set with -PnoDevMods (handy when a dev mod lags behind a
+// Minecraft update).
+// -----------------------------------------------------------------------------
+
+def devMods = [
+	// slug                 : version (Modrinth version number or id)
+]
+
+if (!project.hasProperty('noDevMods')) {
+	dependencies {
+		devMods.each { slug, ver ->
+			localRuntime "maven.modrinth:${slug}:${ver}"
+		}
+	}
+}

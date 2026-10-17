@@ -1,0 +1,9 @@
+{
+	"required": true,
+	"package": "io.github.elpideus.diffusicraft.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

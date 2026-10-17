@@ -1,0 +1,40 @@
+# gradle
+.gradle/
+build/
+out/
+classes/
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.settings/
+.vscode/
+bin/
+.classpath
+.project
+*.launch
+
+# OS
+*.DS_Store
+Thumbs.db
+
+# fabric dev runs (worlds, logs, downloaded models, dev mods)
+run/
+run-server/
+
+# model weights must never be committed (downloaded at runtime from Hugging Face)
+*.onnx
+*.onnx.data
+
+# python tooling
+.venv/
+__pycache__/
+*.pyc
+
+# java
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr

@@ -1,0 +1,53 @@
+{
+	"schemaVersion": 1,
+	"id": "diffusicraft",
+	"version": "${version}",
+	"name": "Diffusicraft",
+	"description": "Next-generation world generation driven by Terrain Diffusion: real-world-grounded terrain, climate-true biomes, layered geology and the Hollows.",
+	"authors": [
+		"elpideus"
+	],
+	"contributors": [],
+	"contact": {
+		"sources": "https://github.com/elpideus/Diffusicraft",
+		"issues": "https://github.com/elpideus/Diffusicraft/issues"
+	},
+	"license": "MIT",
+	"icon": "assets/diffusicraft/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"preLaunch": [
+			"io.github.elpideus.diffusicraft.DiffusicraftPreLaunch"
+		],
+		"main": [
+			"io.github.elpideus.diffusicraft.Diffusicraft"
+		],
+		"client": [
+			"io.github.elpideus.diffusicraft.client.DiffusicraftClient"
+		]
+	},
+	"mixins": [
+		"diffusicraft.mixins.json",
+		{
+			"config": "diffusicraft.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"distant-horizons-seedgen": "*",
+		"voxy-seedgen": "*"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.wiki": "https://github.com/elpideus/Diffusicraft/tree/main/docs"
+			}
+		}
+	}
+}
