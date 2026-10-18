@@ -12,7 +12,21 @@
 		"NoiseBasedChunkGeneratorMixin",
 		"NoiseGeneratorSettingsAccessor",
 		"RandomStateAccessor",
-		"RandomStateMixin"
+		"RandomStateMixin",
+		"height.BlockPosMixin",
+		"height.ClientboundLevelChunkPacketDataMixin",
+		"height.DimensionTypeMixin",
+		"height.EntityMixin",
+		"height.ForceLoadCommandMixin",
+		"height.FriendlyByteBufMixin",
+		"height.LevelChunkSectionMixin",
+		"height.LevelMixin",
+		"height.PalettedContainerMixin",
+		"height.SerializableChunkDataMixin",
+		"height.ServerGamePacketListenerImplMixin",
+		"height.SingleValuePaletteAccessor",
+		"height.StrategyMixin",
+		"height.WorldBorderMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

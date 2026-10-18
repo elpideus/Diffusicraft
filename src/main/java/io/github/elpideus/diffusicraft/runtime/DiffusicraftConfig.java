@@ -46,6 +46,11 @@ public final class DiffusicraftConfig {
 	 * Off: Distant Horizons generates chunks for its LODs, or uses another mod's generator. Needs a game restart.
 	 */
 	public boolean distantHorizonsLods = true;
+	/**
+	 * Section rows above and below the camera that the client keeps render data for. 0 uses the render distance, which
+	 * is as far as vanilla draws vertically; smaller values save memory in tall dimensions. Read at startup.
+	 */
+	public int verticalRenderDistance = 0;
 
 	public static DiffusicraftConfig load(Path file) {
 		if (Files.isRegularFile(file)) {
@@ -79,6 +84,7 @@ public final class DiffusicraftConfig {
 		gpuIndex = Math.max(0, gpuIndex);
 		gpuMemoryLimitMb = Math.max(-1, gpuMemoryLimitMb);
 		cpuThreads = Math.max(0, cpuThreads);
+		verticalRenderDistance = Math.max(0, verticalRenderDistance);
 		storagePath = storagePath == null ? "" : storagePath.strip();
 		rocmNativePath = rocmNativePath == null ? "" : rocmNativePath.strip();
 		return this;

@@ -58,17 +58,24 @@ turns them into blocks. The pieces planned add the details: erosion, soils and n
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
   (biome mods' own trees included), and the coarse map alone for the far horizon. See
   [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
+- **Build height up to 32,736 blocks.** Dimension types can be up to 32,736 blocks tall (Y −16,368 to 16,367);
+  vanilla stops at 4064. Positions are repacked, so worlds end at ±8,000,000 blocks. Blocks, light, heightmaps, the
+  network and saves work at both ends; a client game test covers them. See [HEIGHT.md](HEIGHT.md).
 
 ## Next
 
 ### Height beyond 4064 blocks
 
-Earth 1:1 compresses mountains above 1.2 km to fit 2288 blocks. Real 1:1 relief needs build heights beyond the
-limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs research into:
+The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#next-steps)):
 
-- raising the codec limits and the section storage behind them;
-- lighting and heightmaps at that scale;
-- compatibility with Sodium, Distant Horizons and Voxy, which make their own assumptions about world height.
+- **Earth 1:1 at full height.** It still compresses mountains above 1.2 km to fit 2288 blocks. Only the top needs to
+  move: with the underground and the oceans kept game-sized, real mountains fit from −256 to about 9,200, some 9,500
+  blocks.
+- **Memory and saves.** Empty sections cost about 80 bytes now instead of 450, and the client keeps render data for
+  the rows near the camera only. Still to do: share uniform sections as soon as world generation makes them, and skip
+  empty sections when saving.
+- **Compatibility.** Sodium, Distant Horizons and Voxy, which make their own assumptions about world height, and a
+  dedicated server over a real network.
 
 ### Terrain detail
 

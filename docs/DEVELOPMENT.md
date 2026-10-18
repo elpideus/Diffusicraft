@@ -63,7 +63,7 @@ The fast tests need no downloads. Tests tagged `models` need the real models or 
 
 ### Client game tests
 
-Both tests start the real game and save screenshots to `build/run/clientGameTest/screenshots/`.
+The tests start the real game and save screenshots to `build/run/clientGameTest/screenshots/`.
 
 - [`ResourceScreensGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ResourceScreensGameTest.java)
   goes through the launch screen, Create World > More and the resource screen, and opens and cancels an install.
@@ -77,6 +77,9 @@ Both tests start the real game and save screenshots to `build/run/clientGameTest
   generates on the CPU, so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to use the GPU. Each view waits until
   the chunks the server sends are rendered: Fabric's own wait expects a square of chunks, but the server sends a
   circle, so above a render distance of 6 it never returns.
+- [`TallDimensionGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TallDimensionGameTest.java)
+  plays in a 32,736-block dimension: blocks, light and heightmaps at both ends, the network in both directions, a
+  column full of blocks, and saving. It logs memory and save times. See [HEIGHT.md](HEIGHT.md#tests).
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods
@@ -130,7 +133,8 @@ that explains why.
    `modmenu_version` and `distanthorizons_version`.
 2. Check that the mixin targets still exist:
    - `Gui.addInitialScreens(List<Function<Runnable, Screen>>)`;
-   - the constructor of `CreateWorldScreen$MoreTab` and its local `GridLayout.RowHelper`.
+   - the constructor of `CreateWorldScreen$MoreTab` and its local `GridLayout.RowHelper`;
+   - the height mixins in [HEIGHT.md](HEIGHT.md#mixin-targets).
 3. Run `./gradlew build` and the client game test, and look at the screenshots.
 4. Update the dev modpack, or run with `-PnoDevMods` until the mods catch up.
 
