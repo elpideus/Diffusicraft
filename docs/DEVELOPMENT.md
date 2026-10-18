@@ -71,12 +71,12 @@ Both tests start the real game and save screenshots to `build/run/clientGameTest
 - [`WorldGenerationGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WorldGenerationGameTest.java)
   creates a world with the default settings and checks that it is a Diffusicraft world. It saves a biome map, a height
   map, three views around the spawn and views of the tallest Grand Hollow and a lava sea nearby. It checks the LODs
-  that Distant Horizons draws against the chunks generated at the spawn, ground and tree crowns, checks that far LODs
-  run no terrain inference and saves maps of them (`diffusicraft-lod-near.png`, `diffusicraft-lod-far.png`). It needs
-  the models, and skips itself without them. It generates on the CPU, so the GPU stays free; add
-  `-Pdiffusicraft.device=CUDA` to use the GPU. Each view waits until the chunks the server sends are rendered:
-  Fabric's own wait expects a square of chunks, but the server sends a circle, so above a render distance of 6 it
-  never returns.
+  that Distant Horizons draws against the chunks generated at the spawn, ground and tree crowns, logs how much of each
+  biome's LOD is under crowns, checks that far LODs run no terrain inference and saves maps of them
+  (`diffusicraft-lod-near.png`, `diffusicraft-lod-far.png`). It needs the models, and skips itself without them. It
+  generates on the CPU, so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to use the GPU. Each view waits until
+  the chunks the server sends are rendered: Fabric's own wait expects a square of chunks, but the server sends a
+  circle, so above a render distance of 6 it never returns.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods

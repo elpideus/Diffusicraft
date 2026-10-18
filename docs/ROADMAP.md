@@ -53,8 +53,8 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
   that grow with the discharge, banks, beds and river biomes. Shallow seas hold water, and coastal lowland keeps its
   cave entrances and ravines closed so they do not flood into canals. See [WORLDGEN.md](WORLDGEN.md#rivers).
 - **Distant Horizons.** Its far terrain comes straight from the terrain, without generating chunks: surface blocks
-  from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees, and
-  the coarse map alone for the far horizon. See
+  from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
+  (biome mods' own trees included), and the coarse map alone for the far horizon. See
   [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
 
 ## Next

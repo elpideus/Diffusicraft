@@ -3,6 +3,7 @@ package io.github.elpideus.diffusicraft.worldgen.lod;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.random.Weighted;
 import net.minecraft.util.valueproviders.IntProvider;
@@ -10,6 +11,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -40,7 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,8 +60,9 @@ import java.util.function.Predicate;
  * <p>The shapes come from each tree's own trunk and foliage placers, run many times on an empty stand-in for the
  * world, which records the logs and leaves they place: a crown is the highest and lowest leaf of each column around
  * the trunk. A tree whose placers need more of the world than the stand-in gives is drawn as a disc as wide as its
- * foliage radius instead. Trees that are not {@link TreeFeature}s, such as those some biome mods place with features
- * of their own, are not seen.
+ * foliage radius instead. Biome mods often grow trees with features of their own rather than {@link TreeFeature}s:
+ * those are placed whole on the stand-in, standing on grass, and the ones that place leaves are trees, of their most
+ * common leaves and logs. A mod's feature that fails on the stand-in is not drawn.
  *
  * <p>The trunks are scattered at random, as the world scatters them: each square cell of a grid holds a number of
  * trees drawn from the Poisson distribution of the biome's density, each somewhere in its cell. Spread more evenly,
@@ -265,7 +268,8 @@ final class TreeCover {
 			return NONE;
 		}
 		RandomSource random = RandomSource.create(0x7EE5L);
-		Map<TreeFeature, Double> counts = new IdentityHashMap<>();
+		// In the order of the biome's features, so that each session draws the same trees.
+		Map<Feature, Double> counts = new LinkedHashMap<>();
 		for (Holder<PlacedFeature> placed : steps.get(step)) {
 			try {
 				collect(placed.value(), 1, counts, random, 0);
@@ -278,8 +282,11 @@ final class TreeCover {
 		double[] shares = new double[counts.size()];
 		double total = 0;
 		int reach = 0;
-		for (Map.Entry<TreeFeature, Double> entry : counts.entrySet()) {
+		for (Map.Entry<Feature, Double> entry : counts.entrySet()) {
 			Kind kind = kind(entry.getKey(), random);
+			if (kind == null) {
+				continue;
+			}
 			total += entry.getValue();
 			shares[kinds.size()] = total;
 			kinds.add(kind);
@@ -304,11 +311,11 @@ final class TreeCover {
 		}
 		LOGGER.debug("{}: {} trees per chunk of {} kinds, one to a cell of {} blocks", biome.getRegisteredName(),
 			total, kinds.size(), cell);
-		return new TreeCover(kinds.toArray(Kind[]::new), shares, cell, perCell, reach);
+		return new TreeCover(kinds.toArray(Kind[]::new), Arrays.copyOf(shares, kinds.size()), cell, perCell, reach);
 	}
 
 	/** Adds the expected number per chunk of each tree that {@code placed} grows, times {@code weight}. */
-	private static void collect(PlacedFeature placed, double weight, Map<TreeFeature, Double> counts,
+	private static void collect(PlacedFeature placed, double weight, Map<Feature, Double> counts,
 								RandomSource random, int depth) {
 		double number = weight * expectedCount(placed.placement(), random);
 		if (number > 0 && depth < MAX_DEPTH) {
@@ -317,7 +324,7 @@ final class TreeCover {
 	}
 
 	@SuppressWarnings("deprecation") // RandomSelectorFeature still takes WeightedPlacedFeatures.
-	private static void collect(Feature feature, double weight, Map<TreeFeature, Double> counts, RandomSource random,
+	private static void collect(Feature feature, double weight, Map<Feature, Double> counts, RandomSource random,
 								int depth) {
 		switch (feature) {
 			case TreeFeature tree -> counts.merge(tree, weight, Double::sum);
@@ -348,12 +355,16 @@ final class TreeCover {
 			case OverlayFeature(HolderSet<PlacedFeature> features) ->
 				features.forEach(option -> collect(option.value(), weight, counts, random, depth));
 			default -> {
-				// Another mod's feature: its trees, if it names any, share it with whatever else it may place.
+				// Another feature: its trees, if it names any, share it with whatever else it may place. A mod's own
+				// feature that names none may grow trees itself, which kind() finds out.
 				List<Holder<Feature>> inner = feature.getSubFeatures().toList();
 				for (Holder<Feature> option : inner) {
 					if (option.value() instanceof TreeFeature tree) {
 						counts.merge(tree, weight / inner.size(), Double::sum);
 					}
+				}
+				if (inner.isEmpty() && !feature.getClass().getName().startsWith("net.minecraft.")) {
+					counts.merge(feature, weight, Double::sum);
 				}
 			}
 		}
@@ -391,6 +402,11 @@ final class TreeCover {
 		return sum / DRAWS;
 	}
 
+	/** Draws {@value #DRAWS} trees of a feature, or returns {@code null} if it grows none that can be drawn. */
+	private static @Nullable Kind kind(Feature feature, RandomSource random) {
+		return feature instanceof TreeFeature tree ? kind(tree, random) : placed(feature, random);
+	}
+
 	/** Draws {@value #DRAWS} trees of a kind: by its placers if they grow on the stand-in, as discs if not. */
 	private static Kind kind(TreeFeature tree, RandomSource random) {
 		BlockState leaves = state(tree.foliageProvider(), random, Blocks.OAK_LEAVES);
@@ -398,7 +414,7 @@ final class TreeCover {
 		Shape[] shapes = new Shape[DRAWS];
 		try {
 			for (int i = 0; i < DRAWS; i++) {
-				shapes[i] = new StandIn().grow(tree, random);
+				shapes[i] = new StandIn(StandIn.AIR).grow(tree, random);
 			}
 		} catch (RuntimeException e) {
 			LOGGER.debug("Could not grow {} on a stand-in; drawing discs", tree, e);
@@ -407,6 +423,42 @@ final class TreeCover {
 			}
 		}
 		return new Kind(leaves, trunk, shapes);
+	}
+
+	/**
+	 * Places another mod's feature {@value #DRAWS} times on the stand-in, standing on grass, and draws its trees if it
+	 * places leaves. A draw that places none, as a tree that fails now and then does, grows nothing. The leaves and logs
+	 * are those it places most.
+	 */
+	private static @Nullable Kind placed(Feature feature, RandomSource random) {
+		Shape[] shapes = new Shape[DRAWS];
+		Map<Block, Integer> leaves = new HashMap<>();
+		Map<Block, Integer> logs = new HashMap<>();
+		try {
+			for (int i = 0; i < DRAWS; i++) {
+				StandIn standIn = new StandIn(Blocks.GRASS_BLOCK.defaultBlockState());
+				shapes[i] = standIn.place(feature, random);
+				for (BlockState state : standIn.blocks.values()) {
+					if (state.getBlock() instanceof LeavesBlock) {
+						leaves.merge(state.getBlock(), 1, Integer::sum);
+					} else if (state.is(BlockTags.LOGS)) {
+						logs.merge(state.getBlock(), 1, Integer::sum);
+					}
+				}
+			}
+		} catch (RuntimeException e) {
+			LOGGER.debug("Could not place {} on a stand-in; its trees are not drawn", feature, e);
+			return null;
+		}
+		if (leaves.isEmpty()) {
+			return null;
+		}
+		return new Kind(most(leaves).defaultBlockState(),
+			logs.isEmpty() ? Blocks.OAK_LOG.defaultBlockState() : most(logs).defaultBlockState(), shapes);
+	}
+
+	private static Block most(Map<Block, Integer> counts) {
+		return counts.entrySet().stream().max(Map.Entry.comparingByValue()).orElseThrow().getKey();
 	}
 
 	/**
@@ -449,18 +501,27 @@ final class TreeCover {
 	}
 
 	/**
-	 * An empty world for a tree's placers to grow one tree in, which records what they place. It answers what the
-	 * placers ask of the world, which block is where and how high it reaches, and throws on anything else.
+	 * An empty world for a tree's placers, or a whole feature, to grow one tree in, which records what they place. It
+	 * answers what trees ask of the world, which block is where and how high it reaches, and throws on anything else.
+	 * Below the origin is {@code ground}, and air above.
 	 */
 	private static final class StandIn implements InvocationHandler, FoliagePlacer.FoliageSetter {
 		private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 		private static final int MIN_Y = -64;
 		private static final int HEIGHT = 512;
+		private static final Shape EMPTY = new Shape(0, new short[]{Shape.NO_LEAVES}, new short[]{Shape.NO_LEAVES},
+			new boolean[1]);
 
+		private final BlockState ground;
 		private final Map<BlockPos, BlockState> blocks = new HashMap<>();
 		private final Set<BlockPos> leaves = new HashSet<>();
 		private final WorldGenLevel level = (WorldGenLevel) Proxy.newProxyInstance(WorldGenLevel.class.getClassLoader(),
 			new Class<?>[]{WorldGenLevel.class}, this);
+		private @Nullable RandomSource random;
+
+		StandIn(BlockState ground) {
+			this.ground = ground;
+		}
 
 		/** Grows one tree with its trunk on the origin, as {@link TreeFeature} does, without its roots. */
 		Shape grow(TreeFeature tree, RandomSource random) {
@@ -472,10 +533,24 @@ final class TreeCover {
 			for (FoliagePlacer.FoliageAttachment attachment : attachments) {
 				tree.foliagePlacer().createFoliage(level, this, random, tree, height, attachment, foliage, radius);
 			}
-			return shape();
+			// Everything at the origin's height but the leaves is the trunk.
+			return shape(state -> true);
 		}
 
-		private Shape shape() {
+		/** Places a whole feature at the origin, on the ground, as the world places it on the highest block. */
+		Shape place(Feature feature, RandomSource random) {
+			this.random = random;
+			feature.place(level, null, random, BlockPos.ZERO);
+			blocks.forEach((pos, state) -> {
+				if (state.getBlock() instanceof LeavesBlock) {
+					leaves.add(pos);
+				}
+			});
+			return leaves.isEmpty() ? EMPTY : shape(state -> state.is(BlockTags.LOGS));
+		}
+
+		/** The crown of the leaves placed, with a trunk where {@code trunk} accepts a block at the origin's height. */
+		private Shape shape(Predicate<BlockState> trunk) {
 			int reach = 0;
 			for (BlockPos pos : leaves) {
 				reach = Math.max(reach, Math.max(Math.abs(pos.getX()), Math.abs(pos.getZ())));
@@ -486,7 +561,7 @@ final class TreeCover {
 			int side = 2 * reach + 1;
 			short[] low = new short[side * side];
 			short[] high = new short[side * side];
-			boolean[] trunk = new boolean[side * side];
+			boolean[] trunks = new boolean[side * side];
 			Arrays.fill(low, Shape.NO_LEAVES);
 			Arrays.fill(high, Shape.NO_LEAVES);
 			for (BlockPos pos : leaves) {
@@ -496,17 +571,19 @@ final class TreeCover {
 				low[k] = low[k] == Shape.NO_LEAVES ? y : (short) Math.min(low[k], y);
 				high[k] = high[k] == Shape.NO_LEAVES ? y : (short) Math.max(high[k], y);
 			}
-			for (BlockPos pos : blocks.keySet()) {
+			for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
+				BlockPos pos = entry.getKey();
 				if (pos.getY() == 0 && Math.abs(pos.getX()) <= reach && Math.abs(pos.getZ()) <= reach
-					&& !leaves.contains(pos)) {
-					trunk[(pos.getZ() + reach) * side + pos.getX() + reach] = true;
+					&& !leaves.contains(pos) && trunk.test(entry.getValue())) {
+					trunks[(pos.getZ() + reach) * side + pos.getX() + reach] = true;
 				}
 			}
-			return new Shape(reach, low, high, trunk);
+			return new Shape(reach, low, high, trunks);
 		}
 
 		private BlockState at(BlockPos pos) {
-			return blocks.getOrDefault(pos, AIR);
+			BlockState state = blocks.get(pos);
+			return state != null ? state : pos.getY() < 0 ? ground : AIR;
 		}
 
 		@Override
@@ -545,7 +622,28 @@ final class TreeCover {
 					if (arity == 0) {
 						return HEIGHT;
 					}
+					if (arity == 3) {
+						// The heightmaps of an empty world: the origin's height, on the ground.
+						return 0;
+					}
 					break;
+				case "getHeightmapPos":
+					BlockPos pos = (BlockPos) args[1];
+					return new BlockPos(pos.getX(), 0, pos.getZ());
+				case "getRandom":
+					if (random != null) {
+						return random;
+					}
+					break;
+				case "getBlockEntity":
+					// Decorations such as beehives look for theirs; the stand-in keeps none.
+					if (arity == 1) {
+						return null;
+					}
+					break;
+				case "scheduleTick":
+					// Leaves and vines ask for a tick as their shapes settle; nothing runs in the stand-in.
+					return null;
 				case "hashCode":
 					return System.identityHashCode(proxy);
 				case "equals":

@@ -89,6 +89,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	/** Columns per side of the LOD grids, and blocks between their columns near and far. */
 	private static final int LOD_WIDTH = 64;
 	private static final int LOD_NEAR_STEP = 8;
+	/** Spacing of the LOD columns whose tree crowns are counted by biome, which spans several biomes. */
+	private static final int LOD_CANOPY_STEP = 16;
 	private static final int LOD_FAR_STEP = 256;
 	/** How far the share of the LOD's columns under a tree crown may be from the chunks'. */
 	private static final double LOD_CROWN_TOLERANCE = 0.2;
@@ -521,6 +523,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			LOD_WIDTH * LOD_FAR_STEP, farMs, farTiles);
 		BufferedImage near = lodMap(sampler, at.getX() - LOD_WIDTH * LOD_NEAR_STEP / 2,
 			at.getZ() - LOD_WIDTH * LOD_NEAR_STEP / 2, LOD_NEAR_STEP);
+		logCanopy(sampler, at);
 		Path dir = FabricLoader.getInstance().getGameDir().resolve("screenshots");
 		try {
 			ImageIO.write(near, "png", dir.resolve("diffusicraft-lod-near.png").toFile());
@@ -541,6 +544,25 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			return "The LOD has tree crowns over " + matches[3] + " columns, the chunks over " + matches[4];
 		}
 		return null;
+	}
+
+	/**
+	 * Logs the share of each biome's LOD columns under a tree crown, which shows whether the trees of biome mods are
+	 * drawn: a forest of theirs with no crowns is not.
+	 */
+	private static void logCanopy(LodSampler sampler, BlockPos at) {
+		Map<String, int[]> canopy = new TreeMap<>();
+		int half = LOD_WIDTH * LOD_CANOPY_STEP / 2;
+		sampler.sample(at.getX() - half, at.getZ() - half, LOD_WIDTH, LOD_CANOPY_STEP, (x, z, column) -> {
+			int[] counts = canopy.computeIfAbsent(column.biome().getRegisteredName(), biome -> new int[2]);
+			counts[0]++;
+			counts[1] += crownTop(column) != Integer.MIN_VALUE ? 1 : 0;
+		});
+		StringBuilder summary = new StringBuilder();
+		canopy.entrySet().stream().sorted((a, b) -> b.getValue()[0] - a.getValue()[0]).limit(12).forEach(entry ->
+			summary.append(String.format("%n  %3d%% of %4d columns  %s", 100 * entry.getValue()[1] / entry.getValue()[0],
+				entry.getValue()[0], entry.getKey())));
+		LOGGER.info("Tree crowns in the LOD {} blocks across, by biome:{}", 2 * half, summary);
 	}
 
 	/** Top block of the tree crown over a column of a LOD, or {@link Integer#MIN_VALUE} under the open sky. */

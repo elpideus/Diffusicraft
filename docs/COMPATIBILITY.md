@@ -9,7 +9,7 @@ for each mod, and what is still open.
 |---|---|---|
 | [Distant Horizons](#distant-horizons) 3.3.4 | Integrated | Draws the far terrain straight from the terrain, without chunks |
 | Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Distant Horizons uses Diffusicraft's generator; Voxy is planned |
-| [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's |
+| [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's; their trees show in the LODs |
 | Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
 | C2ME | Expected to work, not verified | The terrain pipeline is thread-safe |
 | Sodium, Iris, shader packs | Works | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
@@ -53,7 +53,10 @@ any in the world:
   show up to a third more canopy. A column is under the highest crown that reaches it, with the trunk drawn only in
   the nearest LODs. The wider columns of farther LODs are under a canopy as often as the ground is.
 
-Trees that biome mods place with features of their own, rather than Minecraft's tree feature, are not seen.
+**Trees of biome mods.** Biome mods often grow trees with features of their own rather than Minecraft's tree feature;
+Biomes O' Plenty does for nearly all of its trees. Those features are placed whole on the same stand-in, standing on
+grass, and count as trees if they place leaves; their crowns take the leaves and logs they place most. A feature that
+needs more of the world than the stand-in gives, or ground other than grass, is not drawn.
 
 **Near and far.** An LOD of 64 columns covers `64 × 2^detail` blocks. Up to four terrain tiles across, the sampler
 reads the full-resolution terrain, which runs the models over every tile it touches, as chunks do. Wider LODs read the
@@ -95,5 +98,6 @@ them.
   they place nothing. Everything else, the rivers, the rock and Diffusicraft's soils, comes from Diffusicraft's rules.
   TerraBlender does this by wrapping the world's rule in a new one, so Diffusicraft tells its worlds by the rule the
   noise settings were loaded with, not by the one they hand out.
-- **Distant Horizons.** The LODs run the same combined rules. Trees that the mods grow with features of their own do
-  not show in them yet.
+- **Distant Horizons.** The LODs run the same combined rules, and draw the mods' trees (see
+  [Trees of biome mods](#distant-horizons)). In the test the LOD shows crowns over 83% of the redwood forest, 70% of
+  the old-growth woodland and 43% of the woodland.
