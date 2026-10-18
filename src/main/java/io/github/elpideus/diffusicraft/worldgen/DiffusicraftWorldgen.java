@@ -2,8 +2,10 @@ package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
+import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SpawnSuitabilityFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
+import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import io.github.elpideus.diffusicraft.worldgen.material.StrataRule;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.Registry;
@@ -33,9 +35,13 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("climate"), ClimateFunction.CODEC);
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("spawn_suitability"),
 			SpawnSuitabilityFunction.CODEC);
+		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("hollows"), HollowsFunction.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("strata"), StrataRule.CODEC);
 		TerrainFields.register();
-		ServerLifecycleEvents.SERVER_STOPPED.register(server -> StrataRule.clearCache());
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			StrataRule.clearCache();
+			Hollows.clearCache();
+		});
 	}
 
 	public static ResourceKey<WorldPreset> preset(WorldScale scale) {

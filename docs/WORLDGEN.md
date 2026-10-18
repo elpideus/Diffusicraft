@@ -62,7 +62,8 @@ WorldPipeline (30 m pixels, per seed)
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate
    ▼
-density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability
+density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability,
+   │                diffusicraft:hollows (the Hollows model)
    ▼
 noise settings diffusicraft:<scale>: noise router, aquifers, material rule diffusicraft:<scale>
    ▼                                  (vanilla's surface rules + diffusicraft:strata, the Geology model)
@@ -112,8 +113,11 @@ match.
 
 ### Density and caves
 
-The settings set `final_density` to vanilla's overworld density, with one change: vanilla's `sloped_cheese` terrain is
-replaced by `diffusicraft:<scale>/terrain`, which is `(surface − y) / 16`.
+The settings set `final_density` to vanilla's overworld density, with two changes:
+
+- vanilla's `sloped_cheese` terrain is replaced by `diffusicraft:<scale>/terrain`, which is `(surface − y) / 16`;
+- deeper than 25 blocks below the surface, the density is the minimum of vanilla's caves and
+  [the Hollows](#the-hollows).
 
 Everything else is vanilla, so worlds keep:
 
@@ -173,6 +177,39 @@ lenses carry lapis, and kimberlite at the surface marks a pipe of diamonds below
 furnaces, and so do granite, diorite, andesite and tuff, because a basement can be granite for hundreds of blocks. They
 join `#minecraft:base_stone_overworld`, so moss, sculk, dripstone and vanilla's ore blobs spread through them.
 
+### The Hollows
+
+The Hollows are caverns far larger than vanilla's caves, and larger the deeper they lie. `Hollows` is a pure model,
+like `Geology`, seeded from the world seed and `diffusicraft:hollows`. `diffusicraft:hollows` (`HollowsFunction`)
+samples it as a density, negative in the open.
+
+| Kind | Depth | Size (standard world) | How often |
+|---|---|---|---|
+| Hollow | In the basement, centred between y = 6 and y = 36 (117 in the tall worlds) | 14–30 blocks in radius, 10–22 high | A third of 112-block cells |
+| Deep Hollow | In the deepslate, from halfway down to the lava level up to y = −8 | 20–42 in radius, 14–28 high | A third of 144-block cells |
+| Grand Hollow | 40–60 % of the way up from the lava level to y = 0 | 70–160 in radius, 22–30 high | A sixth of 448-block cells |
+| Ancient Grand Hollow | 30–45 % of the way up | 150–320 in radius, 26–38 high | An eighth of 896-block cells |
+| Deep Grand Hollow | Just above the magma layer, its floor under the lava level | 100–230 in radius, 18–26 high | A seventh of 640-block cells |
+| Deep noodle caverns | From just above the lava level to y = −12, in about two fifths of the world | Tunnels 5–8 blocks across | |
+
+Heights scale with the room between the lava level and y = 0. In the tall worlds the Grand Hollows are up to 135
+blocks high and the Ancient ones up to 170.
+
+- **Shape.** Each cavern is an ellipse in plan with a lobed outline, a domed ceiling over a flatter floor, and walls
+  warped by 3D noise. Caverns of different kinds can overlap and merge.
+- **Pillars.** Grand and Ancient Grand Hollows have rock pillars that flare where they meet the floor and the ceiling.
+- **Light.** `StrataRule` puts patches of glowstone in the ceilings of Grand Hollows and shroomlight in those of
+  Ancient ones.
+- **Lava seas.** Deep Grand Hollows reach below the floor limit, which cuts them flat well under the lava level, so
+  most of their floor lies under a lava sea. A floor that only just dipped under the lava would stay dry: the world
+  interpolates the density over 8 blocks of height and fades it to solid towards the bottom.
+- **Roof and floor.** At least 28 blocks of rock stay between a hollow and the surface, so they never open into the
+  sky or the sea. Nothing is carved within 6 blocks of the bottom, so the bedrock is whole. Only the lava seas sink
+  lower: their lava rests on the bedrock, 3 blocks above the bottom.
+
+Vanilla's aquifers can flood parts of a hollow with water, as they do vanilla's caves. The density is sampled at the
+corners of the 4 × 8 × 4 cells that vanilla interpolates. Each sample takes a few tens of nanoseconds.
+
 ### Spawn and far-away searches
 
 `diffusicraft:spawn_suitability` scores land between 100 and 700 m highest. It falls off towards the sea and on high
@@ -204,9 +241,9 @@ Other searches still read the full terrain and can take a while on new land:
 |---|---|
 | `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, and the coarse stronghold search |
-| `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction` |
-| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `GeoNoise` |
-| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology |
+| `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction` |
+| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
+| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows |
 | `block/` | `DiffusicraftBlocks`, the new rocks |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |
@@ -224,6 +261,8 @@ Other searches still read the full terrain and can take a while on new land:
 
 - `GeologyTest` checks the layer order, that lowlands are covered in sediment, determinism, ore rarity and diamond
   depth, and the sampling speed.
+- `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
+  the height of the Grand Hollows in the tall worlds, determinism and the sampling speed.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;
@@ -232,5 +271,5 @@ Other searches still read the full terrain and can take a while on new land:
   - concurrent tile computation;
   - the coarse column.
 - `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings
-  and checks that it uses Diffusicraft. It then saves a biome map, a height map and in-game views around the spawn to
-  `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
+  and checks that it uses Diffusicraft. It then saves a biome map, a height map, in-game views around the spawn and
+  views of the tallest Grand Hollow and a lava sea nearby to `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device` names another device.

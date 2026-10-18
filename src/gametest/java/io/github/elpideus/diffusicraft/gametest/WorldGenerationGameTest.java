@@ -1,12 +1,17 @@
 package io.github.elpideus.diffusicraft.gametest;
 
+import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
+import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
+import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.fabricmc.fabric.mixin.client.gametest.ClientLevelAccessor;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
@@ -14,11 +19,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseRouter;
@@ -32,7 +40,11 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,7 +53,8 @@ import java.util.stream.IntStream;
 /**
  * Creates a Diffusicraft world with the default settings and checks that the overworld really uses Diffusicraft.
  * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
- * the generator without building chunks, and in-game views from above the spawn.
+ * the generator without building chunks, in-game views from above the spawn, and views inside the nearest Grand Hollow
+ * and over the nearest lava sea of a Deep Grand Hollow.
  *
  * <p>Needs the Terrain Diffusion models; without them the test logs a warning and does nothing. Generation runs on the
  * CPU, so the test leaves the GPU alone; pass {@code -Pdiffusicraft.device=CUDA} (or {@code AUTO}) to change that.
@@ -53,7 +66,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	private static final int MAP_SIZE = 256;
 	private static final int MAP_STRIDE = 8;
 	private static final int TICKS_PER_MINUTE = 20 * 60;
-	private static final int VIEW_TIMEOUT_TICKS = 15 * TICKS_PER_MINUTE;
+	private static final int RENDER_DISTANCE = 20;
+	private static final int VIEW_TIMEOUT_TICKS = 5 * TICKS_PER_MINUTE;
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
@@ -63,7 +77,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			LOGGER.warn("The Terrain Diffusion models are not downloaded; skipping the world generation test");
 			return;
 		}
-		context.runOnClient(mc -> mc.options.renderDistance().set(8));
+		context.runOnClient(mc -> mc.options.renderDistance().set(RENDER_DISTANCE));
 		OnnxModel.Device device = OnnxModel.Device.valueOf(System.getProperty("diffusicraft.device", "CPU"));
 		Resources.get().updateConfig(config -> config.device = device);
 		LOGGER.info("Generating on {}", device);
@@ -94,9 +108,25 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			world.getServer().runCommand("time set noon");
 			world.getServer().runCommand("weather clear");
 			world.getServer().runCommand("gamemode spectator @a");
-			view(context, world, probe, 0, 0f, "view-south");
-			view(context, world, probe, 0, 180f, "view-north");
-			view(context, world, probe, 120, 90f, "view-high-west");
+			context.runOnClient(mc -> {
+				if (!mc.gui.hud.isHidden()) {
+					mc.gui.hud.toggle();
+				}
+			});
+			BlockPos above = probe.spawn.atY(probe.spawnSurface + 40);
+			view(context, world, above, 0f, 20f, "view-south");
+			view(context, world, above, 180f, 20f, "view-north");
+			view(context, world, above.above(120), 90f, 40f, "view-high-west");
+
+			// The camera in the middle of the tallest Grand Hollow nearby, first by its own light, then lit up.
+			BlockPos grand = findHollow(probe, EnumSet.of(Hollows.Kind.GRAND_HOLLOW, Hollows.Kind.ANCIENT_GRAND_HOLLOW),
+				false);
+			view(context, world, grand, 0f, 0f, "hollow-grand");
+			world.getServer().runCommand("effect give @a minecraft:night_vision infinite 0 true");
+			view(context, world, grand, 0f, 0f, "hollow-grand-lit");
+			view(context, world, grand, 180f, 0f, "hollow-grand-lit-north");
+			BlockPos sea = findHollow(probe, EnumSet.of(Hollows.Kind.DEEP_GRAND_HOLLOW), true);
+			view(context, world, sea, 0f, 25f, "hollow-lava-sea");
 		}
 	}
 
@@ -105,30 +135,99 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		return preset == null ? "custom" : preset.unwrapKey().map(k -> k.identifier().toString()).orElse("unregistered");
 	}
 
-	/** Teleports the player above the spawn, waits for the chunks and takes a screenshot. */
-	private static void view(ClientGameTestContext context, TestSingleplayerContext world, Probe probe, int extraHeight,
-							 float yaw, String name) {
-		BlockPos spawn = probe.spawn;
-		world.getServer().runCommand(String.format("tp @a %d %d %d %.1f 20", spawn.getX(), probe.spawnSurface + 40 + extraHeight,
-			spawn.getZ(), yaw));
+	/** Teleports the player, waits for the chunks and takes a screenshot. */
+	private static void view(ClientGameTestContext context, TestSingleplayerContext world, BlockPos at, float yaw,
+							 float pitch, String name) {
+		world.getServer().runCommand(String.format("tp @a %d %d %d %.1f %.1f", at.getX(), at.getY(), at.getZ(), yaw, pitch));
+		world.getConnection().waitForClientboundPackets();
 		long start = System.nanoTime();
 		try {
-			world.getConnection().waitForChunksRender(VIEW_TIMEOUT_TICKS);
+			context.waitFor(mc -> pendingWork(mc).isEmpty(), VIEW_TIMEOUT_TICKS);
 			LOGGER.info("Chunks for {} ready in {} s", name, (System.nanoTime() - start) / 1_000_000_000L);
 		} catch (AssertionError e) {
 			// On the CPU next to a busy desktop the far chunks can take longer than any sensible timeout. A view with
 			// a few missing chunks still shows the terrain, so take it anyway.
-			LOGGER.warn("Chunks for {} not all rendered after {} s; taking the screenshot anyway", name,
-				(System.nanoTime() - start) / 1_000_000_000L);
+			LOGGER.warn("Chunks for {} not all rendered after {} s ({}); taking the screenshot anyway", name,
+				(System.nanoTime() - start) / 1_000_000_000L, context.computeOnClient(WorldGenerationGameTest::pendingWork));
 		}
 		context.waitTicks(20);
 		Path file = context.takeScreenshot("diffusicraft-world-" + name);
 		LOGGER.info("Screenshot: {}", file.toAbsolutePath());
 	}
 
+	/**
+	 * What the client still has to do before the view is complete, or an empty string. Like Fabric's
+	 * {@code waitForChunksRender}, but it only waits for the chunks the server sends: those in a circle around the
+	 * player. Fabric's waits for a square, whose corners never arrive at a render distance above 6.
+	 */
+	private static String pendingWork(Minecraft mc) {
+		int distance = mc.options.getEffectiveRenderDistance();
+		ChunkPos center = mc.player.chunkPosition();
+		List<String> missing = new ArrayList<>();
+		for (int dz = -distance; dz <= distance; dz++) {
+			for (int dx = -distance; dx <= distance; dx++) {
+				if (ChunkTrackingView.isInViewDistance(0, 0, distance, dx, dz)
+					&& mc.level.getChunk(center.x() + dx, center.z() + dz, ChunkStatus.FULL, false) == null) {
+					missing.add(dx + "," + dz);
+				}
+			}
+		}
+		List<String> pending = new ArrayList<>();
+		if (!missing.isEmpty()) {
+			pending.add(missing.size() + " chunks missing, at " + missing.subList(0, Math.min(8, missing.size())));
+		}
+		if (!((ClientLevelAccessor) mc.level).getLightUpdateQueue().isEmpty()) {
+			pending.add("light updates queued");
+		}
+		if (!mc.levelRenderer.hasRenderedAllSections()) {
+			pending.add("sections still compiling");
+		}
+		return String.join("; ", pending);
+	}
+
+	/**
+	 * Finds the column within 2 km of the spawn with the longest open run of the given kinds of hollow, and returns
+	 * the middle of that run, or with {@code overLava} a point 12 blocks above the lava level.
+	 */
+	private static BlockPos findHollow(Probe probe, Set<Hollows.Kind> kinds, boolean overLava) {
+		Hollows hollows = Hollows.of(probe.hollowsSeed, probe.minY);
+		Hollows.Column column = new Hollows.Column();
+		int lava = probe.minY + 10;
+		int bestRun = 0;
+		BlockPos best = null;
+		for (int dx = -2048; dx <= 2048; dx += 48) {
+			for (int dz = -2048; dz <= 2048; dz += 48) {
+				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+				hollows.column(x, z, (px, pz) -> (int) Math.floor(probe.state.sampleBlockValueUncached(
+					probe.router.chunkSurfaceLevel(), px, 0, pz)), column);
+				if (column.solid()) {
+					continue;
+				}
+				int run = 0;
+				for (int y = (int) column.bottom(); y <= (int) column.top() + 1; y++) {
+					Hollows.Kind kind = hollows.openKind(column, y);
+					if (kind != null && kinds.contains(kind) && (!overLava || run > 0 || y <= lava)) {
+						run++;
+						continue;
+					}
+					if (run > bestRun) {
+						bestRun = run;
+						best = new BlockPos(x, overLava ? lava + 12 : y - run / 2, z);
+					}
+					run = 0;
+				}
+			}
+		}
+		if (best == null) {
+			throw new AssertionError("No hollow of " + kinds + " within 2 km of the spawn");
+		}
+		LOGGER.info("The tallest {} near the spawn is {} blocks high at {}", kinds, bestRun, best);
+		return best;
+	}
+
 	/** What the test reads from the server: the spawn, and what it needs to sample the generator off-thread. */
 	private record Probe(BlockPos spawn, int spawnSurface, String spawnBiome, RandomState state, NoiseRouter router,
-						 BiomeSource biomes) {
+						 BiomeSource biomes, long hollowsSeed, int minY) {
 		static Probe of(ServerLevel level) {
 			ChunkGenerator generator = level.getChunkSource().getGenerator();
 			if (!DiffusicraftWorldgen.usesModels(generator)) {
@@ -138,8 +237,11 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			BlockPos spawn = level.getRespawnData().pos();
 			int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING, spawn.getX(), spawn.getZ());
 			String biome = level.getBiome(spawn.atY(surface)).unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
-			return new Probe(spawn, surface, biome, level.getChunkSource().randomState(),
-				noise.generatorSettings().value().noiseRouter(), generator.getBiomeSource());
+			RandomState state = level.getChunkSource().randomState();
+			long hollowsSeed = ((RandomStateAccessor) (Object) state).diffusicraft$random()
+				.fromHashOf(HollowsFunction.SEED_ID).nextLong();
+			return new Probe(spawn, surface, biome, state, noise.generatorSettings().value().noiseRouter(),
+				generator.getBiomeSource(), hollowsSeed, level.getMinY());
 		}
 	}
 

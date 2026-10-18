@@ -66,8 +66,10 @@ Both tests start the real game and save screenshots to `build/run/clientGameTest
   Nothing is downloaded.
 - [`WorldGenerationGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WorldGenerationGameTest.java)
   creates a world with the default settings and checks that it is a Diffusicraft world. It saves a biome map, a height
-  map and three views around the spawn. It needs the models, and skips itself without them. It generates on the CPU,
-  so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to use the GPU.
+  map, three views around the spawn and views of the tallest Grand Hollow and a lava sea nearby. It needs the models,
+  and skips itself without them. It generates on the CPU, so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to
+  use the GPU. Each view waits until the chunks the server sends are rendered: Fabric's own wait expects a square of
+  chunks, but the server sends a circle, so above a render distance of 6 it never returns.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods
@@ -80,7 +82,12 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
 ```
 
 - **Rendering.** Under Xvfb, Minecraft falls back from Vulkan to OpenGL on Mesa's software renderer. That is fine for
-  screens, and slow but usable for the world views.
+  screens, and slow but usable for the world views. With a GPU, gamescope's headless backend renders on the real
+  driver, also without a window:
+
+  ```bash
+  env -u WAYLAND_DISPLAY -u DISPLAY gamescope --backend headless -W 1600 -H 900 -- ./gradlew runClientGameTest -PnoDevMods -Pdiffusicraft.device=CUDA
+  ```
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
 - **Not part of `build`.** Run them yourself after changing anything in `client/screen`, `worldgen` or the mixins.
 

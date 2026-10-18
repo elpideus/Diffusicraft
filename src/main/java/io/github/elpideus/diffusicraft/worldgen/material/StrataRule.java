@@ -9,7 +9,9 @@ import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
+import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Geology;
+import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import io.github.elpideus.diffusicraft.worldgen.geology.Ore;
 import io.github.elpideus.diffusicraft.worldgen.geology.Rock;
 import net.minecraft.resources.Identifier;
@@ -32,7 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>The optional {@code surface} rule runs first and wins, so biomes keep their soils, sand and terracotta. When it
  * asks for plain stone, as mountain biomes do under their surface, the local rock goes there instead, so cliffs show
- * the strata. The rule is compiled for every chunk; the per-world state is cached, so compiling costs two hashes.
+ * the strata. The ceilings of the Grand {@link Hollows} get patches of light. The rule is compiled for every chunk; the
+ * per-world state is cached, so compiling costs a few hashes.
  */
 public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) implements MaterialRule {
 	public static final MapCodec<StrataRule> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -45,6 +48,8 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 
 	private static final Map<Key, Geology> GEOLOGY = new ConcurrentHashMap<>();
 	private static final BlockState STONE = Blocks.STONE.defaultBlockState();
+	private static final BlockState GLOWSTONE = Blocks.GLOWSTONE.defaultBlockState();
+	private static final BlockState SHROOMLIGHT = Blocks.SHROOMLIGHT.defaultBlockState();
 
 	private record Key(long seed, WorldScale scale, int minY) {
 	}
@@ -60,10 +65,13 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		PositionalRandomFactory random = ((RandomStateAccessor) (Object)
 			((MaterialRuleContextAccessor) (Object) context).diffusicraft$randomState()).diffusicraft$random();
 		TerrainField field = TerrainFields.get(random.fromHashOf(TerrainFields.SEED_ID).nextLong());
-		Key key = new Key(random.fromHashOf(SEED_ID).nextLong(), scale, context.resolveAnchorY(VerticalAnchor.bottom()));
+		int minY = context.resolveAnchorY(VerticalAnchor.bottom());
+		Key key = new Key(random.fromHashOf(SEED_ID).nextLong(), scale, minY);
 		Geology geology = GEOLOGY.computeIfAbsent(key, k -> new Geology(k.seed, k.minY, k.scale.metersPerBlock(),
 			k.scale.verticalMetersPerBlock()));
-		return new Evaluator(scale, field, geology, surfaceRule);
+		// The same seed as the hollows density function's, so the light finds the ceilings it carved.
+		Hollows hollows = Hollows.of(random.fromHashOf(HollowsFunction.SEED_ID).nextLong(), minY);
+		return new Evaluator(context, scale, field, geology, hollows, surfaceRule);
 	}
 
 	/** Forgets the cached geology of every world; called when the server stops. */
@@ -72,20 +80,29 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 	}
 
 	private static final class Evaluator implements RuleEvaluator {
+		/** How far into a hollow's wall its density may be and still count: the world interpolates it. */
+		private static final double HOLLOW_MARGIN = 1.0;
+
+		private final MaterialRuleContext context;
 		private final WorldScale scale;
 		private final TerrainField field;
 		private final Geology geology;
+		private final Hollows hollows;
 		private final RuleEvaluator surface;
 		private final TerrainField.Column terrain = new TerrainField.Column();
 		private final Geology.Column column = new Geology.Column();
+		private final Hollows.Column hollowColumn = new Hollows.Column();
 		private int columnX;
 		private int columnZ;
 		private boolean hasColumn;
 
-		Evaluator(WorldScale scale, TerrainField field, Geology geology, RuleEvaluator surface) {
+		Evaluator(MaterialRuleContext context, WorldScale scale, TerrainField field, Geology geology, Hollows hollows,
+				  RuleEvaluator surface) {
+			this.context = context;
 			this.scale = scale;
 			this.field = field;
 			this.geology = geology;
+			this.hollows = hollows;
 			this.surface = surface;
 		}
 
@@ -101,9 +118,30 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			if (!hasColumn || x != columnX || z != columnZ) {
 				sampleColumn(x, z);
 			}
+			if (context.stoneDepthBelow() == 1) {
+				Hollows.Kind lit = litHollowBelow(x, y, z);
+				if (lit != null) {
+					return lit == Hollows.Kind.ANCIENT_GRAND_HOLLOW ? SHROOMLIGHT : GLOWSTONE;
+				}
+			}
 			Rock rock = geology.rock(column, x, y, z);
 			Ore ore = geology.ore(column, x, y, z, rock);
 			return ore != null ? BlockTable.ore(ore, rock.deep()) : BlockTable.rock(rock);
+		}
+
+		/**
+		 * The lit hollow under a ceiling block (one right above air or fluid) in a patch of light, or {@code null}. The
+		 * hollows are looked up only here, which is rare: a few blocks per column at most.
+		 */
+		private Hollows.Kind litHollowBelow(int x, int y, int z) {
+			if (!hollows.glows(x, z)) {
+				return null;
+			}
+			if (!hollowColumn.isAt(x, z)) {
+				hollows.column(x, z, (bx, bz) -> (int) Math.floor(column.surfaceY), hollowColumn);
+			}
+			Hollows.Kind kind = hollows.kindNear(hollowColumn, y - 1, HOLLOW_MARGIN);
+			return kind != null && kind.lit() ? kind : null;
 		}
 
 		private void sampleColumn(int x, int z) {

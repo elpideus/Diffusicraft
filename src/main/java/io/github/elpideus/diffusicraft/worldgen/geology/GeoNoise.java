@@ -7,12 +7,22 @@ package io.github.elpideus.diffusicraft.worldgen.geology;
 final class GeoNoise {
 	private static final double[] GRADIENTS_X = new double[16];
 	private static final double[] GRADIENTS_Z = new double[16];
+	/** 64 unit vectors spread evenly over the sphere (a Fibonacci lattice), interleaved x, y, z. */
+	private static final double[] GRADIENTS_3D = new double[64 * 3];
 
 	static {
 		for (int i = 0; i < 16; i++) {
 			double angle = i * Math.PI / 8;
 			GRADIENTS_X[i] = Math.cos(angle);
 			GRADIENTS_Z[i] = Math.sin(angle);
+		}
+		double golden = Math.PI * (3 - Math.sqrt(5));
+		for (int i = 0; i < 64; i++) {
+			double y = 1 - (i + 0.5) / 32;
+			double r = Math.sqrt(1 - y * y);
+			GRADIENTS_3D[i * 3] = r * Math.cos(golden * i);
+			GRADIENTS_3D[i * 3 + 1] = y;
+			GRADIENTS_3D[i * 3 + 2] = r * Math.sin(golden * i);
 		}
 	}
 
@@ -71,6 +81,31 @@ final class GeoNoise {
 		return sum / norm;
 	}
 
+	/**
+	 * 3D gradient noise in about [-1, 1], one feature per unit. The gradients point every way, unlike Perlin's 12
+	 * cube edges, which leave the noise near zero along the lattice edges: lines of open cave on a grid.
+	 */
+	static double gradient3(long seed, double x, double y, double z) {
+		int ix = (int) Math.floor(x);
+		int iy = (int) Math.floor(y);
+		int iz = (int) Math.floor(z);
+		double fx = x - ix;
+		double fy = y - iy;
+		double fz = z - iz;
+		double u = fade(fx);
+		double v = fade(fy);
+		double w = fade(fz);
+		double x00 = lerp(u, dot3(seed, ix, iy, iz, fx, fy, fz), dot3(seed, ix + 1, iy, iz, fx - 1, fy, fz));
+		double x10 = lerp(u, dot3(seed, ix, iy + 1, iz, fx, fy - 1, fz),
+			dot3(seed, ix + 1, iy + 1, iz, fx - 1, fy - 1, fz));
+		double x01 = lerp(u, dot3(seed, ix, iy, iz + 1, fx, fy, fz - 1),
+			dot3(seed, ix + 1, iy, iz + 1, fx - 1, fy, fz - 1));
+		double x11 = lerp(u, dot3(seed, ix, iy + 1, iz + 1, fx, fy - 1, fz - 1),
+			dot3(seed, ix + 1, iy + 1, iz + 1, fx - 1, fy - 1, fz - 1));
+		// The raw range with unit gradients is about ±0.7.
+		return 1.41 * lerp(w, lerp(v, x00, x10), lerp(v, x01, x11));
+	}
+
 	/** 3D value noise in [0, 1) on a lattice of the given spacing, smoothly interpolated. */
 	static double value3(long seed, int x, int y, int z, int spacing) {
 		int ix = Math.floorDiv(x, spacing);
@@ -98,6 +133,11 @@ final class GeoNoise {
 	private static double dot(long seed, int ix, int iz, double fx, double fz) {
 		int g = (int) (hash(seed, ix, 0, iz) >>> 60);
 		return GRADIENTS_X[g] * fx + GRADIENTS_Z[g] * fz;
+	}
+
+	private static double dot3(long seed, int ix, int iy, int iz, double fx, double fy, double fz) {
+		int g = (int) (hash(seed, ix, iy, iz) >>> 58) * 3;
+		return GRADIENTS_3D[g] * fx + GRADIENTS_3D[g + 1] * fy + GRADIENTS_3D[g + 2] * fz;
 	}
 
 	private static double fade(double t) {

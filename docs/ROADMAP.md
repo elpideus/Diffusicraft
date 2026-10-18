@@ -4,8 +4,8 @@
 climates, forests and rock layers should look and behave like real ones. It is aimed at survival, realism and RPG
 modpacks built around Create.
 
-The pieces in place generate the world's shape, climate and rock, and a world generator turns them into blocks. The
-pieces planned add the details: caves, rivers and new biomes.
+The pieces in place generate the world's shape, climate, rock and deep caverns, and a world generator turns them into
+blocks. The pieces planned add the details: rivers, soils and new biomes.
 
 ## Done
 
@@ -38,6 +38,9 @@ pieces planned add the details: caves, rivers and new biomes.
 - **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
   and a magma layer above the bedrock. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See
   [WORLDGEN.md](WORLDGEN.md#the-ground).
+- **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
+  ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
+  [WORLDGEN.md](WORLDGEN.md#the-hollows).
 
 ## Next
 
@@ -75,11 +78,7 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 
 - **Soils.** Soil and subsoil that follow the climate and the rock beneath.
 - **New minerals.** Minerals for Create and other tech mods, placed by the same geology.
-- **The Hollows.** Cave systems at increasing depth and scale, in the style of *Journey to the Center of the Earth*:
-  - **Hollow** and **Deep Hollow**;
-  - **Grand Hollow**: cavern worlds with their own ceilings, lakes and light;
-  - **Ancient Grand Hollow** and **Deep Grand Hollow**;
-  - deep noodle caverns linking them.
+- **Life in the Hollows.** Cave biomes, flora and lakes of their own for the Grand Hollows.
 
 ### Compatibility
 

@@ -48,9 +48,10 @@ def gradient(y0, v0, y1, v1):
 
 
 def final_density(scale, min_y, top):
-    """Vanilla's overworld final density with our terrain in place of sloped_cheese.
+    """Vanilla's overworld final density with our terrain in place of sloped_cheese, and the Hollows.
 
     Caves, cave entrances, noodles, pillars, blending and structures (the beardifier) are vanilla's own functions.
+    The Hollows join the caves deep underground, where vanilla's caves are, too.
     The bottom of the world fades to solid and everything above the highest possible surface fades to air.
     """
     terrain = ref(scale, "terrain")
@@ -98,7 +99,8 @@ def final_density(scale, min_y, top):
         "max_exclusive": 1.5625,
         "when_in_range": {"type": "minecraft:min", "left": terrain,
                           "right": {"type": "minecraft:mul", "left": caves + "entrances", "right": 5.0}},
-        "when_out_of_range": underground,
+        # Deeper than 25 blocks below the surface; the Hollows keep 28 blocks of roof.
+        "when_out_of_range": {"type": "minecraft:min", "left": underground, "right": ref(scale, "hollows")},
     }
     faded = {
         "type": "minecraft:lerp",
@@ -246,6 +248,7 @@ def main():
         for field, parameter in CLIMATE.items():
             write(f"{functions}/{field}.json", {"type": f"{NS}:climate", "scale": scale, "parameter": parameter})
         write(f"{functions}/spawn.json", {"type": f"{NS}:spawn_suitability", "scale": scale})
+        write(f"{functions}/hollows.json", {"type": f"{NS}:hollows", "scale": scale, "min_y": min_y})
         write(f"{functions}/final_density.json", final_density(scale, min_y, top))
         write(f"{NS}/worldgen/material_rule/{scale}.json", material_rule(scale))
         write(f"{NS}/worldgen/noise_settings/{scale}.json", noise_settings(scale, min_y, height))
