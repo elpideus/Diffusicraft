@@ -37,8 +37,8 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
   extend the overworld table get the same parameters.
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
   rainforest, Mediterranean maquis, cold desert and steppe, with their own trees (krummholz, giant spruces, olives,
-  stone pines, cypresses), plants and ground; swamps and mangroves follow the coast's climate. The Grand Hollows
-  are free of sculk. See
+  stone pines, cypresses), plants and ground; swamps and mangroves follow the coast's climate. Snow follows the
+  climate rather than a fixed height, above a real tree line, and the Grand Hollows are free of sculk. See
   [WORLDGEN.md](WORLDGEN.md#refined-biomes).
 - **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
   and a magma layer above the bedrock. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See

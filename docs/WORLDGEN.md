@@ -136,6 +136,13 @@ Swamps on tropical coasts (coldest month at least 15 °C, below 10 m) become man
 Oceans, shores, rivers, caves and the mushroom fields are never touched, and neither is any biome a mod adds to the
 table: only vanilla's own biomes are refined. `BiomeRefiner` is pure and unit-tested.
 
+**Snow line.** Vanilla cools every biome by 0.05 per 40 blocks above y = 80 (`Biome.getHeightAdjustedTemperature`),
+so snow falls on any high ground. Diffusicraft's biomes already come from the climate at the real elevation, so that
+would count the cold twice: `BiomeMixin` turns the lapse rate off while a Diffusicraft world runs
+(`HeightTemperature`). Snow therefore lies where the climate is cold, and the tundra puts the tree line below the snow
+line, as on real mountains. On a dedicated server the clients keep vanilla's lapse rate, so high ground can show snow
+falling where the server has rain; only the weather on screen differs.
+
 **Grand Hollows.** The deep dark would carpet their floors in sculk. Inside the Grand, Ancient Grand and Deep Grand
 Hollows the source picks what vanilla would pick halfway down to the deep dark instead: lush or dripstone caves where
 the climate calls for them, and the biome above otherwise. So does the rock around them, as far as their density

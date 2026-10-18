@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.worldgen.biome.ClimateBiomeSource;
+import io.github.elpideus.diffusicraft.worldgen.biome.HeightTemperature;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.RiverFunction;
@@ -17,6 +18,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.presets.WorldPreset;
@@ -47,7 +49,12 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("river"), RiverRule.CODEC);
 		Registry.register(BuiltInRegistries.BIOME_SOURCE, Diffusicraft.id("climate"), ClimateBiomeSource.CODEC);
 		TerrainFields.register();
+		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
+			LevelStem overworld = server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getValue(LevelStem.OVERWORLD);
+			HeightTemperature.set(overworld != null && usesModels(overworld.generator()) ? 0f : 1f);
+		});
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			HeightTemperature.set(1f);
 			StrataRule.clearCache();
 			Hollows.clearCache();
 			Rivers.clearCache();

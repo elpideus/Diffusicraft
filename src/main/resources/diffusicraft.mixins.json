@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_25",
 	"plugin": "io.github.elpideus.diffusicraft.mixin.DiffusicraftMixinPlugin",
 	"mixins": [
+		"BiomeMixin",
 		"ChunkGeneratorStructureStateMixin",
 		"ClimateSamplerMixin",
 		"DedicatedServerPropertiesMixin",
