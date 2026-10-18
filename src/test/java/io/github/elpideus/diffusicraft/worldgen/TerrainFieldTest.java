@@ -101,6 +101,43 @@ class TerrainFieldTest {
 	}
 
 	@Test
+	void gradientIsTheElevationsSlope() {
+		TerrainField field = new TerrainField(1, new AnalyticSource());
+		float[] gradient = new float[2];
+		double h = 0.01;
+		for (double i = -300.2; i < 600; i += 37.7) {
+			for (double j = -200.9; j < 400; j += 41.3) {
+				float elevation = field.elevation(i, j, gradient);
+				assertEquals(field.elevation(i, j), elevation, 0f);
+				assertEquals((field.elevation(i + h, j) - field.elevation(i - h, j)) / (2 * h), gradient[0], 0.02);
+				assertEquals((field.elevation(i, j + h) - field.elevation(i, j - h)) / (2 * h), gradient[1], 0.02);
+			}
+		}
+	}
+
+	@Test
+	void onlyEarthCutsGulliesIntoTheGround() {
+		TerrainField field = new TerrainField(1, new AnalyticSource());
+		for (WorldScale scale : WorldScale.values()) {
+			TerrainSurface surface = field.surface(scale);
+			assertTrue(surface == field.surface(scale), "one surface per scale");
+			double largest = 0;
+			for (int x = -500; x < 500; x += 3) {
+				for (int z = -500; z < 500; z += 7) {
+					float smooth = scale.surfaceY(field.elevation(scale.toPixel(z), scale.toPixel(x)));
+					largest = Math.max(largest, Math.abs(surface.y(x, z) - smooth));
+				}
+			}
+			if (scale == WorldScale.EARTH) {
+				// The rolling hills are barely steep enough for gullies at 1:1.
+				assertTrue(largest > 0 && largest < 8, "gullies at Earth 1:1, up to " + largest);
+			} else {
+				assertEquals(0, largest, scale.name());
+			}
+		}
+	}
+
+	@Test
 	void temperatureFollowsTheLapseRate() {
 		TerrainField field = new TerrainField(1, new AnalyticSource());
 		TerrainField.Column c = new TerrainField.Column();

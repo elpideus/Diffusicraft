@@ -34,7 +34,8 @@ screen instead. A dedicated server downloads them at startup, and generation wai
 `WorldScale` holds the numbers.
 
 **Horizontally**, a block covers a fixed number of meters. The model's 30 m pixels are interpolated with Catmull-Rom
-splines, so the surface stays smooth at any scale.
+splines, so the surface stays smooth at any scale. At Earth 1:1 [gullies](#gullies) cut the slopes more finely than
+the pixels.
 
 **Vertically**, elevation maps linearly up to a knee, then eases towards a ceiling:
 
@@ -80,6 +81,8 @@ WorldPipeline (30 m pixels, per seed)
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate
    ▼
+TerrainSurface: the ground in blocks for one scale, with gullies at Earth 1:1
+   ▼
 density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability,
    │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model)
    ▼
@@ -105,6 +108,30 @@ vanilla NoiseBasedChunkGenerator: caves, aquifers, ores, surface blocks, feature
 Tiles are computed once, by the first thread that needs them; other threads wait for that result. The 96 most recently
 used tiles stay in memory, about 40 MB. The terrain seed is derived from the world seed, so worlds with the same seed
 match.
+
+### Gullies
+
+Nothing narrower than two of the model's 30 m pixels survives, so at Earth 1:1 a mountainside would be a smooth sheet
+between samples 30 blocks apart. Real slopes are cut by gullies and rills that run straight down them, deeper on
+steeper ground, while gentle ground stays smooth under its soil. `Gullies` adds them:
+
+- **Where.** On slopes steeper than 0.15 blocks per block (about 9°), in full from 0.6 (31°). Gentler ground keeps the
+  model's shape.
+- **Shape.** Waves that cross the slope, so their crests and troughs run downhill. They are anchored at jittered
+  points and blended with a compact kernel (a kind of Gabor noise), so a gully runs for a few of its widths and fades.
+- **Octaves.** Three, 48, 24 and 12 m wide. Each is half as deep as the one before and follows the slope of the
+  ground carved so far, so the smaller gullies branch off the sides of the larger ones.
+- **Depth.** The waves rise and fall by 6% of their width times the slope, which stops growing at 1.5. On a 45° slope
+  the widest rise and fall some 3 blocks; all three together never pass 7.6.
+
+Octaves narrower than 12 blocks are left out: the density is interpolated over cells 4 blocks wide and would turn
+them into zigzags. That keeps all three at Earth 1:1 and none in the other worlds, whose blocks are 5 and 15 m wide.
+
+`TerrainSurface` puts the gullies on the terrain, and everything that needs the ground reads it there: the density,
+the ceiling of each chunk, the rivers and lakes, the Hollows, the materials (so the sides of the gullies can bare the
+rock, see [The ground](#the-ground)) and the LODs whose columns are at most 4 blocks apart. The biomes and the climate
+keep the smooth elevation; gullies are too small to change them. The slope comes from the spline's own derivative, so
+gentle ground costs one sample, and steep ground about a third of a microsecond more.
 
 ### Biome parameters
 
@@ -310,8 +337,9 @@ cliffs show from afar too, except in the farthest LODs, which read the coarse ma
 
 The slopes are those the player sees, so the scale matters. The Standard world raises the land 1.5 times more than it
 widens it up to 1,000 m, and its steep flanks get the most cliffs; above that it squeezes the height, and its high
-ground is gentle. At Earth 1:1 the slopes are the real ones over 30 m, which are seldom steeper than 50°: cliffs are
-rare there and keep to the highest ranges (see `ErosionSurveyTest` under [Tests](#tests)).
+ground is gentle. At Earth 1:1 the slopes are the real ones over 30 m, which are seldom steeper than 50°, and the
+sides of the [gullies](#gullies) only a little steeper: cliffs are rare there and keep to the highest ranges (see
+`ErosionSurveyTest` under [Tests](#tests)).
 
 `Geology` is a pure function of the geology seed, the scale and the column's terrain. It holds no Minecraft classes and
 is tested on its own. From the top down:
@@ -435,12 +463,12 @@ Other searches still read the full terrain and can take a while on new land:
 
 | Path | What |
 |---|---|
-| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `TerrainSurface` (the ground, with its gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellLakes` (the lakes inside a tile), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
+| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods |
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
@@ -467,13 +495,17 @@ Other searches still read the full terrain and can take a while on new land:
 - `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
   tall worlds keep about as much basement under the land as the standard world, and draws a cross-section of each to
   `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs.
+- `GulliesTest` checks that only Earth 1:1 is fine enough for gullies, that gentle ground stays smooth, that steeper
+  slopes are cut deeper but never past the deepest a gully can go, that the ground changes about three times as
+  much across a slope as down it, and that the ground is continuous and set by the seed. `TerrainFieldTest` checks
+  the spline's gradient and that only Earth 1:1 changes its ground.
 - `ErosionTest` checks that gentle ground keeps its soil, steep ground shows the rock in any direction, and scree
   lies at the foot of a cliff, whichever way it faces, and not on the flat beyond.
 - `ErosionSurveyTest` needs the models. At every scale it finds the tile near the origin whose ground rises the most in
   blocks and sorts its land into soil, cliffs and scree. With seed 42 that tile is 93% soil, 2.6% cliffs and 4.4%
   scree in the Standard world, 97% soil, 0.3% cliffs and 2.5% scree at Grand, and nearly all soil at Earth 1:1. The
   highest tile near the origin, which the Standard world squeezes flat, is 3.8% cliffs and 5% scree at Grand and
-  0.8% cliffs and 2.4% scree at Earth 1:1.
+  1.2% cliffs and 2.3% scree at Earth 1:1.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
   as part of them, determinism and the sampling speed.

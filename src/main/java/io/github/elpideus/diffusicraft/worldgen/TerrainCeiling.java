@@ -55,7 +55,7 @@ public final class TerrainCeiling {
 	}
 
 	private static float surface(TerrainField field, WorldScale scale, int x, int z) {
-		return scale.surfaceY(field.elevation(scale.toPixel(z), scale.toPixel(x)));
+		return field.surface(scale).y(x, z);
 	}
 
 	private static float riverTop(Rivers rivers, WorldScale scale, int x, int z) {

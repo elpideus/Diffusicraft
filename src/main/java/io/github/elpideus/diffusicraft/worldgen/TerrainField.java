@@ -87,6 +87,7 @@ public final class TerrainField implements AutoCloseable {
 	private final LongAdder computedTiles = new LongAdder();
 	private final LongAdder tileWaitNanos = new LongAdder();
 	private final FastNoiseLite variantNoise;
+	private final TerrainSurface[] surfaces = new TerrainSurface[WorldScale.values().length];
 
 	public TerrainField(long seed, TerrainSource source) {
 		this(seed, source, DEFAULT_MAX_TILES);
@@ -111,6 +112,28 @@ public final class TerrainField implements AutoCloseable {
 		int iu = (int) Math.floor(u), iv = (int) Math.floor(v);
 		FieldTile tile = tile(Math.floorDiv(iu, TILE), Math.floorDiv(iv, TILE));
 		return tile.elevation(iu, iv, (float) (u - iu), (float) (v - iv));
+	}
+
+	/**
+	 * Elevation in meters at a native pixel coordinate, as {@link #elevation(double, double)} gives it, and its
+	 * gradient in meters per pixel: along {@code i} in {@code gradient[0]} and along {@code j} in {@code gradient[1]}.
+	 */
+	public float elevation(double i, double j, float[] gradient) {
+		double u = i - 0.5, v = j - 0.5;
+		int iu = (int) Math.floor(u), iv = (int) Math.floor(v);
+		FieldTile tile = tile(Math.floorDiv(iu, TILE), Math.floorDiv(iv, TILE));
+		return tile.elevation(iu, iv, (float) (u - iu), (float) (v - iv), gradient);
+	}
+
+	/** The ground of a world at {@code scale} over this terrain. */
+	public TerrainSurface surface(WorldScale scale) {
+		TerrainSurface surface = surfaces[scale.ordinal()];
+		if (surface == null) {
+			// Two threads may both make one; they are the same.
+			surface = new TerrainSurface(this, scale);
+			surfaces[scale.ordinal()] = surface;
+		}
+		return surface;
 	}
 
 	/** Fills {@code out} with everything at a native pixel coordinate. */
@@ -393,6 +416,26 @@ public final class TerrainField implements AutoCloseable {
 			return cubic(r0, r1, r2, r3, fu);
 		}
 
+		/** {@link #elevation(int, int, float, float)} with its gradient along {@code u} and {@code v}. */
+		float elevation(int iu, int iv, float fu, float fv, float[] gradient) {
+			float[] e = elevation;
+			int base = (iu - i0 - 1) * SPAN + (iv - j0 - 1);
+			float r0 = cubic(e[base], e[base + 1], e[base + 2], e[base + 3], fv);
+			float d0 = slope(e[base], e[base + 1], e[base + 2], e[base + 3], fv);
+			base += SPAN;
+			float r1 = cubic(e[base], e[base + 1], e[base + 2], e[base + 3], fv);
+			float d1 = slope(e[base], e[base + 1], e[base + 2], e[base + 3], fv);
+			base += SPAN;
+			float r2 = cubic(e[base], e[base + 1], e[base + 2], e[base + 3], fv);
+			float d2 = slope(e[base], e[base + 1], e[base + 2], e[base + 3], fv);
+			base += SPAN;
+			float r3 = cubic(e[base], e[base + 1], e[base + 2], e[base + 3], fv);
+			float d3 = slope(e[base], e[base + 1], e[base + 2], e[base + 3], fv);
+			gradient[0] = slope(r0, r1, r2, r3, fu);
+			gradient[1] = cubic(d0, d1, d2, d3, fu);
+			return cubic(r0, r1, r2, r3, fu);
+		}
+
 		float grid(int channel, int a, int b, float wu, float wv) {
 			int base = channel * GRID_POINTS * GRID_POINTS + a * GRID_POINTS + b;
 			float[] g = grid;
@@ -465,6 +508,11 @@ public final class TerrainField implements AutoCloseable {
 
 	static float cubic(float p0, float p1, float p2, float p3, float t) {
 		return p1 + 0.5f * t * (p2 - p0 + t * (2f * p0 - 5f * p1 + 4f * p2 - p3 + t * (3f * (p1 - p2) + p3 - p0)));
+	}
+
+	/** The derivative of {@link #cubic} with {@code t}. */
+	static float slope(float p0, float p1, float p2, float p3, float t) {
+		return 0.5f * (p2 - p0 + t * (2f * (2f * p0 - 5f * p1 + 4f * p2 - p3) + t * 3f * (3f * (p1 - p2) + p3 - p0)));
 	}
 
 	static float lerp(float a, float b, float t) {

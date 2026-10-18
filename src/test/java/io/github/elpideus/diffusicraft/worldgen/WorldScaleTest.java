@@ -43,6 +43,21 @@ class WorldScaleTest {
 	}
 
 	@Test
+	void surfaceRateIsTheSurfacesSlope() {
+		for (WorldScale scale : WorldScale.values()) {
+			for (float e = -11000f; e <= 9000f; e += 37f) {
+				double h = Math.max(0.5, Math.abs(e) * 1e-4);
+				if (Math.abs(e) < 2 * h) {
+					continue;
+				}
+				double slope = (scale.surfaceY((float) (e + h)) - scale.surfaceY((float) (e - h))) / (2 * h);
+				assertEquals(slope, scale.surfaceRate(e), 2e-3, scale + " at " + e);
+			}
+			assertEquals(0, scale.surfaceRate(-0.5f), scale.name());
+		}
+	}
+
+	@Test
 	void ordinaryTerrainKeepsItsProportions() {
 		// Below the knee a hill is exactly its height in meters over the vertical meters per block.
 		assertEquals(63 + 50, WorldScale.STANDARD.surfaceY(500f), 1e-3);

@@ -128,7 +128,7 @@ public final class Rivers {
 		Cell cell = cell(ti, tj, cache);
 		CellRivers.Hit hit = cache.hit;
 		if (!cell.rivers.nearest(i - ti * TerrainField.TILE, j - tj * TerrainField.TILE, width(scale), hit)) {
-			lake(scale, i, j, cell.lakes, ti, tj, out);
+			lake(scale, x, z, i, j, cell.lakes, ti, tj, out);
 			return;
 		}
 		float elevation = field.elevation(i, j);
@@ -139,7 +139,7 @@ public final class Rivers {
 		float distance = hit.distance * blocksPerPixel;
 		float halfWidth = hit.halfWidth * blocksPerPixel;
 		float reach = CellRivers.REACH * blocksPerPixel;
-		float terrain = scale.surfaceY(elevation);
+		float terrain = field.surface(scale).y(x, z);
 		int waterTop = (int) Math.ceil(scale.surfaceY(hit.level)) - 1;
 		float top = waterTop + 1;
 
@@ -161,7 +161,7 @@ public final class Rivers {
 		float bank = Math.clamp(BANK_RUN * Math.abs(terrain - top) + 2f, 2f, Math.max(2f, reach - 0.5f));
 		float t = (distance - halfWidth) / bank;
 		if (t >= 1f) {
-			lake(scale, i, j, cell.lakes, ti, tj, out);
+			lake(scale, x, z, i, j, cell.lakes, ti, tj, out);
 			return;
 		}
 		float blend = t * t * (3f - 2f * t);
@@ -177,7 +177,8 @@ public final class Rivers {
 	 * within two pixels of a lake, keeps its ground but is solid from below the water up, so no cave opens beside the
 	 * lake to drain it. Where it still lies below the water, {@link #hold} raises it into a bank.
 	 */
-	private void lake(WorldScale scale, double i, double j, CellLakes lakes, int ti, int tj, RiverColumn out) {
+	private void lake(WorldScale scale, int x, int z, double i, double j, CellLakes lakes, int ti, int tj,
+					  RiverColumn out) {
 		if (lakes.isEmpty()) {
 			return;
 		}
@@ -198,7 +199,7 @@ public final class Rivers {
 		if (Float.isNaN(outer)) {
 			return;
 		}
-		float terrain = scale.surfaceY(field.elevation(i, j));
+		float terrain = field.surface(scale).y(x, z);
 		if (!Float.isNaN(inner)) {
 			int waterTop = (int) Math.floor(scale.surfaceY(inner)) - 1;
 			if (terrain <= waterTop) {

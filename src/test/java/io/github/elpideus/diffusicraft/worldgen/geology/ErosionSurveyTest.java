@@ -73,7 +73,7 @@ class ErosionSurveyTest {
 	/** Prints and returns the share of each kind of ground over the land of the tile centred on {@code tile}. */
 	private static double[] measure(TerrainField field, Erosion erosion, WorldScale scale, int[] tile, String name) {
 		double perBlock = scale.pixelsPerBlock();
-		Erosion.Surface ground = (x, z) -> scale.surfaceY(field.elevation(z * perBlock, x * perBlock));
+		Erosion.Surface ground = field.surface(scale);
 		double blocks = TerrainField.TILE / perBlock;
 		double x0 = (tile[1] - TerrainField.TILE / 2.0) / perBlock;
 		double z0 = (tile[0] - TerrainField.TILE / 2.0) / perBlock;

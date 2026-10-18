@@ -135,7 +135,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			double perBlock = scale.pixelsPerBlock();
 			this.ground = coarse
 				? (x, z) -> scale.surfaceY(field.coarseElevation(z * perBlock, x * perBlock))
-				: (x, z) -> scale.surfaceY(field.elevation(z * perBlock, x * perBlock));
+				: field.surface(scale);
 		}
 
 		@Override
@@ -202,7 +202,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			} else {
 				field.column(scale.toPixel(z), scale.toPixel(x), terrain);
 			}
-			column.surfaceY = scale.surfaceY(terrain.elevation);
+			column.surfaceY = coarse ? scale.surfaceY(terrain.elevation) : (float) ground.y(x + 0.5, z + 0.5);
 			column.meanSurfaceY = scale.surfaceY(terrain.meanElevation);
 			column.meanElevation = terrain.meanElevation;
 			column.relief = terrain.relief;

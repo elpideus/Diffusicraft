@@ -6,6 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
+import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import net.minecraft.resources.Identifier;
@@ -37,9 +38,8 @@ public record HollowsFunction(WorldScale scale, int minY) implements DensityFunc
 	public DensitySampler compileSampler(CompileContext context) {
 		TerrainField field = TerrainFields.forContext(context);
 		Hollows hollows = Hollows.of(context.createRandom(SEED_ID).nextLong(), minY);
-		WorldScale scale = this.scale;
-		IntBinaryOperator surface = (x, z) -> (int) Math.floor(scale.surfaceY(field.elevation(scale.toPixel(z),
-			scale.toPixel(x))));
+		TerrainSurface ground = field.surface(scale);
+		IntBinaryOperator surface = (x, z) -> (int) Math.floor(ground.y(x, z));
 		return new Sampler(hollows, surface);
 	}
 

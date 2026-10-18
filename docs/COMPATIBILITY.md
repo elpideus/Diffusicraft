@@ -26,7 +26,8 @@ Its priority (20) is above the default, so it wins over SeedGen in Diffusicraft 
 
 **What an LOD holds.** `worldgen.lod.LodSampler` fills each column of an LOD the way the chunk generator would:
 
-- the terrain's height, cut by the rivers, with water in their channels and lakes, and the sea up to its level;
+- the terrain's height, cut by the rivers, with water in their channels and lakes, and the sea up to its level; at
+  Earth 1:1 the nearest LODs, whose columns are at most 4 blocks apart, carry the gullies too;
 - the blocks at the top from the world's own material rules (soils, sand, gravel, snow, rock strata in cliffs), run on
   each column with the slope taken from its neighbours;
 - one rock sample for everything below, which shows in cliff faces;

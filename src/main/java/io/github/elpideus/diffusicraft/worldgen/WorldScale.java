@@ -101,6 +101,18 @@ public enum WorldScale implements StringRepresentable {
 		return (float) Math.min(seaLevel - 1, seaLevel - depth);
 	}
 
+	/**
+	 * How fast {@link #surfaceY} rises with the elevation, in blocks per meter: zero where the shallowest sea floor is
+	 * held a block under the sea.
+	 */
+	public double surfaceRate(float elevationMeters) {
+		if (elevationMeters >= 0f) {
+			return easeRate(elevationMeters / landMetersPerBlock, landKnee, landCap) / landMetersPerBlock;
+		}
+		double blocks = -elevationMeters / oceanMetersPerBlock;
+		return ease(blocks, oceanKnee, oceanCap) < 1 ? 0 : easeRate(blocks, oceanKnee, oceanCap) / oceanMetersPerBlock;
+	}
+
 	/** Highest surface any elevation can reach. */
 	public float maxSurfaceY() {
 		return (float) (seaLevel + landCap);
@@ -117,5 +129,14 @@ public enum WorldScale implements StringRepresentable {
 		}
 		double room = cap - knee;
 		return knee + room * Math.tanh((blocks - knee) / room);
+	}
+
+	/** The derivative of {@link #ease} with {@code blocks}. */
+	static double easeRate(double blocks, double knee, double cap) {
+		if (blocks <= knee) {
+			return 1;
+		}
+		double tanh = Math.tanh((blocks - knee) / (cap - knee));
+		return 1 - tanh * tanh;
 	}
 }

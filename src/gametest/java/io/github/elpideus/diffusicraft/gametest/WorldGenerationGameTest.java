@@ -338,9 +338,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		long seed = ((RandomStateAccessor) (Object) probe.state).diffusicraft$random().fromHashOf(StrataRule.SEED_ID)
 			.nextLong();
 		Erosion erosion = new Erosion(seed);
-		double perBlock = WorldScale.STANDARD.pixelsPerBlock();
-		Erosion.Surface ground = (x, z) -> WorldScale.STANDARD.surfaceY(probe.field.elevation(z * perBlock,
-			x * perBlock));
+		Erosion.Surface ground = probe.field.surface(WorldScale.STANDARD);
 		double steepest = 0;
 		Cliff best = null;
 		for (int dx = -1024; dx <= 1024; dx += 8) {
