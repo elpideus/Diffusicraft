@@ -294,6 +294,25 @@ large copper and iron veins stay vanilla. Then `diffusicraft:strata` (`StrataRul
 first, so biomes keep their grass, sand, terracotta and snow. Where they ask for nothing, or for plain stone as
 mountain biomes do, the block comes from the `Geology` model. Mountain sides and cliffs therefore show the strata.
 
+**Cliffs and scree.** Soil does not hold on slopes much steeper than 50°, and what weathers out of a cliff falls and
+piles up below it. `Erosion` reads the slope of each column from the terrain, in blocks per block as the player sees
+it, and changes the top of the ground above the water:
+
+- **Cliffs.** Steeper than 1.2 (about 50°), the soil, sand or snow the biome lays there gives way to the local rock.
+- **Scree.** Between 0.45 and 1.2 (24° to 50°), where the ground rises at least as steeply as 45° over the 12 blocks
+  uphill, the top three blocks are scree: a little more than half gravel, the rest broken rock (cobblestone, cobbled
+  deepslate, or the local rock itself).
+- **Elsewhere** the biome's ground stays.
+
+The thresholds wander by up to a fifth over some 16 blocks, so the edges of cliffs and scree follow the land rather than
+the terrain's grid. Under the water, the beds keep their sand and gravel. Distant Horizons' LODs run the same rule, so
+cliffs show from afar too, except in the farthest LODs, which read the coarse map and are too smooth for them.
+
+The slopes are those the player sees, so the scale matters. The Standard world raises the land 1.5 times more than it
+widens it up to 1,000 m, and its steep flanks get the most cliffs; above that it squeezes the height, and its high
+ground is gentle. At Earth 1:1 the slopes are the real ones over 30 m, which are seldom steeper than 50°: cliffs are
+rare there and keep to the highest ranges (see `ErosionSurveyTest` under [Tests](#tests)).
+
 `Geology` is a pure function of the geology seed, the scale and the column's terrain. It holds no Minecraft classes and
 is tested on its own. From the top down:
 
@@ -448,6 +467,13 @@ Other searches still read the full terrain and can take a while on new land:
 - `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
   tall worlds keep about as much basement under the land as the standard world, and draws a cross-section of each to
   `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs.
+- `ErosionTest` checks that gentle ground keeps its soil, steep ground shows the rock in any direction, and scree
+  lies at the foot of a cliff, whichever way it faces, and not on the flat beyond.
+- `ErosionSurveyTest` needs the models. At every scale it finds the tile near the origin whose ground rises the most in
+  blocks and sorts its land into soil, cliffs and scree. With seed 42 that tile is 93% soil, 2.6% cliffs and 4.4%
+  scree in the Standard world, 97% soil, 0.3% cliffs and 2.5% scree at Grand, and nearly all soil at Earth 1:1. The
+  highest tile near the origin, which the Standard world squeezes flat, is 3.8% cliffs and 5% scree at Grand and
+  0.8% cliffs and 2.4% scree at Earth 1:1.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
   as part of them, determinism and the sampling speed.
@@ -472,6 +498,7 @@ Other searches still read the full terrain and can take a while on new land:
   - the coarse column.
 - `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings and
   checks that it uses Diffusicraft and that the heightmaps count all of Diffusicraft's full blocks. It then saves a
-  biome map, a height map, in-game views around the spawn and views of the largest river near the spawn, each of
-  Diffusicraft's biomes on the map, the tallest Grand Hollow and a lava sea nearby to
-  `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
+  biome map, a height map, in-game views around the spawn and views of the largest river near the spawn, the steepest
+  cliff, each of Diffusicraft's biomes on the map, the tallest Grand Hollow and a lava sea nearby to
+  `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock. It generates on the CPU unless
+  `-Pdiffusicraft.device` names another device.

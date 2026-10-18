@@ -10,9 +10,11 @@ import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
+import io.github.elpideus.diffusicraft.worldgen.geology.Erosion;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodColumn;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodSampler;
+import io.github.elpideus.diffusicraft.worldgen.material.StrataRule;
 import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -144,8 +146,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			});
 			BlockPos above = probe.spawn.atY(probe.spawnSurface + 40);
 			view(context, world, above, 0f, 20f, "view-south");
-			// Distant Horizons' LODs, against the chunks just generated around the spawn. A failure waits for the
-			// views to be taken.
+			// Distant Horizons' LODs, against the chunks just generated around the spawn. A failure, here or at the
+			// cliff, waits for the views to be taken.
 			String problem = checkLods(world, probe, probe.spawn);
 			problem = problem != null ? problem : blocksProblem;
 			view(context, world, above, 180f, 20f, "view-north");
@@ -162,6 +164,15 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				view(context, world, lake.offset(0, 24, 36), 180f, 30f, "lake");
 				view(context, world, lake.above(140), 180f, 75f, "lake-above");
 			}
+
+			// The steepest cliff nearby, from the foot of it, where its scree lies. Its face must be bare rock.
+			Cliff cliff = findCliff(probe);
+			BlockPos foot = cliff.at.offset((int) Math.round(-48 * cliff.uphillX), 0,
+				(int) Math.round(-48 * cliff.uphillZ));
+			float yaw = (float) Math.toDegrees(Math.atan2(-cliff.uphillX, cliff.uphillZ));
+			view(context, world, foot.atY(Math.max(surface(probe, foot), cliff.at.getY()) + 12), yaw, 0f, "cliff");
+			String cliffProblem = world.getServer().computeOnServer(server -> checkCliff(server.overworld(), cliff.at));
+			problem = problem != null ? problem : cliffProblem;
 
 			// Each of Diffusicraft's biomes, from 45 blocks north of it.
 			for (Map.Entry<String, BlockPos> biome : diffusicraftBiomes.entrySet()) {
@@ -316,6 +327,60 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			.map(block -> BuiltInRegistries.BLOCK.getKey(block).toString())
 			.toList();
 		return missing.isEmpty() ? null : "Full blocks missing from #minecraft:blocks_motion: " + missing;
+	}
+
+	/** A column on a cliff, and which way the ground rises there, as a unit vector. */
+	private record Cliff(BlockPos at, double uphillX, double uphillZ) {
+	}
+
+	/** Finds the steepest ground within 1 km of the spawn that {@link Erosion} leaves bare. */
+	private static Cliff findCliff(Probe probe) {
+		long seed = ((RandomStateAccessor) (Object) probe.state).diffusicraft$random().fromHashOf(StrataRule.SEED_ID)
+			.nextLong();
+		Erosion erosion = new Erosion(seed);
+		double perBlock = WorldScale.STANDARD.pixelsPerBlock();
+		Erosion.Surface ground = (x, z) -> WorldScale.STANDARD.surfaceY(probe.field.elevation(z * perBlock,
+			x * perBlock));
+		double steepest = 0;
+		Cliff best = null;
+		for (int dx = -1024; dx <= 1024; dx += 8) {
+			for (int dz = -1024; dz <= 1024; dz += 8) {
+				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+				double cx = x + 0.5, cz = z + 0.5, y = ground.y(cx, cz);
+				if (y < WorldScale.STANDARD.seaLevel() + 8) {
+					continue;
+				}
+				double gx = (ground.y(cx + 1, cz) - ground.y(cx - 1, cz)) / 2;
+				double gz = (ground.y(cx, cz + 1) - ground.y(cx, cz - 1)) / 2;
+				double slope = Math.sqrt(gx * gx + gz * gz);
+				if (slope > steepest && erosion.kind(ground, x, z) == Erosion.Kind.CLIFF) {
+					steepest = slope;
+					best = new Cliff(new BlockPos(x, (int) Math.floor(y), z), gx / slope, gz / slope);
+				}
+			}
+		}
+		if (best == null) {
+			throw new AssertionError("No cliff within 1 km of the spawn");
+		}
+		LOGGER.info("The steepest cliff near the spawn rises {} blocks per block at {}",
+			Math.round(steepest * 100) / 100.0, best.at);
+		return best;
+	}
+
+	/** Whether the cliff at {@code at} shows its rock: no soil or sand among the top blocks of the ground. */
+	private static @Nullable String checkCliff(ServerLevel level, BlockPos at) {
+		int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR, at.getX(), at.getZ()) - 1;
+		List<String> blocks = new ArrayList<>();
+		String problem = null;
+		for (int y = top; y > top - 4; y--) {
+			BlockState state = level.getBlockState(at.atY(y));
+			blocks.add(BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath());
+			if (problem == null && (state.is(BlockTags.SUBSTRATE_OVERWORLD) || state.is(BlockTags.SAND))) {
+				problem = "The cliff at " + at.atY(y) + " is covered with " + state;
+			}
+		}
+		LOGGER.info("The cliff from y = {} down: {}", top, blocks);
+		return problem;
 	}
 
 	/** Finds the deepest lake within 2 km of the spawn, if any, and returns its water surface there. */

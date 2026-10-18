@@ -5,7 +5,7 @@ climates, forests and rock layers should look and behave like real ones. It is a
 modpacks built around Create.
 
 The pieces in place generate the world's shape, climate, rivers, lakes, rock and deep caverns, and a world generator
-turns them into blocks. The pieces planned add the details: erosion, soils and new biomes.
+turns them into blocks. The pieces planned add the details: finer terrain, soils and new biomes.
 
 ## Done
 
@@ -47,6 +47,8 @@ turns them into blocks. The pieces planned add the details: erosion, soils and n
 - **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
   and a magma layer above the bedrock. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See
   [WORLDGEN.md](WORLDGEN.md#the-ground).
+- **Cliffs and scree.** Ground too steep for soil shows the rock beneath, and scree of gravel and broken rock lies
+  under the cliffs. See [WORLDGEN.md](WORLDGEN.md#the-ground).
 - **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
@@ -83,7 +85,6 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 - **Sub-30 m detail.** Add procedural detail below the model's resolution, driven by the local slope, rock type and
   climate.
-- **Erosion.** Cliffs, scree and talus.
 - **Lakes on rivers.** Rivers that fill the basins they cross and flow on out of them, and lakes larger than a
   tile.
 - **Coasts.** Coastlines, beaches and cliffs follow the real sea level (y = 0 at 1:1).
