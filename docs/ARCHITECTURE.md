@@ -29,7 +29,7 @@ Loom's split source sets keep client-only code out of the server.
 | `.../runtime` | Everything downloaded or native: `Resources` (facade), `DiffusicraftConfig`, `RuntimeManifest`, `RuntimeInstaller`, `Downloader`, `RemoteZip`, `SystemLibraries`, `NativeRuntime`, `Hardware`, `Platform`, `Job` |
 | `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, `SyntheticMapFactory`, ... |
 | `.../terrain/diffusion/tensor` | `WindowedTensor` (lazy, concurrent, cached tiling) and its stores |
-| `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `ClimateMapping`, `TerrainFields`, `density/` (density function types). See [WORLDGEN.md](WORLDGEN.md) |
+| `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `TerrainPrefetcher`, `ClimateMapping`, `TerrainFields`, `density/` (density function types). See [WORLDGEN.md](WORLDGEN.md) |
 | `.../height`, `.../mixin/height` | Build height beyond 4064: `ExtendedHeight` (the numbers and the network format), `SharedContainerData` and `NoThreadingDetector` (memory per empty section), `RenderWindow` (the rows the client renders), and the mixins that apply them. See [HEIGHT.md](HEIGHT.md) |
 | `src/main/resources/data` | World presets, noise settings, density functions and dimension types, written by `tools/worldgen_data.py` |
 | `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen); `mixin/` (launch hook, Create World button, default world type, model check on Create, render grid); `height/` (the render grid's window of rows); `compat/` (Mod Menu) |
@@ -151,4 +151,7 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
   local relief and sea-level climate. It is thread-safe and computes each tile once.
 - **`TerrainFields`.** It holds one field per seed. The models load on the first chunk and are freed when the server
   stops. Pipeline windows are cached in the world folder.
+- **`TerrainPrefetcher`.** It computes tiles on a background thread where the players are heading, before chunk
+  generation asks for them. `PlayerPrefetch` tells it where they are from the server tick. See
+  [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 - **Scales.** `WorldScale` maps meters to blocks for the standard, grand and earth world types.

@@ -51,6 +51,11 @@ public final class DiffusicraftConfig {
 	 * is as far as vanilla draws vertically; smaller values save memory in tall dimensions. Read at startup.
 	 */
 	public int verticalRenderDistance = 0;
+	/**
+	 * Compute terrain in the background where the players are heading, so that chunks rarely wait for inference.
+	 * Read when a world opens.
+	 */
+	public boolean generateAhead = true;
 
 	public static DiffusicraftConfig load(Path file) {
 		if (Files.isRegularFile(file)) {

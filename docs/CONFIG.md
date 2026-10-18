@@ -15,7 +15,8 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "storagePath": "",
   "rocmNativePath": "",
   "distantHorizonsLods": true,
-  "verticalRenderDistance": 0
+  "verticalRenderDistance": 0,
+  "generateAhead": true
 }
 ```
 
@@ -108,6 +109,13 @@ How many section rows above and below the camera the client keeps render data fo
 distance, which is as far as the game draws vertically anyway, and so does any larger value. A smaller value saves
 memory in dimensions taller than vanilla's, but terrain further above or below the camera is not drawn. It has no
 effect with Sodium. Read at startup. See [HEIGHT.md](HEIGHT.md#the-clients-render-grid).
+
+### `generateAhead`
+
+Computes terrain in the background where the players are heading: around them out to their view distance, and along
+their path for the next 20 seconds. Chunks then rarely wait for inference, even at elytra speed. It uses the GPU (or
+the CPU) while you move, so set it to `false` on a slow machine if it gets in the way of the game more than waiting
+for terrain does. Read when a world opens. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 
 ## Dedicated servers
 

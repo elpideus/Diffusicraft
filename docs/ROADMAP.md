@@ -61,6 +61,8 @@ turns them into blocks. The pieces planned add the details: erosion, soils and n
 - **Build height up to 32,736 blocks.** Dimension types can be up to 32,736 blocks tall (Y −16,368 to 16,367);
   vanilla stops at 4064. Positions are repacked, so worlds end at ±8,000,000 blocks. Blocks, light, heightmaps, the
   network and saves work at both ends; a client game test covers them. See [HEIGHT.md](HEIGHT.md).
+- **Generating ahead.** Terrain is computed in the background where the players are heading, so chunks rarely
+  wait for inference. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 
 ## Next
 
@@ -110,4 +112,4 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Performance
 
-See [PERFORMANCE.md](PERFORMANCE.md#next-steps): generating ahead of the player, FP16/TensorRT, I/O binding.
+See [PERFORMANCE.md](PERFORMANCE.md#next-steps): FP16/TensorRT, I/O binding, larger requests.
