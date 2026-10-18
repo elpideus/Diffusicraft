@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
+import io.github.elpideus.diffusicraft.mixin.NoiseGeneratorSettingsAccessor;
 import io.github.elpideus.diffusicraft.worldgen.biome.ClimateBiomeSource;
 import io.github.elpideus.diffusicraft.worldgen.biome.HeightTemperature;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
@@ -13,6 +14,7 @@ import io.github.elpideus.diffusicraft.worldgen.material.RiverRule;
 import io.github.elpideus.diffusicraft.worldgen.material.StrataRule;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -21,6 +23,7 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
+import net.minecraft.world.level.levelgen.material.rule.MaterialRule;
 import net.minecraft.world.level.levelgen.presets.WorldPreset;
 
 import java.util.Arrays;
@@ -72,17 +75,22 @@ public final class DiffusicraftWorldgen {
 
 	/** Whether noise settings are Diffusicraft's, which is told by their material rule. */
 	public static boolean isDiffusicraft(NoiseGeneratorSettings settings) {
-		return settings.materialRule().unwrapKey()
+		return ownRule(settings).unwrapKey()
 			.filter(key -> key.identifier().getNamespace().equals(Diffusicraft.MOD_ID)).isPresent();
 	}
 
 	/** The scale of Diffusicraft's noise settings, told by their material rule, or {@code null} for anyone else's. */
 	public static WorldScale scale(NoiseGeneratorSettings settings) {
-		return settings.materialRule().unwrapKey()
+		return ownRule(settings).unwrapKey()
 			.filter(key -> key.identifier().getNamespace().equals(Diffusicraft.MOD_ID))
 			.flatMap(key -> Arrays.stream(WorldScale.values())
 				.filter(scale -> scale.getSerializedName().equals(key.identifier().getPath())).findFirst())
 			.orElse(null);
+	}
+
+	/** The material rule the settings were loaded with, before biome mods such as TerraBlender add theirs to it. */
+	private static Holder<MaterialRule> ownRule(NoiseGeneratorSettings settings) {
+		return ((NoiseGeneratorSettingsAccessor) (Object) settings).diffusicraft$materialRule();
 	}
 
 	/** Whether a generator uses Diffusicraft's noise settings, and so needs the models. */

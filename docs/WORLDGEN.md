@@ -115,7 +115,8 @@ Some adjustments move biomes away from vanilla's defaults:
   from the terrain, not from noise.
 
 Biome mods that add entries to the overworld table get the same parameters, so they appear where the real conditions
-match.
+match. So do the regions of TerraBlender and the mods built on it, such as Biomes O' Plenty; the refiner below leaves
+their biomes as they are. See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 
 ### Refined biomes
 
@@ -381,7 +382,7 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate and the material rules run outside chunks |
+| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
 | `worldgen/river/` | `Rivers` (what a river does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |

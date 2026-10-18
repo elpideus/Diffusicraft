@@ -34,8 +34,9 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `NoiseBasedChunkGenerator.createFluidPicker`, the call to `applyCarvingMask` in
     `NoiseBasedChunkGenerator.generateCarvers`, `RandomState.create` and `createClimateSampler`, the interface added
     to `Climate.Sampler`, the `0.05F` in `Biome.getHeightAdjustedTemperature`, the accessors for
-    `MaterialRuleContext.randomState` and `RandomState.random`, and the invokers of `MaterialRuleContext`'s constructor,
-    `updateXZ` and `updateY`. The class tweaker `diffusicraft.classtweaker` opens
+    `MaterialRuleContext.randomState`, `RandomState.random` and the `NoiseGeneratorSettings.materialRule` field (read
+    directly because TerraBlender changes what its accessor returns), and the invokers of `MaterialRuleContext`'s
+    constructor, `updateXZ` and `updateY`. The class tweaker `diffusicraft.classtweaker` opens
     `MultiNoiseBiomeSource`'s constructor.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
   `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py`,

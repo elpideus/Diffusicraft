@@ -34,7 +34,8 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
   The scale factors will be tuned in game. See [WORLDGEN.md](WORLDGEN.md).
 - **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
   and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Biome mods that
-  extend the overworld table get the same parameters.
+  extend the overworld table get the same parameters; checked in game with Biomes O' Plenty and TerraBlender. See
+  [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
   rainforest, Mediterranean maquis, moorland, heath, salt flats, cold desert and steppe, with their own trees
   (krummholz, giant spruces, olives, stone pines, cypresses), plants and ground; swamps and mangroves follow the
@@ -81,7 +82,7 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 - **Real sizes.** Biomes are as large as their real counterparts: a forest can be tens of kilometres across at 1:1.
 - **More real-world biomes.** Fjords, bogs and the other biomes the climate can tell apart.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
-  same climate space from the start, instead of being bolted on.
+  same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
 
 ### Underground
 

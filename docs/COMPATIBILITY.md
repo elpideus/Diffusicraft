@@ -9,7 +9,8 @@ for each mod, and what is still open.
 |---|---|---|
 | [Distant Horizons](#distant-horizons) 3.3.4 | Integrated | Draws the far terrain straight from the terrain, without chunks |
 | Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Distant Horizons uses Diffusicraft's generator; Voxy is planned |
-| Biomes O' Plenty, TerraBlender, BYG | Works through the climate | Their biomes get the same climate parameters as vanilla's |
+| [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's |
+| Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
 | C2ME | Expected to work, not verified | The terrain pipeline is thread-safe |
 | Sodium, Iris, shader packs | Works | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
 | Structure mods | Works | Structures are placed by the vanilla generator |
@@ -78,3 +79,21 @@ it; the integration loads only when Distant Horizons is installed.
 Biome mods that add to the overworld's biome table, such as TerraBlender and the mods built on it (Biomes O' Plenty,
 BYG), place their biomes by the six climate parameters. Diffusicraft computes those parameters from the real climate
 (see [WORLDGEN.md](WORLDGEN.md#biome-parameters)), so their biomes land where the climate matches what they asked for.
+
+**Checked with Biomes O' Plenty.** The client game test, run with Biomes O' Plenty and TerraBlender
+(`-PdevMods=biomes-o-plenty,glitchcore,terrablender`), finds them sharing the land with vanilla's biomes and
+Diffusicraft's own: around a temperate spawn, redwood forest, old-growth woodland, woodland, orchard, highland and
+field next to vanilla's forest and plains, and within 24 km the same nine of Diffusicraft's refined biomes as without
+them.
+
+- **Regions.** TerraBlender divides the world into regions, each with the biome table of one mod, by a noise of its
+  own. A Biomes O' Plenty region takes its biomes from Biomes O' Plenty's table, with Diffusicraft's parameters.
+  Diffusicraft refines only vanilla's picks (see [WORLDGEN.md](WORLDGEN.md#refined-biomes)), so the mod's biomes stay
+  as they are. The regions keep TerraBlender's size in blocks at every scale, which is small next to the terrain of
+  Diffusicraft Earth 1:1.
+- **Surfaces.** TerraBlender tries the mods' material rules first, in the mods' own biomes, and the world's wherever
+  they place nothing. Everything else, the rivers, the rock and Diffusicraft's soils, comes from Diffusicraft's rules.
+  TerraBlender does this by wrapping the world's rule in a new one, so Diffusicraft tells its worlds by the rule the
+  noise settings were loaded with, not by the one they hand out.
+- **Distant Horizons.** The LODs run the same combined rules. Trees that the mods grow with features of their own do
+  not show in them yet.
