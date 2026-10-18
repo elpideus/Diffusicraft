@@ -35,17 +35,22 @@ The pieces planned add the details: geology, caves, rivers and new biomes.
 - **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
   and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Biome mods that
   extend the overworld table get the same parameters.
+- **Build height up to 32,736 blocks.** Dimension types can be up to 32,736 blocks tall (Y −16,368 to 16,367);
+  vanilla stops at 4064. Positions are repacked, so worlds end at ±8,000,000 blocks. Blocks, light, heightmaps, the
+  network and saves work at both ends. See [HEIGHT.md](HEIGHT.md).
 
 ## Next
 
 ### Height beyond 4064 blocks
 
-Earth 1:1 compresses mountains above 1.2 km to fit 2288 blocks. Real 1:1 relief needs build heights beyond the
-limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs research into:
+The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#next-steps)):
 
-- raising the codec limits and the section storage behind them;
-- lighting and heightmaps at that scale;
-- compatibility with Sodium, Distant Horizons and Voxy, which make their own assumptions about world height.
+- **Earth 1:1 at full height.** It still compresses mountains above 1.2 km to fit 2288 blocks. Earth's relief needs
+  about 20,000.
+- **Memory.** Every section of a loaded column is allocated, even empty ones: about 0.9 MiB per 32,736-block column.
+  Shrink empty sections, and skip them when saving.
+- **Compatibility.** Sodium, Distant Horizons and Voxy, which make their own assumptions about world height, and a
+  dedicated server over a real network.
 
 ### Terrain detail
 

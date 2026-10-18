@@ -116,7 +116,8 @@ that explains why.
    `modmenu_version`.
 2. Check that the mixin targets still exist:
    - `Gui.addInitialScreens(List<Function<Runnable, Screen>>)`;
-   - the constructor of `CreateWorldScreen$MoreTab` and its local `GridLayout.RowHelper`.
+   - the constructor of `CreateWorldScreen$MoreTab` and its local `GridLayout.RowHelper`;
+   - the height mixins in [HEIGHT.md](HEIGHT.md#mixin-targets).
 3. Run `./gradlew build` and the client game test, and look at the screenshots.
 4. Update the dev modpack, or run with `-PnoDevMods` until the mods catch up.
 

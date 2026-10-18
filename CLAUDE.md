@@ -30,7 +30,12 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - client: `Gui.addInitialScreens`, `CreateWorldScreen$MoreTab.<init>`, `CreateWorldScreen.onCreate` and
     `WorldCreationUiState.<init>`;
   - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`) and the synthetic
-    `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it.
+    `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it;
+  - height (`mixin/height`): the `30000000`, `3.0E7`, `29999984` and `2097152` literals in vanilla, the locals of
+    `SerializableChunkData.parse` and `FriendlyByteBuf.read/writeBlockPos`. The full table is in
+    [docs/HEIGHT.md](docs/HEIGHT.md#mixin-targets).
+- **Positions.** `BlockPos` packs 24/16/24 bits, not 26/12/26, and worlds end at ±8,000,000. Never pack positions by
+  hand or assume ±30,000,000: use `BlockPos.asLong`/`of`, and the numbers in `ExtendedHeight`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
   `src/main/resources/data` is generated: edit `tools/worldgen_data.py` and rerun it, never the JSON.
 - **Untested paths.** The AMD ROCm/MIGraphX path has never run on AMD hardware. Say so when touching it.

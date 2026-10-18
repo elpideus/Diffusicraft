@@ -13,6 +13,8 @@
   windowed diffusion pipeline.
 - [WORLDGEN.md](WORLDGEN.md): how the terrain becomes chunks: world types and scales, the terrain field, biome
   parameters, density and the spawn.
+- [HEIGHT.md](HEIGHT.md): build heights up to 32,736 blocks: how positions are repacked, what it costs, and what it
+  breaks.
 - [DEVELOPMENT.md](DEVELOPMENT.md): building, running with the dev modpack, tests and the headless client game test.
 - [PERFORMANCE.md](PERFORMANCE.md): benchmarks, where the time goes, and what to optimise next.
 - [ROADMAP.md](ROADMAP.md): the full vision: world scales, height beyond 4064, climate biomes, geology and the
