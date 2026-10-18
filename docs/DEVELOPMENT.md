@@ -57,11 +57,17 @@ The fast tests need no downloads. Tests tagged `models` need the real models or 
 ./gradlew test -PwithModels --tests '*WorldPipelineBenchmarkTest' -Pdiffusicraft.device=CUDA
 ```
 
-### Client game test
+### Client game tests
 
-[`ResourceScreensGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ResourceScreensGameTest.java)
-starts the real game. It goes through the launch screen, Create World > More and the resource screen, opens and
-cancels an install, and saves screenshots to `build/run/clientGameTest/screenshots/`. Nothing is downloaded.
+Both tests start the real game and save screenshots to `build/run/clientGameTest/screenshots/`.
+
+- [`ResourceScreensGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ResourceScreensGameTest.java)
+  goes through the launch screen, Create World > More and the resource screen, and opens and cancels an install.
+  Nothing is downloaded.
+- [`WorldGenerationGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WorldGenerationGameTest.java)
+  creates a world with the default settings and checks that it is a Diffusicraft world. It saves a biome map, a height
+  map and three views around the spawn. It needs the models, and skips itself without them. It generates on the CPU,
+  so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to use the GPU.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods
@@ -74,9 +80,9 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
 ```
 
 - **Rendering.** Under Xvfb, Minecraft falls back from Vulkan to OpenGL on Mesa's software renderer. That is fine for
-  screens.
+  screens, and slow but usable for the world views.
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
-- **Not part of `build`.** Run it yourself after changing anything in `client/screen` or the mixins.
+- **Not part of `build`.** Run them yourself after changing anything in `client/screen`, `worldgen` or the mixins.
 
 ## Project conventions
 

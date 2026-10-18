@@ -63,6 +63,11 @@ fabricApi {
 	}
 }
 
+// Forward -Pdiffusicraft.* to the game tests too: the world generation test reads diffusicraft.device.
+tasks.matching { it.name == 'runClientGameTest' }.configureEach {
+	systemProperties project.properties.findAll { k, v -> k.startsWith('diffusicraft.') }
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
