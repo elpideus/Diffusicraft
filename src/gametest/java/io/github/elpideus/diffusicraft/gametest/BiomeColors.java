@@ -56,7 +56,14 @@ final class BiomeColors {
 		Map.entry("minecraft:cold_ocean", 0x202070),
 		Map.entry("minecraft:deep_cold_ocean", 0x202038),
 		Map.entry("minecraft:frozen_ocean", 0x7070d6),
-		Map.entry("minecraft:deep_frozen_ocean", 0x404090)
+		Map.entry("minecraft:deep_frozen_ocean", 0x404090),
+		Map.entry("diffusicraft:tundra", 0x9fa77a),
+		Map.entry("diffusicraft:alpine_tundra", 0x8f9a6e),
+		Map.entry("diffusicraft:cloud_forest", 0x2f7a4a),
+		Map.entry("diffusicraft:temperate_rainforest", 0x1f5a2a),
+		Map.entry("diffusicraft:maquis", 0x9a9a4a),
+		Map.entry("diffusicraft:cold_desert", 0xc8b48a),
+		Map.entry("diffusicraft:steppe", 0xc3c06a)
 	);
 
 	private BiomeColors() {

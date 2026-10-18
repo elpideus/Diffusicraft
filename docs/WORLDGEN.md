@@ -398,4 +398,6 @@ Other searches still read the full terrain and can take a while on new land:
   - the coarse column.
 - `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings
   and checks that it uses Diffusicraft. It then saves a biome map, a height map, in-game views around the spawn and
-  views of the largest river near the spawn, the tallest Grand Hollow and a lava sea nearby to `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
+  views of the largest river near the spawn, each of Diffusicraft's biomes on the map, the tallest Grand Hollow and a
+  lava sea nearby to `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device`
+  names another device.

@@ -3,10 +3,12 @@ package io.github.elpideus.diffusicraft.gametest;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
+import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
+import io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
@@ -59,8 +61,9 @@ import java.util.stream.IntStream;
 /**
  * Creates a Diffusicraft world with the default settings and checks that the overworld really uses Diffusicraft.
  * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
- * the generator without building chunks, in-game views from above the spawn and over the largest river nearby, and
- * views inside the nearest Grand Hollow and over the nearest lava sea of a Deep Grand Hollow.
+ * the generator without building chunks, in-game views from above the spawn, over the largest river nearby and of each
+ * of Diffusicraft's biomes on the map, and views inside the nearest Grand Hollow and over the nearest lava sea of a Deep
+ * Grand Hollow.
  *
  * <p>Needs the Terrain Diffusion models; without them the test logs a warning and does nothing. Generation runs on the
  * CPU, so the test leaves the GPU alone; pass {@code -Pdiffusicraft.device=CUDA} (or {@code AUTO}) to change that.
@@ -109,7 +112,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 
 			Probe probe = world.getServer().computeOnServer(server -> Probe.of(server.overworld()));
 			LOGGER.info("Spawn {} at surface y={}, biome {}", probe.spawn, probe.spawnSurface, probe.spawnBiome);
-			saveMaps(probe);
+			Map<String, BlockPos> diffusicraftBiomes = saveMaps(probe);
+			findFarBiomes(probe, diffusicraftBiomes);
 
 			world.getServer().runCommand("time set noon");
 			world.getServer().runCommand("weather clear");
@@ -128,6 +132,13 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			BlockPos river = findRiver(probe);
 			view(context, world, river.offset(0, 24, 36), 180f, 30f, "river");
 			view(context, world, river.above(140), 180f, 75f, "river-above");
+
+			// Each of Diffusicraft's biomes, from 45 blocks north of it.
+			for (Map.Entry<String, BlockPos> biome : diffusicraftBiomes.entrySet()) {
+				BlockPos at = biome.getValue(), camera = at.north(45);
+				int y = Math.max(surface(probe, at), surface(probe, camera)) + 30;
+				view(context, world, camera.atY(y), 0f, 30f, "biome-" + biome.getKey().substring(biome.getKey().indexOf(':') + 1));
+			}
 
 			// The camera in the middle of the tallest Grand Hollow nearby, first by its own light, then lit up.
 			BlockPos grand = findHollow(probe, EnumSet.of(Hollows.Kind.GRAND_HOLLOW, Hollows.Kind.ANCIENT_GRAND_HOLLOW),
@@ -279,8 +290,16 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		}
 	}
 
-	/** Writes a biome map and a height map of {@value #MAP_SIZE}² pixels centred on the spawn. */
-	private static void saveMaps(Probe probe) {
+	private static int surface(Probe probe, BlockPos at) {
+		return (int) Math.floor(probe.state.sampleBlockValueUncached(probe.router.chunkSurfaceLevel(), at.getX(), 0,
+			at.getZ()));
+	}
+
+	/**
+	 * Writes a biome map and a height map of {@value #MAP_SIZE}² pixels centred on the spawn, and returns, for each of
+	 * Diffusicraft's biomes on the map, the point nearest the spawn well inside it.
+	 */
+	private static Map<String, BlockPos> saveMaps(Probe probe) {
 		long start = System.nanoTime();
 		int half = MAP_SIZE * MAP_STRIDE / 2;
 		int x0 = probe.spawn.getX() - half, z0 = probe.spawn.getZ() - half;
@@ -343,6 +362,99 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+
+		Map<String, BlockPos> nearest = new TreeMap<>();
+		Map<String, Integer> distance = new TreeMap<>();
+		for (int row = 2; row < MAP_SIZE - 2; row++) {
+			for (int col = 2; col < MAP_SIZE - 2; col++) {
+				String b = biome[row * MAP_SIZE + col];
+				int d = Math.abs(row - MAP_SIZE / 2) + Math.abs(col - MAP_SIZE / 2);
+				if (!b.startsWith("diffusicraft:") || d >= distance.getOrDefault(b, Integer.MAX_VALUE)
+					|| !surrounded(biome, row, col)) {
+					continue;
+				}
+				distance.put(b, d);
+				nearest.put(b, new BlockPos(x0 + col * MAP_STRIDE, 0, z0 + row * MAP_STRIDE));
+			}
+		}
+		LOGGER.info("Diffusicraft biomes near the spawn: {}", nearest);
+		return nearest;
+	}
+
+	/**
+	 * Adds the Diffusicraft biomes missing from the map: the nearest spot within 24 km on the coarse map, confirmed on
+	 * the full terrain within 512 blocks of it. Biomes the climate of this seed has nowhere near are left out.
+	 */
+	private static void findFarBiomes(Probe probe, Map<String, BlockPos> found) {
+		long start = System.nanoTime();
+		int reach = 24 * 1024, step = 256;
+		Map<String, BlockPos> coarse = new TreeMap<>();
+		Map<String, Long> distance = new TreeMap<>();
+		CoarseClimate.call(() -> {
+			BiomeResolver resolver = probe.biomes.createResolver(
+				probe.state.createClimateSampler(SamplerContext.EMPTY_UNCACHED));
+			for (int dx = -reach; dx <= reach; dx += step) {
+				for (int dz = -reach; dz <= reach; dz += step) {
+					int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+					String b = biomeAt(resolver, x, 160, z);
+					long d = (long) dx * dx + (long) dz * dz;
+					if (BiomeRefiner.TARGETS.contains(b) && b.startsWith("diffusicraft:") && !found.containsKey(b)
+						&& d < distance.getOrDefault(b, Long.MAX_VALUE)) {
+						distance.put(b, d);
+						coarse.put(b, new BlockPos(x, 0, z));
+					}
+				}
+			}
+			return null;
+		});
+		BiomeResolver resolver = probe.biomes.createResolver(probe.state.createClimateSampler(SamplerContext.EMPTY_UNCACHED));
+		for (Map.Entry<String, BlockPos> entry : coarse.entrySet()) {
+			BlockPos at = entry.getValue(), best = null;
+			long bestDistance = Long.MAX_VALUE;
+			for (int dx = -512; dx <= 512; dx += 32) {
+				for (int dz = -512; dz <= 512; dz += 32) {
+					BlockPos p = at.offset(dx, 0, dz);
+					long d = (long) dx * dx + (long) dz * dz;
+					if (d < bestDistance && fineBiome(probe, resolver, p).equals(entry.getKey())
+						&& fineBiome(probe, resolver, p.offset(24, 0, 0)).equals(entry.getKey())
+						&& fineBiome(probe, resolver, p.offset(-24, 0, 0)).equals(entry.getKey())
+						&& fineBiome(probe, resolver, p.offset(0, 0, 24)).equals(entry.getKey())
+						&& fineBiome(probe, resolver, p.offset(0, 0, -24)).equals(entry.getKey())) {
+						bestDistance = d;
+						best = p;
+					}
+				}
+			}
+			if (best != null) {
+				found.put(entry.getKey(), best);
+			} else {
+				LOGGER.info("{} is on the coarse map at {} but not on the full terrain around it", entry.getKey(), at);
+			}
+		}
+		LOGGER.info("Diffusicraft biomes within 24 km, found in {} s: {}", (System.nanoTime() - start) / 1_000_000_000L,
+			found);
+	}
+
+	private static String fineBiome(Probe probe, BiomeResolver resolver, BlockPos at) {
+		return biomeAt(resolver, at.getX(), Math.max(surface(probe, at), 63), at.getZ());
+	}
+
+	private static String biomeAt(BiomeResolver resolver, int x, int y, int z) {
+		return resolver.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y), QuartPos.fromBlock(z)).unwrapKey()
+			.map(ResourceKey::identifier).map(Object::toString).orElse("?");
+	}
+
+	/** Whether the pixels two around this one all have its biome. */
+	private static boolean surrounded(String[] biome, int row, int col) {
+		String b = biome[row * MAP_SIZE + col];
+		for (int dr = -2; dr <= 2; dr++) {
+			for (int dc = -2; dc <= 2; dc++) {
+				if (!b.equals(biome[(row + dr) * MAP_SIZE + col + dc])) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	private static int water(float depth) {
