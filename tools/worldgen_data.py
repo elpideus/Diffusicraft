@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Writes Diffusicraft's world generation data (density functions, noise settings, dimension types, world presets).
+"""Writes Diffusicraft's world generation data (density functions, material rules, noise settings, dimension types,
+world presets).
 
 The files are committed; run this after changing a scale and commit the result:
 
@@ -149,7 +150,8 @@ def noise_settings(scale, min_y, height):
                                     "left": {"type": "minecraft:sub", "left": depth, "right": 0.9}, "right": 0.0}},
             "surface_level": ref(scale, "surface"),
         },
-        "material_rule": "minecraft:overworld",
+        # Also how DiffusicraftWorldgen.isDiffusicraft tells Diffusicraft's noise settings apart.
+        "material_rule": f"{NS}:{scale}",
         "spawn_target": [{ref(scale, "spawn"): [0.75, 1.0]}],
         "debug_functions": [
             {"function": ref(scale, "final_density"), "label": "N"},
@@ -162,6 +164,21 @@ def noise_settings(scale, min_y, height):
             {"function": ref(scale, "surface"), "label": "S"},
         ],
     }
+
+
+def material_rule(scale):
+    """Vanilla's overworld rule with the underground replaced by Diffusicraft's geology (see StrataRule)."""
+    return {"type": "minecraft:sequence", "sequence": [
+        "minecraft:bedrock_floor",
+        "minecraft:overworld/copper_ore_vein",
+        "minecraft:overworld/iron_ore_vein",
+        {"type": f"{NS}:strata", "scale": scale, "surface": {"type": "minecraft:sequence", "sequence": [
+            {"type": "minecraft:condition", "if_true": {"type": "minecraft:above_preliminary_surface"},
+             "then_run": "minecraft:overworld/surface"},
+            {"type": "minecraft:condition", "if_true": {"type": "minecraft:biome", "biome_is": "minecraft:sulfur_caves"},
+             "then_run": "minecraft:overworld/sulfur_cave_bands"},
+        ]}},
+    ]}
 
 
 def dimension_type(min_y, height, clouds):
@@ -230,6 +247,7 @@ def main():
             write(f"{functions}/{field}.json", {"type": f"{NS}:climate", "scale": scale, "parameter": parameter})
         write(f"{functions}/spawn.json", {"type": f"{NS}:spawn_suitability", "scale": scale})
         write(f"{functions}/final_density.json", final_density(scale, min_y, top))
+        write(f"{NS}/worldgen/material_rule/{scale}.json", material_rule(scale))
         write(f"{NS}/worldgen/noise_settings/{scale}.json", noise_settings(scale, min_y, height))
         write(f"{NS}/worldgen/world_preset/{scale}.json", world_preset(scale, dim_type))
         if clouds is not None:

@@ -62,7 +62,7 @@
     },
     "surface_level": "diffusicraft:standard/surface"
   },
-  "material_rule": "minecraft:overworld",
+  "material_rule": "diffusicraft:standard",
   "spawn_target": [
     {
       "diffusicraft:standard/spawn": [

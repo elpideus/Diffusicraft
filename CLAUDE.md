@@ -29,10 +29,13 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
 - **Mixin targets** that break on Minecraft updates:
   - client: `Gui.addInitialScreens`, `CreateWorldScreen$MoreTab.<init>`, `CreateWorldScreen.onCreate` and
     `WorldCreationUiState.<init>`;
-  - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`) and the synthetic
-    `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it.
+  - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
+    `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
+    `NoiseBasedChunkGenerator.createFluidPicker`, and the accessors for `MaterialRuleContext.randomState` and
+    `RandomState.random`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
-  `src/main/resources/data` is generated: edit `tools/worldgen_data.py` and rerun it, never the JSON.
+  `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py` or
+  `tools/block_assets.py` and rerun it, never the JSON or the textures.
 - **Untested paths.** The AMD ROCm/MIGraphX path has never run on AMD hardware. Say so when touching it.
 - **Commits.** Small and logical, with an imperative subject and a body saying why. Docs change in the same commit as
   the behaviour.

@@ -4,8 +4,8 @@
 climates, forests and rock layers should look and behave like real ones. It is aimed at survival, realism and RPG
 modpacks built around Create.
 
-The pieces in place generate the world's shape and climate, and a first world generator turns them into blocks.
-The pieces planned add the details: geology, caves, rivers and new biomes.
+The pieces in place generate the world's shape, climate and rock, and a world generator turns them into blocks. The
+pieces planned add the details: caves, rivers and new biomes.
 
 ## Done
 
@@ -35,6 +35,9 @@ The pieces planned add the details: geology, caves, rivers and new biomes.
 - **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
   and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Biome mods that
   extend the overworld table get the same parameters.
+- **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
+  and a magma layer above the bedrock. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See
+  [WORLDGEN.md](WORLDGEN.md#the-ground).
 
 ## Next
 
@@ -70,10 +73,8 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 
 ### Underground
 
-- **Strata.** Earth-like layers: soil and subsoil, sedimentary rock, metamorphic and igneous basement, then a magma
-  layer above bedrock.
-- **Ores.** Ore and mineral rarity depends on depth and rock type.
-- **New materials.** New minerals, rocks and soils.
+- **Soils.** Soil and subsoil that follow the climate and the rock beneath.
+- **New minerals.** Minerals for Create and other tech mods, placed by the same geology.
 - **The Hollows.** Cave systems at increasing depth and scale, in the style of *Journey to the Center of the Earth*:
   - **Hollow** and **Deep Hollow**;
   - **Grand Hollow**: cavern worlds with their own ceilings, lakes and light;

@@ -64,8 +64,8 @@ TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    ▼
 density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability
    ▼
-noise settings diffusicraft:<scale>: noise router, aquifers, vanilla material rules
-   ▼
+noise settings diffusicraft:<scale>: noise router, aquifers, material rule diffusicraft:<scale>
+   ▼                                  (vanilla's surface rules + diffusicraft:strata, the Geology model)
 vanilla NoiseBasedChunkGenerator: caves, aquifers, ores, surface blocks, features and structures
 ```
 
@@ -126,6 +126,53 @@ The top of the column fades to air 16 blocks above the highest possible surface.
 `chunk_surface_level` is the exact surface rather than vanilla's estimate. Surface rules therefore place grass, sand
 and snow at the right height.
 
+### The ground
+
+The material rule `diffusicraft:<scale>` is vanilla's overworld rule with the underground replaced. Bedrock and the
+large copper and iron veins stay vanilla. Then `diffusicraft:strata` (`StrataRule`) runs vanilla's surface rules
+first, so biomes keep their grass, sand, terracotta and snow. Where they ask for nothing, or for plain stone as
+mountain biomes do, the block comes from the `Geology` model. Mountain sides and cliffs therefore show the strata.
+
+`Geology` is a pure function of the geology seed, the scale and the column's terrain. It holds no Minecraft classes and
+is tested on its own. From the top down:
+
+| Layer | Where | Rocks |
+|---|---|---|
+| Sedimentary cover | From the surface down to a depth set by the basin: up to about 2 km of rock under lowlands and shelves, a thin skin on rugged uplands | Beds 1–8 blocks thick that follow the height, not the surface, so valley walls cut through them. The basin decides the rocks: limestone, chalk, shale and sandstone where there was a sea; sandstone and shale on land; coal seams in swampy basins; red sandstone and rock salt where it is hot and dry |
+| Fold belts | Rugged land over thick sediment | The beds fold steeply; deep shale turns to slate, then schist, and limestone to marble |
+| Basement | Below the cover, down to about y = 4 | Granite, gneiss, stone, schist or andesite with tuff beds, by region, with lenses of diorite, granite, andesite or marble |
+| Lower crust | From about y = 4 | Deepslate, then gabbro |
+| Mantle | Above the magma layer | Peridotite, pierced by rare kimberlite pipes; a quarter of the pipes reach the surface |
+| Magma layer | The last blocks above the bedrock | Magma blocks, blackstone and basalt |
+
+The deep layers share the room between y = 0 and the bottom of the world, so they are thicker in the tall worlds.
+Caves fill with lava up to 10 blocks above the bottom of the world (`NoiseBasedChunkGeneratorMixin`). Vanilla fixes
+that level at y = −54, which in a world going down to −256 would flood 200 blocks of caves with lava.
+
+**Ores.** Vanilla's scattered ores still generate, and they also spawn in the new rocks through the ore replaceable
+tags. On top of them, `Geology` places ore bodies: ellipsoids up to ten blocks across whose mineral depends on the
+host rock:
+
+| Host rock | Ore bodies |
+|---|---|
+| Granite, diorite, andesite | Copper, gold, iron; sulfur in andesite |
+| Tuff | Sulfur, cinnabar, gold |
+| Stone, gneiss | Iron, copper, gold; redstone near the deepslate |
+| Schist | Gold, iron, copper; emeralds under high mountains |
+| Marble | Lapis, iron |
+| Sedimentary rocks | Iron and copper; coal in the coal seams |
+| Deepslate, gabbro | Redstone, iron, gold, lapis, copper and diamonds |
+| Peridotite | Diamonds, redstone, sulfur, cinnabar |
+| Kimberlite pipes | Diamonds, scattered, at any depth |
+
+Bodies are commoner below y = 0. Ores in deep rocks take their deepslate form. Prospecting by rock pays off: marble
+lenses carry lapis, and kimberlite at the surface marks a pipe of diamonds below.
+
+**New rocks.** Limestone, chalk, shale, rock salt, slate, marble, schist, gneiss, gabbro, peridotite and kimberlite
+(`DiffusicraftBlocks`). They drop themselves and are mined with any pickaxe. Most count as stone for tools and
+furnaces, and so do granite, diorite, andesite and tuff, because a basement can be granite for hundreds of blocks. They
+join `#minecraft:base_stone_overworld`, so moss, sculk, dripstone and vanilla's ore blobs spread through them.
+
 ### Spawn and far-away searches
 
 `diffusicraft:spawn_suitability` scores land between 100 and 700 m highest. It falls off towards the sea and on high
@@ -158,9 +205,13 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, and the coarse stronghold search |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction` |
-| `data/diffusicraft/worldgen/` | Noise settings, density functions and world presets for each scale |
+| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `GeoNoise` |
+| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology |
+| `block/` | `DiffusicraftBlocks`, the new rocks |
+| `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |
 | `tools/worldgen_data.py` | Writes all of the data above. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
+| `tools/block_assets.py` | Draws the rock textures and writes the block states, models, loot tables and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
 
 ## Lifetime and storage
 
@@ -171,6 +222,8 @@ Other searches still read the full terrain and can take a while on new land:
 
 ## Tests
 
+- `GeologyTest` checks the layer order, that lowlands are covered in sediment, determinism, ore rarity and diamond
+  depth, and the sampling speed.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;

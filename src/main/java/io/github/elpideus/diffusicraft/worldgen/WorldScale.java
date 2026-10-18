@@ -60,6 +60,11 @@ public enum WorldScale implements StringRepresentable {
 		return metersPerBlock;
 	}
 
+	/** Vertical meters per block on land, below the height where mountains are compressed. */
+	public double verticalMetersPerBlock() {
+		return landMetersPerBlock;
+	}
+
 	/** Native pixels per block, horizontally. */
 	public double pixelsPerBlock() {
 		return metersPerBlock / METERS_PER_PIXEL;

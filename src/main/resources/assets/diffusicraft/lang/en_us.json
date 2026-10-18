@@ -114,5 +114,17 @@
 
 	"generator.diffusicraft.standard": "Diffusicraft",
 	"generator.diffusicraft.grand": "Diffusicraft Grand",
-	"generator.diffusicraft.earth": "Diffusicraft Earth 1:1"
+	"generator.diffusicraft.earth": "Diffusicraft Earth 1:1",
+
+	"block.diffusicraft.limestone": "Limestone",
+	"block.diffusicraft.chalk": "Chalk",
+	"block.diffusicraft.shale": "Shale",
+	"block.diffusicraft.rock_salt": "Rock Salt",
+	"block.diffusicraft.slate": "Slate",
+	"block.diffusicraft.marble": "Marble",
+	"block.diffusicraft.schist": "Schist",
+	"block.diffusicraft.gneiss": "Gneiss",
+	"block.diffusicraft.gabbro": "Gabbro",
+	"block.diffusicraft.peridotite": "Peridotite",
+	"block.diffusicraft.kimberlite": "Kimberlite"
 }

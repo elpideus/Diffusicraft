@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "diffusicraft:limestone",
+    "diffusicraft:shale",
+    "diffusicraft:slate",
+    "diffusicraft:marble",
+    "diffusicraft:schist",
+    "diffusicraft:gneiss"
+  ]
+}

@@ -5,7 +5,10 @@
 	"plugin": "io.github.elpideus.diffusicraft.mixin.DiffusicraftMixinPlugin",
 	"mixins": [
 		"ChunkGeneratorStructureStateMixin",
-		"DedicatedServerPropertiesMixin"
+		"DedicatedServerPropertiesMixin",
+		"MaterialRuleContextAccessor",
+		"NoiseBasedChunkGeneratorMixin",
+		"RandomStateAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
