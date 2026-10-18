@@ -7,6 +7,7 @@ import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.ModelBundle;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.levelgen.PositionalRandomFactory;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
 import net.minecraft.world.level.storage.LevelResource;
@@ -27,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class TerrainFields {
 	/** The seed of a world's terrain is derived from the world seed and this name. */
 	public static final Identifier SEED_ID = Diffusicraft.id("terrain");
+	/** The seed of a world's rocks is derived from the world seed and this name. */
+	public static final Identifier GEOLOGY_SEED_ID = Diffusicraft.id("geology");
 
 	private static final Map<Long, TerrainField> FIELDS = new ConcurrentHashMap<>();
 	private static volatile Path storageRoot;
@@ -44,16 +47,25 @@ public final class TerrainFields {
 
 	/** The field for the world that is compiling its density functions. */
 	public static TerrainField forContext(DensityFunction.CompileContext context) {
-		return get(context.createRandom(SEED_ID).nextLong());
+		return get(context.createRandom(SEED_ID).nextLong(), context.createRandom(GEOLOGY_SEED_ID).nextLong());
 	}
 
 	/** The field for the world of a random state, for code that runs after the density functions are compiled. */
 	public static TerrainField forState(RandomState state) {
-		return get(((RandomStateAccessor) (Object) state).diffusicraft$random().fromHashOf(SEED_ID).nextLong());
+		return forRandom(((RandomStateAccessor) (Object) state).diffusicraft$random());
 	}
 
-	public static TerrainField get(long seed) {
-		return FIELDS.computeIfAbsent(seed, s -> new TerrainField(s, new PipelineSource(s)));
+	/** The field for the world whose random state has this positional random factory. */
+	public static TerrainField forRandom(PositionalRandomFactory random) {
+		return get(random.fromHashOf(SEED_ID).nextLong(), random.fromHashOf(GEOLOGY_SEED_ID).nextLong());
+	}
+
+	/**
+	 * The field of a terrain seed. Both seeds come from the world seed, so a terrain seed always comes with the same
+	 * geology seed.
+	 */
+	public static TerrainField get(long seed, long geologySeed) {
+		return FIELDS.computeIfAbsent(seed, s -> new TerrainField(s, geologySeed, new PipelineSource(s)));
 	}
 
 	/** Where pipeline windows are cached, or {@code null} outside a server (nothing is written to disk then). */

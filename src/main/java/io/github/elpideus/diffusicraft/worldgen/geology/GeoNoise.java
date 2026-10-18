@@ -121,7 +121,8 @@ public final class GeoNoise {
 		return lerp(fz, lerp(fy, x00, x10), lerp(fy, x01, x11));
 	}
 
-	static double smoothstep(double edge0, double edge1, double x) {
+	/** 0 below {@code edge0}, 1 above {@code edge1}, and a smooth S-curve between them. */
+	public static double smoothstep(double edge0, double edge1, double x) {
 		double t = clamp01((x - edge0) / (edge1 - edge0));
 		return t * t * (3 - 2 * t);
 	}

@@ -50,7 +50,9 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
 - **Cliffs and scree.** Ground too steep for soil shows the rock beneath, and scree of gravel and broken rock lies
   under the cliffs. See [WORLDGEN.md](WORLDGEN.md#the-ground).
 - **Gullies.** At Earth 1:1 the slopes are cut by gullies finer than the model's 30 m pixels, which run downhill and
-  branch, deeper on steeper ground; gentle ground stays smooth. See [WORLDGEN.md](WORLDGEN.md#gullies).
+  branch, deeper on steeper ground; gentle ground stays smooth. The rock and the climate shape them: crags in hard
+  rock, badlands in bare soft rock, rounded hills where soil and plants cover soft rock. See
+  [WORLDGEN.md](WORLDGEN.md#gullies).
 - **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
@@ -84,8 +86,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Terrain detail
 
-- **More sub-30 m detail.** The gullies follow the slope alone. Let the rock type and the climate shape the detail
-  too: rounded hills of soft rock, jagged crags of hard rock, smoother ground where it is wet.
+- **Ledges.** Hard beds in the sedimentary cover standing out of the slopes as ledges and steps, as in the Grand
+  Canyon, and the softer beds between them receding.
 - **Lakes on rivers.** Rivers that fill the basins they cross and flow on out of them, and lakes larger than a
   tile.
 - **Coasts.** Coastlines, beaches and cliffs follow the real sea level (y = 0 at 1:1).

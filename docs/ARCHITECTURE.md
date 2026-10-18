@@ -150,8 +150,9 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
 - **`TerrainField`.** For each seed, it turns pipeline output into tiles: interpolated elevation plus a coarse grid of
   local relief and sea-level climate. It is thread-safe and computes each tile once.
 - **`TerrainSurface`.** The height of the ground in blocks for one scale, with the gullies cut into the slopes at
-  Earth 1:1. Everything that needs the ground reads it there, so the density, rivers, caves, materials and LODs agree.
-- **`TerrainFields`.** It holds one field per seed. The models load on the first chunk and are freed when the server
+  Earth 1:1, shaped by the rock and the climate. Everything that needs the ground reads it there, so the density,
+  rivers, caves, materials and LODs agree.
+- **`TerrainFields`.** It holds one field per seed, which also carries the world's geology seed for the gullies. The models load on the first chunk and are freed when the server
   stops. Pipeline windows are cached in the world folder.
 - **`TerrainPrefetcher`.** It computes tiles on a background thread where the players are heading, before chunk
   generation asks for them. `PlayerPrefetch` tells it where they are from the server tick. See

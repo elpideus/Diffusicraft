@@ -2,7 +2,6 @@ package io.github.elpideus.diffusicraft.worldgen.material;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.block.DiffusicraftBlocks;
 import io.github.elpideus.diffusicraft.mixin.MaterialRuleContextAccessor;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
@@ -54,7 +53,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 	).apply(i, StrataRule::new));
 
 	/** The geology seed of a world is derived from the world seed and this name. */
-	public static final Identifier SEED_ID = Diffusicraft.id("geology");
+	public static final Identifier SEED_ID = TerrainFields.GEOLOGY_SEED_ID;
 
 	private static final Map<Key, Geology> GEOLOGY = new ConcurrentHashMap<>();
 	private static final BlockState STONE = Blocks.STONE.defaultBlockState();
@@ -84,7 +83,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		RuleEvaluator surfaceRule = surface.map(rule -> rule.compile(context)).orElse(null);
 		PositionalRandomFactory random = ((RandomStateAccessor) (Object)
 			((MaterialRuleContextAccessor) (Object) context).diffusicraft$randomState()).diffusicraft$random();
-		TerrainField field = TerrainFields.get(random.fromHashOf(TerrainFields.SEED_ID).nextLong());
+		TerrainField field = TerrainFields.forRandom(random);
 		int minY = context.resolveAnchorY(VerticalAnchor.bottom());
 		Key key = new Key(random.fromHashOf(SEED_ID).nextLong(), scale, minY);
 		Geology geology = GEOLOGY.computeIfAbsent(key, k -> new Geology(k.seed, k.minY, k.scale.metersPerBlock(),

@@ -78,6 +78,7 @@ public final class TerrainField implements AutoCloseable {
 	}
 
 	private final long seed;
+	private final long geologySeed;
 	private final TerrainSource source;
 	private final int maxTiles;
 	private final Map<Long, CompletableFuture<FieldTile>> tiles = new ConcurrentHashMap<>();
@@ -89,12 +90,23 @@ public final class TerrainField implements AutoCloseable {
 	private final FastNoiseLite variantNoise;
 	private final TerrainSurface[] surfaces = new TerrainSurface[WorldScale.values().length];
 
+	/** A field whose rocks share the terrain's seed, for tests and tools. */
 	public TerrainField(long seed, TerrainSource source) {
-		this(seed, source, DEFAULT_MAX_TILES);
+		this(seed, seed, source, DEFAULT_MAX_TILES);
+	}
+
+	/** A field for a world whose terrain and rocks have the seeds {@code seed} and {@code geologySeed}. */
+	public TerrainField(long seed, long geologySeed, TerrainSource source) {
+		this(seed, geologySeed, source, DEFAULT_MAX_TILES);
 	}
 
 	TerrainField(long seed, TerrainSource source, int maxTiles) {
+		this(seed, seed, source, maxTiles);
+	}
+
+	private TerrainField(long seed, long geologySeed, TerrainSource source, int maxTiles) {
 		this.seed = seed;
+		this.geologySeed = geologySeed;
 		this.source = source;
 		this.maxTiles = maxTiles;
 		this.variantNoise = new FastNoiseLite((int) (seed ^ (seed >>> 32)) ^ 0x5eed_b10e);
@@ -104,6 +116,11 @@ public final class TerrainField implements AutoCloseable {
 
 	public long seed() {
 		return seed;
+	}
+
+	/** The seed of the world's rocks, which shape the ground's finest detail (see {@link TerrainSurface}). */
+	public long geologySeed() {
+		return geologySeed;
 	}
 
 	/** Elevation in meters at a native pixel coordinate. */

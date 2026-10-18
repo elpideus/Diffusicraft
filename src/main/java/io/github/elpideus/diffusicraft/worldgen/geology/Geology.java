@@ -46,6 +46,21 @@ public final class Geology {
 	private static final int ORE_CELL_Y = 14;
 	/** Every Diffusicraft scale keeps vanilla's sea level (see {@code WorldScale}). */
 	private static final int SEA_LEVEL = 63;
+	/** Where {@link #basement} switches from one kind of basement to the next, in the basement noise. */
+	private static final double[] BASEMENT_EDGES = {-0.4, -0.1, 0.2, 0.5};
+	/**
+	 * How well each kind of basement resists erosion, in the order of {@link Basement}: granite, gneiss and plain
+	 * stone are hard, schist splits along its foliation, and lava flows alternate with soft ash.
+	 */
+	private static final double[] BASEMENT_HARDNESS = {1.0, 0.85, 0.65, 0.35, 0.6};
+	/** The hardness of flat-lying beds: sandstone and limestone between shale, chalk and salt. */
+	private static final double SEDIMENT_HARDNESS = 0;
+	/** The hardness of folded beds, turned to slate, marble and schist. */
+	private static final double FOLDED_HARDNESS = 0.35;
+	/** Blocks over which the hardness passes from the basement to the cover above it. */
+	private static final double CONTACT = 4;
+	/** Basement noise over which the hardness passes from one kind of basement to the next. */
+	private static final double BASEMENT_BLEND = 0.05;
 	/**
 	 * The fewest meters a block stands for below the sea: the standard world's vertical scale. The underground is
 	 * sized for play, not for the real crust. Otherwise, in the tall worlds, a lowland basin's 1.7 km of sediment
@@ -185,21 +200,10 @@ public final class Geology {
 	public void column(int x, int z, Column c) {
 		double sx = x / stretch;
 		double sz = z / stretch;
-		double basinNoise = fractal(seed + 1, sx / 900, sz / 900, 3);
 		double faciesNoise = fractal(seed + 2, sx / 650, sz / 650, 2);
-		double basementNoise = fractal(seed + 3, sx / 560, sz / 560, 3);
-		double foldNoise = fractal(seed + 4, sx / 1100, sz / 1100, 2);
-
-		double rugged = clamp01(c.relief / 350.0);
-		double lowland = clamp01(1 - Math.max(c.meanElevation, 0) / 1800.0);
-		c.fold = (float) (smoothstep(0.1, 0.45, foldNoise) * smoothstep(60, 260, c.relief));
-		double thickness = 1700 * smoothstep(-0.55, 0.45, basinNoise) * (0.15 + 0.85 * lowland * (1 - rugged));
-		if (c.meanElevation < -40) {
-			// Shelves and the deep sea collect sediment.
-			thickness += 400;
-		}
-		thickness = Math.max(thickness, 1500 * c.fold);
-		c.sedimentBase = heightUnder(c.meanSurfaceY, thickness);
+		double basementNoise = basementNoise(sx, sz);
+		c.fold = fold(sx, sz, c.relief);
+		c.sedimentBase = sedimentBase(sx, sz, c.fold, c.meanSurfaceY, c.meanElevation, c.relief);
 
 		// Beds tilt gently across a region, and fold in fold belts.
 		double foldAmplitude = (25 + 450 * c.fold) / verticalMeters;
@@ -217,10 +221,10 @@ public final class Geology {
 		} else {
 			c.basin = Basin.COAL;
 		}
-		c.basement = basementNoise < -0.4 ? Basement.GRANITE
-			: basementNoise < -0.1 ? Basement.GNEISS
-			: basementNoise < 0.2 ? Basement.STONE
-			: basementNoise < 0.5 ? Basement.SCHIST
+		c.basement = basementNoise < BASEMENT_EDGES[0] ? Basement.GRANITE
+			: basementNoise < BASEMENT_EDGES[1] ? Basement.GNEISS
+			: basementNoise < BASEMENT_EDGES[2] ? Basement.STONE
+			: basementNoise < BASEMENT_EDGES[3] ? Basement.SCHIST
 			: Basement.VOLCANIC;
 
 		c.deepslateTop = 4 + (int) Math.round(3.5 * gradient(seed + 7, x / 40.0, z / 40.0));
@@ -231,6 +235,52 @@ public final class Geology {
 			gabbroTop + (int) Math.round(deepWarp * gradient(seed + 8, x / 60.0, z / 60.0))));
 
 		pipe(x, z, c);
+	}
+
+	/**
+	 * How well the ground at height {@code y} of column {@code (x, z)} resists erosion, from 0 (flat beds of sandstone
+	 * and limestone between shale, chalk and salt) to 1 (granite). It is the bulk of the rock there, not the bed at
+	 * {@code y}: landforms are carved over many beds. It changes smoothly across the contacts between rocks, so the
+	 * shapes it gives the ground have no seams. The terrain inputs are those of {@link Column}.
+	 */
+	public double hardness(double x, double z, double y, float meanSurfaceY, float meanElevation, float relief) {
+		double sx = x / stretch;
+		double sz = z / stretch;
+		float fold = fold(sx, sz, relief);
+		float base = sedimentBase(sx, sz, fold, meanSurfaceY, meanElevation, relief);
+		double noise = basementNoise(sx, sz);
+		double basement = BASEMENT_HARDNESS[0];
+		for (int i = 0; i < BASEMENT_EDGES.length; i++) {
+			basement += (BASEMENT_HARDNESS[i + 1] - BASEMENT_HARDNESS[i])
+				* smoothstep(BASEMENT_EDGES[i] - BASEMENT_BLEND, BASEMENT_EDGES[i] + BASEMENT_BLEND, noise);
+		}
+		double cover = SEDIMENT_HARDNESS + (FOLDED_HARDNESS - SEDIMENT_HARDNESS) * smoothstep(0.25, 0.6, fold);
+		return basement + (cover - basement) * smoothstep(base - CONTACT, base + CONTACT, y);
+	}
+
+	private double basementNoise(double sx, double sz) {
+		return fractal(seed + 3, sx / 560, sz / 560, 3);
+	}
+
+	/** How folded the beds are; see {@link Column#fold()}. */
+	private float fold(double sx, double sz, float relief) {
+		double foldNoise = fractal(seed + 4, sx / 1100, sz / 1100, 2);
+		return (float) (smoothstep(0.1, 0.45, foldNoise) * smoothstep(60, 260, relief));
+	}
+
+	/** The height below which the sedimentary cover gives way to the basement. */
+	private float sedimentBase(double sx, double sz, float fold, float meanSurfaceY, float meanElevation,
+							   float relief) {
+		double basinNoise = fractal(seed + 1, sx / 900, sz / 900, 3);
+		double rugged = clamp01(relief / 350.0);
+		double lowland = clamp01(1 - Math.max(meanElevation, 0) / 1800.0);
+		double thickness = 1700 * smoothstep(-0.55, 0.45, basinNoise) * (0.15 + 0.85 * lowland * (1 - rugged));
+		if (meanElevation < -40) {
+			// Shelves and the deep sea collect sediment.
+			thickness += 400;
+		}
+		thickness = Math.max(thickness, 1500 * fold);
+		return heightUnder(meanSurfaceY, thickness);
 	}
 
 	/** The rock at a block of a column {@link #column} has prepared. */

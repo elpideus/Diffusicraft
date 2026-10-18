@@ -158,6 +158,61 @@ class GeologyTest {
 	}
 
 	@Test
+	void theBasementIsHarderThanItsCover() {
+		Geology geology = new Geology(SEED, -64, 15, 10);
+		Map<Geology.Basement, double[]> byBasement = new EnumMap<>(Geology.Basement.class);
+		double basement = 0, cover = 0;
+		int count = 0;
+		for (int x = -6000; x < 6000; x += 173) {
+			for (int z = -6000; z < 6000; z += 167) {
+				Geology.Column c = lowland(geology, x, z);
+				double below = geology.hardness(x, z, c.sedimentBase - 20, c.meanSurfaceY, c.meanElevation, c.relief);
+				double above = geology.hardness(x, z, c.sedimentBase + 20, c.meanSurfaceY, c.meanElevation, c.relief);
+				assertTrue(below >= 0 && below <= 1 && above >= 0 && above <= 1, below + ", " + above);
+				assertTrue(below >= above, "the basement at " + x + ", " + z + " is softer than its cover");
+				basement += below;
+				cover += above;
+				count++;
+				double[] sum = byBasement.computeIfAbsent(c.basement, b -> new double[2]);
+				sum[0] += below;
+				sum[1]++;
+			}
+		}
+		System.out.printf("Hardness: basement %.2f, flat cover %.2f%n", basement / count, cover / count);
+		assertTrue(basement / count > cover / count + 0.3, "the basement is much harder than flat beds");
+		double granite = byBasement.get(Geology.Basement.GRANITE)[0] / byBasement.get(Geology.Basement.GRANITE)[1];
+		double schist = byBasement.get(Geology.Basement.SCHIST)[0] / byBasement.get(Geology.Basement.SCHIST)[1];
+		assertTrue(granite > schist + 0.3, "granite " + granite + " is harder than schist " + schist);
+	}
+
+	@Test
+	void hardnessChangesSmoothly() {
+		Geology geology = new Geology(SEED, -256, 1, 1);
+		Geology.Column c = new Geology.Column();
+		for (int x = -20000; x < 20000; x += 1009) {
+			for (int z = -20000; z < 20000; z += 997) {
+				c.surfaceY = c.meanSurfaceY = 1200;
+				c.meanElevation = 1140;
+				c.relief = 220;
+				geology.column(x, z, c);
+				// The contact with the basement spreads over 8 blocks, and the kinds of basement merge into each other.
+				// In fold belts the contact can be steep, so the hardness may change quickly along X, but never jump.
+				for (double y = c.sedimentBase - 8; y <= c.sedimentBase + 8; y += 0.25) {
+					assertEquals(geology.hardness(x, z, y, c.meanSurfaceY, c.meanElevation, c.relief),
+						geology.hardness(x, z, y + 0.01, c.meanSurfaceY, c.meanElevation, c.relief), 0.003,
+						"across the contact at " + x + ", " + z);
+				}
+				for (double t = 0; t < 64; t += 0.25) {
+					double y = c.sedimentBase + 2;
+					assertEquals(geology.hardness(x + t, z, y, c.meanSurfaceY, c.meanElevation, c.relief),
+						geology.hardness(x + t + 0.01, z, y, c.meanSurfaceY, c.meanElevation, c.relief), 0.01,
+						"along X at " + (x + t) + ", " + z);
+				}
+			}
+		}
+	}
+
+	@Test
 	void oresAreRareAndDiamondsDeep() {
 		Geology geology = new Geology(SEED, -64, 15, 10);
 		Map<Ore, Integer> counts = new EnumMap<>(Ore.class);

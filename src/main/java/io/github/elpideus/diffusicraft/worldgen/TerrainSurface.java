@@ -1,6 +1,8 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.worldgen.geology.Erosion;
+import io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise;
+import io.github.elpideus.diffusicraft.worldgen.geology.Geology;
 import io.github.elpideus.diffusicraft.worldgen.geology.Gullies;
 
 /**
@@ -9,6 +11,10 @@ import io.github.elpideus.diffusicraft.worldgen.geology.Gullies;
  * and the levels of detail all read the ground here, so they agree on where it is. The climate and the biomes keep the
  * smooth elevation: gullies are too small to change them.
  *
+ * <p>The gullies take their character from the rock under the slope, as the world's {@link Geology} has it, and from
+ * how much soil and plants cover it, which the climate decides: it takes rain (by the same aridity the biomes use)
+ * and warmth. Deserts, tundra and the ground above the tree line are bare.
+ *
  * <p>Points are given in blocks, block {@code x} spanning {@code [x, x + 1)}, as {@link Erosion.Surface} has them.
  * Get one from {@link TerrainField#surface}; it holds no state of its own and is safe on any thread.
  */
@@ -16,6 +22,7 @@ public final class TerrainSurface implements Erosion.Surface {
 	private final TerrainField field;
 	private final WorldScale scale;
 	private final Gullies gullies;
+	private final Geology geology;
 	private final double pixelsPerBlock;
 	private final double lowest;
 	private final double highest;
@@ -24,6 +31,8 @@ public final class TerrainSurface implements Erosion.Surface {
 		this.field = field;
 		this.scale = scale;
 		this.gullies = new Gullies(field.seed(), scale.metersPerBlock());
+		// Only the deep layers depend on the bottom of the world, and the hardness reads none of them.
+		this.geology = new Geology(field.geologySeed(), 0, scale.metersPerBlock(), scale.verticalMetersPerBlock());
 		this.pixelsPerBlock = scale.pixelsPerBlock();
 		this.lowest = scale.minSurfaceY();
 		this.highest = scale.maxSurfaceY();
@@ -44,7 +53,25 @@ public final class TerrainSurface implements Erosion.Surface {
 		float elevation = field.elevation(i, j, gradient);
 		// Meters per pixel to blocks per block.
 		double rate = scale.surfaceRate(elevation) * pixelsPerBlock;
-		double depth = gullies.depth(x, z, gradient[1] * rate, gradient[0] * rate);
-		return Math.clamp(scale.surfaceY(elevation) + depth, lowest, highest);
+		double gx = gradient[1] * rate, gz = gradient[0] * rate;
+		double y = scale.surfaceY(elevation);
+		if (gullies.cuts(gx, gz)) {
+			TerrainField.Column column = new TerrainField.Column();
+			field.column(i, j, column);
+			double hardness = geology.hardness(x, z, y, scale.surfaceY(column.meanElevation), column.meanElevation,
+				column.relief);
+			y += gullies.depth(x, z, gx, gz, hardness, cover(column.temperature, column.precipitation));
+		}
+		return Math.clamp(y, lowest, highest);
+	}
+
+	/**
+	 * How much soil and plants cover the ground, from 0 to 1, at an annual mean temperature in °C and annual
+	 * precipitation in mm: none in deserts or where the ground is frozen most of the year, full where it is humid and
+	 * mild.
+	 */
+	static double cover(float temperature, float precipitation) {
+		return GeoNoise.smoothstep(0.5, 1.5, ClimateMapping.aridityRatio(temperature, precipitation))
+			* GeoNoise.smoothstep(-4, 4, temperature);
 	}
 }

@@ -420,7 +420,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			RandomState state = level.getChunkSource().randomState();
 			PositionalRandomFactory random = ((RandomStateAccessor) (Object) state).diffusicraft$random();
 			long hollowsSeed = random.fromHashOf(HollowsFunction.SEED_ID).nextLong();
-			TerrainField field = TerrainFields.get(random.fromHashOf(TerrainFields.SEED_ID).nextLong());
+			TerrainField field = TerrainFields.forRandom(random);
 			return new Probe(spawn, surface, biome, state, noise.generatorSettings().value().noiseRouter(),
 				generator.getBiomeSource(), hollowsSeed, field, level.getMinY());
 		}

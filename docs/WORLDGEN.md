@@ -122,7 +122,26 @@ steeper ground, while gentle ground stays smooth under its soil. `Gullies` adds 
 - **Octaves.** Three, 48, 24 and 12 m wide. Each is half as deep as the one before and follows the slope of the
   ground carved so far, so the smaller gullies branch off the sides of the larger ones.
 - **Depth.** The waves rise and fall by 6% of their width times the slope, which stops growing at 1.5. On a 45° slope
-  the widest rise and fall some 3 blocks; all three together never pass 7.6.
+  the widest rise and fall some 3 blocks; all three together never pass 9.5.
+- **Rock and climate.** They decide the gullies' character:
+
+  | | Bare (dry or frozen) | Covered (wet and mild) |
+  |---|---|---|
+  | **Soft rock** | Dense, sharp rills, as in badlands | Rounded hills |
+  | **Hard rock** | Deep, sharp crags | Deep gullies, less sharp |
+
+  Hard rock is cut deeper: the widest octave by 1.15 times its usual depth in granite and 0.85 in flat beds. Soil and
+  plants creep down the slopes and round them off, and hide the finer octaves: these are 1.4 times as deep on bare
+  soft rock and 0.4 under a full cover (1 and 0.6 on hard rock). The sharpness takes each wave from a cosine to a
+  triangle, with sharp ridges and V-shaped troughs: bare ground is fully sharp, hard rock under cover 0.6 and soft
+  rock under cover round.
+
+  The hardness is the rock's under the slope, from `Geology.hardness`: 0 for flat sedimentary beds, 0.35 for folded
+  beds and schist, 0.6 for volcanic rock, 0.65 for plain stone, 0.85 for gneiss and 1 for granite. It spreads over
+  8 blocks across the contact between the cover and the basement, so a slope that cuts down into the basement
+  sharpens without a seam. The cover is the climate's: it takes rain, by the aridity ratio the biomes use (none below
+  0.5, desert, and full above 1.5), and warmth (none below −4 °C and full above 4 °C). Deserts, tundra and the high
+  summits are bare.
 
 Octaves narrower than 12 blocks are left out: the density is interpolated over cells 4 blocks wide and would turn
 them into zigzags. That keeps all three at Earth 1:1 and none in the other worlds, whose blocks are 5 and 15 m wide.
@@ -131,7 +150,9 @@ them into zigzags. That keeps all three at Earth 1:1 and none in the other world
 the ceiling of each chunk, the rivers and lakes, the Hollows, the materials (so the sides of the gullies can bare the
 rock, see [The ground](#the-ground)) and the LODs whose columns are at most 4 blocks apart. The biomes and the climate
 keep the smooth elevation; gullies are too small to change them. The slope comes from the spline's own derivative, so
-gentle ground costs one sample, and steep ground about a third of a microsecond more.
+gentle ground costs one sample. Steep ground costs about half a microsecond more: a third for the gullies, the rest for
+the rock and the climate. The rocks come from the geology seed, which `TerrainFields` gives each field next to the
+terrain seed, so the gullies follow the same rocks the world shows.
 
 ### Biome parameters
 
@@ -490,14 +511,17 @@ Other searches still read the full terrain and can take a while on new land:
 ## Tests
 
 - `GeologyTest` checks the layer order, that lowlands are covered in sediment, that Earth 1:1 keeps the standard
-  world's layers below the sea and its own scale above it, determinism, ore rarity and diamond depth, and the sampling
+  world's layers below the sea and its own scale above it, determinism, ore rarity and diamond depth, that the
+  basement is harder than its cover and granite harder than schist, that the hardness never jumps, and the sampling
   speed.
 - `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
   tall worlds keep about as much basement under the land as the standard world, and draws a cross-section of each to
   `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs, in a folder per seed.
 - `GulliesTest` checks that only Earth 1:1 is fine enough for gullies, that gentle ground stays smooth, that steeper
-  slopes are cut deeper but never past the deepest a gully can go, that the ground changes about three times as
-  much across a slope as down it, and that the ground is continuous and set by the seed. `TerrainFieldTest` checks
+  slopes are cut deeper but never past the deepest a gully can go for any rock and climate, that the ground changes
+  about three times as much across a slope as down it, that cover rounds the ground off and hard rock is cut deeper
+  and sharper, that bare soft rock has the finest rills, and that the ground is continuous in space, rock and cover,
+  and set by the seed. `TerrainFieldTest` checks
   the spline's gradient and that only Earth 1:1 changes its ground.
 - `ErosionTest` checks that gentle ground keeps its soil, steep ground shows the rock in any direction, and scree
   lies at the foot of a cliff, whichever way it faces, and not on the flat beyond.
