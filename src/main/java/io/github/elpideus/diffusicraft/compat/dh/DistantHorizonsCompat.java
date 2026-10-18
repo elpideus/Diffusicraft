@@ -17,6 +17,13 @@ import org.slf4j.LoggerFactory;
  * mod registered. Only loaded when Distant Horizons is; see docs/COMPATIBILITY.md.
  */
 public final class DistantHorizonsCompat {
+	/**
+	 * The highest an LOD column reaches, in blocks above the bottom of its level. Distant Horizons packs the bottom and
+	 * the height of each run into 12 bits each and wraps anything larger, so a level taller than this (Diffusicraft
+	 * Earth 1:1) is cut off at this height in its LODs.
+	 */
+	public static final int MAX_HEIGHT = 4095;
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(DistantHorizonsCompat.class);
 
 	private DistantHorizonsCompat() {

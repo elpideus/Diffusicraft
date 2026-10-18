@@ -135,9 +135,11 @@ every section of every loaded chunk, so its memory still grows with the height o
 - **Mods that patch paletted containers.** Lithium and FerriteCore also remove the threading detector, and Moonrise
   replaces it with one of its own. The shared data and the detector change are written to work alongside all three:
   they never overwrite a method, and never assume the detector field is set.
-- **Untested:** Sodium, Iris, Distant Horizons, Voxy, Lithium, FerriteCore, Moonrise and C2ME. Sodium and the LOD
-  mods keep their own per-section data and may assume a 4064-block world. Test each of them in a tall dimension
-  before relying on it.
+- **Distant Horizons** stores heights in 12 bits, so its LODs hold 4096 blocks above the bottom of the level. Taller
+  levels are cut off there in the LODs instead of coming out garbled: in Earth 1:1 they stop at y = 3838, and higher
+  ground shows flat in the far terrain (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
+- **Untested:** Sodium, Iris, Voxy, Lithium, FerriteCore, Moonrise and C2ME. Sodium and the LOD mods keep their own
+  per-section data and may assume a 4064-block world. Test each of them in a tall dimension before relying on it.
 
 ## Costs
 
@@ -246,6 +248,7 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `LevelChunkSectionMixin` | `LevelChunkSection.fillBiomesFromNoise` | the `biomes` field holding the new container at the end |
 | `diffusicraft.classtweaker` | `PalettedContainer$Data` | the record and its constructor |
 | `NoiseBasedChunkGeneratorMixin` | `NoiseBasedChunkGenerator.createNoiseChunk`, the `clampToHeightAccessor` call in `iterateNoiseColumn` | `createNoiseChunk` taking the `NoiseSettings` the chunk is filled with, and being called only from `fillFromNoise`'s worker |
+| `dh.ChunkWrapperMixin` (Distant Horizons) | `ChunkWrapper.getExclusiveMaxBuildHeight()`, `getMaxNonEmptyHeight`, `getSolidHeightMapValue`, `getLightBlockingHeightMapValue` | Distant Horizons building LODs from these four; check it on every Distant Horizons update too |
 | `RenderGridMixin` (client) | `ViewArea.<init>`, `SectionUpdateTracker.<init>` | `new RotatingSectionStorage(radius, minSectionY, maxSectionY, …)`; the `RotatingSectionStorage` methods that `WindowedSectionStorage` overrides |
 
 Also search the new version for other uses of `30000000`, `3.0E7` and `29999984`, and for code that packs positions
@@ -257,7 +260,8 @@ without `BlockPos.asLong`.
   when their chunk is complete, instead of when they are next loaded.
 - **Leaner saves.** Skip sections that are all air with a single biome, and fill them back in on load.
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
-- **Compatibility.** Test Sodium, Distant Horizons, Voxy and a dedicated server with a real network connection.
+- **Compatibility.** Test Sodium, Voxy and a dedicated server with a real network connection. Distant Horizons could
+  hold all of Earth 1:1 by drawing its LODs from a raised bottom, at the cost of the deepest underground.
 - **Only nearby heights on the wire (not for now).** The server would send each client only the sections near the
   player, as Cubic Chunks does, so a client's memory and bandwidth would follow what it sees instead of the height of
   the dimension. Every mod that expects whole columns on the client would break. If it is ever done it will be opt-in,

@@ -13,6 +13,7 @@
 		"NoiseGeneratorSettingsAccessor",
 		"RandomStateAccessor",
 		"RandomStateMixin",
+		"dh.ChunkWrapperMixin",
 		"height.BlockPosMixin",
 		"height.ClientboundLevelChunkPacketDataMixin",
 		"height.DimensionTypeMixin",

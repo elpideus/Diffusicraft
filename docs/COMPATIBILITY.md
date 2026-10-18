@@ -69,6 +69,18 @@ pixel (7.7 km). That keeps the far horizon cheap.
 | Diffusicraft Grand | 1536 blocks | detail 6 (4096 blocks per LOD) | detail 7 |
 | Diffusicraft Earth 1:1 | 7680 blocks | detail 8 (16384 blocks per LOD) | detail 9 |
 
+**Height.** Distant Horizons packs the bottom and the height of each run of blocks into 12 bits, so it holds 4095
+blocks above the bottom of a level and garbles anything higher. Diffusicraft Earth 1:1 is 9,344 blocks tall, so its
+LODs stop at y = 3838:
+
+- the generator's columns that reach higher sink into the rock under them by the difference, keeping their snow and
+  soils on top;
+- the chunks Distant Horizons reads are cut off at that height by `mixin.dh.ChunkWrapperMixin`, which applies only
+  when Distant Horizons is installed.
+
+Ground above y = 3838 shows flat in the far terrain; the chunks themselves are whole. Grand and the standard world
+fit.
+
 **Checking it.** The client game test samples the LODs around the spawn, block by block, and compares them with the
 chunks generated there: the ground and its top block, and the share of the ground under tree crowns. It also checks
 that a far LOD computes no terrain tile, and saves maps of both; see

@@ -31,6 +31,11 @@ import java.util.function.Consumer;
  * column at the middle of each. Columns follow Distant Horizons' own conventions: runs from the bottom up, heights
  * relative to the bottom of the level, and air from the highest block to the top of the level, as between the ground
  * and the crowns of its trees.
+ *
+ * <p>Distant Horizons holds {@value DistantHorizonsCompat#MAX_HEIGHT} blocks above the bottom of the level, which
+ * Diffusicraft Earth 1:1 outgrows. Columns that reach higher sink by the difference into the rock under them, so they
+ * keep their snow and soils and stand flat at that height. The chunks Distant Horizons reads stop there as well (see
+ * {@code mixin.dh.ChunkWrapperMixin}).
  */
 final class DiffusicraftLodGenerator implements IDhApiWorldGenerator {
 	/** Above the default priority of other generator overrides, so that ours draws the levels it can draw. */
@@ -44,7 +49,8 @@ final class DiffusicraftLodGenerator implements IDhApiWorldGenerator {
 	private final LodSampler sampler;
 	private final IDhApiLevelWrapper levelWrapper;
 	private final int minY;
-	private final int height;
+	/** The top of every column, above the bottom of the level: the level's height, as far as Distant Horizons goes. */
+	private final int limit;
 	private final Map<BlockState, IDhApiBlockStateWrapper> blocks = new ConcurrentHashMap<>();
 	private final Map<Holder<Biome>, IDhApiBiomeWrapper> biomes = new ConcurrentHashMap<>();
 	private volatile boolean closed;
@@ -53,7 +59,7 @@ final class DiffusicraftLodGenerator implements IDhApiWorldGenerator {
 		this.sampler = sampler;
 		this.levelWrapper = levelWrapper;
 		this.minY = levelWrapper.getMinHeight();
-		this.height = levelWrapper.getHeight();
+		this.limit = Math.min(levelWrapper.getHeight(), DistantHorizonsCompat.MAX_HEIGHT);
 	}
 
 	@Override
@@ -96,7 +102,9 @@ final class DiffusicraftLodGenerator implements IDhApiWorldGenerator {
 		IDhApiBiomeWrapper biome = biomes.computeIfAbsent(column.biome(),
 			holder -> DhApi.Delayed.wrapperFactory.getBiomeWrapper(new Object[]{holder}, levelWrapper));
 		int size = column.size();
-		DhApiTerrainDataPoint[] points = new DhApiTerrainDataPoint[size];
+		List<DhApiTerrainDataPoint> list = new ArrayList<>(size + 1);
+		// A column taller than Distant Horizons can hold sinks into the rock under it, keeping its top.
+		int sink = Math.max(0, column.top() - minY - limit);
 		// The sky lights what stands on the ground, the ground through the water over it, and nothing below it.
 		int ground = column.ground();
 		for (int run = 0; run < size; run++) {
@@ -109,15 +117,16 @@ final class DiffusicraftLodGenerator implements IDhApiWorldGenerator {
 			} else {
 				sky = 0;
 			}
-			int bottom = run == 0 ? 0 : column.bottom(run) - minY;
-			points[run] = DhApiTerrainDataPoint.create((byte) 0, state.getLightEmission(), sky, bottom,
-				column.top(run) - minY, block(state), biome);
+			int bottom = run == 0 ? 0 : Math.max(0, column.bottom(run) - minY - sink);
+			int top = column.top(run) - minY - sink;
+			if (top > bottom) {
+				list.add(DhApiTerrainDataPoint.create((byte) 0, state.getLightEmission(), sky, bottom, top,
+					block(state), biome));
+			}
 		}
-		List<DhApiTerrainDataPoint> list = new ArrayList<>(size + 1);
-		list.addAll(List.of(points));
-		int top = column.top() - minY;
-		if (top < height) {
-			list.add(DhApiTerrainDataPoint.create((byte) 0, 0, FULL_SKY, top, height,
+		int top = column.top() - minY - sink;
+		if (top < limit) {
+			list.add(DhApiTerrainDataPoint.create((byte) 0, 0, FULL_SKY, top, limit,
 				DhApi.Delayed.wrapperFactory.getAirBlockStateWrapper(), biome));
 		}
 		return list;

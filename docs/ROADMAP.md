@@ -76,8 +76,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 - **Memory and saves.** Empty sections cost about 80 bytes now instead of 450, and the client keeps render data for
   the rows near the camera only. Still to do: share uniform sections as soon as world generation makes them, and skip
   empty sections when saving.
-- **Compatibility.** Sodium, Distant Horizons and Voxy, which make their own assumptions about world height, and a
-  dedicated server over a real network.
+- **Compatibility.** Sodium and Voxy, which make their own assumptions about world height, and a dedicated server
+  over a real network. Distant Horizons holds 4095 blocks, so the LODs of Earth 1:1 are flat above y = 3838.
 
 ### Terrain detail
 
