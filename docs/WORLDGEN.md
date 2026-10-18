@@ -494,7 +494,7 @@ Other searches still read the full terrain and can take a while on new land:
   speed.
 - `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
   tall worlds keep about as much basement under the land as the standard world, and draws a cross-section of each to
-  `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs.
+  `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs, in a folder per seed.
 - `GulliesTest` checks that only Earth 1:1 is fine enough for gullies, that gentle ground stays smooth, that steeper
   slopes are cut deeper but never past the deepest a gully can go, that the ground changes about three times as
   much across a slope as down it, and that the ground is continuous and set by the seed. `TerrainFieldTest` checks

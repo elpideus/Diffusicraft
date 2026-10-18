@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * through the deepest basin on land, at the same place at every scale, from the bottom of the world to the highest
  * ground on it.
  * Sections are drawn ten pixels per tile pixel across and one pixel per block up, or fewer if the world is taller than
- * the image. A {@code geologyStore} keeps the terrain on disk, so that later runs need no inference.
+ * the image. A {@code geologyStore} keeps the terrain on disk, a folder per seed, so that later runs need no inference.
  */
 @Tag("models")
 class GeologySurveyTest {
@@ -63,7 +63,9 @@ class GeologySurveyTest {
 		long seed = Long.getLong("diffusicraft.geologySeed", 42L);
 		int tiles = Integer.getInteger("diffusicraft.geologyTiles", 4);
 		String storeDir = System.getProperty("diffusicraft.geologyStore");
-		DiskWindowStore store = storeDir == null ? null : new DiskWindowStore(Path.of(storeDir));
+		// The windows do not record their seed: each seed gets a folder of its own.
+		DiskWindowStore store = storeDir == null ? null
+			: new DiskWindowStore(Path.of(storeDir).resolve(Long.toString(seed)));
 
 		try (ModelBundle models = ModelBundle.load(resources.models(), resources.modelSettings())) {
 			WorldPipeline pipeline = new WorldPipeline(seed, models, store, WorldPipeline.CacheLimits.defaults());

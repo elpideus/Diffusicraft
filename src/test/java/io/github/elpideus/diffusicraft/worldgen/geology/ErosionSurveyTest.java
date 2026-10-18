@@ -48,7 +48,9 @@ class ErosionSurveyTest {
 		});
 		long seed = Long.getLong("diffusicraft.geologySeed", 42L);
 		String storeDir = System.getProperty("diffusicraft.geologyStore");
-		DiskWindowStore store = storeDir == null ? null : new DiskWindowStore(Path.of(storeDir));
+		// The windows do not record their seed: each seed gets a folder of its own.
+		DiskWindowStore store = storeDir == null ? null
+			: new DiskWindowStore(Path.of(storeDir).resolve(Long.toString(seed)));
 
 		try (ModelBundle models = ModelBundle.load(resources.models(), resources.modelSettings())) {
 			WorldPipeline pipeline = new WorldPipeline(seed, models, store, WorldPipeline.CacheLimits.defaults());
