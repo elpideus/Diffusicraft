@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.worldgen.density;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
@@ -12,7 +13,8 @@ import net.minecraft.world.level.levelgen.densityfunction.DfRewriteRule;
 
 /**
  * {@code diffusicraft:surface}: the height of the terrain surface, in blocks, at each column. Terrain density is
- * built from it as {@code (surface - y) / 16}; see the noise settings in {@code data/diffusicraft/worldgen}.
+ * built from it as {@code (surface - y) / 16}; see the noise settings in {@code data/diffusicraft/worldgen}. Inside
+ * {@link CoarseClimate#call} it reads the coarse map, as far levels of detail do.
  */
 public record SurfaceFunction(WorldScale scale) implements DensityFunction {
 	public static final MapCodec<SurfaceFunction> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -26,7 +28,8 @@ public record SurfaceFunction(WorldScale scale) implements DensityFunction {
 		return new ColumnSampler(scale) {
 			@Override
 			float sampleColumn(int blockX, int blockZ) {
-				return scale.surfaceY(field.elevation(scale.toPixel(blockZ), scale.toPixel(blockX)));
+				double i = scale.toPixel(blockZ), j = scale.toPixel(blockX);
+				return scale.surfaceY(CoarseClimate.active() ? field.coarseElevation(i, j) : field.elevation(i, j));
 			}
 		};
 	}

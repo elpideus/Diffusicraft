@@ -3,6 +3,7 @@ package io.github.elpideus.diffusicraft.worldgen.material;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.elpideus.diffusicraft.mixin.MaterialRuleContextAccessor;
+import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
@@ -17,7 +18,8 @@ import net.minecraft.world.level.levelgen.material.rule.RuleEvaluator;
 /**
  * Fills the channels of the {@link Rivers} with water and lines them with a bed of sand, gravel or clay. The density
  * leaves a channel solid up to the water, as only solid blocks reach material rules; this rule turns it to water.
- * It runs before every rule but the bedrock floor.
+ * It runs before every rule but the bedrock floor. Compiled inside {@link CoarseClimate#call}, it does nothing: the
+ * coarse map knows no rivers.
  */
 public record RiverRule(WorldScale scale) implements MaterialRule {
 	public static final MapCodec<RiverRule> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -40,6 +42,9 @@ public record RiverRule(WorldScale scale) implements MaterialRule {
 
 	@Override
 	public RuleEvaluator compile(MaterialRuleContext context) {
+		if (CoarseClimate.active()) {
+			return (x, y, z) -> null;
+		}
 		MaterialRuleContextAccessor accessor = (MaterialRuleContextAccessor) (Object) context;
 		TerrainField field = TerrainFields.forState(accessor.diffusicraft$randomState());
 		Rivers rivers = Rivers.of(field);

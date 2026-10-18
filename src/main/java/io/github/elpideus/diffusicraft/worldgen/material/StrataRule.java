@@ -6,6 +6,7 @@ import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.block.DiffusicraftBlocks;
 import io.github.elpideus.diffusicraft.mixin.MaterialRuleContextAccessor;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
+import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
@@ -35,7 +36,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>The optional {@code surface} rule runs first and wins, so biomes keep their soils, sand and terracotta. When it
  * asks for plain stone, as mountain biomes do under their surface, the local rock goes there instead, so cliffs show
  * the strata. The ceilings of the Grand {@link Hollows} get patches of light. The rule is compiled for every chunk; the
- * per-world state is cached, so compiling costs a few hashes.
+ * per-world state is cached, so compiling costs a few hashes. Compiled inside {@link CoarseClimate#call}, it reads the
+ * terrain from the coarse map.
  */
 public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) implements MaterialRule {
 	public static final MapCodec<StrataRule> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -71,7 +73,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			k.scale.verticalMetersPerBlock()));
 		// The same seed as the hollows density function's, so the light finds the ceilings it carved.
 		Hollows hollows = Hollows.of(random.fromHashOf(HollowsFunction.SEED_ID).nextLong(), minY);
-		return new Evaluator(context, scale, field, geology, hollows, surfaceRule);
+		return new Evaluator(context, scale, field, geology, hollows, surfaceRule, CoarseClimate.active());
 	}
 
 	/** Forgets the cached geology of every world; called when the server stops. */
@@ -89,6 +91,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		private final Geology geology;
 		private final Hollows hollows;
 		private final RuleEvaluator surface;
+		private final boolean coarse;
 		private final TerrainField.Column terrain = new TerrainField.Column();
 		private final Geology.Column column = new Geology.Column();
 		private final Hollows.Column hollowColumn = new Hollows.Column();
@@ -97,13 +100,14 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		private boolean hasColumn;
 
 		Evaluator(MaterialRuleContext context, WorldScale scale, TerrainField field, Geology geology, Hollows hollows,
-				  RuleEvaluator surface) {
+				  RuleEvaluator surface, boolean coarse) {
 			this.context = context;
 			this.scale = scale;
 			this.field = field;
 			this.geology = geology;
 			this.hollows = hollows;
 			this.surface = surface;
+			this.coarse = coarse;
 		}
 
 		@Override
@@ -148,7 +152,11 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			columnX = x;
 			columnZ = z;
 			hasColumn = true;
-			field.column(scale.toPixel(z), scale.toPixel(x), terrain);
+			if (coarse) {
+				field.coarseColumn(scale.toPixel(z), scale.toPixel(x), terrain);
+			} else {
+				field.column(scale.toPixel(z), scale.toPixel(x), terrain);
+			}
 			column.surfaceY = scale.surfaceY(terrain.elevation);
 			column.meanSurfaceY = scale.surfaceY(terrain.meanElevation);
 			column.meanElevation = terrain.meanElevation;

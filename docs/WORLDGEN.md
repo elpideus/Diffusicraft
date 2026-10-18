@@ -363,6 +363,9 @@ describe each column from the coarse map alone (`TerrainField.coarseColumn`):
 The result is deterministic, but it can differ from the biomes that are finally generated in the details. Strongholds
 are underground, so this does not matter.
 
+Distant Horizons' far LODs use the same scope (`worldgen.lod.LodSampler`). There the terrain's surface and the rock
+strata read the coarse map too, and the rivers are left out, so a far LOD runs no inference beyond the coarse stage.
+
 Other searches still read the full terrain and can take a while on new land:
 
 - `/locate biome`;
@@ -375,12 +378,13 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers and the lapse rate |
+| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate and the material rules run outside chunks |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
 | `worldgen/river/` | `Rivers` (what a river does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
+| `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods |
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |

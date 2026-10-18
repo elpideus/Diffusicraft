@@ -11,6 +11,8 @@ import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
+import io.github.elpideus.diffusicraft.worldgen.lod.LodColumn;
+import io.github.elpideus.diffusicraft.worldgen.lod.LodSampler;
 import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -28,10 +30,15 @@ import net.minecraft.core.QuartPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -40,6 +47,7 @@ import net.minecraft.world.level.levelgen.NoiseRouter;
 import net.minecraft.world.level.levelgen.PositionalRandomFactory;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +71,8 @@ import java.util.stream.IntStream;
  * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
  * the generator without building chunks, in-game views from above the spawn, over the largest river nearby and of each
  * of Diffusicraft's biomes on the map, and views inside the nearest Grand Hollow and over the nearest lava sea of a Deep
- * Grand Hollow.
+ * Grand Hollow. It also checks the levels of detail Distant Horizons draws against the chunks generated around the
+ * spawn, and saves maps of them near and far.
  *
  * <p>Needs the Terrain Diffusion models; without them the test logs a warning and does nothing. Generation runs on the
  * CPU, so the test leaves the GPU alone; pass {@code -Pdiffusicraft.device=CUDA} (or {@code AUTO}) to change that.
@@ -77,6 +86,12 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	private static final int TICKS_PER_MINUTE = 20 * 60;
 	private static final int RENDER_DISTANCE = 20;
 	private static final int VIEW_TIMEOUT_TICKS = 5 * TICKS_PER_MINUTE;
+	/** Columns per side of the LOD grids, and blocks between their columns near and far. */
+	private static final int LOD_WIDTH = 64;
+	private static final int LOD_NEAR_STEP = 8;
+	private static final int LOD_FAR_STEP = 256;
+	/** How far the share of the LOD's columns under a tree crown may be from the chunks'. */
+	private static final double LOD_CROWN_TOLERANCE = 0.2;
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
@@ -125,6 +140,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			});
 			BlockPos above = probe.spawn.atY(probe.spawnSurface + 40);
 			view(context, world, above, 0f, 20f, "view-south");
+			// Distant Horizons' LODs, against the chunks just generated around the spawn. A failure waits for the
+			// views to be taken.
+			String lodProblem = checkLods(world, probe, probe.spawn);
 			view(context, world, above, 180f, 20f, "view-north");
 			view(context, world, above.above(120), 90f, 40f, "view-high-west");
 
@@ -149,6 +167,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, grand, 180f, 0f, "hollow-grand-lit-north");
 			BlockPos sea = findHollow(probe, EnumSet.of(Hollows.Kind.DEEP_GRAND_HOLLOW), true);
 			view(context, world, sea, 0f, 25f, "hollow-lava-sea");
+			if (lodProblem != null) {
+				throw new AssertionError(lodProblem);
+			}
 		}
 	}
 
@@ -433,6 +454,138 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		}
 		LOGGER.info("Diffusicraft biomes within 24 km, found in {} s: {}", (System.nanoTime() - start) / 1_000_000_000L,
 			found);
+	}
+
+	/**
+	 * Checks the columns that Distant Horizons draws: every block of a {@value #LOD_WIDTH}² square around {@code at},
+	 * whose chunks are generated, against the blocks there, ground and tree crowns, and a grid
+	 * {@value #LOD_FAR_STEP} blocks apart, which must read the coarse map alone. Saves both as maps.
+	 *
+	 * @return what is wrong with them, or {@code null}
+	 */
+	private static @Nullable String checkLods(TestSingleplayerContext world, Probe probe, BlockPos at) {
+		LodSampler sampler = world.getServer().computeOnServer(server -> LodSampler.of(server.overworld()));
+		if (sampler == null) {
+			throw new AssertionError("No LOD sampler for the Diffusicraft overworld");
+		}
+		int x0 = at.getX() - LOD_WIDTH / 2, z0 = at.getZ() - LOD_WIDTH / 2;
+		int[] tops = new int[LOD_WIDTH * LOD_WIDTH];
+		int[] crowns = new int[LOD_WIDTH * LOD_WIDTH];
+		Block[] blocks = new Block[LOD_WIDTH * LOD_WIDTH];
+		long start = System.nanoTime();
+		sampler.sample(x0, z0, LOD_WIDTH, 1, (x, z, column) -> {
+			int k = z * LOD_WIDTH + x;
+			tops[k] = column.top(column.ground()) - 1;
+			blocks[k] = column.state(column.ground()).getBlock();
+			crowns[k] = crownTop(column);
+		});
+		long nearMs = (System.nanoTime() - start) / 1_000_000;
+		int[] matches = world.getServer().computeOnServer(server -> {
+			ServerLevel level = server.overworld();
+			BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+			int compared = 0, heights = 0, same = 0, lodCrowns = 0, chunkCrowns = 0, lodHeight = 0, chunkHeight = 0;
+			for (int k = 0; k < tops.length; k++) {
+				int x = x0 + k % LOD_WIDTH, z = z0 + k / LOD_WIDTH;
+				if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) {
+					continue;
+				}
+				compared++;
+				pos.set(x, 0, z);
+				int ground = groundAt(level, pos);
+				heights += Math.abs(ground - tops[k]) <= 1 ? 1 : 0;
+				same += level.getBlockState(pos.setY(tops[k])).is(blocks[k]) ? 1 : 0;
+				if (crowns[k] != Integer.MIN_VALUE) {
+					lodCrowns++;
+					lodHeight += crowns[k] - tops[k];
+				}
+				int highest = level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z) - 1;
+				if (level.getBlockState(pos.setY(highest)).is(BlockTags.LEAVES)) {
+					chunkCrowns++;
+					chunkHeight += highest - ground;
+				}
+			}
+			return new int[]{compared, heights, same, lodCrowns, chunkCrowns, lodHeight, chunkHeight};
+		});
+		LOGGER.info("LOD of {} columns in {} ms: {} of {} within a block of the ground, {} with the same top block",
+			tops.length, nearMs, matches[1], matches[0], matches[2]);
+		LOGGER.info("Tree crowns over {} columns of the LOD, {} average height, and {} of the chunks, {} average height",
+			matches[3], matches[5] / Math.max(1, matches[3]), matches[4], matches[6] / Math.max(1, matches[4]));
+
+		long computed = probe.field.computedTiles();
+		start = System.nanoTime();
+		BufferedImage far = lodMap(sampler, at.getX() - LOD_WIDTH * LOD_FAR_STEP / 2,
+			at.getZ() - LOD_WIDTH * LOD_FAR_STEP / 2, LOD_FAR_STEP);
+		long farMs = (System.nanoTime() - start) / 1_000_000;
+		long farTiles = probe.field.computedTiles() - computed;
+		LOGGER.info("Far LOD, {} blocks across, in {} ms; terrain tiles computed meanwhile: {}",
+			LOD_WIDTH * LOD_FAR_STEP, farMs, farTiles);
+		BufferedImage near = lodMap(sampler, at.getX() - LOD_WIDTH * LOD_NEAR_STEP / 2,
+			at.getZ() - LOD_WIDTH * LOD_NEAR_STEP / 2, LOD_NEAR_STEP);
+		Path dir = FabricLoader.getInstance().getGameDir().resolve("screenshots");
+		try {
+			ImageIO.write(near, "png", dir.resolve("diffusicraft-lod-near.png").toFile());
+			ImageIO.write(far, "png", dir.resolve("diffusicraft-lod-far.png").toFile());
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		if (!sampler.coarse(LOD_WIDTH, LOD_FAR_STEP) || farTiles != 0) {
+			return "The far LOD ran the full pipeline on " + farTiles + " tiles";
+		}
+		if (matches[0] == 0 || matches[1] < 0.8 * matches[0] || matches[2] < 0.6 * matches[0]) {
+			return "The LOD does not match the generated chunks: " + matches[1] + " heights and " + matches[2]
+				+ " blocks of " + matches[0];
+		}
+		// Crowns are placed by chance, so only their share of the ground has to come close.
+		if (Math.abs(matches[3] - matches[4]) > LOD_CROWN_TOLERANCE * matches[0]) {
+			return "The LOD has tree crowns over " + matches[3] + " columns, the chunks over " + matches[4];
+		}
+		return null;
+	}
+
+	/** Top block of the tree crown over a column of a LOD, or {@link Integer#MIN_VALUE} under the open sky. */
+	private static int crownTop(LodColumn column) {
+		for (int run = column.size() - 1; run > column.ground(); run--) {
+			if (column.state(run).is(BlockTags.LEAVES)) {
+				return column.top(run) - 1;
+			}
+		}
+		return Integer.MIN_VALUE;
+	}
+
+	/** The highest block of the ground, under the trees, the ice and the water. */
+	private static int groundAt(ServerLevel level, BlockPos.MutableBlockPos pos) {
+		int y = level.getHeight(Heightmap.Types.OCEAN_FLOOR, pos.getX(), pos.getZ()) - 1;
+		for (; y > level.getMinY(); y--) {
+			BlockState state = level.getBlockState(pos.setY(y));
+			if (state.is(BlockTags.BLOCKS_MOTION_IN_HEIGHTMAP) && !state.is(BlockTags.LEAVES)
+				&& !state.is(BlockTags.LOGS) && !state.is(Blocks.ICE)) {
+				break;
+			}
+		}
+		return y;
+	}
+
+	/** A map of the LOD columns {@code step} blocks apart, in the blocks' map colours, lit from the north-west. */
+	private static BufferedImage lodMap(LodSampler sampler, int x0, int z0, int step) {
+		int[] top = new int[LOD_WIDTH * LOD_WIDTH];
+		int[] color = new int[LOD_WIDTH * LOD_WIDTH];
+		sampler.sample(x0, z0, LOD_WIDTH, step, (x, z, column) -> {
+			BlockState state = column.state(column.size() - 1);
+			top[z * LOD_WIDTH + x] = column.top();
+			color[z * LOD_WIDTH + x] = state.is(Blocks.WATER) ? water(column.waterDepth())
+				: state.getMapColor(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).col;
+		});
+		BufferedImage image = new BufferedImage(LOD_WIDTH, LOD_WIDTH, BufferedImage.TYPE_INT_RGB);
+		for (int z = 0; z < LOD_WIDTH; z++) {
+			for (int x = 0; x < LOD_WIDTH; x++) {
+				int k = z * LOD_WIDTH + x;
+				int west = top[z * LOD_WIDTH + Math.max(x - 1, 0)], north = top[Math.max(z - 1, 0) * LOD_WIDTH + x];
+				float shade = clamp(1f + 0.08f * ((top[k] - west) + (top[k] - north)) / Math.max(1f, step / 8f), 0.55f, 1.3f);
+				image.setRGB(x, z, shadeColor(color[k], shade));
+			}
+		}
+		return image;
 	}
 
 	private static String fineBiome(Probe probe, BiomeResolver resolver, BlockPos at) {

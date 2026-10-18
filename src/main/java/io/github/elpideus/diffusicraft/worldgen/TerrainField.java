@@ -8,6 +8,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Terrain Diffusion output for one seed, resampled for chunk generation.
@@ -82,6 +83,7 @@ public final class TerrainField implements AutoCloseable {
 	private final Map<Long, CompletableFuture<CoarseBlock>> coarse = new ConcurrentHashMap<>();
 	private final ThreadLocal<FieldTile> lastTile = new ThreadLocal<>();
 	private final AtomicLong clock = new AtomicLong();
+	private final LongAdder computedTiles = new LongAdder();
 	private final FastNoiseLite variantNoise;
 
 	public TerrainField(long seed, TerrainSource source) {
@@ -183,6 +185,11 @@ public final class TerrainField implements AutoCloseable {
 		return tiles.size();
 	}
 
+	/** Tiles computed so far: each one is a run of the full pipeline. A tile evicted and computed again counts twice. */
+	public long computedTiles() {
+		return computedTiles.sum();
+	}
+
 	@Override
 	public void close() {
 		tiles.clear();
@@ -208,6 +215,7 @@ public final class TerrainField implements AutoCloseable {
 				future = mine;
 				try {
 					FieldTile computed = computeTile(ti, tj);
+					computedTiles.increment();
 					// Mark it used before evicting, or it would be the oldest tile and go first.
 					computed.lastUse = clock.incrementAndGet();
 					mine.complete(computed);
