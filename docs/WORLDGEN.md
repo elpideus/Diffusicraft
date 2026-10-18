@@ -145,8 +145,9 @@ falling where the server has rain; only the weather on screen differs.
 
 **Grand Hollows.** The deep dark would carpet their floors in sculk. Inside the Grand, Ancient Grand and Deep Grand
 Hollows the source picks what vanilla would pick halfway down to the deep dark instead: lush or dripstone caves where
-the climate calls for them, and the biome above otherwise. So does the rock around them, as far as their density
-reaches (several blocks into walls and pillars), since sculk veins spread up to twenty blocks.
+the climate calls for them, and the biome above otherwise. So do their pillars, the smaller caves that cut into them and
+the rock around them for about thirty blocks (`Hollows.nearGrandHollow`), since sculk veins spread up to twenty blocks
+from wherever the deep dark starts them.
 
 **Plumbing.** A biome source is shared by every world that uses a preset, so it learns which world it serves from the
 climate sampler. `RandomStateMixin` attaches a `BiomeWorld` (the terrain, scale and Hollows) to the random state of

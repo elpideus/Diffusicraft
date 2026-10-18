@@ -42,9 +42,9 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 	/** Depth at which the Grand Hollows pick their biome: the middle of vanilla's cave biomes. */
 	private static final float HOLLOW_DEPTH = 0.5f;
 	/**
-	 * How far into a hollow's walls and pillars, in density, a quart still counts as part of it: nearly as far as the
-	 * density reaches ({@link Hollows#SOLID}). Sculk veins spread up to twenty blocks from where they start, and the
-	 * game looks biomes up a quart off, so deep dark left in the rock around a hollow would creep into it.
+	 * How far into a hollow's walls, in density, a quart still counts as part of it: about thirty blocks, as the
+	 * density rises by a quarter per block. Sculk veins spread up to twenty blocks from where they start, and the game
+	 * looks biomes up a quart off, so deep dark left in the rock or the caves around a hollow would creep into it.
 	 */
 	private static final double HOLLOW_MARGIN = 7.5;
 
@@ -96,9 +96,7 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 	}
 
 	private static boolean inGrandHollow(Columns.Entry column, int y) {
-		Hollows.Kind kind = column.hollows().kindNear(column.hollowColumn(), y, HOLLOW_MARGIN);
-		return kind == Hollows.Kind.GRAND_HOLLOW || kind == Hollows.Kind.ANCIENT_GRAND_HOLLOW
-			|| kind == Hollows.Kind.DEEP_GRAND_HOLLOW;
+		return column.hollows().nearGrandHollow(column.hollowColumn(), y, HOLLOW_MARGIN);
 	}
 
 	/** The biome that replaces {@code biome} in a column, or {@code biome} itself. */

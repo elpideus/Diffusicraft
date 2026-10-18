@@ -54,6 +54,11 @@ public final class Hollows {
 		public boolean lit() {
 			return this == GRAND_HOLLOW || this == ANCIENT_GRAND_HOLLOW;
 		}
+
+		/** Whether this is one of the Grand Hollows. */
+		public boolean grand() {
+			return this == GRAND_HOLLOW || this == ANCIENT_GRAND_HOLLOW || this == DEEP_GRAND_HOLLOW;
+		}
 	}
 
 	private record Key(long seed, int minY) {
@@ -228,8 +233,7 @@ public final class Hollows {
 				continue;
 			}
 			if (Double.isNaN(warp)) {
-				warp = 0.12 * gradient3(seed + 30, c.x / 24.0, y / 12.0, c.z / 24.0)
-					+ 0.04 * gradient3(seed + 31, c.x / 8.0, y / 5.0, c.z / 8.0);
+				warp = warp(c, y);
 			}
 			double density = (Math.sqrt(d2) - 1 + warp) * chamber.wallScale;
 			if (chamber.pillarScale > 0 && c.pillarRadius > 0) {
@@ -273,9 +277,53 @@ public final class Hollows {
 		return c.value < margin ? c.kind : null;
 	}
 
+	/**
+	 * Whether a height of a prepared column lies in a Grand Hollow, or within {@code margin} of one in density. Unlike
+	 * {@link #kindNear}, it counts the hollow's pillars as part of it, and a smaller hollow or a noodle cavern cutting
+	 * into it does not hide it.
+	 */
+	public boolean nearGrandHollow(Column c, int y, double margin) {
+		if (y > c.top || y < c.bottom) {
+			return false;
+		}
+		double warp = Double.NaN;
+		for (int i = 0; i < c.count; i++) {
+			Chamber chamber = c.chambers[i];
+			if (!chamber.kind.grand()) {
+				continue;
+			}
+			double dy = y + 0.5 - chamber.y;
+			double v = dy >= 0 ? dy / chamber.up : -dy / chamber.down;
+			if (v >= REACH) {
+				continue;
+			}
+			double v2 = v * v;
+			double d2 = c.horizontal[i] + (dy >= 0 ? v2 : v2 * v2);
+			if (d2 >= REACH * REACH) {
+				continue;
+			}
+			if (Double.isNaN(warp)) {
+				warp = warp(c, y);
+			}
+			double density = (Math.sqrt(d2) - 1 + warp) * chamber.wallScale;
+			density = Math.max(density, (y - (c.surfaceY - ROOF)) * 0.25);
+			density = Math.max(density, (floorLimit - y) * 0.5);
+			if (density < margin) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Whether the ceiling of a lit hollow glows at this column: patches of light about a tenth of the ceiling. */
 	public boolean glows(int x, int z) {
 		return gradient(seed + 50, x / 7.0, z / 7.0) > 0.5;
+	}
+
+	/** Noise that roughens the walls of every chamber. */
+	private double warp(Column c, int y) {
+		return 0.12 * gradient3(seed + 30, c.x / 24.0, y / 12.0, c.z / 24.0)
+			+ 0.04 * gradient3(seed + 31, c.x / 8.0, y / 5.0, c.z / 8.0);
 	}
 
 	private double noodle(Column c, int y) {

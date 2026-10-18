@@ -120,6 +120,51 @@ class HollowsTest {
 	}
 
 	@Test
+	void grandHollowsIncludeTheirPillarsAndWhatCutsIntoThem() {
+		// A block with a Grand Hollow open six blocks away on all four sides is inside it: in a pillar, in a smaller
+		// cave that cuts through it, or in a bump of its warped floor, which is why it may lie a little outside.
+		Hollows hollows = new Hollows(SEED, -64);
+		Hollows.Column c = new Hollows.Column();
+		int[][] offsets = {{6, 0}, {-6, 0}, {0, 6}, {0, -6}};
+		Hollows.Column[] sides = new Hollows.Column[offsets.length];
+		for (int i = 0; i < sides.length; i++) {
+			sides[i] = new Hollows.Column();
+		}
+		int enclosed = 0;
+		int hidden = 0;
+		for (int x = -4096; x < 4096; x += 13) {
+			for (int z = -4096; z < 4096; z += 29) {
+				hollows.column(x, z, (a, b) -> SURFACE, c);
+				if (c.solid()) {
+					continue;
+				}
+				for (int i = 0; i < sides.length; i++) {
+					hollows.column(x + offsets[i][0], z + offsets[i][1], (a, b) -> SURFACE, sides[i]);
+				}
+				for (int y = -50; y < 30; y += 4) {
+					Hollows.Kind kind = hollows.openKind(c, y);
+					if (kind != null && kind.grand()) {
+						continue;
+					}
+					boolean surrounded = true;
+					for (Hollows.Column side : sides) {
+						Hollows.Kind around = hollows.openKind(side, y);
+						surrounded &= around != null && around.grand();
+					}
+					if (surrounded) {
+						enclosed++;
+						if (!hollows.nearGrandHollow(c, y, 1)) {
+							hidden++;
+						}
+					}
+				}
+			}
+		}
+		assertTrue(enclosed > 20, "only " + enclosed + " pillar or cave blocks found");
+		assertEquals(0, hidden, hidden + " of " + enclosed + " blocks inside Grand Hollows are not in them");
+	}
+
+	@Test
 	void sameSeedSameHollows() {
 		Hollows a = new Hollows(SEED, -64);
 		Hollows b = new Hollows(SEED, -64);
