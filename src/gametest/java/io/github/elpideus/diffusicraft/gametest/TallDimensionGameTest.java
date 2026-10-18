@@ -90,6 +90,8 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 				level.setBlock(TOP.offset(1, 3, 1), Blocks.GLOWSTONE.defaultBlockState(), Block.UPDATE_ALL);
 				level.setBlock(BOTTOM.offset(-1, 3, -1), Blocks.SEA_LANTERN.defaultBlockState(), Block.UPDATE_ALL);
 			});
+			// Block changes go out on the server's next tick and the sync packet at once, so let a tick pass first.
+			context.waitTick();
 			world.getConnection().waitForClientboundPackets();
 			checkBlock(context, TOP.offset(1, 3, 1), Blocks.GLOWSTONE);
 			checkBlock(context, BOTTOM.offset(-1, 3, -1), Blocks.SEA_LANTERN);
