@@ -6,6 +6,8 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.world.TestWorldSave;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -30,6 +32,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -237,7 +240,7 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 			(System.nanoTime() - start) / 1_000_000, usedHeapMiB());
 	}
 
-	/** Empty sections share their data on both sides. */
+	/** Empty sections share their data on both sides, and the client keeps render data for a few rows only. */
 	private static void checkMemory(ClientGameTestContext context, TestServerContext server) {
 		int[] onServer = server.computeOnServer(s -> {
 			ServerLevel level = s.getLevel(TALL);
@@ -248,6 +251,21 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 		LOGGER.info("Tall dimension: {} of {} sections share their data on the server, {} of {} on the client",
 			onServer[0], onServer[1], onClient[0], onClient[1]);
 		check(onServer[0] > onServer[1] * 0.99 && onClient[0] > onClient[1] * 0.99, "empty sections share their data");
+
+		context.runOnClient(mc -> {
+			ViewArea viewArea;
+			try {
+				Field field = LevelRenderer.class.getDeclaredField("viewArea");
+				field.setAccessible(true);
+				viewArea = (ViewArea) field.get(mc.levelRenderer);
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+			int rows = 2 * viewArea.getViewDistance() + 1;
+			LOGGER.info("Tall dimension: the render grid holds {} sections, {} rows of {}", viewArea.size(),
+				viewArea.size() / (rows * rows), viewArea.sectionCount());
+			check(viewArea.size() == rows * rows * rows, "the render grid holds " + rows + " rows of sections");
+		});
 	}
 
 	/** Sections whose blocks and biomes are both shared, and all sections, in the chunks around the origin. */

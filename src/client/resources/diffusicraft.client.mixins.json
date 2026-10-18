@@ -6,7 +6,8 @@
 		"CreateWorldScreenMixin",
 		"CreateWorldScreenMoreTabMixin",
 		"GuiMixin",
-		"WorldCreationUiStateMixin"
+		"WorldCreationUiStateMixin",
+		"height.RenderGridMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

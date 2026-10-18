@@ -102,6 +102,22 @@ own `ThreadingDetector`, which holds a semaphore and a lock.
 What is left of an empty section is the section and its two containers: about 80 bytes. Sections themselves are not
 shared, because the game and mods write to the sections of a chunk directly.
 
+### The client's render grid
+
+The client keeps render data in a grid around the camera: a node for each section within the render distance
+horizontally and, in vanilla, for every section row of the level. At render distance 12 in a 32,736-block dimension
+that is 625 columns of 2046 rows, about 1.3 million nodes, of which the game only ever draws the 25 rows nearest the
+camera.
+
+Diffusicraft gives the grid a window of rows around the camera
+([`RenderWindow`](../src/main/java/io/github/elpideus/diffusicraft/height/RenderWindow.java)): the camera's row and
+`verticalRenderDistance` rows above and below it, the render distance by default (see
+[CONFIG.md](CONFIG.md#verticalrenderdistance)). The window moves with the camera, as the grid already does
+horizontally. Dimensions no taller than the window keep vanilla's grid.
+
+**With Sodium** the window does nothing. Sodium replaces vanilla's grid with its own, which keeps render data for
+every section of every loaded chunk, so its memory still grows with the height of the dimension.
+
 ## Compatibility
 
 - **Vanilla clients** should be able to join a Diffusicraft server whose dimension types all fit vanilla's limits.
@@ -138,8 +154,9 @@ a vanilla overworld column has 24.
 | Encoding one column for saving: empty / densest | 14 ms / 100 ms |
 | Densest column's block data in a chunk packet | 5.4 MiB |
 
-- **Memory.** An empty section costs about 80 bytes instead of 450 (see [Empty sections](#empty-sections)). The
-  server also keeps the proto-chunks of its generation ring, so it holds many more columns than the player sees.
+- **Memory.** An empty section costs about 80 bytes instead of 450 (see [Empty sections](#empty-sections)), and the
+  client keeps render data for the rows near the camera only (see [The client's render grid](#the-clients-render-grid)).
+  The server also keeps the proto-chunks of its generation ring, so it holds many more columns than the player sees.
 - **Saving.** Every section is written with its palettes, so encoding a column takes time in proportion to its
   height: 14 ms for an empty tall column, under 1 ms for a vanilla one. Leaving the test world took 28 seconds: 20 to
   finish pending chunk work and 8 to save the tall dimension.
@@ -160,6 +177,7 @@ as tall as the terrain needs: Earth 1:1 needs about 20,000 blocks, which is 1250
   - block light, sky light and heightmaps near the top;
   - a column with all 2046 sections full of varied blocks;
   - that empty sections share their data, on the server and the client;
+  - that the client's render grid holds only the rows around the camera;
   - saving and reloading the world.
 
   It saves screenshots of the top, the bottom and the dense column.
@@ -185,6 +203,7 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `SingleValuePaletteAccessor` | `SingleValuePalette` | the `value` field; `idFor` and `read` being the only methods that change it |
 | `LevelChunkSectionMixin` | `LevelChunkSection.fillBiomesFromNoise` | the `biomes` field holding the new container at the end |
 | `diffusicraft.classtweaker` | `PalettedContainer$Data` | the record and its constructor |
+| `RenderGridMixin` (client) | `ViewArea.<init>`, `SectionUpdateTracker.<init>` | `new RotatingSectionStorage(radius, minSectionY, maxSectionY, …)`; the `RotatingSectionStorage` methods that `WindowedSectionStorage` overrides |
 
 Also search the new version for other uses of `30000000`, `3.0E7` and `29999984`, and for code that packs positions
 without `BlockPos.asLong`.

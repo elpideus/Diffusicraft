@@ -13,7 +13,8 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "showSetupScreen": true,
   "useSystemLibraries": true,
   "storagePath": "",
-  "rocmNativePath": ""
+  "rocmNativePath": "",
+  "verticalRenderDistance": 0
 }
 ```
 
@@ -93,6 +94,13 @@ You can delete the directory at any time. The resource screen downloads what is 
 
 The folder containing a ROCm build of ONNX Runtime. If empty, `runtimes/<platform>/rocm` inside the storage directory
 is used. Read at startup. See [RUNTIMES.md](RUNTIMES.md#amd-rocm).
+
+### `verticalRenderDistance`
+
+How many section rows above and below the camera the client keeps render data for. `0`, the default, means the render
+distance, which is as far as the game draws vertically anyway, and so does any larger value. A smaller value saves
+memory in dimensions taller than vanilla's, but terrain further above or below the camera is not drawn. It has no
+effect with Sodium. Read at startup. See [HEIGHT.md](HEIGHT.md#the-clients-render-grid).
 
 ## Dedicated servers
 

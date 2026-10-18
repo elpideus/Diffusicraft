@@ -33,8 +33,9 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it;
   - height (`mixin/height`): the `30000000`, `3.0E7`, `29999984` and `2097152` literals in vanilla, the locals of
     `SerializableChunkData.parse` and `FriendlyByteBuf.read/writeBlockPos`, and the internals of `PalettedContainer`,
-    its `Strategy` and `SingleValuePalette` (opened by `diffusicraft.classtweaker`). The full table is in
-    [docs/HEIGHT.md](docs/HEIGHT.md#mixin-targets).
+    its `Strategy` and `SingleValuePalette` (opened by `diffusicraft.classtweaker`); on the client
+    (`client/mixin/height`), `new RotatingSectionStorage` in `ViewArea.<init>` and `SectionUpdateTracker.<init>`.
+    The full table is in [docs/HEIGHT.md](docs/HEIGHT.md#mixin-targets).
 - **Positions.** `BlockPos` packs 24/16/24 bits, not 26/12/26, and worlds end at ±8,000,000. Never pack positions by
   hand or assume ±30,000,000: use `BlockPos.asLong`/`of`, and the numbers in `ExtendedHeight`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
