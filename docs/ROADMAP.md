@@ -92,7 +92,8 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 
 ### Compatibility
 
-- **Voxy.** The same LODs for Voxy, which SeedGen also targets.
+- **Voxy.** The same LODs for Voxy, which SeedGen also targets. Voxy has no release for 26.3 yet. It has no generator
+  API either: Diffusicraft would push sections of LOD columns into it, as Voxy's own importers do.
 - **C2ME.** Parallel chunk generation: the pipeline is already thread-safe.
 - **Rendering mods.** Sodium, Iris and shader packs, which share the GPU with inference.
 - **Structures.** Structure mods, placed on realistic slopes with sensible foundations.
