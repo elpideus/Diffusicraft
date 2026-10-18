@@ -54,6 +54,15 @@ The sea is at y = 63 in every scale. The sea floor lies at least one block under
 block's worth of meters still holds water instead of showing as a dry shelf flush with the water. Earth 1:1
 compresses mountains above about 1.2 km until the build height can grow beyond 4064 (see [ROADMAP.md](ROADMAP.md)).
 
+**Depth is sized for play.** The real crust is tens of kilometres thick, but the game happens mostly on the surface,
+so the underground does not follow the vertical scale:
+
+- the bottom of the world is y = −64 in the standard world and y = −256 in the tall ones, whatever their scale;
+- the seas are compressed, as in the table above;
+- below the sea, the rock layers use at least 10 m per block, as in the standard world (see [The ground](#the-ground)).
+
+When the build height can grow beyond 4064, only the top of the world will move.
+
 ## How a column is generated
 
 ```text
@@ -265,7 +274,7 @@ is tested on its own. From the top down:
 
 | Layer | Where | Rocks |
 |---|---|---|
-| Sedimentary cover | From the surface down to a depth set by the basin: up to about 2 km of rock under lowlands and shelves, a thin skin on rugged uplands | Beds 1–8 blocks thick that follow the height, not the surface, so valley walls cut through them. The basin decides the rocks: limestone, chalk, shale and sandstone where there was a sea; sandstone and shale on land; coal seams in swampy basins; red sandstone and rock salt where it is hot and dry |
+| Sedimentary cover | From the surface down to a depth set by the basin: up to about 2 km of rock under lowlands and shelves, but never more than about 210 blocks below the sea; a thin skin on rugged uplands | Beds 1–8 blocks thick that follow the height, not the surface, so valley walls cut through them. The basin decides the rocks: limestone, chalk, shale and sandstone where there was a sea; sandstone and shale on land; coal seams in swampy basins; red sandstone and rock salt where it is hot and dry |
 | Fold belts | Rugged land over thick sediment | The beds fold steeply; deep shale turns to slate, then schist, and limestone to marble |
 | Basement | Below the cover, down to about y = 4 | Granite, gneiss, stone, schist or andesite with tuff beds, by region, with lenses of diorite, granite, andesite or marble |
 | Lower crust | From about y = 4 | Deepslate, then gabbro |
@@ -273,7 +282,10 @@ is tested on its own. From the top down:
 | Magma layer | The last blocks above the bedrock | Magma blocks, blackstone and basalt |
 
 The deep layers share the room between y = 0 and the bottom of the world, so they are thicker in the tall worlds.
-Caves fill with lava up to 10 blocks above the bottom of the world (`NoiseBasedChunkGeneratorMixin`). Vanilla fixes
+Thicknesses in meters follow the world's vertical scale down to the sea, so mountains keep the full height of their
+strata. Below the sea, they use at least 10 m per block. A lowland's cover therefore ends within about 210 blocks of
+the sea in every world type: without that, Earth 1:1's 1.7 km of sediment would run past the bottom of the world and
+leave no basement under the lowlands. Caves fill with lava up to 10 blocks above the bottom of the world (`NoiseBasedChunkGeneratorMixin`). Vanilla fixes
 that level at y = −54, which in a world going down to −256 would flood 200 blocks of caves with lava.
 
 **Ores.** Vanilla's scattered ores still generate, and they also spawn in the new rocks through the ore replaceable
@@ -398,8 +410,9 @@ Other searches still read the full terrain and can take a while on new land:
 
 ## Tests
 
-- `GeologyTest` checks the layer order, that lowlands are covered in sediment, determinism, ore rarity and diamond
-  depth, and the sampling speed.
+- `GeologyTest` checks the layer order, that lowlands are covered in sediment, that Earth 1:1 keeps the standard
+  world's layers below the sea and its own scale above it, determinism, ore rarity and diamond depth, and the sampling
+  speed.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, determinism and the sampling speed.
 - `RiversTest` runs the river model over an analytic valley. It checks that water runs down to the sea, that the
