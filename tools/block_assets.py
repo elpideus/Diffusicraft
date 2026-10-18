@@ -252,6 +252,48 @@ TOOL_ROCKS = [f"{NS}:{name}" for name in ("limestone", "shale", "slate", "marble
     + ["minecraft:granite", "minecraft:diorite", "minecraft:andesite", "minecraft:tuff"]
 
 
+# Soils ------------------------------------------------------------------------------------------------------------
+
+def soil(palette, seed, specks=(), streaks=None, clumps=0.5):
+    """Earth, as vanilla's dirt: soft clumps of a few shades, specks of grit, and optionally fibres (`streaks`, a
+    colour) lying flat as in peat."""
+    def paint():
+        rng = random.Random(seed)
+        base = fbm(rng, ((4, 0.5), (8, 0.5)))
+        rows = []
+        for y in range(SIZE):
+            row = []
+            for x in range(SIZE):
+                v = 0.5 + (base[y][x] - 0.5) * clumps * 2 + grain(rng, 0.45)
+                row.append(shade(palette, v))
+            rows.append(row)
+        if streaks is not None:
+            for _ in range(7):
+                x, y = rng.randrange(SIZE), rng.randrange(SIZE)
+                for dx in range(rng.randint(2, 5)):
+                    rows[(y + (dx // 3) * rng.choice((-1, 0, 1))) % SIZE][(x + dx) % SIZE] = streaks
+        sprinkle(rng, rows, specks)
+        return rows
+    return paint
+
+
+# name: (painter, "fuel" if it burns)
+SOILS = {
+    # Black-brown, half-rotted moss and sedge, with fibres in it.
+    "peat": (soil(hexes("#2b1f17", "#33261b", "#3c2d20", "#463526", "#4f3d2b"), 41, streaks=hexes("#6a5236")[0],
+                  specks=[(hexes("#1e1610")[0], 0.04, 1)]), "fuel"),
+    # The red clay of the Mediterranean's limestone, with chips of the limestone.
+    "terra_rossa": (soil(hexes("#6e2f1e", "#7c3824", "#8a412a", "#984b30", "#a65638"), 42,
+                         specks=[(hexes("#b8ad94")[0], 0.012, 1), (hexes("#5a2618")[0], 0.04, 1)]), None),
+    # Tropical red earth, leached to iron and aluminium, with dark iron pisoliths.
+    "laterite": (soil(hexes("#8e3f20", "#a04b26", "#b0582c", "#be6634", "#c9733e"), 43,
+                      specks=[(hexes("#5a2412")[0], 0.035, 1), (hexes("#d8935a")[0], 0.025, 1)]), None),
+    # Pale yellow wind-blown silt, fine and even.
+    "loess": (soil(hexes("#a89068", "#b49c72", "#bfa87e", "#c9b38a", "#d2bd95"), 44, clumps=0.45,
+                   specks=[(hexes("#8e7852")[0], 0.04, 1)]), None),
+}
+
+
 # Salt crust -------------------------------------------------------------------------------------------------------
 
 def salt_polygons(seed):
@@ -550,6 +592,22 @@ def main():
             [f"{NS}:{name}" for name, (_, tags) in ROCKS.items() if replaceables in tags])
     tag("data/minecraft/tags/item/stone_tool_materials.json", TOOL_ROCKS)
     tag("data/minecraft/tags/item/stone_crafting_materials.json", TOOL_ROCKS)
+
+    for name, (painter, kind) in SOILS.items():
+        textures[name] = painter()
+        cube(name, textures[name])
+        if kind == "fuel":
+            # Half of coal, slower in a fast furnace as coal is.
+            write_json(f"data/{NS}/context_int_provider/cooking/time_{name}.json", {
+                "type": "minecraft:div", "left": 800, "right": {
+                    "type": "minecraft:conditional", "condition": "minecraft:block/fast_cooking",
+                    "on_false": "minecraft:cooking/normal_burn_time_reduction_factor",
+                    "on_true": "minecraft:cooking/fast_burn_time_reduction_factor"}})
+    soils = [f"{NS}:{name}" for name in SOILS]
+    tag("data/minecraft/tags/block/mineable/shovel.json", soils)
+    # Dirt, as far as plants, trees, moss and sculk care: grass and flowers grow on them, trees root in them.
+    tag("data/minecraft/tags/block/dirt.json", soils)
+    tag("data/minecraft/tags/item/dirt.json", soils)
 
     textures["salt_crust"] = SALT_CRUST()
     cube("salt_crust", textures["salt_crust"])

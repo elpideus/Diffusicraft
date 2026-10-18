@@ -235,7 +235,7 @@
                     },
                     "then_run": {
                       "type": "minecraft:block",
-                      "result_state": "minecraft:coarse_dirt"
+                      "result_state": "diffusicraft:terra_rossa"
                     }
                   },
                   {
@@ -336,7 +336,7 @@
                     },
                     "then_run": {
                       "type": "minecraft:block",
-                      "result_state": "minecraft:podzol"
+                      "result_state": "diffusicraft:peat"
                     }
                   },
                   {
@@ -494,6 +494,83 @@
                 "type": "minecraft:block",
                 "result_state": "minecraft:stone"
               }
+            }
+          },
+          {
+            "type": "minecraft:condition",
+            "if_true": {
+              "type": "minecraft:not",
+              "invert": {
+                "type": "minecraft:stone_depth",
+                "offset": 0,
+                "add_surface_depth": false,
+                "secondary_depth_range": 0,
+                "surface_type": "floor"
+              }
+            },
+            "then_run": {
+              "type": "minecraft:sequence",
+              "sequence": [
+                {
+                  "type": "minecraft:condition",
+                  "if_true": {
+                    "type": "minecraft:biome",
+                    "biome_is": [
+                      "diffusicraft:moorland",
+                      "diffusicraft:tundra"
+                    ]
+                  },
+                  "then_run": {
+                    "type": "minecraft:block",
+                    "result_state": "diffusicraft:peat"
+                  }
+                },
+                {
+                  "type": "minecraft:condition",
+                  "if_true": {
+                    "type": "minecraft:biome",
+                    "biome_is": [
+                      "diffusicraft:maquis"
+                    ]
+                  },
+                  "then_run": {
+                    "type": "minecraft:block",
+                    "result_state": "diffusicraft:terra_rossa"
+                  }
+                },
+                {
+                  "type": "minecraft:condition",
+                  "if_true": {
+                    "type": "minecraft:biome",
+                    "biome_is": [
+                      "diffusicraft:steppe"
+                    ]
+                  },
+                  "then_run": {
+                    "type": "minecraft:block",
+                    "result_state": "diffusicraft:loess"
+                  }
+                },
+                {
+                  "type": "minecraft:condition",
+                  "if_true": {
+                    "type": "minecraft:biome",
+                    "biome_is": [
+                      "minecraft:jungle",
+                      "minecraft:sparse_jungle",
+                      "minecraft:bamboo_jungle",
+                      "minecraft:savanna",
+                      "minecraft:savanna_plateau",
+                      "minecraft:windswept_savanna",
+                      "diffusicraft:cloud_forest"
+                    ]
+                  },
+                  "then_run": {
+                    "type": "minecraft:block",
+                    "result_state": "diffusicraft:laterite"
+                  }
+                }
+              ]
             }
           }
         ]

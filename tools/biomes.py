@@ -439,7 +439,8 @@ def when(condition, rule):
 
 
 def biome_is(*names):
-    return {"type": "minecraft:biome", "biome_is": [ours(n) for n in names]}
+    """Our biomes by name; vanilla's by id."""
+    return {"type": "minecraft:biome", "biome_is": [n if ":" in n else ours(n) for n in names]}
 
 
 def noise(lo=-1.7976931348623157e308, hi=1.7976931348623157e308):
@@ -452,6 +453,12 @@ def sequence(*rules):
 
 
 STEEP = {"type": "minecraft:steep"}
+# The soil under the top block, which vanilla makes dirt.
+SUBSOIL = {"type": "minecraft:not", "invert": {
+    "type": "minecraft:stone_depth", "offset": 0, "add_surface_depth": False, "secondary_depth_range": 0,
+    "surface_type": "floor"}}
+TROPICAL = ["minecraft:jungle", "minecraft:sparse_jungle", "minecraft:bamboo_jungle", "minecraft:savanna",
+            "minecraft:savanna_plateau", "minecraft:windswept_savanna", "cloud_forest"]
 SURFACE_RULE = sequence(
     when("minecraft:on_floor", when("minecraft:not_underwater", sequence(
         # Scree and bare rock between the alpine grass.
@@ -465,17 +472,17 @@ SURFACE_RULE = sequence(
         when(biome_is("tundra"), sequence(
             when(noise(0.4), block("coarse_dirt")), when(noise(hi=-0.45), block("podzol")), block("grass_block"))),
         when(biome_is("steppe"), sequence(when(noise(0.55), block("coarse_dirt")), block("grass_block"))),
-        # Limestone breaking through thin, red-brown soil.
+        # Limestone breaking through thin terra rossa.
         when(biome_is("maquis"), sequence(
             when(STEEP, block(ours("limestone"))), when(noise(hi=-0.55), block(ours("limestone"))),
-            when(noise(0.35), block("coarse_dirt")), block("grass_block"))),
+            when(noise(0.35), block(ours("terra_rossa"))), block("grass_block"))),
         when(biome_is("temperate_rainforest", "cloud_forest"), sequence(
             when(noise(0.15), block("podzol")), block("grass_block"))),
         when(biome_is("salt_flat"), sequence(when(STEEP, block("sandstone")), block(ours("salt_crust")))),
-        # Peat and sphagnum bog between the grass and heather.
+        # Bare peat and sphagnum bog between the grass and heather.
         when(biome_is("moorland"), sequence(
-            when(STEEP, block("stone")), when(noise(0.3), block("podzol")), when(noise(hi=-0.5), block("moss_block")),
-            block("grass_block"))),
+            when(STEEP, block("stone")), when(noise(0.3), block(ours("peat"))),
+            when(noise(hi=-0.5), block("moss_block")), block("grass_block"))),
         # Sandy, leached soil.
         when(biome_is("heath"), sequence(
             when(noise(0.45), block("coarse_dirt")), when(noise(hi=-0.6), block("podzol")), block("grass_block"))),
@@ -486,6 +493,11 @@ SURFACE_RULE = sequence(
         when(biome_is("maquis"), when(STEEP, block(ours("limestone")))),
         when(biome_is("salt_flat"), block(ours("rock_salt"))),
         when(biome_is("moorland"), when(STEEP, block("stone"))),
+        when(SUBSOIL, sequence(
+            when(biome_is("moorland", "tundra"), block(ours("peat"))),
+            when(biome_is("maquis"), block(ours("terra_rossa"))),
+            when(biome_is("steppe"), block(ours("loess"))),
+            when(biome_is(*TROPICAL), block(ours("laterite"))))),
     )),
 )
 

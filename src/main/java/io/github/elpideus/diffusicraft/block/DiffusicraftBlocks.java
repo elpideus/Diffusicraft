@@ -38,12 +38,19 @@ import java.util.function.UnaryOperator;
  *   <li><b>Plants</b> of the real-world biomes: heather and cottongrass of the moors, lavender of the maquis,
  *       edelweiss and gentian above the tree line. They are vanilla's bush and flower blocks with their own looks, so
  *       they grow, burn, compost and make dye and suspicious stew as vanilla's do.</li>
+ *   <li><b>Soils</b> under the topsoil of the biomes that have their own: peat on the moors and the tundra, which
+ *       burns, terra rossa on the Mediterranean's limestone, laterite in the tropics and loess on the steppe. They are
+ *       dirt to everything that grows.</li>
  *   <li><b>Salt crust</b>, the white floor of the salt flats.</li>
  * </ul>
  */
 public final class DiffusicraftBlocks {
 	private static final List<Block> ROCKS = new ArrayList<>();
 	private static final List<Block> PLANTS = new ArrayList<>();
+	private static final List<Block> SOILS = new ArrayList<>();
+	/** A block of peat burns half as long as coal: see {@code context_int_provider/cooking/time_peat.json}. */
+	private static final ResourceKey<ContextIntProvider> PEAT_BURN_TIME =
+		ResourceKey.create(Registries.CONTEXT_INT_PROVIDER, Diffusicraft.id("cooking/time_peat"));
 
 	// Sedimentary.
 	public static final Block LIMESTONE = rock("limestone", MapColor.TERRACOTTA_WHITE, SoundType.STONE, 1.2f);
@@ -59,6 +66,11 @@ public final class DiffusicraftBlocks {
 	public static final Block GABBRO = rock("gabbro", MapColor.COLOR_BLACK, SoundType.DEEPSLATE, 3.0f);
 	public static final Block PERIDOTITE = rock("peridotite", MapColor.TERRACOTTA_GREEN, SoundType.DEEPSLATE, 3.5f);
 	public static final Block KIMBERLITE = rock("kimberlite", MapColor.TERRACOTTA_CYAN, SoundType.TUFF, 2.5f);
+
+	public static final Block PEAT = soil("peat", MapColor.COLOR_BROWN, SoundType.MUD, p -> p.cookingFuel(PEAT_BURN_TIME));
+	public static final Block TERRA_ROSSA = soil("terra_rossa", MapColor.TERRACOTTA_RED, SoundType.GRAVEL, p -> p);
+	public static final Block LATERITE = soil("laterite", MapColor.TERRACOTTA_ORANGE, SoundType.GRAVEL, p -> p);
+	public static final Block LOESS = soil("loess", MapColor.SAND, SoundType.GRAVEL, p -> p);
 
 	// Shrubs and sedges, which bone meal spreads like vanilla's bush.
 	public static final Block HEATHER = plant("heather", BushBlock::new, MapColor.COLOR_PURPLE, false,
@@ -87,6 +99,7 @@ public final class DiffusicraftBlocks {
 	public static void init() {
 		CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.NATURAL_BLOCKS).register(output -> {
 			output.insertAfter(Items.CALCITE, ROCKS.toArray(Block[]::new));
+			output.insertAfter(Items.ROOTED_DIRT, SOILS.toArray(Block[]::new));
 			output.insertAfter(Items.RED_SAND, SALT_CRUST);
 			output.insertAfter(Items.BUSH, HEATHER, COTTONGRASS);
 			output.insertAfter(Items.LILY_OF_THE_VALLEY, LAVENDER, EDELWEISS, GENTIAN);
@@ -110,6 +123,15 @@ public final class DiffusicraftBlocks {
 			.requiresCorrectToolForDrops()
 			.strength(hardness, 6.0f), p -> p);
 		ROCKS.add(block);
+		return block;
+	}
+
+	private static Block soil(String name, MapColor color, SoundType sound, UnaryOperator<Item.Properties> item) {
+		Block block = register(name, Block::new, BlockBehaviour.Properties.of()
+			.mapColor(color)
+			.strength(0.5f)
+			.sound(sound), item);
+		SOILS.add(block);
 		return block;
 	}
 

@@ -38,7 +38,8 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
   rainforest, Mediterranean maquis, moorland, heath, salt flats, cold desert and steppe, with their own trees
   (krummholz, giant spruces, olives, stone pines, cypresses), plants and ground; swamps and mangroves follow the
-  coast's climate. New plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Snow follows the
+  coast's climate. New plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their
+  own under some biomes: peat, which burns, terra rossa, laterite and loess. Snow follows the
   climate rather than a fixed height, above a real tree line, and the Grand Hollows are free of sculk. See
   [WORLDGEN.md](WORLDGEN.md#refined-biomes).
 - **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
@@ -80,7 +81,7 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 
 ### Underground
 
-- **Soils.** Soil and subsoil that follow the climate and the rock beneath.
+- **Soils.** Soil that follows the rock beneath as well as the climate, and soil profiles deeper than a few blocks.
 - **New minerals.** Minerals for Create and other tech mods, placed by the same geology.
 - **Life in the Hollows.** Cave biomes, flora and lakes of their own for the Grand Hollows.
 

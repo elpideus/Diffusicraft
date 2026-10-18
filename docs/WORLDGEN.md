@@ -166,14 +166,14 @@ the colours:
 
 | Biome | Template | Vegetation | Ground |
 |---|---|---|---|
-| Tundra | Snowy plains | Dwarf birch scrub, moss mats, berry bushes, boulders | Grass with coarse dirt and podzol |
+| Tundra | Snowy plains | Dwarf birch scrub, moss mats, berry bushes, boulders | Grass with coarse dirt and podzol over peat |
 | Alpine tundra | Meadow | Knee-high krummholz spruce, alpine flowers, moss, boulders | Grass broken by gravel scree and bare rock |
-| Cloud forest | Jungle | Vine-hung canopy trees, gnarled oaks, ferns, moss; dense fog (128 blocks) | Grass and podzol |
+| Cloud forest | Jungle | Vine-hung canopy trees, gnarled oaks, ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
 | Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, ferns, moss, mushrooms; light fog | Grass and podzol |
-| Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass on limestone |
+| Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass and terra rossa on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
-| Steppe | Plains | Grass, dry grass, tulips and poppies, a lone oak or birch | Grass with patches of coarse dirt |
-| Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with peat (podzol) and sphagnum (moss) |
+| Steppe | Plains | Grass, dry grass, tulips and poppies, a lone oak or birch | Grass with patches of coarse dirt over loess |
+| Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with bare peat and sphagnum (moss), peat below |
 | Heath | Plains | Heather and grass under scattered birches with bees, Scots pines and junipers | Grass with sandy coarse dirt and podzol |
 | Salt flat | Desert | Nothing | Salt crust over rock salt |
 
@@ -300,6 +300,12 @@ lenses carry lapis, and kimberlite at the surface marks a pipe of diamonds below
 furnaces, and so do granite, diorite, andesite and tuff, because a basement can be granite for hundreds of blocks. They
 join `#minecraft:base_stone_overworld`, so moss, sculk, dripstone and vanilla's ore blobs spread through them.
 
+**Soils.** Under the top block, where vanilla puts dirt, some biomes have a soil of their own: peat under the moors
+and the tundra, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the savannas and
+the cloud forest. Peat and terra rossa also lie bare on top in patches. Soils count as dirt (`#minecraft:dirt`), so
+saplings and plants grow on them as on dirt, and they dig with a shovel. Peat burns in a furnace for half as long
+as coal (`context_int_provider/cooking/time_peat.json`).
+
 **New plants.** Heather and cottongrass of the moors, lavender of the maquis, edelweiss and gentian above the tree
 line, and salt crust, the ground of the salt flats. The flowers join `#minecraft:small_flowers`, so bees visit them;
 the plants burn, compost and craft into dye (lavender purple, gentian blue, edelweiss white, heather magenta).
@@ -375,13 +381,13 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
-| `block/` | `DiffusicraftBlocks`, the new rocks, plants and salt crust |
+| `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |
 | `data/diffusicraft/worldgen/{biome,feature,placed_feature}/`, `material_rule/biome_surface.json`, biome tags | The new biomes, their trees and plants, their ground and their tags |
 | `tools/worldgen_data.py` | Writes the noise settings, material rules, density functions, presets and dimension types. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
 | `tools/biomes.py` | Writes the new biomes, their features, surface rule and tags. Edit it, run `python3 tools/biomes.py`, and commit the output. |
-| `tools/block_assets.py` | Draws the textures of the rocks, plants and salt crust, and writes the block states, models, loot tables, dye recipes and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
+| `tools/block_assets.py` | Draws the textures of the rocks, soils, plants and salt crust, and writes the block states, models, loot tables, dye recipes, peat's burn time and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
 
 ## Lifetime and storage
 
