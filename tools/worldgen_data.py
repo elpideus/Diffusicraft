@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "src" / "main" / "resources" / "data"
 NS = "diffusicraft"
+SEA_LEVEL = 63
 
 # name: (min_y, height, dimension type, highest surface the scale can reach, cloud height or None)
 SCALES = {
@@ -127,7 +128,7 @@ def final_density(scale, min_y, top):
 def noise_settings(scale, min_y, height):
     erosion, depth = ref(scale, "erosion"), ref(scale, "depth")
     return {
-        "sea_level": 63,
+        "sea_level": SEA_LEVEL,
         "disable_mob_generation": False,
         "legacy_random_source": False,
         "default_block": "minecraft:stone",
@@ -150,7 +151,7 @@ def noise_settings(scale, min_y, height):
                           "left": {"type": "minecraft:sub", "left": -0.225, "right": erosion},
                           "right": {"type": "minecraft:max",
                                     "left": {"type": "minecraft:sub", "left": depth, "right": 0.9}, "right": 0.0}},
-            "surface_level": ref(scale, "surface"),
+            "surface_level": ref(scale, "aquifer_surface"),
         },
         # Also how DiffusicraftWorldgen.isDiffusicraft tells Diffusicraft's noise settings apart.
         "material_rule": f"{NS}:{scale}",
@@ -247,6 +248,14 @@ def main():
             "type": "minecraft:sub", "left": ref(scale, "surface"), "right": "minecraft:y"}})
         for field, parameter in CLIMATE.items():
             write(f"{functions}/{field}.json", {"type": f"{NS}:climate", "scale": scale, "parameter": parameter})
+        # Vanilla's aquifers only flood a column with the sea where its surface lies 9 or more blocks under sea level;
+        # above that they leave pits dry, which would empty every shallow sea. Under the sea they see a surface at
+        # least 12 blocks down, so the sea floods everything over its floor.
+        write(f"{functions}/aquifer_surface.json", {
+            "type": "minecraft:range_choice", "input": ref(scale, "surface"),
+            "min_inclusive": -1000000.0, "max_exclusive": float(SEA_LEVEL),
+            "when_in_range": {"type": "minecraft:min", "left": ref(scale, "surface"), "right": float(SEA_LEVEL - 12)},
+            "when_out_of_range": ref(scale, "surface")})
         write(f"{functions}/spawn.json", {"type": f"{NS}:spawn_suitability", "scale": scale})
         write(f"{functions}/hollows.json", {"type": f"{NS}:hollows", "scale": scale, "min_y": min_y})
         write(f"{functions}/final_density.json", final_density(scale, min_y, top))

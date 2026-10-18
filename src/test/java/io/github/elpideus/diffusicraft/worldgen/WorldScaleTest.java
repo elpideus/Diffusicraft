@@ -14,6 +14,14 @@ class WorldScaleTest {
 	}
 
 	@Test
+	void theShallowestSeaHoldsWater() {
+		for (WorldScale scale : WorldScale.values()) {
+			// The floor is solid below the surface, so its top block is under the first block of water.
+			assertTrue(scale.surfaceY(-0.01f) <= scale.seaLevel() - 1, scale.name());
+		}
+	}
+
+	@Test
 	void surfaceRisesWithElevationAndStaysInBounds() {
 		for (WorldScale scale : WorldScale.values()) {
 			float previous = Float.NEGATIVE_INFINITY;

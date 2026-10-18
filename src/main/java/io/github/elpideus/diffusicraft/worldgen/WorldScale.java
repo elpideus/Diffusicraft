@@ -82,12 +82,17 @@ public enum WorldScale implements StringRepresentable {
 		return (block + 0.5) * pixelsPerBlock();
 	}
 
-	/** Height of the terrain surface, in blocks, for an elevation in meters. Water fills up to {@link #seaLevel()}. */
+	/**
+	 * Height of the terrain surface, in blocks, for an elevation in meters. Water fills up to {@link #seaLevel()}. The
+	 * sea floor lies at least a block under it, so the shallowest sea still holds water instead of a dry shelf flush
+	 * with the water.
+	 */
 	public float surfaceY(float elevationMeters) {
 		if (elevationMeters >= 0f) {
 			return (float) (seaLevel + ease(elevationMeters / landMetersPerBlock, landKnee, landCap));
 		}
-		return (float) (seaLevel - ease(-elevationMeters / oceanMetersPerBlock, oceanKnee, oceanCap));
+		double depth = ease(-elevationMeters / oceanMetersPerBlock, oceanKnee, oceanCap);
+		return (float) Math.min(seaLevel - 1, seaLevel - depth);
 	}
 
 	/** Highest surface any elevation can reach. */

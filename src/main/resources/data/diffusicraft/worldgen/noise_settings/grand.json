@@ -60,7 +60,7 @@
         "right": 0.0
       }
     },
-    "surface_level": "diffusicraft:grand/surface"
+    "surface_level": "diffusicraft:grand/aquifer_surface"
   },
   "material_rule": "diffusicraft:grand",
   "spawn_target": [

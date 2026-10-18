@@ -50,8 +50,9 @@ the world.
 | grand | 4, 1200, 1940 | y = 2003 | 8, 40, 160 | y = −97 |
 | earth | 1, 1200, 1940 | y = 2003 | 1, 60, 200 | y = −137 |
 
-The sea is at y = 63 in every scale. Earth 1:1 compresses mountains above about 1.2 km until the build height can grow
-beyond 4064 (see [ROADMAP.md](ROADMAP.md)).
+The sea is at y = 63 in every scale. The sea floor lies at least one block under it, so a sea shallower than one
+block's worth of meters still holds water instead of showing as a dry shelf flush with the water. Earth 1:1
+compresses mountains above about 1.2 km until the build height can grow beyond 4064 (see [ROADMAP.md](ROADMAP.md)).
 
 ## How a column is generated
 
@@ -129,6 +130,11 @@ The top of the column fades to air 16 blocks above the highest possible surface.
 
 `chunk_surface_level` is the exact surface rather than vanilla's estimate. Surface rules therefore place grass, sand
 and snow at the right height.
+
+The aquifers get `diffusicraft:<scale>/aquifer_surface` instead. On land it is the same surface. Under the sea it is
+at most 12 blocks under sea level. Vanilla's aquifers fill a column with the sea only where its surface plus 8 is
+below sea level, and leave anything shallower mostly dry. With the exact surface, every sea less than 9 blocks deep
+became a dry plain dotted with dry pits.
 
 ### The ground
 
