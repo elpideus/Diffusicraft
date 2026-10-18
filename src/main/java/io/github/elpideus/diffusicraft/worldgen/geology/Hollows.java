@@ -40,6 +40,12 @@ public final class Hollows {
 	private static final int ROOF = 28;
 	/** Chambers are skipped past this normalised distance, beyond where the warp could reach. */
 	private static final double REACH = 1.35;
+	/**
+	 * Rock under the floor of a Grand Hollow and over its ceiling that still counts as part of it, in blocks, beyond
+	 * the chamber's reach: see {@link #nearGrandHollow}.
+	 */
+	private static final int GRAND_FLOOR_MARGIN = 12;
+	private static final int GRAND_CEILING_MARGIN = 8;
 	private static final int MAX_CANDIDATES = 32;
 	private static final int PILLAR_CELL = 22;
 	/** Deep noodle caverns run where a regional noise is above this: in about two fifths of the world. */
@@ -278,37 +284,27 @@ public final class Hollows {
 	}
 
 	/**
-	 * Whether a height of a prepared column lies in a Grand Hollow, or within {@code margin} of one in density. Unlike
+	 * Whether a height of a prepared column lies in a Grand Hollow or in the rock around it: within the chamber's
+	 * reach, which takes in a few dozen blocks of its walls, and {@value #GRAND_FLOOR_MARGIN} blocks more under its
+	 * floor and {@value #GRAND_CEILING_MARGIN} over its ceiling, where the reach is only a few blocks thick. Unlike
 	 * {@link #kindNear}, it counts the hollow's pillars as part of it, and a smaller hollow or a noodle cavern cutting
 	 * into it does not hide it.
 	 */
-	public boolean nearGrandHollow(Column c, int y, double margin) {
-		if (y > c.top || y < c.bottom) {
+	public boolean nearGrandHollow(Column c, int y) {
+		if (y > c.top + GRAND_CEILING_MARGIN || y < c.bottom - GRAND_FLOOR_MARGIN) {
 			return false;
 		}
-		double warp = Double.NaN;
 		for (int i = 0; i < c.count; i++) {
 			Chamber chamber = c.chambers[i];
 			if (!chamber.kind.grand()) {
 				continue;
 			}
+			// Measured as if the floor and the ceiling were moved out by the margins.
 			double dy = y + 0.5 - chamber.y;
-			double v = dy >= 0 ? dy / chamber.up : -dy / chamber.down;
-			if (v >= REACH) {
-				continue;
-			}
+			double v = dy >= 0 ? Math.max(0, dy - GRAND_CEILING_MARGIN) / chamber.up
+				: Math.max(0, -dy - GRAND_FLOOR_MARGIN) / chamber.down;
 			double v2 = v * v;
-			double d2 = c.horizontal[i] + (dy >= 0 ? v2 : v2 * v2);
-			if (d2 >= REACH * REACH) {
-				continue;
-			}
-			if (Double.isNaN(warp)) {
-				warp = warp(c, y);
-			}
-			double density = (Math.sqrt(d2) - 1 + warp) * chamber.wallScale;
-			density = Math.max(density, (y - (c.surfaceY - ROOF)) * 0.25);
-			density = Math.max(density, (floorLimit - y) * 0.5);
-			if (density < margin) {
+			if (c.horizontal[i] + (dy >= 0 ? v2 : v2 * v2) < REACH * REACH) {
 				return true;
 			}
 		}

@@ -158,8 +158,9 @@ falling where the server has rain; only the weather on screen differs.
 **Grand Hollows.** The deep dark would carpet their floors in sculk. Inside the Grand, Ancient Grand and Deep Grand
 Hollows the source picks what vanilla would pick halfway down to the deep dark instead: lush or dripstone caves where
 the climate calls for them, and the biome above otherwise. So do their pillars, the smaller caves that cut into them and
-the rock around them for about thirty blocks (`Hollows.nearGrandHollow`), since sculk veins spread up to twenty blocks
-from wherever the deep dark starts them.
+the rock around them (`Hollows.nearGrandHollow`): a few dozen blocks of their walls, and at least a dozen blocks under
+their floors and over their ceilings. The game looks a biome up as much as a quart off, so deep dark left a few blocks
+under a floor would put sculk on it, and sculk veins spread up to twenty blocks from wherever the deep dark starts them.
 
 **Plumbing.** A biome source is shared by every world that uses a preset, so it learns which world it serves from the
 climate sampler. `RandomStateMixin` attaches a `BiomeWorld` (the terrain, scale and Hollows) to the random state of
@@ -414,7 +415,8 @@ Other searches still read the full terrain and can take a while on new land:
   world's layers below the sea and its own scale above it, determinism, ore rarity and diamond depth, and the sampling
   speed.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
-  the height of the Grand Hollows in the tall worlds, determinism and the sampling speed.
+  the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
+  as part of them, determinism and the sampling speed.
 - `RiversTest` runs the river model over an analytic valley. It checks that water runs down to the sea, that the
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
   river meets itself across tile borders, that the banks hold the water where it steps down, that every thread gets
