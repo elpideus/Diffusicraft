@@ -612,6 +612,10 @@ def main():
     textures["salt_crust"] = SALT_CRUST()
     cube("salt_crust", textures["salt_crust"])
     tag("data/minecraft/tags/block/mineable/pickaxe.json", every + [f"{NS}:salt_crust"])
+    # The heightmaps that features, snow, rain and spawning read count only the blocks of #blocks_motion, which lists
+    # vanilla's solid blocks one by one. Without the rocks there, the ground would seem to lie under them. The soils
+    # are in through #dirt.
+    tag("data/minecraft/tags/block/blocks_motion_no_leaves.json", every + [f"{NS}:salt_crust"])
 
     block_tags, item_tags = {}, {}
     for name, (painter, drop, blocks, items, dye) in PLANTS.items():

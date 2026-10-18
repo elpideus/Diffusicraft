@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    "diffusicraft:limestone",
+    "diffusicraft:chalk",
+    "diffusicraft:shale",
+    "diffusicraft:rock_salt",
+    "diffusicraft:slate",
+    "diffusicraft:marble",
+    "diffusicraft:schist",
+    "diffusicraft:gneiss",
+    "diffusicraft:gabbro",
+    "diffusicraft:peridotite",
+    "diffusicraft:kimberlite",
+    "diffusicraft:salt_crust"
+  ]
+}

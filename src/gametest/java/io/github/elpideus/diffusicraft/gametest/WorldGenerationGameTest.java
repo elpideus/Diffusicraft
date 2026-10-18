@@ -27,6 +27,7 @@ import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
@@ -129,6 +130,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 
 			Probe probe = world.getServer().computeOnServer(server -> Probe.of(server.overworld()));
 			LOGGER.info("Spawn {} at surface y={}, biome {}", probe.spawn, probe.spawnSurface, probe.spawnBiome);
+			String blocksProblem = world.getServer().computeOnServer(server -> checkSolidBlocks());
 			Map<String, BlockPos> diffusicraftBiomes = saveMaps(probe);
 			findFarBiomes(probe, diffusicraftBiomes);
 
@@ -144,7 +146,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, above, 0f, 20f, "view-south");
 			// Distant Horizons' LODs, against the chunks just generated around the spawn. A failure waits for the
 			// views to be taken.
-			String lodProblem = checkLods(world, probe, probe.spawn);
+			String problem = checkLods(world, probe, probe.spawn);
+			problem = problem != null ? problem : blocksProblem;
 			view(context, world, above, 180f, 20f, "view-north");
 			view(context, world, above.above(120), 90f, 40f, "view-high-west");
 
@@ -176,8 +179,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, grand, 180f, 0f, "hollow-grand-lit-north");
 			BlockPos sea = findHollow(probe, EnumSet.of(Hollows.Kind.DEEP_GRAND_HOLLOW), true);
 			view(context, world, sea, 0f, 25f, "hollow-lava-sea");
-			if (lodProblem != null) {
-				throw new AssertionError(lodProblem);
+			if (problem != null) {
+				throw new AssertionError(problem);
 			}
 		}
 	}
@@ -297,6 +300,22 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		}
 		LOGGER.info("The largest river near the spawn carries {} m³/s at {}", Math.round(most), best);
 		return best;
+	}
+
+	/**
+	 * Whether every full block of Diffusicraft's is in {@code #blocks_motion}, which lists vanilla's solid blocks one by
+	 * one. The heightmaps count only the blocks there, so features and snow would look through a missing one.
+	 */
+	private static @Nullable String checkSolidBlocks() {
+		List<String> missing = BuiltInRegistries.BLOCK.stream()
+			.filter(block -> BuiltInRegistries.BLOCK.getKey(block).getNamespace().equals("diffusicraft"))
+			.map(Block::defaultBlockState)
+			.filter(state -> state.isCollisionShapeFullBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO))
+			.filter(state -> !state.is(BlockTags.BLOCKS_MOTION))
+			.map(BlockState::getBlock)
+			.map(block -> BuiltInRegistries.BLOCK.getKey(block).toString())
+			.toList();
+		return missing.isEmpty() ? null : "Full blocks missing from #minecraft:blocks_motion: " + missing;
 	}
 
 	/** Finds the deepest lake within 2 km of the spawn, if any, and returns its water surface there. */

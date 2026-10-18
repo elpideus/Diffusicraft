@@ -335,7 +335,9 @@ lenses carry lapis, and kimberlite at the surface marks a pipe of diamonds below
 **New rocks.** Limestone, chalk, shale, rock salt, slate, marble, schist, gneiss, gabbro, peridotite and kimberlite
 (`DiffusicraftBlocks`). They drop themselves and are mined with any pickaxe. Most count as stone for tools and
 furnaces, and so do granite, diorite, andesite and tuff, because a basement can be granite for hundreds of blocks. They
-join `#minecraft:base_stone_overworld`, so moss, sculk, dripstone and vanilla's ore blobs spread through them.
+join `#minecraft:base_stone_overworld`, so moss, sculk, dripstone and vanilla's ore blobs spread through them. They and
+salt crust also join `#minecraft:blocks_motion_no_leaves`. The heightmaps that features, snow and rain read count only
+the blocks listed there, and would otherwise take the ground to lie under the rock.
 
 **Soils.** Under the top block, where vanilla puts dirt, some biomes have a soil of their own: peat under the moors
 and the tundra, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the savannas and
@@ -468,8 +470,8 @@ Other searches still read the full terrain and can take a while on new land:
   - eviction;
   - concurrent tile computation;
   - the coarse column.
-- `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings
-  and checks that it uses Diffusicraft. It then saves a biome map, a height map, in-game views around the spawn and
-  views of the largest river near the spawn, each of Diffusicraft's biomes on the map, the tallest Grand Hollow and a
-  lava sea nearby to `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device`
-  names another device.
+- `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings and
+  checks that it uses Diffusicraft and that the heightmaps count all of Diffusicraft's full blocks. It then saves a
+  biome map, a height map, in-game views around the spawn and views of the largest river near the spawn, each of
+  Diffusicraft's biomes on the map, the tallest Grand Hollow and a lava sea nearby to
+  `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
