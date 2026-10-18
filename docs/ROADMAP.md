@@ -37,7 +37,7 @@ The pieces planned add the details: geology, caves, rivers and new biomes.
   extend the overworld table get the same parameters.
 - **Build height up to 32,736 blocks.** Dimension types can be up to 32,736 blocks tall (Y −16,368 to 16,367);
   vanilla stops at 4064. Positions are repacked, so worlds end at ±8,000,000 blocks. Blocks, light, heightmaps, the
-  network and saves work at both ends. See [HEIGHT.md](HEIGHT.md).
+  network and saves work at both ends; a client game test covers them. See [HEIGHT.md](HEIGHT.md).
 
 ## Next
 

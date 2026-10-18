@@ -35,7 +35,7 @@ Loom's split source sets keep client-only code out of the server.
 | `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen); `mixin/` (launch hook, Create World button, default world type, model check on Create); `compat/` (Mod Menu) |
 | `src/main/resources/diffusicraft` | `model-manifest.json`, `runtime-manifest.json`: every download, pinned by SHA-256 |
 | `src/test` | JUnit tests. Those tagged `models` need the real models and run only with `-PwithModels` |
-| `src/gametest` | Fabric client game tests: the resource screens, and a Diffusicraft world with maps and screenshots |
+| `src/gametest` | Fabric client game tests: the resource screens, a Diffusicraft world with maps and screenshots, and a 32,736-block dimension |
 
 ## Startup
 

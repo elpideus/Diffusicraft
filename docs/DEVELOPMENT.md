@@ -59,7 +59,7 @@ The fast tests need no downloads. Tests tagged `models` need the real models or 
 
 ### Client game tests
 
-Both tests start the real game and save screenshots to `build/run/clientGameTest/screenshots/`.
+The tests start the real game and save screenshots to `build/run/clientGameTest/screenshots/`.
 
 - [`ResourceScreensGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ResourceScreensGameTest.java)
   goes through the launch screen, Create World > More and the resource screen, and opens and cancels an install.
@@ -68,6 +68,9 @@ Both tests start the real game and save screenshots to `build/run/clientGameTest
   creates a world with the default settings and checks that it is a Diffusicraft world. It saves a biome map, a height
   map and three views around the spawn. It needs the models, and skips itself without them. It generates on the CPU,
   so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to use the GPU.
+- [`TallDimensionGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TallDimensionGameTest.java)
+  plays in a 32,736-block dimension: blocks, light and heightmaps at both ends, the network in both directions, a
+  column full of blocks, and saving. It logs memory and save times. See [HEIGHT.md](HEIGHT.md#tests).
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods

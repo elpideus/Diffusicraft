@@ -9,7 +9,8 @@
 	"entrypoints": {
 		"fabric-client-gametest": [
 			"io.github.elpideus.diffusicraft.gametest.ResourceScreensGameTest",
-			"io.github.elpideus.diffusicraft.gametest.WorldGenerationGameTest"
+			"io.github.elpideus.diffusicraft.gametest.WorldGenerationGameTest",
+			"io.github.elpideus.diffusicraft.gametest.TallDimensionGameTest"
 		]
 	},
 	"depends": {

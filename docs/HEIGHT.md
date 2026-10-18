@@ -12,7 +12,8 @@ A taller dimension type is plain data:
 { "min_y": -16368, "height": 32736, "logical_height": 32736, ... }
 ```
 
-Both `min_y` and `height` must still be multiples of 16.
+Both `min_y` and `height` must still be multiples of 16. The test dimension in
+`src/gametest/resources/data/diffusicraft-gametest/` is a complete example.
 
 ## Why vanilla stops at 4064
 
@@ -125,6 +126,15 @@ as tall as the terrain needs: Earth 1:1 needs about 20,000 blocks, which is 1250
 
 - [`ExtendedHeightTest`](../src/test/java/io/github/elpideus/diffusicraft/height/ExtendedHeightTest.java) (part of
   `./gradlew build`) round-trips the wire format and checks it against vanilla's packing.
+- [`TallDimensionGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TallDimensionGameTest.java)
+  runs the real game in a 32,736-block dimension. It checks:
+  - blocks at y = ±16,000 and at the top of the world, on the server and the client;
+  - changes in both directions over the network: the server places blocks, and the client breaks one;
+  - block light, sky light and heightmaps near the top;
+  - a column with all 2046 sections full of varied blocks;
+  - saving and reloading the world.
+
+  It saves screenshots of the top, the bottom and the dense column.
 
 ## Mixin targets
 
