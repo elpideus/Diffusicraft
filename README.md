@@ -5,14 +5,20 @@ Next-generation world generation for Minecraft (Fabric, 26.3+), driven by
 elevation and climate data. The goal is a world that feels like Skyrim or The Witcher, but is grounded in real
 geography, climate and geology.
 
-> **Status: early development.** The terrain pipeline, the GPU runtimes, the resource manager and a first world
-> generator work. Geology, the Hollows, rivers and new biomes are next. See the [roadmap](docs/ROADMAP.md).
+> **Status: early development.** The terrain pipeline, the GPU runtimes, the resource manager and the world
+> generator work, with geology, the Hollows, rivers and real-world biomes. Terrain detail, lakes and more biome mods are
+> next. See the [roadmap](docs/ROADMAP.md).
 
 ## What works today
 
 - **A world generator.** Diffusicraft is the default world type, at three scales: Diffusicraft (vanilla height),
   Grand and Earth 1:1 (both up to y = 2031). Biomes follow the real climate: snow only where it is cold, deserts only
   where it is hot and dry. Vanilla caves, structures and biome mods keep working. See [WORLDGEN.md](docs/WORLDGEN.md).
+- **Rivers, rock and caverns.** Rivers drain the whole world from its rain and terrain. Underground, sedimentary beds,
+  fold belts and basement rock hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they
+  lie, down to the Grand Hollows over lava seas.
+- **Real-world biomes.** Tundra, cloud forest, temperate rainforest, maquis, moorland, heath, salt flats, steppe and
+  more, with their own trees, plants and soils.
 - **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m
   per pixel. It is thread-safe for parallel chunk generation and cached in memory and on disk.
 - **CPU, NVIDIA and AMD.**
