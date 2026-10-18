@@ -47,9 +47,26 @@
                         "type": "minecraft:min",
                         "left": "diffusicraft:earth/terrain",
                         "right": {
-                          "type": "minecraft:mul",
-                          "left": "minecraft:overworld/caves/entrances",
-                          "right": 5.0
+                          "type": "minecraft:add",
+                          "left": {
+                            "type": "minecraft:mul",
+                            "left": "minecraft:overworld/caves/entrances",
+                            "right": 5.0
+                          },
+                          "right": {
+                            "type": "minecraft:clamp",
+                            "min": 0.0,
+                            "max": 3.0,
+                            "input": {
+                              "type": "minecraft:mul",
+                              "left": {
+                                "type": "minecraft:add",
+                                "left": "diffusicraft:earth/surface",
+                                "right": -71.0
+                              },
+                              "right": -0.5
+                            }
+                          }
                         }
                       },
                       "when_out_of_range": {

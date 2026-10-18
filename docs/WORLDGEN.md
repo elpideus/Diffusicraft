@@ -132,6 +132,12 @@ Everything else is vanilla, so worlds keep:
 
 The top of the column fades to air 16 blocks above the highest possible surface.
 
+Vanilla's cave entrances fade out on low ground, from 8 blocks above sea level down to 2. Near the coast the aquifers
+fill everything under sea level with the sea, so an entrance in a coastal plain became a bay or a straight canal of
+sea water. For the same reason the carvers (ravines and vanilla's carved caves) leave a roof of 4 blocks under water,
+along rivers and on ground at most 3 blocks above sea level (`CarverRoof`, applied by `NoiseBasedChunkGeneratorMixin`).
+A ravine there would become a canal, or drain a river.
+
 `chunk_surface_level` is the exact surface rather than vanilla's estimate. Surface rules therefore place grass, sand
 and snow at the right height.
 
@@ -279,8 +285,8 @@ Other searches still read the full terrain and can take a while on new land:
 
 | Path | What |
 |---|---|
-| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search and the lava level |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level and the carver roof |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
 | `worldgen/river/` | `Rivers` (what a river does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellFlows`, `RiverColumn` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |

@@ -31,7 +31,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `WorldCreationUiState.<init>`;
   - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
-    `NoiseBasedChunkGenerator.createFluidPicker`, and the accessors for `MaterialRuleContext.randomState` and
+    `NoiseBasedChunkGenerator.createFluidPicker`, the call to `applyCarvingMask` in
+    `NoiseBasedChunkGenerator.generateCarvers`, and the accessors for `MaterialRuleContext.randomState` and
     `RandomState.random`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
   `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py` or

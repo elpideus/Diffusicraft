@@ -42,8 +42,8 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
 - **Rivers.** Drainage of the whole world from its rain and terrain, with discharge, meanders, tributaries, widths
-  that grow with the discharge, banks, beds and river biomes. Shallow seas hold water. See
-  [WORLDGEN.md](WORLDGEN.md#rivers).
+  that grow with the discharge, banks, beds and river biomes. Shallow seas hold water, and coastal lowland keeps its
+  cave entrances and ravines closed so they do not flood into canals. See [WORLDGEN.md](WORLDGEN.md#rivers).
 
 ## Next
 

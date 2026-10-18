@@ -94,13 +94,19 @@ def final_density(scale, min_y, top):
                   "min_inclusive": -1000000.0, "max_exclusive": 0.03,
                   "when_in_range": -1000000.0, "when_out_of_range": caves + "pillars"},
     }
+    # Cave entrances on ground a few blocks above the sea fill with sea water: a pit by the coast becomes a bay and
+    # a tunnel a canal. They fade out as the ground falls from 8 to 2 blocks above sea level.
+    lowland = {"type": "minecraft:clamp", "min": 0.0, "max": 3.0, "input": {
+        "type": "minecraft:mul", "left": {"type": "minecraft:add", "left": ref(scale, "surface"),
+                                          "right": -float(SEA_LEVEL + 8)}, "right": -0.5}}
+    entrances = {"type": "minecraft:add", "left": {"type": "minecraft:mul", "left": caves + "entrances", "right": 5.0},
+                 "right": lowland}
     shaped = {
         "type": "minecraft:range_choice",
         "input": terrain,
         "min_inclusive": -1000000.0,
         "max_exclusive": 1.5625,
-        "when_in_range": {"type": "minecraft:min", "left": terrain,
-                          "right": {"type": "minecraft:mul", "left": caves + "entrances", "right": 5.0}},
+        "when_in_range": {"type": "minecraft:min", "left": terrain, "right": entrances},
         # Deeper than 25 blocks below the surface; the Hollows keep 28 blocks of roof.
         "when_out_of_range": {"type": "minecraft:min", "left": underground, "right": ref(scale, "hollows")},
     }

@@ -20,6 +20,8 @@ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.presets.WorldPreset;
 
+import java.util.Arrays;
+
 /**
  * Registers the world generator. The generator itself is data: noise settings, density functions and world presets
  * in {@code data/diffusicraft/worldgen}, built on the density function types registered here.
@@ -63,6 +65,15 @@ public final class DiffusicraftWorldgen {
 	public static boolean isDiffusicraft(NoiseGeneratorSettings settings) {
 		return settings.materialRule().unwrapKey()
 			.filter(key -> key.identifier().getNamespace().equals(Diffusicraft.MOD_ID)).isPresent();
+	}
+
+	/** The scale of Diffusicraft's noise settings, told by their material rule, or {@code null} for anyone else's. */
+	public static WorldScale scale(NoiseGeneratorSettings settings) {
+		return settings.materialRule().unwrapKey()
+			.filter(key -> key.identifier().getNamespace().equals(Diffusicraft.MOD_ID))
+			.flatMap(key -> Arrays.stream(WorldScale.values())
+				.filter(scale -> scale.getSerializedName().equals(key.identifier().getPath())).findFirst())
+			.orElse(null);
 	}
 
 	/** Whether a generator uses Diffusicraft's noise settings, and so needs the models. */
