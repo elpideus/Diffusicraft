@@ -414,6 +414,9 @@ Other searches still read the full terrain and can take a while on new land:
 - `GeologyTest` checks the layer order, that lowlands are covered in sediment, that Earth 1:1 keeps the standard
   world's layers below the sea and its own scale above it, determinism, ore rarity and diamond depth, and the sampling
   speed.
+- `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
+  tall worlds keep about as much basement under the land as the standard world, and draws a cross-section of each to
+  `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
   as part of them, determinism and the sampling speed.
