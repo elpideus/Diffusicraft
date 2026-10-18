@@ -68,7 +68,8 @@ so the underground does not follow the vertical scale:
 
 The build height goes to the surface instead. Real mountains rise some 9 km above the sea while the mantle lies
 tens of kilometres down, and a world of both would be mostly rock nobody digs. So the tall world types are tall at
-the top only: Earth 1:1 is 9,344 blocks tall, all but 319 of them above the sea.
+the top only: Earth 1:1 is 9,344 blocks tall, all but 319 of them above the sea. Chunks fill only as high as their
+ground reaches, so the empty height costs little (see [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground)).
 
 ## How a column is generated
 

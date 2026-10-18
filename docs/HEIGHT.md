@@ -7,7 +7,8 @@ Earth's highest mountain rises 8,849 m above the sea. At 1 block per meter that 
 and the oceans keep their game depth (see [Costs](#costs)).
 
 Diffusicraft Grand runs from −256 to 2383 and Diffusicraft Earth 1:1 from −256 to 9087, so real mountains keep their
-height (see [WORLDGEN.md](WORLDGEN.md#from-meters-to-blocks)). Any taller dimension type is plain data:
+height (see [WORLDGEN.md](WORLDGEN.md#from-meters-to-blocks)). Their chunks fill only up to their ground (see
+[Filling only to the ground](#filling-only-to-the-ground)). Any taller dimension type is plain data:
 
 ```json
 { "min_y": -16368, "height": 32736, "logical_height": 32736, ... }
@@ -183,6 +184,28 @@ is on the surface: `min_y` stays −256 and the oceans stay compressed to at mos
 Its mountains keep their height up to 8 km and ease above that, so its highest ground is y = 9063 and the world runs
 from −256 to 9087: 9,344 blocks, or 584 sections per column.
 
+## Filling only to the ground
+
+Minecraft fills a new chunk from the bottom of the world to the top, working out the density of every block: 2.4
+million blocks for a chunk of Earth 1:1, nearly all of them air. Diffusicraft fills it only up to its ground:
+
+- **The ceiling.** `TerrainCeiling` works out the highest block a chunk can hold before it is filled. The density of
+  the terrain is interpolated between the corners of cells 4 blocks wide and 8 tall, so it never rises above its
+  highest corner; the ceiling takes the terrain at those corners, the banks and water of the chunk's rivers and
+  lakes, and the sea, plus one cell. Above it everything is air: caves, the Hollows and the fade at the top of the
+  world only take ground away.
+- **Structures** that reshape the ground (villages, ancient cities) add density near their pieces, so the chunk fills
+  up to their tops, plus the 24 blocks their boxes are widened by.
+- **The fill.** `NoiseBasedChunkGeneratorMixin` gives `createNoiseChunk` that height, so the noise, the aquifer and
+  the blocks stop there. The sections above stay empty and the surface rules skip them, as they skip any empty
+  section. Carvers stop at the same height.
+- **The ground of a column**, which structures look for (`getBaseHeight`), stops at the column's ceiling too.
+- **Blended chunks**, next to chunks from an older version, keep the full fill, since the blending reads the old
+  terrain.
+
+The blocks come out the same either way: the cells and the aquifer's grid are aligned to absolute positions, not to
+the part of the chunk that is filled. `TerrainCeilingTest` checks the ceiling over rivers and the sea.
+
 ## Tests
 
 - [`ExtendedHeightTest`](../src/test/java/io/github/elpideus/diffusicraft/height/ExtendedHeightTest.java) (part of
@@ -198,6 +221,8 @@ from −256 to 9087: 9,344 blocks, or 584 sections per column.
   - saving and reloading the world.
 
   It saves screenshots of the top, the bottom and the dense column.
+- [`TerrainCeilingTest`](../src/test/java/io/github/elpideus/diffusicraft/worldgen/river/TerrainCeilingTest.java)
+  checks that the ceiling of each column is under its chunk's and above its rivers, lakes and the sea.
 
 ## Mixin targets
 
@@ -220,6 +245,7 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `SingleValuePaletteAccessor` | `SingleValuePalette` | the `value` field; `idFor` and `read` being the only methods that change it |
 | `LevelChunkSectionMixin` | `LevelChunkSection.fillBiomesFromNoise` | the `biomes` field holding the new container at the end |
 | `diffusicraft.classtweaker` | `PalettedContainer$Data` | the record and its constructor |
+| `NoiseBasedChunkGeneratorMixin` | `NoiseBasedChunkGenerator.createNoiseChunk`, the `clampToHeightAccessor` call in `iterateNoiseColumn` | `createNoiseChunk` taking the `NoiseSettings` the chunk is filled with, and being called only from `fillFromNoise`'s worker |
 | `RenderGridMixin` (client) | `ViewArea.<init>`, `SectionUpdateTracker.<init>` | `new RotatingSectionStorage(radius, minSectionY, maxSectionY, …)`; the `RotatingSectionStorage` methods that `WindowedSectionStorage` overrides |
 
 Also search the new version for other uses of `30000000`, `3.0E7` and `29999984`, and for code that packs positions
