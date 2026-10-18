@@ -1,12 +1,16 @@
 package io.github.elpideus.diffusicraft.mixin.height;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
+import io.github.elpideus.diffusicraft.height.NarrowLinearConfiguration;
 import io.github.elpideus.diffusicraft.height.NoThreadingDetector;
 import io.github.elpideus.diffusicraft.height.SharedContainerData;
 import io.github.elpideus.diffusicraft.height.SharedPalette;
 import net.minecraft.util.BitStorage;
 import net.minecraft.util.ThreadingDetector;
+import net.minecraft.world.level.chunk.Configuration;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.SingleValuePalette;
 import net.minecraft.world.level.chunk.Strategy;
@@ -52,6 +56,13 @@ abstract class PalettedContainerMixin<T> implements SharedContainerData.Containe
 	@ModifyVariable(method = "createOrReuseData", at = @At("HEAD"), argsOnly = true)
 	private PalettedContainer.@Nullable Data<T> diffusicraft$neverReuseShared(PalettedContainer.@Nullable Data<T> oldData) {
 		return oldData != null && oldData.palette() instanceof SharedPalette ? null : oldData;
+	}
+
+	/** Narrower storage for sections with a few blocks; see {@link NarrowLinearConfiguration}. */
+	@ModifyExpressionValue(method = "createOrReuseData", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/"
+		+ "level/chunk/Strategy;getConfigurationForBitCount(I)Lnet/minecraft/world/level/chunk/Configuration;"))
+	private Configuration diffusicraft$narrow(Configuration configuration, @Local(argsOnly = true) int targetBits) {
+		return NarrowLinearConfiguration.narrowed(configuration, targetBits);
 	}
 
 	@Override

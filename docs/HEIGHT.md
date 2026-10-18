@@ -106,6 +106,23 @@ own `ThreadingDetector`, which holds a semaphore and a lock.
 What is left of an empty section is the section and its two containers: about 80 bytes. Sections themselves are not
 shared, because the game and mods write to the sections of a chunk directly.
 
+### Sections with a few blocks
+
+Vanilla stores the blocks of every section that holds 2 to 16 different blocks at 4 bits per block, 2 KiB a section.
+A tall world holds thousands of blocks of rock in each column, and most of its sections hold only a few kinds:
+around the highest ground near the spawn of an Earth 1:1 world, half of the mixed sections hold two blocks and most
+of the rest three or four. Diffusicraft stores sections of 2 blocks at 1 bit per block, 3 or 4 blocks at 2 bits and 5
+to 8 blocks at 3 bits, as vanilla already does for biomes
+([`NarrowLinearConfiguration`](../src/main/java/io/github/elpideus/diffusicraft/height/NarrowLinearConfiguration.java)).
+A section that gains a block grows a bit at a time, as in vanilla.
+
+- **Saves** keep vanilla's 4 bits per block, so a world opens the same without the mod; sections are narrowed again
+  as they load.
+- **Chunk packets** carry the narrower storage. Only a client with the mod reads them, which it needs anyway to join,
+  since the mod adds blocks.
+- **Lithium** swaps vanilla's 4-bit palette for a hash palette of its own and saves sections with its own code. Both
+  pass through the same choice of configuration, so its sections are narrowed too and still saved at 4 bits.
+
 ### The client's render grid
 
 The client keeps render data in a grid around the camera: a node for each section within the render distance
@@ -216,6 +233,8 @@ the part of the chunk that is filled. `TerrainCeilingTest` checks the ceiling ov
   `./gradlew build`) round-trips the wire format and checks it against vanilla's packing.
 - [`SharedContainerDataTest`](../src/test/java/io/github/elpideus/diffusicraft/height/SharedContainerDataTest.java)
   checks the word-at-a-time uniformity check at every width a palette uses, with the odd entry anywhere.
+- [`NarrowLinearConfigurationTest`](../src/test/java/io/github/elpideus/diffusicraft/height/NarrowLinearConfigurationTest.java)
+  checks which configurations are narrowed, vanilla's and Lithium's, and that a narrow palette grows a bit at a time.
 - [`TallDimensionGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TallDimensionGameTest.java)
   runs the real game in a 32,736-block dimension. It checks:
   - blocks at y = ±16,000 and at the top of the world, on the server and the client;
@@ -246,8 +265,8 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `ServerGamePacketListenerImplMixin` | `ServerGamePacketListenerImpl.clampHorizontal` | the ±`3.0E7` literals |
 | `ForceLoadCommandMixin` | `ForceLoadCommand.changeForceLoad` | the ±`30000000` literals |
 | `WorldBorderMixin` | `WorldBorder.<init>(WorldBorder$Settings)`, `setAbsoluteMaxSize` | the `29999984` literal |
-| `PalettedContainerMixin` | `PalettedContainer.<init>` (all three), `read`, `createOrReuseData` | `new ThreadingDetector` in the field initialiser; the `data` and `strategy` fields; `createOrReuseData` reusing the old data when the configuration stays the same |
-| `StrategyMixin` | `Strategy` | `getConfigurationForBitCount(0)` being the single-value configuration; `entryCount` |
+| `PalettedContainerMixin` | `PalettedContainer.<init>` (all three), `read`, `createOrReuseData` | `new ThreadingDetector` in the field initialiser; the `data` and `strategy` fields; `createOrReuseData` picking its configuration with `getConfigurationForBitCount(targetBits)`, and reusing the old data when the configuration stays the same |
+| `StrategyMixin` | `Strategy`, `Strategy.getConfigurationForPaletteSize` | `getConfigurationForBitCount(0)` being the single-value configuration; `entryCount`; `getConfigurationForPaletteSize` calling `getConfigurationForBitCount`, which gives block states a 4-bit configuration for 1 to 3 bits; saves and packets reading `bitsInStorage` and `bitsInMemory` as they do |
 | `SingleValuePaletteAccessor` | `SingleValuePalette` | the `value` field; `idFor` and `read` being the only methods that change it |
 | `LevelChunkSectionMixin` | `LevelChunkSection.fillBiomesFromNoise` | the `biomes` field holding the new container at the end |
 | `LevelChunkMixin` | `LevelChunk.<init>(ServerLevel, ProtoChunk, PostLoadProcessor)` | the new chunk keeping the proto-chunk's sections; no generation step writing blocks after it |
