@@ -19,8 +19,8 @@ SEA_LEVEL = 63
 # name: (min_y, height, dimension type, highest surface the scale can reach, cloud height or None)
 SCALES = {
     "standard": (-64, 384, "minecraft:overworld", 303, None),
-    "grand": (-256, 2288, f"{NS}:grand", 2003, 383.33),
-    "earth": (-256, 2288, f"{NS}:earth", 2003, 863.33),
+    "grand": (-256, 2640, f"{NS}:grand", 2363, 383.33),
+    "earth": (-256, 9344, f"{NS}:earth", 9063, 863.33),
 }
 # Biome parameters, as named by ClimateFunction.Parameter, and the noise router fields they feed.
 CLIMATE = {
@@ -259,9 +259,12 @@ def main():
         assert max_surface < top - 16, scale
         functions = f"{NS}/worldgen/density_function/{scale}"
         write(f"{functions}/surface.json", {"type": f"{NS}:surface", "scale": scale})
-        # Terrain density: positive below the surface, one unit per 16 blocks like vanilla's sloped_cheese.
+        # Terrain density: positive below the surface, one unit per 16 blocks like vanilla's sloped_cheese. The height
+        # comes from a gradient over the whole world: vanilla's minecraft:y stops at y = 4062, where it would leave
+        # every taller mountain solid to the top of the world.
         write(f"{functions}/terrain.json", {"type": "minecraft:mul", "right": 0.0625, "left": {
-            "type": "minecraft:sub", "left": ref(scale, "surface"), "right": "minecraft:y"}})
+            "type": "minecraft:sub", "left": ref(scale, "surface"),
+            "right": gradient(min_y, float(min_y), min_y + height, float(min_y + height))}})
         for field, parameter in CLIMATE.items():
             write(f"{functions}/{field}.json", {"type": f"{NS}:climate", "scale": scale, "parameter": parameter})
         # Vanilla's aquifers only flood a column with the sea where its surface lies 9 or more blocks under sea level;

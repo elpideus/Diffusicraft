@@ -6,7 +6,7 @@
   "default_fluid": "minecraft:water",
   "noise": {
     "min_y": -256,
-    "height": 2288
+    "height": 9344
   },
   "noise_router": {
     "temperature": "diffusicraft:earth/temperature",

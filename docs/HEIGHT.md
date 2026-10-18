@@ -6,8 +6,8 @@ allows 4064. The price is horizontal range: worlds end at **±8,000,000 blocks**
 Earth's highest mountain rises 8,849 m above the sea. At 1 block per meter that fits easily, because the underground
 and the oceans keep their game depth (see [Costs](#costs)).
 
-This is the engine side only. The Diffusicraft world types still use −256 to 2031 (see [WORLDGEN.md](WORLDGEN.md)).
-A taller dimension type is plain data:
+Diffusicraft Grand runs from −256 to 2383 and Diffusicraft Earth 1:1 from −256 to 9087, so real mountains keep their
+height (see [WORLDGEN.md](WORLDGEN.md#from-meters-to-blocks)). Any taller dimension type is plain data:
 
 ```json
 { "min_y": -16368, "height": 32736, "logical_height": 32736, ... }
@@ -180,8 +180,8 @@ What the rest of the tall dimension costs did not change:
 So a tall dimension still costs save time, and some memory, in proportion to its height, whatever it contains. Make
 dimensions only as tall as the terrain needs. Earth 1:1 keeps the underground and the oceans game-sized, because the fun
 is on the surface: `min_y` stays −256 and the oceans stay compressed to at most 200 blocks deep. Only the top moves.
-Everest's 8,849 m above sea level 63 puts the highest block near y = 8,912, so with headroom the world runs from −256 to
-about 9,200: some 9,500 blocks, or 592 sections per column.
+Its mountains keep their height up to 8 km and ease above that, so its highest ground is y = 9063 and the world runs
+from −256 to 9087: 9,344 blocks, or 584 sections per column.
 
 ## Tests
 
@@ -231,8 +231,6 @@ without `BlockPos.asLong`.
   when their chunk is complete, instead of when they are next loaded.
 - **Leaner saves.** Skip sections that are all air with a single biome, and fill them back in on load.
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
-- **Taller Diffusicraft world types.** Earth 1:1 can then keep real mountains instead of compressing them above
-  1.2 km. Only its top moves: from −256 to about 9,200, some 9,500 blocks (see [Costs](#costs)).
 - **Compatibility.** Test Sodium, Distant Horizons, Voxy and a dedicated server with a real network connection.
 - **Only nearby heights on the wire (not for now).** The server would send each client only the sections near the
   player, as Cubic Chunks does, so a client's memory and bandwidth would follow what it sees instead of the height of

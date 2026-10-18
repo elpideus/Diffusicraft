@@ -1,6 +1,14 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,6 +48,30 @@ class WorldScaleTest {
 		assertEquals(63 + 50, WorldScale.STANDARD.surfaceY(500f), 1e-3);
 		assertEquals(63 + 200, WorldScale.GRAND.surfaceY(800f), 1e-3);
 		assertEquals(63 + 1000, WorldScale.EARTH.surfaceY(1000f), 1e-3);
+	}
+
+	@Test
+	void realMountainsKeepTheirHeight() {
+		// Mont Blanc stands at its full height in Earth 1:1, and at a quarter of it in Grand.
+		assertEquals(63 + 4808, WorldScale.EARTH.surfaceY(4808f), 1e-3);
+		assertEquals(63 + 1202, WorldScale.GRAND.surfaceY(4808f), 1e-3);
+		// Only the last kilometre is eased: Everest loses less than 200 m in Earth 1:1.
+		assertTrue(WorldScale.EARTH.surfaceY(8849f) - 63 > 8650);
+	}
+
+	@Test
+	void theHighestPeaksFitTheirWorld() throws IOException {
+		for (WorldScale scale : List.of(WorldScale.GRAND, WorldScale.EARTH)) {
+			String path = "/data/diffusicraft/dimension_type/" + scale.getSerializedName() + ".json";
+			JsonObject type;
+			try (Reader reader = new InputStreamReader(WorldScaleTest.class.getResourceAsStream(path),
+				StandardCharsets.UTF_8)) {
+				type = JsonParser.parseReader(reader).getAsJsonObject();
+			}
+			int top = type.get("min_y").getAsInt() + type.get("height").getAsInt();
+			// Room for the tallest trees above the highest surface, under the top of the world.
+			assertTrue(scale.maxSurfaceY() + 20 < top, scale + " tops out at " + top);
+		}
 	}
 
 	@Test

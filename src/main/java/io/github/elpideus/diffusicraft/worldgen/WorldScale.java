@@ -18,10 +18,16 @@ import net.minecraft.util.StringRepresentable;
 public enum WorldScale implements StringRepresentable {
 	/** About 15 m per block, in the vanilla build height. Mountains are tall but fit under y=320. */
 	STANDARD("standard", 15.0, 63, 10.0, 100.0, 240.0, 20.0, 20.0, 45.0),
-	/** 5 m per block, in a tall world (y -256 to 2031), close to real proportions. */
-	GRAND("grand", 5.0, 63, 4.0, 1200.0, 1940.0, 8.0, 40.0, 160.0),
-	/** 1 m per block: the real Earth size. Mountains above about 1.5 km are compressed until build height grows. */
-	EARTH("earth", 1.0, 63, 1.0, 1200.0, 1940.0, 1.0, 60.0, 200.0);
+	/**
+	 * 5 m per block, in a tall world (y -256 to 2383), close to real proportions. Heights are 4 m per block up to 8 km,
+	 * so only the very highest peaks are compressed.
+	 */
+	GRAND("grand", 5.0, 63, 4.0, 2000.0, 2300.0, 8.0, 40.0, 160.0),
+	/**
+	 * 1 m per block: the real Earth size, in a world from y -256 to 9087. Mountains keep their real height up to 8 km;
+	 * the oceans and the underground stay game-sized.
+	 */
+	EARTH("earth", 1.0, 63, 1.0, 8000.0, 9000.0, 1.0, 60.0, 200.0);
 
 	public static final Codec<WorldScale> CODEC = StringRepresentable.fromEnum(WorldScale::values);
 	/** Meters per native Terrain Diffusion pixel. */

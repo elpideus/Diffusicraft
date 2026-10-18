@@ -4,6 +4,13 @@
   "left": {
     "type": "minecraft:sub",
     "left": "diffusicraft:standard/surface",
-    "right": "minecraft:y"
+    "right": {
+      "type": "minecraft:gradient",
+      "axis": "y",
+      "from_coordinate": -64,
+      "from_value": -64.0,
+      "to_coordinate": 320,
+      "to_value": 320.0
+    }
   }
 }

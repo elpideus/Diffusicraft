@@ -12,8 +12,9 @@ geography, climate and geology.
 ## What works today
 
 - **A world generator.** Diffusicraft is the default world type, at three scales: Diffusicraft (vanilla height),
-  Grand and Earth 1:1 (both up to y = 2031). Biomes follow the real climate: snow only where it is cold, deserts only
-  where it is hot and dry. Vanilla caves, structures and biome mods keep working. See [WORLDGEN.md](docs/WORLDGEN.md).
+  Grand (up to y = 2383) and Earth 1:1, whose mountains stand at their real height (up to y = 9087). Biomes follow the
+  real climate: snow only where it is cold, deserts only where it is hot and dry. Vanilla caves, structures and biome
+  mods keep working. See [WORLDGEN.md](docs/WORLDGEN.md).
 - **Rivers, rock and caverns.** Rivers drain the whole world from its rain and terrain. Underground, sedimentary beds,
   fold belts and basement rock hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they
   lie, down to the Grand Hollows over lava seas.

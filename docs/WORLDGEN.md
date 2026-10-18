@@ -23,8 +23,8 @@ Diffusicraft adds three world types and makes the first one the default:
 | World type | `level-type` | Horizontal | Vertical | Build height |
 |---|---|---|---|---|
 | Diffusicraft | `diffusicraft:standard` | 15 m per block | 10 m per block, eased above 1 km | −64 to 319 (vanilla) |
-| Diffusicraft Grand | `diffusicraft:grand` | 5 m per block | 4 m per block, eased above 4.8 km | −256 to 2031 |
-| Diffusicraft Earth 1:1 | `diffusicraft:earth` | 1 m per block | 1 m per block, eased above 1.2 km | −256 to 2031 |
+| Diffusicraft Grand | `diffusicraft:grand` | 5 m per block | 4 m per block, eased above 8 km | −256 to 2383 |
+| Diffusicraft Earth 1:1 | `diffusicraft:earth` | 1 m per block | 1 m per block, eased above 8 km | −256 to 9087 |
 
 A world type that needs the models cannot be created until they are downloaded. Pressing Create opens the resource
 screen instead. A dedicated server downloads them at startup, and generation waits for the download.
@@ -50,12 +50,14 @@ the world.
 | Scale | Land: m per block, knee, cap | Highest surface | Ocean: m per block, knee, cap | Lowest sea floor |
 |---|---|---|---|---|
 | standard | 10, 100, 240 | y = 303 | 20, 20, 45 | y = 18 |
-| grand | 4, 1200, 1940 | y = 2003 | 8, 40, 160 | y = −97 |
-| earth | 1, 1200, 1940 | y = 2003 | 1, 60, 200 | y = −137 |
+| grand | 4, 2000, 2300 | y = 2363 | 8, 40, 160 | y = −97 |
+| earth | 1, 8000, 9000 | y = 9063 | 1, 60, 200 | y = −137 |
 
 The sea is at y = 63 in every scale. The sea floor lies at least one block under it, so a sea shallower than one
-block's worth of meters still holds water instead of showing as a dry shelf flush with the water. Earth 1:1
-compresses mountains above about 1.2 km until the build height can grow beyond 4064 (see [ROADMAP.md](ROADMAP.md)).
+block's worth of meters still holds water instead of showing as a dry shelf flush with the water. In Grand and Earth
+1:1 the knee lies at 8 km, so every mountain but the Himalaya's highest keeps its real height; Everest stands at
+about y = 8,750 in Earth 1:1. Each tall world type ends some 20 blocks above its highest surface, room for the
+tallest trees on the highest peak.
 
 **Depth is sized for play.** The real crust is tens of kilometres thick, but the game happens mostly on the surface,
 so the underground does not follow the vertical scale:
@@ -64,7 +66,9 @@ so the underground does not follow the vertical scale:
 - the seas are compressed, as in the table above;
 - below the sea, the rock layers use at least 10 m per block, as in the standard world (see [The ground](#the-ground)).
 
-When the build height can grow beyond 4064, only the top of the world will move.
+The build height goes to the surface instead. Real mountains rise some 9 km above the sea while the mantle lies
+tens of kilometres down, and a world of both would be mostly rock nobody digs. So the tall world types are tall at
+the top only: Earth 1:1 is 9,344 blocks tall, all but 319 of them above the sea.
 
 ## How a column is generated
 
@@ -209,7 +213,9 @@ templates from the Minecraft jar Loom unpacked.
 
 The settings set `final_density` to vanilla's overworld density, with two changes:
 
-- vanilla's `sloped_cheese` terrain is replaced by `diffusicraft:<scale>/terrain`, which is `(surface − y) / 16`;
+- vanilla's `sloped_cheese` terrain is replaced by `diffusicraft:<scale>/terrain`, which is `(surface − y) / 16`.
+  Its `y` is a gradient over the whole world, not vanilla's `minecraft:y`, which stops at y = 4062 and would leave
+  the mountains of Earth 1:1 solid up to the top of the world;
 - deeper than 25 blocks below the surface, the density is the minimum of vanilla's caves and
   [the Hollows](#the-hollows);
 - [the rivers](#rivers) come last: `diffusicraft:<scale>/river_fill` builds the ground up under them and

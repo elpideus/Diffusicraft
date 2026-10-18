@@ -29,8 +29,8 @@ turns them into blocks. The pieces planned add the details: erosion, soils and n
   | World type | Horizontal | Vertical | Build height |
   |---|---|---|---|
   | **Diffusicraft** | 15 m per block | 10 m per block, eased above 1 km | Vanilla (−64 to 319) |
-  | **Diffusicraft Grand** | 5 m per block | 4 m per block, eased above 4.8 km | −256 to 2031 |
-  | **Diffusicraft Earth 1:1** | 1 m per block | 1 m per block, eased above 1.2 km | −256 to 2031 |
+  | **Diffusicraft Grand** | 5 m per block | 4 m per block, eased above 8 km | −256 to 2383 |
+  | **Diffusicraft Earth 1:1** | 1 m per block | 1 m per block, eased above 8 km | −256 to 9087 |
 
   The scale factors will be tuned in game. See [WORLDGEN.md](WORLDGEN.md).
 - **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
@@ -61,6 +61,8 @@ turns them into blocks. The pieces planned add the details: erosion, soils and n
 - **Build height up to 32,736 blocks.** Dimension types can be up to 32,736 blocks tall (Y −16,368 to 16,367);
   vanilla stops at 4064. Positions are repacked, so worlds end at ±8,000,000 blocks. Blocks, light, heightmaps, the
   network and saves work at both ends; a client game test covers them. See [HEIGHT.md](HEIGHT.md).
+- **Real mountain heights.** Mountains stand at their real height in Earth 1:1, a block per meter up to 8 km: from
+  −256 to 9087, with the underground and the oceans kept game-sized. See [WORLDGEN.md](WORLDGEN.md#from-meters-to-blocks).
 - **Generating ahead.** Terrain is computed in the background where the players are heading, so chunks rarely
   wait for inference. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 
@@ -70,9 +72,6 @@ turns them into blocks. The pieces planned add the details: erosion, soils and n
 
 The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#next-steps)):
 
-- **Earth 1:1 at full height.** It still compresses mountains above 1.2 km to fit 2288 blocks. Only the top needs to
-  move: with the underground and the oceans kept game-sized, real mountains fit from −256 to about 9,200, some 9,500
-  blocks.
 - **Memory and saves.** Empty sections cost about 80 bytes now instead of 450, and the client keeps render data for
   the rows near the camera only. Still to do: share uniform sections as soon as world generation makes them, and skip
   empty sections when saving.
