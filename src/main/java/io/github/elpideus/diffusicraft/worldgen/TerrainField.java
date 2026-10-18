@@ -22,9 +22,12 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@code k} is at {@code k + 0.5}. {@link WorldScale#toPixel} converts block coordinates.
  */
 public final class TerrainField implements AutoCloseable {
-	static final int TILE = 256;
-	static final int PAD = 32;
-	static final int SPAN = TILE + 2 * PAD;
+	/** Native pixels per tile side. */
+	public static final int TILE = 256;
+	/** Margin around each tile, in native pixels. */
+	public static final int PAD = 32;
+	/** Side of a padded tile. */
+	public static final int SPAN = TILE + 2 * PAD;
 	static final int GRID = 8;
 	static final int GRID_POINTS = TILE / GRID + 1;
 	/** Half-width of the box, in pixels, over which the mean elevation and the relief are measured (720 m). */
@@ -154,6 +157,25 @@ public final class TerrainField implements AutoCloseable {
 		out.temperatureSeasonality = coarseChannel(TerrainSource.COARSE_TEMPERATURE_SEASONALITY, i, j);
 		out.precipitation = Math.max(0f, coarseChannel(TerrainSource.COARSE_PRECIPITATION, i, j));
 		out.precipitationSeasonality = coarseChannel(TerrainSource.COARSE_PRECIPITATION_SEASONALITY, i, j);
+	}
+
+	/**
+	 * The raw elevation of tile {@code (ti, tj)} with its margin: {@value #SPAN}² row-major values in meters, the first
+	 * one at native pixel {@code (ti * TILE - PAD, tj * TILE - PAD)}. The array is shared and must not be modified.
+	 * Neighbouring tiles agree where their margins overlap: the source is seamless.
+	 */
+	public float[] paddedTile(int ti, int tj) {
+		return tile(ti, tj).elevation;
+	}
+
+	/** Native pixels per coarse pixel. */
+	public int coarseScale() {
+		return source.coarseScale();
+	}
+
+	/** The coarse map over {@code [ci0, ci1) x [cj0, cj1)}, as {@link TerrainSource#coarse} returns it. Not cached. */
+	public float[] coarse(int ci0, int cj0, int ci1, int cj1) {
+		return source.coarse(ci0, cj0, ci1, cj1);
 	}
 
 	/** Tiles currently held in memory. */

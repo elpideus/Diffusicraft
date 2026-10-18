@@ -49,10 +49,11 @@ def gradient(y0, v0, y1, v1):
 
 
 def final_density(scale, min_y, top):
-    """Vanilla's overworld final density with our terrain in place of sloped_cheese, and the Hollows.
+    """Vanilla's overworld final density with our terrain in place of sloped_cheese, the Hollows and the rivers.
 
     Caves, cave entrances, noodles, pillars, blending and structures (the beardifier) are vanilla's own functions.
-    The Hollows join the caves deep underground, where vanilla's caves are, too.
+    The Hollows join the caves deep underground, where vanilla's caves are, too. The rivers come last, so their
+    beds seal any cave below them.
     The bottom of the world fades to solid and everything above the highest possible surface fades to air.
     """
     terrain = ref(scale, "terrain")
@@ -110,19 +111,23 @@ def final_density(scale, min_y, top):
         "second": {"type": "minecraft:lerp", "alpha": gradient(top - 16, 1.0, top, 0.0),
                    "first": -0.078125, "second": shaped},
     }
-    return {
-        "type": "minecraft:add",
-        "left": {
-            "type": "minecraft:min",
-            "left": {"type": "minecraft:squeeze", "input": {
-                "type": "minecraft:interpolated", "cell_size_xz": 4, "cell_size_y": 8,
-                "input": {"type": "minecraft:mul",
-                          "left": {"type": "minecraft:blend_density", "input": faded},
-                          "right": 0.64}}},
-            "right": caves + "noodle",
-        },
-        "right": {"type": "minecraft:beardifier"},
+    ground = {
+        "type": "minecraft:min",
+        "left": {"type": "minecraft:squeeze", "input": {
+            "type": "minecraft:interpolated", "cell_size_xz": 4, "cell_size_y": 8,
+            "input": {"type": "minecraft:mul",
+                      "left": {"type": "minecraft:blend_density", "input": faded},
+                      "right": 0.64}}},
+        "right": caves + "noodle",
     }
+    # Rivers build the ground up to their water where it lies lower, then cut it down to the water, block by block
+    # (outside the interpolation, so banks and beds stay sharp).
+    rivers = {
+        "type": "minecraft:min",
+        "left": {"type": "minecraft:max", "left": ground, "right": ref(scale, "river_fill")},
+        "right": ref(scale, "river_carve"),
+    }
+    return {"type": "minecraft:add", "left": rivers, "right": {"type": "minecraft:beardifier"}}
 
 
 def noise_settings(scale, min_y, height):
@@ -170,9 +175,11 @@ def noise_settings(scale, min_y, height):
 
 
 def material_rule(scale):
-    """Vanilla's overworld rule with the underground replaced by Diffusicraft's geology (see StrataRule)."""
+    """Vanilla's overworld rule with the underground replaced by Diffusicraft's geology (see StrataRule), and the
+    rivers' water and beds (see RiverRule)."""
     return {"type": "minecraft:sequence", "sequence": [
         "minecraft:bedrock_floor",
+        {"type": f"{NS}:river", "scale": scale},
         "minecraft:overworld/copper_ore_vein",
         "minecraft:overworld/iron_ore_vein",
         {"type": f"{NS}:strata", "scale": scale, "surface": {"type": "minecraft:sequence", "sequence": [
@@ -258,6 +265,8 @@ def main():
             "when_out_of_range": ref(scale, "surface")})
         write(f"{functions}/spawn.json", {"type": f"{NS}:spawn_suitability", "scale": scale})
         write(f"{functions}/hollows.json", {"type": f"{NS}:hollows", "scale": scale, "min_y": min_y})
+        for mode in ("carve", "fill"):
+            write(f"{functions}/river_{mode}.json", {"type": f"{NS}:river", "scale": scale, "mode": mode})
         write(f"{functions}/final_density.json", final_density(scale, min_y, top))
         write(f"{NS}/worldgen/material_rule/{scale}.json", material_rule(scale))
         write(f"{NS}/worldgen/noise_settings/{scale}.json", noise_settings(scale, min_y, height))

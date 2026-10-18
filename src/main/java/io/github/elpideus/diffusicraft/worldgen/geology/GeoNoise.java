@@ -1,10 +1,10 @@
 package io.github.elpideus.diffusicraft.worldgen.geology;
 
 /**
- * Seeded hashes and smooth noise for the geology. Plain Java with no state, so the model runs the same in the game and
- * in unit tests, on any thread.
+ * Seeded hashes and smooth noise for the geology and the rivers. Plain Java with no state, so the model runs the same in
+ * the game and in unit tests, on any thread.
  */
-final class GeoNoise {
+public final class GeoNoise {
 	private static final double[] GRADIENTS_X = new double[16];
 	private static final double[] GRADIENTS_Z = new double[16];
 	/** 64 unit vectors spread evenly over the sphere (a Fibonacci lattice), interleaved x, y, z. */
@@ -67,7 +67,7 @@ final class GeoNoise {
 	}
 
 	/** Gradient noise summed over octaves of halving wavelength, in about [-1, 1]. */
-	static double fractal(long seed, double x, double z, int octaves) {
+	public static double fractal(long seed, double x, double z, int octaves) {
 		double sum = 0;
 		double amplitude = 1;
 		double norm = 0;

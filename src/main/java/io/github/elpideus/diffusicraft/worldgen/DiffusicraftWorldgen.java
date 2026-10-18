@@ -3,10 +3,13 @@ package io.github.elpideus.diffusicraft.worldgen;
 import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
+import io.github.elpideus.diffusicraft.worldgen.density.RiverFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SpawnSuitabilityFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
+import io.github.elpideus.diffusicraft.worldgen.material.RiverRule;
 import io.github.elpideus.diffusicraft.worldgen.material.StrataRule;
+import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -36,11 +39,14 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("spawn_suitability"),
 			SpawnSuitabilityFunction.CODEC);
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("hollows"), HollowsFunction.CODEC);
+		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("river"), RiverFunction.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("strata"), StrataRule.CODEC);
+		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("river"), RiverRule.CODEC);
 		TerrainFields.register();
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			StrataRule.clearCache();
 			Hollows.clearCache();
+			Rivers.clearCache();
 		});
 	}
 

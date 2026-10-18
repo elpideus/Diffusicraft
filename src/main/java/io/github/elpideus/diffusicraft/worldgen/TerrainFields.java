@@ -1,11 +1,13 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
+import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.runtime.Job;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.ModelBundle;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.densityfunction.DensityFunction;
 import net.minecraft.world.level.storage.LevelResource;
 
@@ -42,6 +44,11 @@ public final class TerrainFields {
 	/** The field for the world that is compiling its density functions. */
 	public static TerrainField forContext(DensityFunction.CompileContext context) {
 		return get(context.createRandom(SEED_ID).nextLong());
+	}
+
+	/** The field for the world of a random state, for code that runs after the density functions are compiled. */
+	public static TerrainField forState(RandomState state) {
+		return get(((RandomStateAccessor) (Object) state).diffusicraft$random().fromHashOf(SEED_ID).nextLong());
 	}
 
 	public static TerrainField get(long seed) {

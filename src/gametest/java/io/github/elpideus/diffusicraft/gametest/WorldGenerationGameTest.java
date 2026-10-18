@@ -4,8 +4,13 @@ import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
+import io.github.elpideus.diffusicraft.worldgen.TerrainField;
+import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
+import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
+import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -30,6 +35,7 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseRouter;
+import net.minecraft.world.level.levelgen.PositionalRandomFactory;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import org.slf4j.Logger;
@@ -53,8 +59,8 @@ import java.util.stream.IntStream;
 /**
  * Creates a Diffusicraft world with the default settings and checks that the overworld really uses Diffusicraft.
  * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
- * the generator without building chunks, in-game views from above the spawn, and views inside the nearest Grand Hollow
- * and over the nearest lava sea of a Deep Grand Hollow.
+ * the generator without building chunks, in-game views from above the spawn and over the largest river nearby, and
+ * views inside the nearest Grand Hollow and over the nearest lava sea of a Deep Grand Hollow.
  *
  * <p>Needs the Terrain Diffusion models; without them the test logs a warning and does nothing. Generation runs on the
  * CPU, so the test leaves the GPU alone; pass {@code -Pdiffusicraft.device=CUDA} (or {@code AUTO}) to change that.
@@ -117,6 +123,11 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, above, 0f, 20f, "view-south");
 			view(context, world, above, 180f, 20f, "view-north");
 			view(context, world, above.above(120), 90f, 40f, "view-high-west");
+
+			// The largest river nearby, from its bank and from high above.
+			BlockPos river = findRiver(probe);
+			view(context, world, river.offset(0, 24, 36), 180f, 30f, "river");
+			view(context, world, river.above(140), 180f, 75f, "river-above");
 
 			// The camera in the middle of the tallest Grand Hollow nearby, first by its own light, then lit up.
 			BlockPos grand = findHollow(probe, EnumSet.of(Hollows.Kind.GRAND_HOLLOW, Hollows.Kind.ANCIENT_GRAND_HOLLOW),
@@ -225,9 +236,31 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		return best;
 	}
 
+	/** Finds the river channel within 2 km of the spawn that carries the most water, and returns its water surface. */
+	private static BlockPos findRiver(Probe probe) {
+		Rivers rivers = Rivers.of(probe.field);
+		float most = 0f;
+		BlockPos best = null;
+		for (int dx = -2048; dx <= 2048; dx += 16) {
+			for (int dz = -2048; dz <= 2048; dz += 16) {
+				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+				RiverColumn column = rivers.column(WorldScale.STANDARD, x, z);
+				if (column.channel && column.discharge > most) {
+					most = column.discharge;
+					best = new BlockPos(x, column.waterTop, z);
+				}
+			}
+		}
+		if (best == null) {
+			throw new AssertionError("No river within 2 km of the spawn");
+		}
+		LOGGER.info("The largest river near the spawn carries {} m³/s at {}", Math.round(most), best);
+		return best;
+	}
+
 	/** What the test reads from the server: the spawn, and what it needs to sample the generator off-thread. */
 	private record Probe(BlockPos spawn, int spawnSurface, String spawnBiome, RandomState state, NoiseRouter router,
-						 BiomeSource biomes, long hollowsSeed, int minY) {
+						 BiomeSource biomes, long hollowsSeed, TerrainField field, int minY) {
 		static Probe of(ServerLevel level) {
 			ChunkGenerator generator = level.getChunkSource().getGenerator();
 			if (!DiffusicraftWorldgen.usesModels(generator)) {
@@ -238,10 +271,11 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING, spawn.getX(), spawn.getZ());
 			String biome = level.getBiome(spawn.atY(surface)).unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
 			RandomState state = level.getChunkSource().randomState();
-			long hollowsSeed = ((RandomStateAccessor) (Object) state).diffusicraft$random()
-				.fromHashOf(HollowsFunction.SEED_ID).nextLong();
+			PositionalRandomFactory random = ((RandomStateAccessor) (Object) state).diffusicraft$random();
+			long hollowsSeed = random.fromHashOf(HollowsFunction.SEED_ID).nextLong();
+			TerrainField field = TerrainFields.get(random.fromHashOf(TerrainFields.SEED_ID).nextLong());
 			return new Probe(spawn, surface, biome, state, noise.generatorSettings().value().noiseRouter(),
-				generator.getBiomeSource(), hollowsSeed, level.getMinY());
+				generator.getBiomeSource(), hollowsSeed, field, level.getMinY());
 		}
 	}
 

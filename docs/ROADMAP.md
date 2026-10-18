@@ -5,7 +5,7 @@ climates, forests and rock layers should look and behave like real ones. It is a
 modpacks built around Create.
 
 The pieces in place generate the world's shape, climate, rock and deep caverns, and a world generator turns them into
-blocks. The pieces planned add the details: rivers, soils and new biomes.
+blocks. The pieces planned add the details: lakes, soils and new biomes.
 
 ## Done
 
@@ -41,6 +41,9 @@ blocks. The pieces planned add the details: rivers, soils and new biomes.
 - **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
+- **Rivers.** Drainage of the whole world from its rain and terrain, with discharge, meanders, tributaries, widths
+  that grow with the discharge, banks, beds and river biomes. Shallow seas hold water. See
+  [WORLDGEN.md](WORLDGEN.md#rivers).
 
 ## Next
 
@@ -58,8 +61,7 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 - **Interpolation.** Interpolate the 30 m grid to blocks with slope-preserving interpolation.
 - **Sub-30 m detail.** Add procedural detail below the model's resolution, driven by the local slope, rock type and
   climate.
-- **Water and erosion.** Carve rivers and lakes from the elevation field (flow accumulation), with valleys, cliffs,
-  scree and talus.
+- **Lakes and erosion.** Lakes in closed basins, and cliffs, scree and talus.
 - **Coasts.** Coastlines, beaches and cliffs follow the real sea level (y = 0 at 1:1).
 
 ### Biomes

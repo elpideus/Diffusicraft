@@ -2,6 +2,10 @@
   "type": "minecraft:sequence",
   "sequence": [
     "minecraft:bedrock_floor",
+    {
+      "type": "diffusicraft:river",
+      "scale": "standard"
+    },
     "minecraft:overworld/copper_ore_vein",
     "minecraft:overworld/iron_ore_vein",
     {

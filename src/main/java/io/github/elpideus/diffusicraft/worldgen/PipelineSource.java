@@ -23,6 +23,12 @@ final class PipelineSource implements TerrainSource {
 		this.seed = seed;
 	}
 
+	/** A source over a pipeline that is already loaded, for tests. */
+	PipelineSource(long seed, WorldPipeline pipeline) {
+		this.seed = seed;
+		this.pipeline = pipeline;
+	}
+
 	@Override
 	public TerrainSample sample(int i0, int j0, int i1, int j1) {
 		return pipeline().sample(i0, j0, i1, j1, true);

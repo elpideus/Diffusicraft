@@ -64,10 +64,11 @@ TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate
    ▼
 density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability,
-   │                diffusicraft:hollows (the Hollows model)
+   │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model)
    ▼
 noise settings diffusicraft:<scale>: noise router, aquifers, material rule diffusicraft:<scale>
-   ▼                                  (vanilla's surface rules + diffusicraft:strata, the Geology model)
+   ▼                                  (vanilla's surface rules + diffusicraft:strata, the Geology model,
+   ▼                                   + diffusicraft:river, the rivers' water and beds)
 vanilla NoiseBasedChunkGenerator: caves, aquifers, ores, surface blocks, features and structures
 ```
 
@@ -106,8 +107,9 @@ Some adjustments move biomes away from vanilla's defaults:
 
 - **Snow.** Snowy slopes and peaks need temperatures below 1 °C. A warmer mountain is moved into the plateau and
   forest bands. Between 1 and 8 °C, a summit becomes stony peaks.
-- **Windswept and rivers.** Erosion never reaches the windswept band, and weirdness never reaches the river band.
-  Both come from the terrain, not from noise.
+- **Windswept and rivers.** Erosion never reaches the windswept band. Weirdness reaches the river band only in the
+  valleys of [the rivers](#rivers), which therefore take vanilla's river biomes, frozen where it is cold. Both come
+  from the terrain, not from noise.
 
 Biome mods that add entries to the overworld table get the same parameters, so they appear where the real conditions
 match.
@@ -118,7 +120,9 @@ The settings set `final_density` to vanilla's overworld density, with two change
 
 - vanilla's `sloped_cheese` terrain is replaced by `diffusicraft:<scale>/terrain`, which is `(surface − y) / 16`;
 - deeper than 25 blocks below the surface, the density is the minimum of vanilla's caves and
-  [the Hollows](#the-hollows).
+  [the Hollows](#the-hollows);
+- [the rivers](#rivers) come last: `diffusicraft:<scale>/river_fill` builds the ground up under them and
+  `river_carve` cuts it down to their water, so their beds seal any cave below.
 
 Everything else is vanilla, so worlds keep:
 
@@ -135,6 +139,36 @@ The aquifers get `diffusicraft:<scale>/aquifer_surface` instead. On land it is t
 at most 12 blocks under sea level. Vanilla's aquifers fill a column with the sea only where its surface plus 8 is
 below sea level, and leave anything shallower mostly dry. With the exact surface, every sea less than 9 blocks deep
 became a dry plain dotted with dry pits.
+
+### Rivers
+
+Rivers come from the drainage of the coarse map and follow the fine terrain inside each tile (`worldgen/river/`).
+Everything is computed on demand, on any thread, and comes out the same.
+
+- **Network.** `RiverNetwork` routes water over the coarse map, one cell per tile (7.7 km). Each land cell drains to
+  its steepest lower neighbour, judged by its 5th-percentile elevation, which follows the valley floors. Pits are
+  breached: a priority flood within 8 cells finds the cheapest way out, and the cells on it are lowered just enough to
+  drain. Pits with no way out keep their rivers in a pond. The discharge of a cell is the runoff of everything
+  upstream, the precipitation less an evapotranspiration that grows with temperature. A river starts at 4 m³/s.
+- **Paths.** `CellRivers` draws the rivers inside a tile. A river crosses a side of the tile at that side's lowest
+  point, running straight across, so the tiles on both sides agree without looking at each other. Inside, it follows
+  the cheapest path, where low ground is cheap, and tributaries merge into a tree. On level ground the cost carries
+  noise, so rivers meander instead of following the pixel grid; on steep ground they stay in their valleys. Paths are
+  smoothed, and the water level only ever goes down along them.
+- **Width and depth.** About 4√Q meters wide for a discharge of Q m³/s, like real rivers. Streams are widened three
+  times at the standard scale and one and a half times at the grand scale so they stay visible, and nothing gets
+  wider than 480 m. The depth grows with the width, up to 4, 6 and 10 blocks at the three scales, and shelves towards
+  the banks.
+- **Columns.** `Rivers.column` says what a river does to a column. The channel is cut down to the water, or built up
+  on a footing 4 blocks deep where the river runs above the ground. Banks blend into the terrain over 1.5 blocks
+  across per block of height. Where the water steps down a block, it runs over the step as a little fall; the banks
+  within 2 blocks of the step rise above the higher water, which would otherwise spill over them and run beside the
+  river as a second stream.
+- **Water and beds.** The material rule `diffusicraft:river` (`RiverRule`) fills the channel with water on a bed of
+  sand and clay in the lowlands, and mostly gravel higher up. The valley, the channel and 3 blocks on each side, takes
+  a river biome.
+- **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like
+  an embankment. Lakes, other than the ponds in pits, are not modelled yet.
 
 ### The ground
 
@@ -246,10 +280,11 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, and the coarse stronghold search |
-| `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction` |
+| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search and the lava level |
+| `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
+| `worldgen/river/` | `Rivers` (what a river does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellFlows`, `RiverColumn` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
-| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows |
+| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
 | `block/` | `DiffusicraftBlocks`, the new rocks |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |
@@ -269,6 +304,12 @@ Other searches still read the full terrain and can take a while on new land:
   depth, and the sampling speed.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, determinism and the sampling speed.
+- `RiversTest` runs the river model over an analytic valley. It checks that water runs down to the sea, that the
+  discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
+  river meets itself across tile borders, that the banks hold the water where it steps down, that every thread gets
+  the same rivers, and that the width grows with the discharge.
+- `RiverMapTest` needs the models. It surveys the rivers of a real world and draws maps of them to
+  `build/river-map`, to look at the rivers without starting the game.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;
@@ -278,4 +319,4 @@ Other searches still read the full terrain and can take a while on new land:
   - the coarse column.
 - `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings
   and checks that it uses Diffusicraft. It then saves a biome map, a height map, in-game views around the spawn and
-  views of the tallest Grand Hollow and a lava sea nearby to `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
+  views of the largest river near the spawn, the tallest Grand Hollow and a lava sea nearby to `build/run/clientGameTest/screenshots`. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
