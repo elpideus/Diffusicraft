@@ -96,7 +96,7 @@ public final class ClimateMapping {
 	 * Precipitation over the Köppen aridity threshold: below 0.5 is desert, below 1 steppe. The threshold stops falling
 	 * below 0 °C, so tundra counts as moderately dry (snowy plains) rather than as wet as a rainforest.
 	 */
-	static float aridityRatio(float temperature, float precipitation) {
+	public static float aridityRatio(float temperature, float precipitation) {
 		float threshold = 20f * Math.max(temperature + 7f, 7f);
 		return precipitation / threshold;
 	}

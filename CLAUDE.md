@@ -32,11 +32,13 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
     `NoiseBasedChunkGenerator.createFluidPicker`, the call to `applyCarvingMask` in
-    `NoiseBasedChunkGenerator.generateCarvers`, and the accessors for `MaterialRuleContext.randomState` and
-    `RandomState.random`.
+    `NoiseBasedChunkGenerator.generateCarvers`, `RandomState.create` and `createClimateSampler`, the interface added
+    to `Climate.Sampler`, and the accessors for `MaterialRuleContext.randomState` and `RandomState.random`. The class
+    tweaker `diffusicraft.classtweaker` opens `MultiNoiseBiomeSource`'s constructor.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
-  `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py` or
-  `tools/block_assets.py` and rerun it, never the JSON or the textures.
+  `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py`,
+  `tools/block_assets.py` (blocks) or `tools/biomes.py` (biomes, their features and tags) and rerun it, never the
+  JSON or the textures.
 - **Untested paths.** The AMD ROCm/MIGraphX path has never run on AMD hardware. Say so when touching it.
 - **Commits.** Small and logical, with an imperative subject and a body saying why. Docs change in the same commit as
   the behaviour.

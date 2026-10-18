@@ -126,5 +126,13 @@
 	"block.diffusicraft.gneiss": "Gneiss",
 	"block.diffusicraft.gabbro": "Gabbro",
 	"block.diffusicraft.peridotite": "Peridotite",
-	"block.diffusicraft.kimberlite": "Kimberlite"
+	"block.diffusicraft.kimberlite": "Kimberlite",
+
+	"biome.diffusicraft.tundra": "Tundra",
+	"biome.diffusicraft.alpine_tundra": "Alpine Tundra",
+	"biome.diffusicraft.cloud_forest": "Cloud Forest",
+	"biome.diffusicraft.temperate_rainforest": "Temperate Rainforest",
+	"biome.diffusicraft.maquis": "Maquis",
+	"biome.diffusicraft.cold_desert": "Cold Desert",
+	"biome.diffusicraft.steppe": "Steppe"
 }

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:cloud_forest_tree_checked",
+  "features": [
+    {
+      "chance": 0.35,
+      "feature": "diffusicraft:gnarled_oak_checked"
+    },
+    {
+      "chance": 0.25,
+      "feature": "minecraft:jungle_bush"
+    },
+    {
+      "chance": 0.02,
+      "feature": "minecraft:fallen_jungle_tree"
+    }
+  ]
+}

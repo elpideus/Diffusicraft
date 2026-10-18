@@ -19,7 +19,13 @@
             "if_true": {
               "type": "minecraft:above_preliminary_surface"
             },
-            "then_run": "minecraft:overworld/surface"
+            "then_run": {
+              "type": "minecraft:sequence",
+              "sequence": [
+                "diffusicraft:biome_surface",
+                "minecraft:overworld/surface"
+              ]
+            }
           },
           {
             "type": "minecraft:condition",

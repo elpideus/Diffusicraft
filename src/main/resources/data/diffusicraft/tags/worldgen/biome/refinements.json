@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "diffusicraft:tundra",
+    "diffusicraft:alpine_tundra",
+    "diffusicraft:cloud_forest",
+    "diffusicraft:temperate_rainforest",
+    "diffusicraft:maquis",
+    "diffusicraft:cold_desert",
+    "diffusicraft:steppe",
+    "minecraft:swamp",
+    "minecraft:mangrove_swamp"
+  ]
+}

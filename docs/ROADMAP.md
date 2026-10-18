@@ -35,6 +35,11 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
 - **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
   and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Biome mods that
   extend the overworld table get the same parameters.
+- **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
+  rainforest, Mediterranean maquis, cold desert and steppe, with their own trees (krummholz, giant spruces, olives,
+  stone pines, cypresses), plants and ground; swamps and mangroves follow the coast's climate. The Grand Hollows
+  are free of sculk. See
+  [WORLDGEN.md](WORLDGEN.md#refined-biomes).
 - **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
   and a magma layer above the bedrock. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See
   [WORLDGEN.md](WORLDGEN.md#the-ground).
@@ -66,13 +71,11 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 
 ### Biomes
 
-- **More of the climate.** Use the seasonality of temperature and precipitation, and the slope and aspect, which the
-  biome parameters ignore so far.
+- **More of the climate.** Use the slope and aspect, which the biomes ignore so far.
 - **Real sizes.** Biomes are as large as their real counterparts: a forest can be tens of kilometres across at 1:1.
-- **New real-world biomes.** For example:
-  - temperate rainforest, Mediterranean maquis, steppe, moorland and heath;
-  - alpine tundra, cloud forest, salt flats, fjords and mangroves.
-- **New flora.** New trees, flowers and grasses that match those biomes.
+- **More real-world biomes.** Moorland, heath, salt flats and fjords.
+- **New flora.** New blocks for the new biomes: heather, lavender, edelweiss, gentian, cottongrass. They use vanilla
+  plants so far.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on.
 

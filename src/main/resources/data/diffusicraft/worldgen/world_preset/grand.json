@@ -5,8 +5,9 @@
       "generator": {
         "type": "minecraft:noise",
         "biome_source": {
-          "type": "minecraft:multi_noise",
-          "preset": "minecraft:overworld"
+          "type": "diffusicraft:climate",
+          "preset": "minecraft:overworld",
+          "biomes": "#diffusicraft:refinements"
         },
         "settings": "diffusicraft:grand"
       }

@@ -2,8 +2,8 @@
 
 Diffusicraft generates the overworld from Terrain Diffusion's elevation and climate. The rest is Minecraft's own
 `minecraft:noise` chunk generator, with Diffusicraft's noise settings and density functions. The overworld
-therefore stays a vanilla `NoiseBasedChunkGenerator` with a vanilla multi-noise biome source. Several things work
-unchanged because of this:
+therefore stays a vanilla `NoiseBasedChunkGenerator`, and its biome source is vanilla's multi-noise source with one
+step added. Several things work unchanged because of this:
 
 - structures and structure mods;
 - biome mods that extend the overworld biome table (TerraBlender, Biomes O' Plenty, BYG);
@@ -91,8 +91,8 @@ match.
 
 ### Biome parameters
 
-The biome source is vanilla's `multi_noise` overworld preset, which reads six parameters. `ClimateMapping` gives each
-one a physical meaning, with breakpoints at the edges of vanilla's own bands:
+The biome source starts from vanilla's `multi_noise` overworld preset, which reads six parameters. `ClimateMapping`
+gives each one a physical meaning, with breakpoints at the edges of vanilla's own bands:
 
 | Parameter | Computed from |
 |---|---|
@@ -113,6 +113,67 @@ Some adjustments move biomes away from vanilla's defaults:
 
 Biome mods that add entries to the overworld table get the same parameters, so they appear where the real conditions
 match.
+
+### Refined biomes
+
+Vanilla's table sees five bands of temperature and humidity and nothing of the seasons. That cannot tell tundra from
+taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
+takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
+temperature seasonality, precipitation and its seasonality, elevation and relief. The refiner may swap it for one of
+seven new biomes. The first rule that matches wins:
+
+| Biome | Climate | Replaces |
+|---|---|---|
+| **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
+| *(vanilla snow and ice)* | Warmest month below 3 °C, or a year below −10 °C | Kept as vanilla picked them |
+| **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
+| **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
+| **Maquis** | 12–21 °C, coldest month at least 2 °C, 250–1000 mm of strongly seasonal rain, below 1200 m | The same, deserts and meadows too, but no other slopes |
+| **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts |
+| **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C | Plains, forests, taigas, savannas |
+
+Swamps on tropical coasts (coldest month at least 15 °C, below 10 m) become mangroves, and mangroves elsewhere swamps.
+Oceans, shores, rivers, caves and the mushroom fields are never touched, and neither is any biome a mod adds to the
+table: only vanilla's own biomes are refined. `BiomeRefiner` is pure and unit-tested.
+
+**Grand Hollows.** The deep dark would carpet their floors in sculk. Inside the Grand, Ancient Grand and Deep Grand
+Hollows the source picks what vanilla would pick halfway down to the deep dark instead: lush or dripstone caves where
+the climate calls for them, and the biome above otherwise. So does the rock around them, as far as their density
+reaches (several blocks into walls and pillars), since sculk veins spread up to twenty blocks.
+
+**Plumbing.** A biome source is shared by every world that uses a preset, so it learns which world it serves from the
+climate sampler. `RandomStateMixin` attaches a `BiomeWorld` (the terrain, scale and Hollows) to the random state of
+Diffusicraft's noise settings and to every `Climate.Sampler` it creates (`ClimateSamplerMixin`). Every way the game
+asks for a biome goes through such a sampler: chunk generation, structure placement, `/locate`, `/place` and the
+debug screen. All of them see the refined biomes. In other worlds the sampler carries nothing and the source behaves
+exactly like vanilla's. It still extends `MultiNoiseBiomeSource` (its constructor is opened by
+`diffusicraft.classtweaker`), so mods looking for a multi-noise source find one.
+
+**The new biomes.** Each starts from a vanilla template. It keeps the template's carvers, underground features and
+monsters, so caves and ores look the same under every biome, and replaces the vegetation, the ground, the animals and
+the colours:
+
+| Biome | Template | Vegetation | Ground |
+|---|---|---|---|
+| Tundra | Snowy plains | Dwarf birch scrub, moss mats, berry bushes, boulders | Grass with coarse dirt and podzol |
+| Alpine tundra | Meadow | Knee-high krummholz spruce, alpine flowers, moss, boulders | Grass broken by gravel scree and bare rock |
+| Cloud forest | Jungle | Vine-hung canopy trees, gnarled oaks, ferns, moss; dense fog (128 blocks) | Grass and podzol |
+| Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, ferns, moss, mushrooms; light fog | Grass and podzol |
+| Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass on limestone |
+| Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
+| Steppe | Plains | Grass, dry grass, tulips and poppies, a lone oak or birch | Grass with patches of coarse dirt |
+
+Their ground is the material rule `diffusicraft:biome_surface`, which runs ahead of vanilla's overworld surface rule
+and leaves every other biome to it. They join vanilla's structure tags (villages, outposts, ruins) and the `c:`
+convention tags where they fit.
+
+The game requires one order of features that every biome agrees with, and other mods' biomes take part in it. So a
+new biome names a vanilla feature only where its template lists it too, in the template's order. Any other vanilla
+feature it uses is a copy under Diffusicraft's name, and Diffusicraft's own features run after vanilla's. No order
+these biomes impose can then clash with another mod's.
+
+`tools/biomes.py` writes all of this: the biomes, their features, the surface rule and the tags. It reads the
+templates from the Minecraft jar Loom unpacked.
 
 ### Density and caves
 
@@ -286,15 +347,18 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level and the carver roof |
+| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers and the lapse rate |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
 | `worldgen/river/` | `Rivers` (what a river does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellFlows`, `RiverColumn` |
+| `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
 | `block/` | `DiffusicraftBlocks`, the new rocks |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |
-| `tools/worldgen_data.py` | Writes all of the data above. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
+| `data/diffusicraft/worldgen/{biome,feature,placed_feature}/`, `material_rule/biome_surface.json`, biome tags | The new biomes, their trees and plants, their ground and their tags |
+| `tools/worldgen_data.py` | Writes the noise settings, material rules, density functions, presets and dimension types. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
+| `tools/biomes.py` | Writes the new biomes, their features, surface rule and tags. Edit it, run `python3 tools/biomes.py`, and commit the output. |
 | `tools/block_assets.py` | Draws the rock textures and writes the block states, models, loot tables and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
 
 ## Lifetime and storage
@@ -316,6 +380,8 @@ Other searches still read the full terrain and can take a while on new land:
   the same rivers, and that the width grows with the discharge.
 - `RiverMapTest` needs the models. It surveys the rivers of a real world and draws maps of them to
   `build/river-map`, to look at the rivers without starting the game.
+- `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
+  cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, and tropical coasts.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;

@@ -1,0 +1,3 @@
+classTweaker	v1	official
+# ClimateBiomeSource extends the multi-noise source, so mods that look for one still find it.
+accessible	method	net/minecraft/world/level/biome/MultiNoiseBiomeSource	<init>	(Lcom/mojang/datafixers/util/Either;)V

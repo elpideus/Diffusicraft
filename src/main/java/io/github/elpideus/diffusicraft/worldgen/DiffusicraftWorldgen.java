@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
+import io.github.elpideus.diffusicraft.worldgen.biome.ClimateBiomeSource;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.RiverFunction;
@@ -44,6 +45,7 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("river"), RiverFunction.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("strata"), StrataRule.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("river"), RiverRule.CODEC);
+		Registry.register(BuiltInRegistries.BIOME_SOURCE, Diffusicraft.id("climate"), ClimateBiomeSource.CODEC);
 		TerrainFields.register();
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			StrataRule.clearCache();

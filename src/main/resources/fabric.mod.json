@@ -29,6 +29,7 @@
 			"io.github.elpideus.diffusicraft.client.compat.ModMenuIntegration"
 		]
 	},
+	"accessWidener": "diffusicraft.classtweaker",
 	"mixins": [
 		"diffusicraft.mixins.json",
 		{

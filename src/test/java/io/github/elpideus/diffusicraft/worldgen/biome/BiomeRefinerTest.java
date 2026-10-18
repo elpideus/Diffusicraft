@@ -1,0 +1,97 @@
+package io.github.elpideus.diffusicraft.worldgen.biome;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+/** Real places, roughly, and what the refiner makes of vanilla's picks there. */
+class BiomeRefinerTest {
+	private static BiomeClimate climate(float temperature, float seasonality, float precipitation, float cv,
+										 float elevation, float relief) {
+		BiomeClimate c = new BiomeClimate();
+		c.temperature = temperature;
+		c.seasonality = seasonality;
+		c.precipitation = precipitation;
+		c.precipitationSeasonality = cv;
+		c.elevation = elevation;
+		c.relief = relief;
+		return c;
+	}
+
+	@Test
+	void modBiomesAndFixedOnesAreLeftAlone() {
+		BiomeClimate tundra = climate(-8f, 10f, 250f, 40f, 50f, 20f);
+		assertNull(BiomeRefiner.refine("biomesoplenty:tundra", tundra));
+		assertNull(BiomeRefiner.refine("minecraft:ocean", tundra));
+		assertNull(BiomeRefiner.refine("minecraft:river", tundra));
+		assertNull(BiomeRefiner.refine("minecraft:lush_caves", tundra));
+	}
+
+	@Test
+	void arcticLowlandIsTundra() {
+		// The Canadian Arctic coast: summers of 6 °C.
+		BiomeClimate c = climate(-8f, 10f, 250f, 40f, 50f, 20f);
+		assertEquals(BiomeRefiner.TUNDRA, BiomeRefiner.refine("minecraft:snowy_plains", c));
+		assertEquals(BiomeRefiner.TUNDRA, BiomeRefiner.refine("minecraft:taiga", c));
+	}
+
+	@Test
+	void permanentIceKeepsVanillaSnow() {
+		// Inland Greenland, and Svalbard, whose warmest month stays below 3 °C.
+		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-25f, 12f, 200f, 30f, 2500f, 40f)));
+		assertNull(BiomeRefiner.refine("minecraft:snowy_slopes", climate(-6f, 6f, 400f, 30f, 300f, 120f)));
+	}
+
+	@Test
+	void alpsAboveTheTreeLineAreAlpineTundra() {
+		// 2500 m in the Alps: July around 7 °C.
+		BiomeClimate c = climate(-1f, 6f, 1500f, 25f, 2500f, 300f);
+		assertEquals(BiomeRefiner.ALPINE_TUNDRA, BiomeRefiner.refine("minecraft:meadow", c));
+		assertEquals(BiomeRefiner.ALPINE_TUNDRA, BiomeRefiner.refine("minecraft:jagged_peaks", c));
+		// Below the tree line the meadow stays.
+		assertNull(BiomeRefiner.refine("minecraft:meadow", climate(4f, 6.5f, 1500f, 25f, 1800f, 300f)));
+	}
+
+	@Test
+	void tropicalMountainsideIsCloudForest() {
+		// Monteverde, Costa Rica.
+		BiomeClimate c = climate(18f, 1f, 2500f, 60f, 1500f, 200f);
+		assertEquals(BiomeRefiner.CLOUD_FOREST, BiomeRefiner.refine("minecraft:jungle", c));
+		assertNull(BiomeRefiner.refine("minecraft:stony_peaks", c), "summits stay bare");
+	}
+
+	@Test
+	void oceanicRainyCoastIsTemperateRainforest() {
+		// The Olympic Peninsula.
+		BiomeClimate c = climate(10f, 4.5f, 3000f, 60f, 100f, 60f);
+		assertEquals(BiomeRefiner.TEMPERATE_RAINFOREST, BiomeRefiner.refine("minecraft:old_growth_spruce_taiga", c));
+		assertEquals(BiomeRefiner.TEMPERATE_RAINFOREST, BiomeRefiner.refine("minecraft:forest", c));
+	}
+
+	@Test
+	void mediterraneanCoastIsMaquis() {
+		// Provence: dry summers, mild winters.
+		BiomeClimate c = climate(15f, 6f, 550f, 50f, 100f, 60f);
+		assertEquals(BiomeRefiner.MAQUIS, BiomeRefiner.refine("minecraft:plains", c));
+		// The same temperatures with rain all year round are not Mediterranean.
+		assertNull(BiomeRefiner.refine("minecraft:plains", climate(15f, 6f, 900f, 15f, 100f, 60f)));
+	}
+
+	@Test
+	void coolDrylandsAreColdDesertOrSteppe() {
+		// The Gobi, and the Kazakh steppe.
+		assertEquals(BiomeRefiner.COLD_DESERT, BiomeRefiner.refine("minecraft:desert", climate(4f, 14f, 100f, 80f, 1200f, 40f)));
+		assertEquals(BiomeRefiner.STEPPE, BiomeRefiner.refine("minecraft:plains", climate(6f, 13f, 220f, 50f, 300f, 20f)));
+		// A hot desert stays a desert.
+		assertNull(BiomeRefiner.refine("minecraft:desert", climate(25f, 7f, 50f, 100f, 300f, 40f)));
+	}
+
+	@Test
+	void swampsFollowTheCoastsClimate() {
+		// The Sundarbans, and Louisiana's bayous.
+		assertEquals(BiomeRefiner.MANGROVE_SWAMP, BiomeRefiner.refine("minecraft:swamp", climate(26f, 3f, 1800f, 80f, 3f, 5f)));
+		assertEquals(BiomeRefiner.SWAMP, BiomeRefiner.refine("minecraft:mangrove_swamp", climate(20f, 6f, 1600f, 30f, 3f, 5f)));
+		assertNull(BiomeRefiner.refine("minecraft:swamp", climate(20f, 6f, 1600f, 30f, 3f, 5f)));
+	}
+}

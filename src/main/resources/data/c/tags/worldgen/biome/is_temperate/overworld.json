@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "diffusicraft:cloud_forest",
+    "diffusicraft:temperate_rainforest",
+    "diffusicraft:maquis",
+    "diffusicraft:steppe"
+  ]
+}

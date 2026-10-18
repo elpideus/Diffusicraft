@@ -181,8 +181,9 @@ def noise_settings(scale, min_y, height):
 
 
 def material_rule(scale):
-    """Vanilla's overworld rule with the underground replaced by Diffusicraft's geology (see StrataRule), and the
-    rivers' water and beds (see RiverRule)."""
+    """Vanilla's overworld rule with the underground replaced by Diffusicraft's geology (see StrataRule), the
+    rivers' water and beds (see RiverRule), and the ground of Diffusicraft's biomes (written by biomes.py) ahead of
+    vanilla's surface."""
     return {"type": "minecraft:sequence", "sequence": [
         "minecraft:bedrock_floor",
         {"type": f"{NS}:river", "scale": scale},
@@ -190,7 +191,8 @@ def material_rule(scale):
         "minecraft:overworld/iron_ore_vein",
         {"type": f"{NS}:strata", "scale": scale, "surface": {"type": "minecraft:sequence", "sequence": [
             {"type": "minecraft:condition", "if_true": {"type": "minecraft:above_preliminary_surface"},
-             "then_run": "minecraft:overworld/surface"},
+             "then_run": {"type": "minecraft:sequence",
+                          "sequence": [f"{NS}:biome_surface", "minecraft:overworld/surface"]}},
             {"type": "minecraft:condition", "if_true": {"type": "minecraft:biome", "biome_is": "minecraft:sulfur_caves"},
              "then_run": "minecraft:overworld/sulfur_cave_bands"},
         ]}},
@@ -239,7 +241,8 @@ def world_preset(scale, dim_type):
     return {"dimensions": {
         "minecraft:overworld": {"type": dim_type, "generator": {
             "type": "minecraft:noise",
-            "biome_source": {"type": "minecraft:multi_noise", "preset": "minecraft:overworld"},
+            "biome_source": {"type": f"{NS}:climate", "preset": "minecraft:overworld",
+                             "biomes": f"#{NS}:refinements"},
             "settings": f"{NS}:{scale}"}},
         "minecraft:the_end": {"type": "minecraft:the_end", "generator": {
             "type": "minecraft:noise", "biome_source": {"type": "minecraft:the_end"}, "settings": "minecraft:end"}},

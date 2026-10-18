@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:maquis_shrub_checked",
+  "features": [
+    {
+      "chance": 0.3,
+      "feature": "diffusicraft:olive_checked"
+    },
+    {
+      "chance": 0.15,
+      "feature": "diffusicraft:stone_pine_checked"
+    },
+    {
+      "chance": 0.12,
+      "feature": "diffusicraft:cypress_checked"
+    }
+  ]
+}
