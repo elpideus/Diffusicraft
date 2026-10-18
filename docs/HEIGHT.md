@@ -141,15 +141,28 @@ every section of every loaded chunk, so its memory still grows with the height o
 ## Costs
 
 Minecraft allocates every section of a loaded column, even empty ones. A 32,736-block column has 2046 sections;
-a vanilla overworld column has 24.
+a vanilla overworld column has 24. Measured in a client game test (render distance 4, software rendering), before and
+after the changes in [Memory](#memory):
 
-| Measured in a client game test (render distance 4, software rendering) | Value |
+| Memory and loading | Before | After |
+|---|---|---|
+| Memory per empty section | about 450 bytes | about 80 bytes |
+| Memory per empty 32,736-block column | about 0.9 MiB | about 160 KiB |
+| Heap in the vanilla overworld | 258 MiB | 247 MiB |
+| Heap after entering the tall dimension at y = 16,000 | 2,132 MiB | 715 MiB |
+| Heap after then visiting y = −16,000 | 2,260 MiB | 746 MiB |
+| Heap after then visiting the dense column | 2,724 MiB | 848 MiB |
+| Sections around the player whose data is shared, on the server and on the client | none | 165,634 of 165,726 |
+| Nodes in the client's render grid | 165,726 (2046 rows) | 729 (9 rows) |
+| Time to load and render the area at y = 16,000 | 1.9 s | 1.8 s |
+| Time to load and render the dense column | 3.2 s | 2.4 s |
+
+The heap is measured after a full garbage collection, and the times come from one run each, so take them as rough.
+What the rest of the tall dimension costs did not change:
+
+| Saving and the network | Value |
 |---|---|
-| Memory per empty section | about 450 bytes |
-| Memory per empty 32,736-block column | about 0.9 MiB |
-| Heap: vanilla overworld / after entering the tall dimension | 258 MiB / 2.1 GiB |
 | Sections in memory after visiting the top, the bottom and the dense column (server and client) | 3.2 million |
-| Time to load and render the area at y = 16,000 | 2.7 s |
 | Empty column saved: NBT / compressed on disk | 253 KiB / 7 KiB |
 | Densest column saved: NBT / compressed on disk | 4.8 MiB / 40 KiB |
 | Encoding one column for saving: empty / densest | 14 ms / 100 ms |
