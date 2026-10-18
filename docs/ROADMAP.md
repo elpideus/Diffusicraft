@@ -47,8 +47,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 - **Earth 1:1 at full height.** It still compresses mountains above 1.2 km to fit 2288 blocks. Earth's relief needs
   about 20,000.
-- **Memory.** Every section of a loaded column is allocated, even empty ones: about 0.9 MiB per 32,736-block column.
-  Shrink empty sections, and skip them when saving.
+- **Memory and saves.** Empty sections cost about 80 bytes now instead of 450. Still to do: share uniform sections
+  as soon as world generation makes them, and skip empty sections when saving.
 - **Compatibility.** Sodium, Distant Horizons and Voxy, which make their own assumptions about world height, and a
   dedicated server over a real network.
 

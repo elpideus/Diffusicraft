@@ -77,6 +77,31 @@ Vanilla stores each section's Y as a byte, which holds sections −128 to 127 (Y
 range get an integer `Y` tag instead, and the reader accepts both. Chunks of vanilla-height dimensions are written
 exactly as vanilla writes them.
 
+## Memory
+
+Minecraft allocates every section of a loaded column, even empty ones, so a tall dimension would cost memory in
+proportion to its height. Diffusicraft makes it follow what the dimension contains instead.
+
+### Empty sections
+
+A section holds two paletted containers, one for blocks and one for biomes. In vanilla an empty section costs about
+450 bytes, because each container has its own data (a palette with its one value and a storage of zero bits) and its
+own `ThreadingDetector`, which holds a semaphore and a lock.
+
+- **Shared data.** Containers that hold a single value share one read-only copy of their data, one per value
+  ([`SharedContainerData`](../src/main/java/io/github/elpideus/diffusicraft/height/SharedContainerData.java)). A
+  container gets it when it is created, copied, loaded or read from a packet with one value, and a biome container
+  also when world generation has filled it with one biome. Writing a different value resizes the container as in
+  vanilla, which gives it data of its own: copy on write. A section that world generation fills with a single block,
+  such as deep stone, keeps its own data until it is saved and loaded again.
+- **No threading detector.** The detector never serialises anything: when two threads use a container at once, it
+  turns the race into a crash report. Every container gets one shared detector that checks nothing
+  ([`NoThreadingDetector`](../src/main/java/io/github/elpideus/diffusicraft/height/NoThreadingDetector.java)), as
+  Lithium does by default. This applies to every dimension, tall or not.
+
+What is left of an empty section is the section and its two containers: about 80 bytes. Sections themselves are not
+shared, because the game and mods write to the sections of a chunk directly.
+
 ## Compatibility
 
 - **Vanilla clients** should be able to join a Diffusicraft server whose dimension types all fit vanilla's limits.
@@ -89,9 +114,12 @@ exactly as vanilla writes them.
   depend on the packing, and would read them wrongly after the mod is added or removed.
 - **Mods that pack positions by hand** (shifts of 26, 12 and 38 bits) or assume ±30,000,000 break. Mods that use
   `BlockPos.asLong` and `BlockPos.of` keep working.
-- **Untested:** Sodium, Iris, Distant Horizons, Voxy, Lithium, FerriteCore and C2ME. Sodium and the LOD mods keep
-  their own per-section data and may assume a 4064-block world. Test each of them in a tall dimension before relying
-  on it.
+- **Mods that patch paletted containers.** Lithium and FerriteCore also remove the threading detector, and Moonrise
+  replaces it with one of its own. The shared data and the detector change are written to work alongside all three:
+  they never overwrite a method, and never assume the detector field is set.
+- **Untested:** Sodium, Iris, Distant Horizons, Voxy, Lithium, FerriteCore, Moonrise and C2ME. Sodium and the LOD
+  mods keep their own per-section data and may assume a 4064-block world. Test each of them in a tall dimension
+  before relying on it.
 
 ## Costs
 
@@ -110,16 +138,15 @@ a vanilla overworld column has 24.
 | Encoding one column for saving: empty / densest | 14 ms / 100 ms |
 | Densest column's block data in a chunk packet | 5.4 MiB |
 
-- **Memory.** Most of an empty section's 450 bytes is its two paletted containers (blocks and biomes). Each container
-  has its own `ThreadingDetector`, which holds a semaphore and a lock. The server also keeps the proto-chunks of its
-  generation ring, so it holds many more columns than the player sees.
+- **Memory.** An empty section costs about 80 bytes instead of 450 (see [Empty sections](#empty-sections)). The
+  server also keeps the proto-chunks of its generation ring, so it holds many more columns than the player sees.
 - **Saving.** Every section is written with its palettes, so encoding a column takes time in proportion to its
   height: 14 ms for an empty tall column, under 1 ms for a vanilla one. Leaving the test world took 28 seconds: 20 to
   finish pending chunk work and 8 to save the tall dimension.
 - **Light and heightmaps** add little. Light data is stored only near blocks: the empty test column saved 13 sky
   light and 5 block light layers for its 2046 sections.
 
-So a tall dimension costs memory and save time in proportion to its height, whatever it contains. Make dimensions only
+So a tall dimension still costs save time, and some memory, in proportion to its height, whatever it contains. Make dimensions only
 as tall as the terrain needs: Earth 1:1 needs about 20,000 blocks, which is 1250 sections per column.
 
 ## Tests
@@ -132,6 +159,7 @@ as tall as the terrain needs: Earth 1:1 needs about 20,000 blocks, which is 1250
   - changes in both directions over the network: the server places blocks, and the client breaks one;
   - block light, sky light and heightmaps near the top;
   - a column with all 2046 sections full of varied blocks;
+  - that empty sections share their data, on the server and the client;
   - saving and reloading the world.
 
   It saves screenshots of the top, the bottom and the dense column.
@@ -152,14 +180,19 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `ServerGamePacketListenerImplMixin` | `ServerGamePacketListenerImpl.clampHorizontal` | the ±`3.0E7` literals |
 | `ForceLoadCommandMixin` | `ForceLoadCommand.changeForceLoad` | the ±`30000000` literals |
 | `WorldBorderMixin` | `WorldBorder.<init>(WorldBorder$Settings)`, `setAbsoluteMaxSize` | the `29999984` literal |
+| `PalettedContainerMixin` | `PalettedContainer.<init>` (all three), `read`, `createOrReuseData` | `new ThreadingDetector` in the field initialiser; the `data` and `strategy` fields; `createOrReuseData` reusing the old data when the configuration stays the same |
+| `StrategyMixin` | `Strategy` | `getConfigurationForBitCount(0)` being the single-value configuration; `entryCount` |
+| `SingleValuePaletteAccessor` | `SingleValuePalette` | the `value` field; `idFor` and `read` being the only methods that change it |
+| `LevelChunkSectionMixin` | `LevelChunkSection.fillBiomesFromNoise` | the `biomes` field holding the new container at the end |
+| `diffusicraft.classtweaker` | `PalettedContainer$Data` | the record and its constructor |
 
 Also search the new version for other uses of `30000000`, `3.0E7` and `29999984`, and for code that packs positions
 without `BlockPos.asLong`.
 
 ## Next steps
 
-- **Less memory per section.** A smaller threading detector, or none on empty sections, would save more than half
-  of it. This change touches every world, and Lithium and FerriteCore patch the same class.
+- **Uniform sections from world generation.** Give sections that world generation fills with one block shared data
+  when their chunk is complete, instead of when they are next loaded.
 - **Leaner saves.** Skip sections that are all air with a single biome, and fill them back in on load.
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
 - **Taller Diffusicraft world types.** Earth 1:1 can then keep real mountains instead of compressing them above

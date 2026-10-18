@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.gametest;
 
+import io.github.elpideus.diffusicraft.height.SharedContainerData;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.function.BiFunction;
 
 /**
  * Builds in a dimension 32,736 blocks tall (Y from −16,368 to 16,367), the most that extended height allows, and checks
@@ -98,6 +101,7 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 			});
 			check(context.computeOnClient(mc -> mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, 4, 4)) == MAX_Y + 1,
 				"client heightmap at the top of the world");
+			checkMemory(context, server);
 
 			// The server reads positions from the client too: break a platform block next to the player.
 			BlockPos broken = TOP.offset(1, -1, 0);
@@ -231,6 +235,39 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 		world.getConnection().waitForChunksRender();
 		LOGGER.info("Tall dimension: {} loaded and rendered in {} ms (heap {} MiB)", feet,
 			(System.nanoTime() - start) / 1_000_000, usedHeapMiB());
+	}
+
+	/** Empty sections share their data on both sides. */
+	private static void checkMemory(ClientGameTestContext context, TestServerContext server) {
+		int[] onServer = server.computeOnServer(s -> {
+			ServerLevel level = s.getLevel(TALL);
+			return countShared((x, z) -> level.getChunkSource().getChunkNow(x, z));
+		});
+		int[] onClient = context.computeOnClient(mc ->
+			countShared((x, z) -> mc.level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false)));
+		LOGGER.info("Tall dimension: {} of {} sections share their data on the server, {} of {} on the client",
+			onServer[0], onServer[1], onClient[0], onClient[1]);
+		check(onServer[0] > onServer[1] * 0.99 && onClient[0] > onClient[1] * 0.99, "empty sections share their data");
+	}
+
+	/** Sections whose blocks and biomes are both shared, and all sections, in the chunks around the origin. */
+	private static int[] countShared(BiFunction<Integer, Integer, LevelChunk> chunks) {
+		int[] counts = new int[2];
+		for (int x = -4; x <= 4; x++) {
+			for (int z = -4; z <= 4; z++) {
+				LevelChunk chunk = chunks.apply(x, z);
+				if (chunk != null) {
+					for (LevelChunkSection section : chunk.getSections()) {
+						if (((SharedContainerData.Container) section.getStates()).diffusicraft$isShared()
+							&& ((SharedContainerData.Container) section.getBiomes()).diffusicraft$isShared()) {
+							counts[0]++;
+						}
+						counts[1]++;
+					}
+				}
+			}
+		}
+		return counts;
 	}
 
 	private static void checkBlock(ClientGameTestContext context, BlockPos pos, Block expected) {

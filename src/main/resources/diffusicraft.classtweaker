@@ -1,0 +1,4 @@
+classTweaker	v1	official
+# Shared single-value container data (height/SharedContainerData).
+accessible	class	net/minecraft/world/level/chunk/PalettedContainer$Data
+accessible	method	net/minecraft/world/level/chunk/PalettedContainer$Data	<init>	(Lnet/minecraft/world/level/chunk/Configuration;Lnet/minecraft/util/BitStorage;Lnet/minecraft/world/level/chunk/Palette;)V

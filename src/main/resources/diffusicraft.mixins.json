@@ -12,9 +12,13 @@
 		"height.EntityMixin",
 		"height.ForceLoadCommandMixin",
 		"height.FriendlyByteBufMixin",
+		"height.LevelChunkSectionMixin",
 		"height.LevelMixin",
+		"height.PalettedContainerMixin",
 		"height.SerializableChunkDataMixin",
 		"height.ServerGamePacketListenerImplMixin",
+		"height.SingleValuePaletteAccessor",
+		"height.StrategyMixin",
 		"height.WorldBorderMixin"
 	],
 	"injectors": {
