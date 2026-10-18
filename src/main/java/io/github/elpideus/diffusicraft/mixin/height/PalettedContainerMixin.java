@@ -62,13 +62,9 @@ abstract class PalettedContainerMixin<T> implements SharedContainerData.Containe
 			diffusicraft$share();
 			return;
 		}
-		int id = storage.get(0);
-		for (int i = 1; i < storage.getSize(); i++) {
-			if (storage.get(i) != id) {
-				return;
-			}
+		if (SharedContainerData.isUniform(storage)) {
+			data = diffusicraft$source().diffusicraft$sharedData(current.palette().valueFor(storage.get(0)));
 		}
-		data = diffusicraft$source().diffusicraft$sharedData(current.palette().valueFor(id));
 	}
 
 	@Override

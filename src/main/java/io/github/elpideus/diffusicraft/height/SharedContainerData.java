@@ -1,5 +1,7 @@
 package io.github.elpideus.diffusicraft.height;
 
+import net.minecraft.util.BitStorage;
+import net.minecraft.util.SimpleBitStorage;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.Strategy;
 
@@ -20,6 +22,34 @@ import net.minecraft.world.level.chunk.Strategy;
  */
 public final class SharedContainerData {
 	private SharedContainerData() {
+	}
+
+	/** Whether every entry of {@code storage} holds the same id. Compares whole words where it can. */
+	public static boolean isUniform(BitStorage storage) {
+		int id = storage.get(0), size = storage.getSize(), from = 1;
+		if (storage instanceof SimpleBitStorage) {
+			// Entries never straddle words, so the words between the first and the last hold the first word's
+			// entries if they equal it. Only the first word's entries and the last word's are left to check.
+			long[] words = storage.getRaw();
+			for (int i = 1; i < words.length - 1; i++) {
+				if (words[i] != words[0]) {
+					return false;
+				}
+			}
+			int perWord = 64 / storage.getBits();
+			for (int i = 1; i < Math.min(perWord, size); i++) {
+				if (storage.get(i) != id) {
+					return false;
+				}
+			}
+			from = Math.max(1, (words.length - 1) * perWord);
+		}
+		for (int i = from; i < size; i++) {
+			if (storage.get(i) != id) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** What {@code StrategyMixin} adds to {@link Strategy}. */

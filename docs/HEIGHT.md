@@ -95,7 +95,9 @@ own `ThreadingDetector`, which holds a semaphore and a lock.
   container gets it when it is created, copied, loaded or read from a packet with one value, and a biome container
   also when world generation has filled it with one biome. Writing a different value resizes the container as in
   vanilla, which gives it data of its own: copy on write. A section that world generation fills with a single block,
-  such as deep stone, keeps its own data until it is saved and loaded again.
+  such as deep rock or the sea, gets shared data when its chunk is complete
+  ([`LevelChunkMixin`](../src/main/java/io/github/elpideus/diffusicraft/mixin/height/LevelChunkMixin.java)). The
+  check compares the packed storage a 64-bit word at a time, so it costs little even on the main thread.
 - **No threading detector.** The detector never serialises anything: when two threads use a container at once, it
   turns the race into a crash report. Every container gets one shared detector that checks nothing
   ([`NoThreadingDetector`](../src/main/java/io/github/elpideus/diffusicraft/height/NoThreadingDetector.java)), as
@@ -212,6 +214,8 @@ the part of the chunk that is filled. `TerrainCeilingTest` checks the ceiling ov
 
 - [`ExtendedHeightTest`](../src/test/java/io/github/elpideus/diffusicraft/height/ExtendedHeightTest.java) (part of
   `./gradlew build`) round-trips the wire format and checks it against vanilla's packing.
+- [`SharedContainerDataTest`](../src/test/java/io/github/elpideus/diffusicraft/height/SharedContainerDataTest.java)
+  checks the word-at-a-time uniformity check at every width a palette uses, with the odd entry anywhere.
 - [`TallDimensionGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TallDimensionGameTest.java)
   runs the real game in a 32,736-block dimension. It checks:
   - blocks at y = ±16,000 and at the top of the world, on the server and the client;
@@ -246,6 +250,7 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `StrategyMixin` | `Strategy` | `getConfigurationForBitCount(0)` being the single-value configuration; `entryCount` |
 | `SingleValuePaletteAccessor` | `SingleValuePalette` | the `value` field; `idFor` and `read` being the only methods that change it |
 | `LevelChunkSectionMixin` | `LevelChunkSection.fillBiomesFromNoise` | the `biomes` field holding the new container at the end |
+| `LevelChunkMixin` | `LevelChunk.<init>(ServerLevel, ProtoChunk, PostLoadProcessor)` | the new chunk keeping the proto-chunk's sections; no generation step writing blocks after it |
 | `diffusicraft.classtweaker` | `PalettedContainer$Data` | the record and its constructor |
 | `NoiseBasedChunkGeneratorMixin` | `NoiseBasedChunkGenerator.createNoiseChunk`, the `clampToHeightAccessor` call in `iterateNoiseColumn` | `createNoiseChunk` taking the `NoiseSettings` the chunk is filled with, and being called only from `fillFromNoise`'s worker |
 | `dh.ChunkWrapperMixin` (Distant Horizons) | `ChunkWrapper.getExclusiveMaxBuildHeight()`, `getMaxNonEmptyHeight`, `getSolidHeightMapValue`, `getLightBlockingHeightMapValue` | Distant Horizons building LODs from these four; check it on every Distant Horizons update too |
@@ -256,8 +261,6 @@ without `BlockPos.asLong`.
 
 ## Next steps
 
-- **Uniform sections from world generation.** Give sections that world generation fills with one block shared data
-  when their chunk is complete, instead of when they are next loaded.
 - **Leaner saves.** Skip sections that are all air with a single biome, and fill them back in on load.
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
 - **Compatibility.** Test Sodium, Voxy and a dedicated server with a real network connection. Distant Horizons could
