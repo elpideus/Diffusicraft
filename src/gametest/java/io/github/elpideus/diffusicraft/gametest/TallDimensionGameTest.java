@@ -10,8 +10,11 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.QuartPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -20,6 +23,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,10 +37,15 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.zip.DeflaterOutputStream;
 
 /**
  * Builds in a dimension 32,736 blocks tall (Y from −16,368 to 16,367), the most that extended height allows, and checks
@@ -55,6 +65,10 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 	private static final BlockPos BOTTOM = new BlockPos(0, -16000, 0);
 	/** A chunk with 16 kinds of block in every section: 4 bits per block, over 4 MiB of chunk data. */
 	private static final ChunkPos DENSE = new ChunkPos(64, 0);
+	/** Sections of the empty column, high in its air, given another biome than the rest. */
+	private static final int CHERRY_FROM = 16128, CHERRY_TO = 16192;
+	/** A column with nothing but the flat ground at the bottom: no platform over it, and no shade to light. */
+	private static final ChunkPos EMPTY = new ChunkPos(2, 2);
 	private static final Block[] PATTERN = {
 		Blocks.STONE, Blocks.GRANITE, Blocks.DIORITE, Blocks.ANDESITE, Blocks.DEEPSLATE, Blocks.TUFF, Blocks.CALCITE,
 		Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.GRAVEL, Blocks.SAND, Blocks.RED_SAND, Blocks.CLAY, Blocks.COBBLESTONE,
@@ -143,6 +157,10 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 				check(level.getBlockState(TOP.offset(1, -1, 0)).isAir(), "the broken block was saved");
 				check(level.getBlockState(BOTTOM.offset(-1, 3, -1)).is(Blocks.SEA_LANTERN), "the bottom block update was saved");
 				check(level.getBlockState(new BlockPos(4, MAX_Y, 4)).is(Blocks.EMERALD_BLOCK), "the block at the top of the world was saved");
+				check(biome(level, CHERRY_FROM).is(Biomes.CHERRY_GROVE) && biome(level, CHERRY_TO - 8).is(Biomes.CHERRY_GROVE),
+					"the biomes of the empty sections were saved");
+				check(biome(level, CHERRY_TO + 100).is(Biomes.PLAINS) && biome(level, CHERRY_FROM - 100).is(Biomes.PLAINS),
+					"the empty sections around them were filled back in with the biomes below them");
 				LevelChunk dense = level.getChunk(DENSE.x(), DENSE.z());
 				LevelChunkSection[] sections = dense.getSections();
 				for (int i = 0; i < sections.length; i++) {
@@ -167,6 +185,13 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 		level.setBlock(TOP.offset(2, 0, 2), Blocks.GLOWSTONE.defaultBlockState(), Block.UPDATE_ALL);
 		level.setBlock(BOTTOM.offset(-2, 0, -2), Blocks.GLOWSTONE.defaultBlockState(), Block.UPDATE_ALL);
 		level.setBlock(new BlockPos(4, MAX_Y, 4), Blocks.EMERALD_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+		// Biomes that change in the empty air, which the save must keep although it leaves out empty sections.
+		Holder<Biome> cherry = level.registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.CHERRY_GROVE);
+		LevelChunk empty = level.getChunk(EMPTY.x(), EMPTY.z());
+		for (int y = CHERRY_FROM; y < CHERRY_TO; y += 16) {
+			empty.getSection(empty.getSectionIndex(y)).fillBiomesFromNoise((x, qy, z) -> cherry, 0, 0, 0);
+		}
+		empty.markUnsaved();
 
 		long start = System.nanoTime();
 		LevelChunk dense = level.getChunk(DENSE.x(), DENSE.z());
@@ -190,7 +215,7 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 	private static void measureSaving(MinecraftServer server) {
 		for (ResourceKey<Level> dimension : List.of(Level.OVERWORLD, TALL)) {
 			ServerLevel level = server.getLevel(dimension);
-			for (ChunkPos pos : new ChunkPos[] {new ChunkPos(0, 0), DENSE}) {
+			for (ChunkPos pos : new ChunkPos[] {EMPTY, DENSE}) {
 				LevelChunk chunk = level.getChunk(pos.x(), pos.z());
 				SerializableChunkData.copyOf(level, chunk).write();
 				long start = System.nanoTime();
@@ -198,10 +223,31 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 				for (int i = 0; i < 5; i++) {
 					tag = SerializableChunkData.copyOf(level, chunk).write();
 				}
-				LOGGER.info("Saving chunk {} of {}: {} ms, {} KiB of NBT (in-memory estimate)", pos, dimension.identifier(),
-					(System.nanoTime() - start) / 5_000_000, tag.sizeInBytes() >> 10);
+				LOGGER.info("Saving chunk {} of {}: {} ms, {} KiB of NBT, {} KiB deflated, {} of {} sections written", pos,
+					dimension.identifier(), (System.nanoTime() - start) / 5_000_000, size(tag, false) >> 10,
+					size(tag, true) >> 10, tag.getListOrEmpty("sections").size(), level.getSectionsCount());
+				if (dimension == TALL && pos.equals(EMPTY)) {
+					check(tag.getListOrEmpty("sections").size() < 100, "the tall dimension leaves its empty sections out of saves");
+				}
 			}
 		}
+	}
+
+	/** The size of {@code tag} written out, and deflated as region files store it by default. */
+	private static int size(CompoundTag tag, boolean deflated) {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		try (DataOutputStream out = new DataOutputStream(deflated ? new DeflaterOutputStream(bytes) : bytes)) {
+			NbtIo.write(tag, out);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+		return bytes.size();
+	}
+
+	/** The biome in the middle of the empty column at {@code y}, as stored, without vanilla's fuzz between cells. */
+	private static Holder<Biome> biome(ServerLevel level, int y) {
+		return level.getNoiseBiome(QuartPos.fromBlock(EMPTY.getMiddleBlockX()), QuartPos.fromBlock(y),
+			QuartPos.fromBlock(EMPTY.getMiddleBlockZ()));
 	}
 
 	private static BlockState pattern(int x, int y, int z) {

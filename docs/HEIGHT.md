@@ -76,8 +76,19 @@ below that, but the worst case has not been tested over a real connection.
 ### In saves
 
 Vanilla stores each section's Y as a byte, which holds sections −128 to 127 (Y −2048 to 2047). Sections outside that
-range get an integer `Y` tag instead, and the reader accepts both. Chunks of vanilla-height dimensions are written
-exactly as vanilla writes them.
+range get an integer `Y` tag instead, and the reader accepts both.
+
+Above the ground almost every section of a tall column is plain air with the biomes of the section below it, and
+vanilla writes each of them with its two palettes. Diffusicraft leaves such sections out of the save when they also
+have no light data, and loading fills each missing section with air and the biomes of the section below it
+([`AirSections`](../src/main/java/io/github/elpideus/diffusicraft/height/AirSections.java)). The empty test column
+writes 4 of its 2046 sections. In Earth 1:1 a chunk writes the sections up to its ground: about 20 of its 584 near
+the sea, and 361 around the Earth test's summit at y = 5654. Light data is stored near blocks and in the shade under
+them, so a block hanging high in the air keeps the sections below it in the save.
+
+Sections are left out only in dimensions that cannot open without the mod: those taller than vanilla allows, and
+those of Diffusicraft's own dimension types (Grand and Earth 1:1). Chunks of every other dimension are written exactly
+as vanilla writes them. Tools that read region files with code of their own see the left-out sections as missing.
 
 ## Memory
 
@@ -180,28 +191,33 @@ after the changes in [Memory](#memory):
 | Time to load and render the dense column | 3.2 s | 2.4 s |
 
 The heap is measured after a full garbage collection, and the times come from one run each, so take them as rough.
+Saving, before and after leaving empty sections out (see [In saves](#in-saves)):
+
+| Saving | Every section | Without empty sections |
+|---|---|---|
+| Sections written for the empty column | 2046 of 2046 | 4 of 2046 |
+| Empty column saved: NBT / compressed on disk | 213 KiB / 6 KiB | 18 KiB / under 1 KiB |
+| Encoding the empty column for saving | 7 ms | 1 ms |
+| Densest column saved: NBT / compressed / encoding | 4.8 MiB / 46 KiB / 66 ms | the same |
+| Stopping the test world's server | 12 s | 3 s |
+
 What the rest of the tall dimension costs did not change:
 
-| Saving and the network | Value |
+| The rest | Value |
 |---|---|
 | Sections in memory after visiting the top, the bottom and the dense column (server and client) | 3.2 million |
-| Empty column saved: NBT / compressed on disk | 253 KiB / 7 KiB |
-| Densest column saved: NBT / compressed on disk | 4.8 MiB / 40 KiB |
-| Encoding one column for saving: empty / densest | 14 ms / 100 ms |
 | Densest column's block data in a chunk packet | 5.4 MiB |
 
 - **Memory.** An empty section costs about 80 bytes instead of 450 (see [Empty sections](#empty-sections)), and the
   client keeps render data for the rows near the camera only (see [The client's render grid](#the-clients-render-grid)).
   The server also keeps the proto-chunks of its generation ring, so it holds many more columns than the player sees.
-- **Saving.** Every section is written with its palettes, so encoding a column takes time in proportion to its
-  height: 14 ms for an empty tall column, under 1 ms for a vanilla one. Leaving the test world took 28 seconds: 20 to
-  finish pending chunk work and 8 to save the tall dimension.
-- **Light and heightmaps** add little. Light data is stored only near blocks: the empty test column saved 13 sky
-  light and 5 block light layers for its 2046 sections.
+- **Saving.** Sections with blocks, light or a change of biome are written with their palettes, so a column takes
+  time to save in proportion to what it holds, not to its height: 1 ms for the empty tall column, under 1 ms for a
+  vanilla one. Stopping the server saves every loaded column, which took 3 seconds instead of 12 in the test world.
 
-So a tall dimension still costs save time, and some memory, in proportion to its height, whatever it contains. Make
-dimensions only as tall as the terrain needs. Earth 1:1 keeps the underground and the oceans game-sized, because the fun
-is on the surface: `min_y` stays −256 and the oceans stay compressed to at most 200 blocks deep. Only the top moves.
+So a tall dimension still costs some memory in proportion to its height, whatever it contains. Make dimensions only
+as tall as the terrain needs. Earth 1:1 keeps the underground and the oceans game-sized, because the fun is on the
+surface: `min_y` stays −256 and the oceans stay compressed to at most 200 blocks deep. Only the top moves.
 Its mountains keep their height up to 8 km and ease above that, so its highest ground is y = 9063 and the world runs
 from −256 to 9087: 9,344 blocks, or 584 sections per column.
 
@@ -261,7 +277,8 @@ chunk's time goes to the rest of its generation.
   - a column with all 2046 sections full of varied blocks;
   - that empty sections share their data, on the server and the client;
   - that the client's render grid holds only the rows around the camera;
-  - saving and reloading the world.
+  - saving and reloading the world, with the empty sections of a column left out of the save and their biomes back
+    after loading.
 
   It saves screenshots of the top, the bottom and the dense column.
 - [`TerrainCeilingTest`](../src/test/java/io/github/elpideus/diffusicraft/worldgen/river/TerrainCeilingTest.java)
@@ -280,7 +297,7 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `BlockPosMixin` | `BlockPos.<clinit>` | the `30000000` literal |
 | `DimensionTypeMixin` | `DimensionType.<clinit>` | the read of `BlockPos.PACKED_Y_LENGTH` |
 | `FriendlyByteBufMixin` | `FriendlyByteBuf.writeBlockPos` / `readBlockPos` (static, `ByteBuf`) | the `asLong` and `readLong` calls |
-| `SerializableChunkDataMixin` | `SerializableChunkData.parse` / `write` | locals `y` and `sectionTag`; `putByte("Y", …)` |
+| `SerializableChunkDataMixin` | `SerializableChunkData.parse` / `write` / `copyOf` | locals `y`, `sectionTag` and `sectionData`; `putByte("Y", …)`; the `new SerializableChunkData` at the end of `parse` and `copyOf` |
 | `ClientboundLevelChunkPacketDataMixin` | `ClientboundLevelChunkPacketData.<clinit>` | the `2097152` literal |
 | `LevelMixin` | `Level.isInWorldBoundsHorizontal`, `Level.getHeight` | the ±`30000000` literals |
 | `EntityMixin` | `Entity.absSnapTo(DDD)V` | the ±`3.0E7` literals |
@@ -302,7 +319,6 @@ without `BlockPos.asLong`.
 
 ## Next steps
 
-- **Leaner saves.** Skip sections that are all air with a single biome, and fill them back in on load.
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
 - **Compatibility.** Test Sodium, Voxy and a dedicated server with a real network connection. Distant Horizons could
   hold all of Earth 1:1 by drawing its LODs from a raised bottom, at the cost of the deepest underground.

@@ -30,7 +30,7 @@ Loom's split source sets keep client-only code out of the server.
 | `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, `SyntheticMapFactory`, ... |
 | `.../terrain/diffusion/tensor` | `WindowedTensor` (lazy, concurrent, cached tiling) and its stores |
 | `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `TerrainPrefetcher`, `ClimateMapping`, `TerrainFields`, `density/` (density function types). See [WORLDGEN.md](WORLDGEN.md) |
-| `.../height`, `.../mixin/height` | Build height beyond 4064: `ExtendedHeight` (the numbers and the network format), `SharedContainerData` and `NoThreadingDetector` (memory per empty section), `RenderWindow` (the rows the client renders), and the mixins that apply them. See [HEIGHT.md](HEIGHT.md) |
+| `.../height`, `.../mixin/height` | Build height beyond 4064: `ExtendedHeight` (the numbers and the network format), `SharedContainerData` and `NoThreadingDetector` (memory per empty section), `AirSections` (empty sections left out of saves), `RenderWindow` (the rows the client renders), and the mixins that apply them. See [HEIGHT.md](HEIGHT.md) |
 | `src/main/resources/data` | World presets, noise settings, density functions and dimension types, written by `tools/worldgen_data.py` |
 | `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen); `mixin/` (launch hook, Create World button, default world type, model check on Create, render grid); `height/` (the render grid's window of rows); `compat/` (Mod Menu) |
 | `src/main/resources/diffusicraft` | `model-manifest.json`, `runtime-manifest.json`: every download, pinned by SHA-256 |
