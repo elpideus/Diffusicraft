@@ -127,6 +127,12 @@
 	"block.diffusicraft.gabbro": "Gabbro",
 	"block.diffusicraft.peridotite": "Peridotite",
 	"block.diffusicraft.kimberlite": "Kimberlite",
+	"block.diffusicraft.salt_crust": "Salt Crust",
+	"block.diffusicraft.heather": "Heather",
+	"block.diffusicraft.cottongrass": "Cottongrass",
+	"block.diffusicraft.lavender": "Lavender",
+	"block.diffusicraft.edelweiss": "Edelweiss",
+	"block.diffusicraft.gentian": "Gentian",
 
 	"biome.diffusicraft.tundra": "Tundra",
 	"biome.diffusicraft.alpine_tundra": "Alpine Tundra",
@@ -134,5 +140,8 @@
 	"biome.diffusicraft.temperate_rainforest": "Temperate Rainforest",
 	"biome.diffusicraft.maquis": "Maquis",
 	"biome.diffusicraft.cold_desert": "Cold Desert",
-	"biome.diffusicraft.steppe": "Steppe"
+	"biome.diffusicraft.steppe": "Steppe",
+	"biome.diffusicraft.moorland": "Moorland",
+	"biome.diffusicraft.heath": "Heath",
+	"biome.diffusicraft.salt_flat": "Salt Flat"
 }

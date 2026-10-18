@@ -36,8 +36,9 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
   and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Biome mods that
   extend the overworld table get the same parameters.
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
-  rainforest, Mediterranean maquis, cold desert and steppe, with their own trees (krummholz, giant spruces, olives,
-  stone pines, cypresses), plants and ground; swamps and mangroves follow the coast's climate. Snow follows the
+  rainforest, Mediterranean maquis, moorland, heath, salt flats, cold desert and steppe, with their own trees
+  (krummholz, giant spruces, olives, stone pines, cypresses), plants and ground; swamps and mangroves follow the
+  coast's climate. New plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Snow follows the
   climate rather than a fixed height, above a real tree line, and the Grand Hollows are free of sculk. See
   [WORLDGEN.md](WORLDGEN.md#refined-biomes).
 - **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
@@ -73,9 +74,7 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 
 - **More of the climate.** Use the slope and aspect, which the biomes ignore so far.
 - **Real sizes.** Biomes are as large as their real counterparts: a forest can be tens of kilometres across at 1:1.
-- **More real-world biomes.** Moorland, heath, salt flats and fjords.
-- **New flora.** New blocks for the new biomes: heather, lavender, edelweiss, gentian, cottongrass. They use vanilla
-  plants so far.
+- **More real-world biomes.** Fjords, bogs and the other biomes the climate can tell apart.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on.
 

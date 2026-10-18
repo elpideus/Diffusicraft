@@ -88,6 +88,40 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void coolWetUplandsAreMoorland() {
+		// Dartmoor at 450 m, and the Pennines.
+		BiomeClimate dartmoor = climate(8f, 4f, 1800f, 30f, 450f, 40f);
+		assertEquals(BiomeRefiner.MOORLAND, BiomeRefiner.refine("minecraft:dark_forest", dartmoor));
+		assertEquals(BiomeRefiner.MOORLAND, BiomeRefiner.refine("minecraft:windswept_hills", dartmoor));
+		assertEquals(BiomeRefiner.MOORLAND, BiomeRefiner.refine("minecraft:plains", climate(7.5f, 4.2f, 1200f, 25f, 500f, 50f)));
+		// The rugged, rainy Olympics at the same height stay forest.
+		assertEquals(BiomeRefiner.TEMPERATE_RAINFOREST, BiomeRefiner.refine("minecraft:old_growth_spruce_taiga",
+			climate(8f, 4f, 3000f, 60f, 450f, 200f)));
+		// Uplands with warm summers stay forest.
+		assertNull(BiomeRefiner.refine("minecraft:forest", climate(9f, 6.5f, 1000f, 20f, 500f, 50f)));
+	}
+
+	@Test
+	void oceanicLowlandHasPatchesOfHeath() {
+		// The Lüneburg Heath.
+		BiomeClimate c = climate(9f, 5.8f, 750f, 15f, 80f, 15f);
+		c.variant = -0.5f;
+		assertEquals(BiomeRefiner.HEATH, BiomeRefiner.refine("minecraft:birch_forest", c));
+		assertEquals(BiomeRefiner.HEATH, BiomeRefiner.refine("minecraft:plains", c));
+		c.variant = 0.2f;
+		assertNull(BiomeRefiner.refine("minecraft:birch_forest", c), "woods between the heaths");
+	}
+
+	@Test
+	void flattestDesertFloorsAreSaltFlats() {
+		// Bonneville, and the Salar de Uyuni at 3650 m.
+		assertEquals(BiomeRefiner.SALT_FLAT, BiomeRefiner.refine("minecraft:desert", climate(11f, 9f, 150f, 30f, 1290f, 1f)));
+		assertEquals(BiomeRefiner.SALT_FLAT, BiomeRefiner.refine("minecraft:plains", climate(5f, 3f, 100f, 90f, 3650f, 0.5f)));
+		// Dunes and rocky desert stay desert.
+		assertNull(BiomeRefiner.refine("minecraft:desert", climate(25f, 7f, 50f, 100f, 300f, 25f)));
+	}
+
+	@Test
 	void swampsFollowTheCoastsClimate() {
 		// The Sundarbans, and Louisiana's bayous.
 		assertEquals(BiomeRefiner.MANGROVE_SWAMP, BiomeRefiner.refine("minecraft:swamp", climate(26f, 3f, 1800f, 80f, 3f, 5f)));

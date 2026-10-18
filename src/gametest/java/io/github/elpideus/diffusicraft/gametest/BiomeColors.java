@@ -63,7 +63,10 @@ final class BiomeColors {
 		Map.entry("diffusicraft:temperate_rainforest", 0x1f5a2a),
 		Map.entry("diffusicraft:maquis", 0x9a9a4a),
 		Map.entry("diffusicraft:cold_desert", 0xc8b48a),
-		Map.entry("diffusicraft:steppe", 0xc3c06a)
+		Map.entry("diffusicraft:steppe", 0xc3c06a),
+		Map.entry("diffusicraft:moorland", 0x7a5a78),
+		Map.entry("diffusicraft:heath", 0xa07aa0),
+		Map.entry("diffusicraft:salt_flat", 0xf0eee6)
 	);
 
 	private BiomeColors() {

@@ -17,13 +17,19 @@ import java.util.Map;
  *       least 1500 mm of rain.</li>
  *   <li>Snow and ice are vanilla's where the warmest month stays below {@value #ICE_WARMEST} °C or the year averages
  *       below {@value #POLAR_TEMPERATURE} °C, so the ground is white most of the year.</li>
+ *   <li><b>Salt flat</b>: the flattest desert floors, with less than {@value #SALT_FLAT_RELIEF} m of relief, up on
+ *       the cold Altiplano too.</li>
  *   <li><b>Tundra</b> and <b>alpine tundra</b>: beyond the tree line, where the warmest month stays below
  *       {@value #TREE_LINE} °C; alpine on mountains. This is what moves the snow line above the tree line.</li>
  *   <li>Bare summits stay bare.</li>
+ *   <li><b>Moorland</b>: rolling uplands from {@value #MOOR_ELEVATION} m with cool summers (warmest month below
+ *       {@value #MOOR_WARMEST} °C), mild winters and at least 800 mm of rain, as on Dartmoor or in the Pennines.</li>
  *   <li><b>Temperate rainforest</b>: mild oceanic climates (4 to 14 °C, coldest month above -3 °C) with at least
  *       1600 mm of rain.</li>
  *   <li><b>Maquis</b>: Mediterranean scrub, 12 to 21 °C with mild winters, 250 to 1000 mm of strongly seasonal
  *       rain.</li>
+ *   <li><b>Heath</b>: patches of oceanic lowland, 6 to 12 °C with 550 to 1100 mm of rain, as on the Lüneburg
+ *       Heath or in Jutland.</li>
  *   <li><b>Cold desert</b>: deserts cooler than {@value #COLD_DESERT_TEMPERATURE} °C.</li>
  *   <li><b>Steppe</b>: semi-arid grassland cooler than 18 °C.</li>
  * </ul>
@@ -39,12 +45,15 @@ public final class BiomeRefiner {
 	public static final String MAQUIS = "diffusicraft:maquis";
 	public static final String COLD_DESERT = "diffusicraft:cold_desert";
 	public static final String STEPPE = "diffusicraft:steppe";
+	public static final String MOORLAND = "diffusicraft:moorland";
+	public static final String HEATH = "diffusicraft:heath";
+	public static final String SALT_FLAT = "diffusicraft:salt_flat";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
-		MAQUIS, COLD_DESERT, STEPPE, SWAMP, MANGROVE_SWAMP);
+		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, SWAMP, MANGROVE_SWAMP);
 
 	/** Warmest month below which snow lies all year round, °C. */
 	static final float ICE_WARMEST = 3f;
@@ -61,6 +70,17 @@ public final class BiomeRefiner {
 	static final float MANGROVE_COLDEST = 15f;
 	/** Mangroves grow on tidal flats: no higher than this, in meters. */
 	static final float MANGROVE_ELEVATION = 10f;
+	/** Desert floors flatter than this, in meters of relief, are salt flats: the dry beds of old lakes. */
+	static final float SALT_FLAT_RELIEF = 4f;
+	/** Moors begin at this elevation, in meters. */
+	static final float MOOR_ELEVATION = 300f;
+	/** Summers on the moors stay cooler than this, °C: the wind and the cold keep the trees off. */
+	static final float MOOR_WARMEST = 15.5f;
+	/**
+	 * Heaths cover the part of the climate that suits them where the variant noise is below this: about a fifth of
+	 * it, in patches among the woods, as people cleared them.
+	 */
+	static final float HEATH_VARIANT = -0.3f;
 
 	/** What a vanilla biome is, as far as the rules care. */
 	enum Kind {
@@ -139,6 +159,10 @@ public final class BiomeRefiner {
 		if (warmest < ICE_WARMEST || c.temperature < POLAR_TEMPERATURE) {
 			return null;
 		}
+		float aridity = c.aridity();
+		if ((kind == Kind.DESERT || kind == Kind.LAND) && saltFlat(c, aridity)) {
+			return SALT_FLAT;
+		}
 		boolean mountain = kind == Kind.PEAK || kind == Kind.SLOPE || kind == Kind.HILLS
 			|| c.relief >= MOUNTAIN_RELIEF || c.elevation >= MOUNTAIN_ELEVATION;
 		if (warmest < TREE_LINE) {
@@ -147,17 +171,23 @@ public final class BiomeRefiner {
 		if (kind == Kind.PEAK || kind == Kind.JUNGLE || kind == Kind.BADLANDS || kind == Kind.SNOWY) {
 			return null;
 		}
+		boolean meadow = biome.equals("minecraft:meadow");
+		if ((kind == Kind.LAND || kind == Kind.HILLS || meadow) && moorland(c)) {
+			return MOORLAND;
+		}
 		boolean vegetated = kind != Kind.DESERT;
 		if (vegetated && temperateRainforest(c)) {
 			return TEMPERATE_RAINFOREST;
 		}
-		if (kind != Kind.SLOPE || biome.equals("minecraft:meadow")) {
+		if (kind != Kind.SLOPE || meadow) {
 			if (c.elevation < 1200f && maquis(c)) {
 				return MAQUIS;
 			}
 		}
+		if (kind == Kind.LAND && heath(c)) {
+			return HEATH;
+		}
 		if (kind == Kind.LAND || kind == Kind.DESERT) {
-			float aridity = c.aridity();
 			if (aridity < 0.5f && c.temperature < COLD_DESERT_TEMPERATURE) {
 				return COLD_DESERT;
 			}
@@ -176,6 +206,21 @@ public final class BiomeRefiner {
 	static boolean temperateRainforest(BiomeClimate c) {
 		return c.temperature >= 4f && c.temperature <= 14f && c.precipitation >= 1600f && c.seasonality < 7f
 			&& c.coldestMonth() > -3f;
+	}
+
+	static boolean saltFlat(BiomeClimate c, float aridity) {
+		return aridity < 0.5f && c.relief < SALT_FLAT_RELIEF && c.elevation > 2f;
+	}
+
+	static boolean moorland(BiomeClimate c) {
+		return c.elevation >= MOOR_ELEVATION && c.elevation < MOUNTAIN_ELEVATION && c.relief < MOUNTAIN_RELIEF
+			&& c.warmestMonth() < MOOR_WARMEST && c.coldestMonth() > -6f && c.precipitation >= 800f;
+	}
+
+	static boolean heath(BiomeClimate c) {
+		return c.variant < HEATH_VARIANT && c.elevation < MOOR_ELEVATION && c.temperature >= 6f
+			&& c.temperature <= 12f && c.coldestMonth() > -4f && c.precipitation >= 550f && c.precipitation <= 1100f
+			&& c.seasonality < 7f;
 	}
 
 	static boolean maquis(BiomeClimate c) {

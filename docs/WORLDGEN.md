@@ -119,16 +119,19 @@ match.
 Vanilla's table sees five bands of temperature and humidity and nothing of the seasons. That cannot tell tundra from
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
-temperature seasonality, precipitation and its seasonality, elevation and relief. The refiner may swap it for one of
-seven new biomes. The first rule that matches wins:
+temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
+swap it for one of ten new biomes. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
 | **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
 | *(vanilla snow and ice)* | Warmest month below 3 °C, or a year below −10 °C | Kept as vanilla picked them |
+| **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief: the dry beds of old lakes, up on the cold Altiplano too | Plains, forests, taigas, savannas, deserts |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
+| **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
 | **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
 | **Maquis** | 12–21 °C, coldest month at least 2 °C, 250–1000 mm of strongly seasonal rain, below 1200 m | The same, deserts and meadows too, but no other slopes |
+| **Heath** | Oceanic lowland below 300 m: 6–12 °C, coldest month above −4 °C, 550–1100 mm of rain. Only where the variant noise is below −0.3, so it comes in patches among the woods | Plains, forests, taigas, savannas |
 | **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts |
 | **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C | Plains, forests, taigas, savannas |
 
@@ -170,6 +173,11 @@ the colours:
 | Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Steppe | Plains | Grass, dry grass, tulips and poppies, a lone oak or birch | Grass with patches of coarse dirt |
+| Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with peat (podzol) and sphagnum (moss) |
+| Heath | Plains | Heather and grass under scattered birches with bees, Scots pines and junipers | Grass with sandy coarse dirt and podzol |
+| Salt flat | Desert | Nothing | Salt crust over rock salt |
+
+The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra.
 
 Their ground is the material rule `diffusicraft:biome_surface`, which runs ahead of vanilla's overworld surface rule
 and leaves every other biome to it. They join vanilla's structure tags (villages, outposts, ruins) and the `c:`
@@ -292,6 +300,12 @@ lenses carry lapis, and kimberlite at the surface marks a pipe of diamonds below
 furnaces, and so do granite, diorite, andesite and tuff, because a basement can be granite for hundreds of blocks. They
 join `#minecraft:base_stone_overworld`, so moss, sculk, dripstone and vanilla's ore blobs spread through them.
 
+**New plants.** Heather and cottongrass of the moors, lavender of the maquis, edelweiss and gentian above the tree
+line, and salt crust, the ground of the salt flats. The flowers join `#minecraft:small_flowers`, so bees visit them;
+the plants burn, compost and craft into dye (lavender purple, gentian blue, edelweiss white, heather magenta).
+Cottongrass is a grass: it drops only to shears or silk touch, and sheep graze on it and on the heather. They have no
+potted form yet.
+
 ### The Hollows
 
 The Hollows are caverns far larger than vanilla's caves, and larger the deeper they lie. `Hollows` is a pure model,
@@ -361,13 +375,13 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
-| `block/` | `DiffusicraftBlocks`, the new rocks |
+| `block/` | `DiffusicraftBlocks`, the new rocks, plants and salt crust |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |
 | `data/diffusicraft/worldgen/{biome,feature,placed_feature}/`, `material_rule/biome_surface.json`, biome tags | The new biomes, their trees and plants, their ground and their tags |
 | `tools/worldgen_data.py` | Writes the noise settings, material rules, density functions, presets and dimension types. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
 | `tools/biomes.py` | Writes the new biomes, their features, surface rule and tags. Edit it, run `python3 tools/biomes.py`, and commit the output. |
-| `tools/block_assets.py` | Draws the rock textures and writes the block states, models, loot tables and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
+| `tools/block_assets.py` | Draws the textures of the rocks, plants and salt crust, and writes the block states, models, loot tables, dye recipes and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
 
 ## Lifetime and storage
 
@@ -389,7 +403,8 @@ Other searches still read the full terrain and can take a while on new land:
 - `RiverMapTest` needs the models. It surveys the rivers of a real world and draws maps of them to
   `build/river-map`, to look at the rivers without starting the game.
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
-  cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, and tropical coasts.
+  cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the
+  Lüneburg Heath, Bonneville and Uyuni, and tropical coasts.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;

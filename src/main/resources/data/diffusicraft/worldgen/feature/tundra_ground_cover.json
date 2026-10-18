@@ -8,6 +8,10 @@
         "weight": 4
       },
       {
+        "data": "diffusicraft:cottongrass",
+        "weight": 2
+      },
+      {
         "data": "minecraft:fern",
         "weight": 1
       }

@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "minecraft:birch_bees_002",
+  "features": [
+    {
+      "chance": 0.35,
+      "feature": "minecraft:pine_checked"
+    },
+    {
+      "chance": 0.15,
+      "feature": "minecraft:spruce_checked"
+    }
+  ]
+}

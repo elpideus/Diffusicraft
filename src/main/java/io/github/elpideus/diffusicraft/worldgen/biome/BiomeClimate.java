@@ -20,6 +20,8 @@ public final class BiomeClimate {
 	public float elevation;
 	/** How rugged the land around is, in meters; see {@link TerrainField.Column#relief}. */
 	public float relief;
+	/** The variant noise, in [-1, 1]: where in a climate's patchwork the column lies. */
+	public float variant;
 
 	public BiomeClimate set(TerrainField.Column column) {
 		temperature = column.temperature;
@@ -28,6 +30,7 @@ public final class BiomeClimate {
 		precipitationSeasonality = column.precipitationSeasonality;
 		elevation = column.elevation;
 		relief = column.relief;
+		variant = column.variant;
 		return this;
 	}
 

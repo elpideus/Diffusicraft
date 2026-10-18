@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "diffusicraft:tundra",
-    "diffusicraft:steppe"
+    "diffusicraft:steppe",
+    "diffusicraft:heath"
   ]
 }

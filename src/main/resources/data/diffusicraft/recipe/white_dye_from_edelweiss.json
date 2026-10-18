@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "group": "white_dye",
+  "ingredients": [
+    "diffusicraft:edelweiss"
+  ],
+  "result": {
+    "id": "minecraft:white_dye"
+  }
+}

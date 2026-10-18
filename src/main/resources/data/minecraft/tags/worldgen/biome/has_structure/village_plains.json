@@ -2,6 +2,8 @@
   "replace": false,
   "values": [
     "diffusicraft:maquis",
-    "diffusicraft:steppe"
+    "diffusicraft:steppe",
+    "diffusicraft:moorland",
+    "diffusicraft:heath"
   ]
 }

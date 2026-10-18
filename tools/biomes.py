@@ -187,18 +187,23 @@ FEATURES = {
     "maquis_shrub": tree("oak_log", straight(1, 0, 0), "oak_leaves",
                          {"type": "minecraft:bush_foliage_placer", "height": 2, "offset": 1, "radius": 2},
                          two_layers(0, 0, 0)),
-    "tundra_ground_cover": simple([("short_grass", 4), ("fern", 1)]),
+    "tundra_ground_cover": simple([("short_grass", 4), (ours("cottongrass"), 2), ("fern", 1)]),
     "tundra_moss_vegetation": simple([("moss_carpet", 3), ("short_grass", 2)]),
     "alpine_grass": simple([("short_grass", 6), ("fern", 1)]),
-    # Edelweiss-white bluets, gentian-blue cornflowers, alliums and daisies.
-    "alpine_flowers": simple([("azure_bluet", 3), ("cornflower", 3), ("allium", 1), ("oxeye_daisy", 2)]),
+    "alpine_flowers": simple([(ours("edelweiss"), 3), (ours("gentian"), 3), ("azure_bluet", 1), ("oxeye_daisy", 1)]),
     "steppe_grass": simple([("short_grass", 6), ("short_dry_grass", 3), ("tall_dry_grass", 1)]),
     # Wild tulips, poppies and alliums of the spring steppe.
     "steppe_flowers": simple([("red_tulip", 2), ("orange_tulip", 2), ("poppy", 3), ("dandelion", 2), ("allium", 1)]),
     "maquis_grass": simple([("short_grass", 3), ("short_dry_grass", 2)]),
-    "maquis_flowers": simple([("allium", 3), ("poppy", 2), ("cornflower", 1), ("oxeye_daisy", 1), ("dandelion", 1)]),
+    "maquis_flowers": simple([(ours("lavender"), 4), ("allium", 2), ("poppy", 2), ("cornflower", 1), ("dandelion", 1)]),
+    "heather": simple([(ours("heather"), 1)]),
+    # Purple moor grass, cottongrass in the wet hollows, bracken.
+    "moor_grass": simple([("short_grass", 4), (ours("cottongrass"), 2), ("fern", 1)]),
+    "heath_grass": simple([("short_grass", 5), ("fern", 1), ("bush", 1)]),
     "boulder": boulder("stone", ["sand", "gravel", "coarse_dirt"]),
     "limestone_boulder": boulder(ours("limestone")),
+    # The granite tors of the moors.
+    "granite_boulder": boulder("granite"),
 }
 FEATURES["tundra_moss_patch"] = {
     "type": "minecraft:vegetation_patch", "depth": 1, "extra_bottom_block_chance": 0.0,
@@ -219,12 +224,15 @@ PLACED = {
     "boulders": scattered(ours("boulder"), chance=4),
     "boulders_rare": scattered(ours("boulder"), chance=12),
     "limestone_boulders": scattered(ours("limestone_boulder"), chance=5),
+    "granite_tors": scattered(ours("granite_boulder"), chance=5),
     "trees_tundra": trees(ours("tundra_shrub"), {0: 3, 1: 2, 2: 1}, "birch_sapling"),
     "trees_alpine_tundra": trees(ours("krummholz"), {0: 4, 1: 2, 2: 1}, "spruce_sapling"),
     "trees_temperate_rainforest": trees(ours("trees_temperate_rainforest"), {12: 9, 14: 1}, "spruce_sapling"),
     "trees_cloud_forest": trees(ours("trees_cloud_forest"), {12: 9, 14: 1}, "jungle_sapling"),
     "trees_maquis": trees(ours("trees_maquis"), {1: 3, 2: 3, 3: 2, 4: 1}, "oak_sapling"),
     "trees_steppe": trees(ours("trees_steppe"), {0: 24, 1: 1}, "oak_sapling"),
+    "trees_moorland": trees(ours("trees_moorland"), {0: 14, 1: 1}, "birch_sapling"),
+    "trees_heath": trees(ours("trees_heath"), {0: 4, 1: 2, 2: 1}, "birch_sapling"),
     "patch_tundra_grass": patch(ours("tundra_ground_cover"), 24, count=3),
     "tundra_moss": scattered(ours("tundra_moss_patch"), chance=2),
     "rainforest_moss": scattered("minecraft:moss_patch", count=1),
@@ -236,6 +244,10 @@ PLACED = {
     "patch_maquis_bush": patch("minecraft:bush", 24, spread=5, count=2),
     "patch_maquis_flowers": patch(ours("maquis_flowers"), 48, spread=6, chance=2),
     "patch_sagebrush": patch("minecraft:bush", 12, spread=6, chance=3),
+    "patch_heather_moor": patch(ours("heather"), 64, count=4),
+    "patch_moor_grass": patch(ours("moor_grass"), 32, count=3),
+    "patch_heather_heath": patch(ours("heather"), 64, count=3),
+    "patch_heath_grass": patch(ours("heath_grass"), 32, count=2),
 }
 FEATURES["trees_temperate_rainforest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
                                           "features": [
@@ -253,6 +265,13 @@ FEATURES["trees_maquis"] = {"type": "minecraft:random_selector", "default": ours
                                 {"chance": 0.3, "feature": ours("olive_checked")},
                                 {"chance": 0.15, "feature": ours("stone_pine_checked")},
                                 {"chance": 0.12, "feature": ours("cypress_checked")}]}
+# Rowan and birch in the moors' sheltered spots.
+FEATURES["trees_moorland"] = {"type": "minecraft:random_selector", "default": "minecraft:birch_checked",
+                              "features": [{"chance": 0.3, "feature": "minecraft:spruce_checked"}]}
+# Birch, Scots pine and juniper over the heather, and the bees of heather honey.
+FEATURES["trees_heath"] = {"type": "minecraft:random_selector", "default": "minecraft:birch_bees_002",
+                           "features": [{"chance": 0.35, "feature": "minecraft:pine_checked"},
+                                        {"chance": 0.15, "feature": "minecraft:spruce_checked"}]}
 FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
@@ -368,6 +387,42 @@ BIOMES = {
                  "minecraft:has_structure/village_plains", "minecraft:is_overworld",
                  "minecraft:stronghold_biased_to"],
     },
+    "moorland": {
+        "template": "plains", "temperature": 0.4, "downfall": 0.9,
+        "effects": {"grass_color": "#7d8a4c", "foliage_color": "#6a7a40", "dry_foliage_color": "#8a6b45"},
+        "creatures": [spawn("sheep", 14, 2, 4), spawn("rabbit", 6, 2, 3), spawn("horse", 3, 2, 5),
+                      spawn("cow", 2, 2, 4), spawn("fox", 2, 2, 3)],
+        "local": ["granite_tors"],
+        "vegetation": ["minecraft:glow_lichen", "trees_moorland", "patch_heather_moor", "patch_moor_grass",
+                       "minecraft:patch_berry_rare"],
+        "tags": ["c:is_wet/overworld", "c:is_temperate/overworld", "c:is_sparse_vegetation/overworld",
+                 "minecraft:has_structure/mineshaft", "minecraft:has_structure/pillager_outpost",
+                 "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trail_ruins",
+                 "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_plains",
+                 "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
+    },
+    "heath": {
+        "template": "plains", "temperature": 0.6, "downfall": 0.5,
+        "effects": {"grass_color": "#8d9a52", "foliage_color": "#76904a", "dry_foliage_color": "#9a7f4e"},
+        "creatures": [spawn("sheep", 12, 2, 4), spawn("rabbit", 8, 2, 3), spawn("cow", 4, 2, 4), spawn("chicken", 4, 4),
+                      spawn("horse", 2, 2, 4), spawn("fox", 2, 2, 3)],
+        "vegetation": ["minecraft:glow_lichen", "trees_heath", "patch_heather_heath", "patch_heath_grass",
+                       "minecraft:patch_berry_rare"],
+        "tags": ["c:is_plains", "c:is_temperate/overworld", "c:is_sparse_vegetation/overworld",
+                 "minecraft:has_structure/mineshaft", "minecraft:has_structure/pillager_outpost",
+                 "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trail_ruins",
+                 "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_plains",
+                 "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
+    },
+    # Dry lake beds: a crust of salt from one horizon to the other, and nothing growing.
+    "salt_flat": {
+        "template": "desert", "temperature": 0.7, "downfall": 0.0,
+        "creatures": [spawn("rabbit", 6, 2, 3), spawn("llama", 2, 2, 4)],
+        "vegetation": ["minecraft:glow_lichen"],
+        "tags": ["c:is_desert", "c:is_dry/overworld", "c:is_sparse_vegetation/overworld",
+                 "minecraft:has_structure/mineshaft", "minecraft:has_structure/ruined_portal_desert",
+                 "minecraft:has_structure/trial_chambers", "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
+    },
 }
 # Vanilla biomes the refiner swaps between, which the source must be able to return.
 REFINED_VANILLA = ["minecraft:swamp", "minecraft:mangrove_swamp"]
@@ -416,11 +471,21 @@ SURFACE_RULE = sequence(
             when(noise(0.35), block("coarse_dirt")), block("grass_block"))),
         when(biome_is("temperate_rainforest", "cloud_forest"), sequence(
             when(noise(0.15), block("podzol")), block("grass_block"))),
+        when(biome_is("salt_flat"), sequence(when(STEEP, block("sandstone")), block(ours("salt_crust")))),
+        # Peat and sphagnum bog between the grass and heather.
+        when(biome_is("moorland"), sequence(
+            when(STEEP, block("stone")), when(noise(0.3), block("podzol")), when(noise(hi=-0.5), block("moss_block")),
+            block("grass_block"))),
+        # Sandy, leached soil.
+        when(biome_is("heath"), sequence(
+            when(noise(0.45), block("coarse_dirt")), when(noise(hi=-0.6), block("podzol")), block("grass_block"))),
     ))),
     when("minecraft:under_floor", sequence(
         when(biome_is("cold_desert"), block("sandstone")),
         when(biome_is("alpine_tundra"), when(STEEP, block("stone"))),
         when(biome_is("maquis"), when(STEEP, block(ours("limestone")))),
+        when(biome_is("salt_flat"), block(ours("rock_salt"))),
+        when(biome_is("moorland"), when(STEEP, block("stone"))),
     )),
 )
 

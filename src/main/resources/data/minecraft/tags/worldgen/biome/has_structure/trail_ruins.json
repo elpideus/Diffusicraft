@@ -3,6 +3,8 @@
   "values": [
     "diffusicraft:cloud_forest",
     "diffusicraft:temperate_rainforest",
-    "diffusicraft:maquis"
+    "diffusicraft:maquis",
+    "diffusicraft:moorland",
+    "diffusicraft:heath"
   ]
 }
