@@ -26,7 +26,8 @@ project directly, and Loom generates run configurations.
   Plenty with TerraBlender, C2ME, Lithium, Mod Menu and others. These are the compatibility targets. The list is in
   [`gradle/dev-mods.gradle`](../gradle/dev-mods.gradle), pinned by Modrinth version id.
 - **Licensing.** Dev mods are `localRuntime` only: never compiled against, never bundled, never a dependency. Some
-  are All Rights Reserved and can only ever be used this way.
+  are All Rights Reserved and can only ever be used this way. The optional integrations, Mod Menu and the Distant
+  Horizons API (LGPL), are separate `compileOnly` dependencies: compiled against, never bundled.
 - **Without the modpack.** Add `-PnoDevMods` to start without it, for example when a dev mod has not caught up with a
   Minecraft update.
 - **Part of the modpack.** `-PdevMods=slug,slug` starts with only those mods, for example
@@ -126,7 +127,7 @@ that explains why.
 ## Updating Minecraft
 
 1. Bump the versions in `gradle.properties` from [fabricmc.net/develop](https://fabricmc.net/develop), and update
-   `modmenu_version`.
+   `modmenu_version` and `distanthorizons_version`.
 2. Check that the mixin targets still exist:
    - `Gui.addInitialScreens(List<Function<Runnable, Screen>>)`;
    - the constructor of `CreateWorldScreen$MoreTab` and its local `GridLayout.RowHelper`.
@@ -142,3 +143,4 @@ that explains why.
 | `Loaded model 'base' on CUDA in ... ms` | Which execution provider each model uses |
 | `Could not load model ... with CUDA: ...` | Why a provider was skipped; the CPU is tried next |
 | `The CUDA runtime is installed but ...` | Why an installed runtime was not used |
+| `Distant Horizons LODs for ... come from the terrain` | Distant Horizons draws that level with Diffusicraft's generator |

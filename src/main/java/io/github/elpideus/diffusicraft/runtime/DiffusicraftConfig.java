@@ -41,6 +41,11 @@ public final class DiffusicraftConfig {
 	 * Directory with a ROCm build of ONNX Runtime's Java natives. Empty: {@code <storage>/runtimes/<platform>/rocm}.
 	 */
 	public String rocmNativePath = "";
+	/**
+	 * Draw Distant Horizons' far terrain in Diffusicraft worlds straight from the terrain, without generating chunks.
+	 * Off: Distant Horizons generates chunks for its LODs, or uses another mod's generator. Needs a game restart.
+	 */
+	public boolean distantHorizonsLods = true;
 
 	public static DiffusicraftConfig load(Path file) {
 		if (Files.isRegularFile(file)) {

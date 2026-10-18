@@ -6,6 +6,7 @@
 - [CONFIG.md](CONFIG.md): every setting in `config/diffusicraft.json`, where files are stored, and dedicated servers.
 - [MODELS.md](MODELS.md): the Terrain Diffusion models: what they are, their size, their license, and how they are
   verified.
+- [COMPATIBILITY.md](COMPATIBILITY.md): other mods: Distant Horizons, biome mods, C2ME, shaders and structures.
 
 **For contributors**
 

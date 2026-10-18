@@ -19,6 +19,9 @@ geography, climate and geology.
   - The CPU build is bundled.
   - The NVIDIA CUDA runtime is a one-click download from official sources. It is about 6× faster than the CPU.
   - AMD ROCm (MIGraphX) is experimental, with your own ONNX Runtime build.
+- **Distant Horizons.** With Distant Horizons installed, its far terrain, trees included, comes straight from the
+  terrain without generating chunks, and the far horizon costs no model inference. See
+  [COMPATIBILITY.md](docs/COMPATIBILITY.md).
 - **A resource screen.** It opens at first launch, and later from Create World > More or Mod Menu. It downloads the
   models (2.3 GB) and the GPU runtime in the background. Before anything downloads, it shows the licenses to accept.
   It also caps GPU memory so shaders keep theirs.

@@ -8,7 +8,10 @@ step added. Several things work unchanged because of this:
 - structures and structure mods;
 - biome mods that extend the overworld biome table (TerraBlender, Biomes O' Plenty, BYG);
 - C2ME's parallel generation;
-- tools that call the generator directly, such as Distant Horizons and Voxy SeedGen.
+- tools that call the generator directly, such as Voxy SeedGen.
+
+Distant Horizons gets a generator of its own that reads the terrain without building chunks; see
+[COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
 
 ## World types
 
@@ -385,6 +388,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods |
+| `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |

@@ -85,6 +85,8 @@ dependencies {
 
 	// Optional integration: the config screen button in Mod Menu. Compile-only; Mod Menu is not required.
 	clientCompileOnly "maven.modrinth:modmenu:${project.modmenu_version}"
+	// Optional integration: Distant Horizons LODs drawn from the terrain (compat.dh). Compile-only; never bundled.
+	compileOnly "maven.modrinth:distanthorizons:${project.distanthorizons_version}"
 
 	// Dev-runtime mods (client run only). See gradle/dev-mods.gradle.
 }

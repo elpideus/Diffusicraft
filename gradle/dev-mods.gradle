@@ -24,7 +24,7 @@ def devMods = [
 	'cloth-config'               : 'fg2uyxOW',  // 26.3.159+fabric
 	'c2me-fabric'                : 'gKKkuSYc',  // 0.4.2-alpha.0.106+26.3 (parallel chunk gen: thread-safety target)
 	'continuity'                 : 'Jt2sCWTQ',  // 3.0.1+26.3
-	'distanthorizons'            : 'TGgEbP9A',  // 3.3.4-26.3 (LOD target)
+	'distanthorizons'            : project.distanthorizons_version,  // 3.3.4-26.3 (LOD target)
 	'distant-horizons-seedgen'   : '7hGTqcL4',  // 0.9.1 (SeedGen compat target, ARR: dev runtime only)
 	'entityculling'              : 'X1g3VhTx',  // 1.11.3
 	'ferrite-core'               : 'd5ddUdiB',  // 9.0.0-fabric

@@ -41,6 +41,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py`,
   `tools/block_assets.py` (blocks) or `tools/biomes.py` (biomes, their features and tags) and rerun it, never the
   JSON or the textures.
+- **Optional mods.** Mod Menu and the Distant Horizons API are `compileOnly`, never bundled. Code that touches them
+  (`client.compat`, `compat.dh`) loads only when the mod is installed; keep their classes out of everything else.
 - **Untested paths.** The AMD ROCm/MIGraphX path has never run on AMD hardware. Say so when touching it.
 - **Commits.** Small and logical, with an imperative subject and a body saying why. Docs change in the same commit as
   the behaviour.

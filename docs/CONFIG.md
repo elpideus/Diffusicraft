@@ -13,7 +13,8 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "showSetupScreen": true,
   "useSystemLibraries": true,
   "storagePath": "",
-  "rocmNativePath": ""
+  "rocmNativePath": "",
+  "distantHorizonsLods": true
 }
 ```
 
@@ -93,6 +94,12 @@ You can delete the directory at any time. The resource screen downloads what is 
 
 The folder containing a ROCm build of ONNX Runtime. If empty, `runtimes/<platform>/rocm` inside the storage directory
 is used. Read at startup. See [RUNTIMES.md](RUNTIMES.md#amd-rocm).
+
+### `distantHorizonsLods`
+
+With Distant Horizons installed, Diffusicraft draws its far terrain in Diffusicraft worlds straight from the terrain,
+without generating chunks. Set it to `false` to let Distant Horizons generate chunks for its LODs instead, or to let
+another LOD generator take over. Read at startup. See [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
 
 ## Dedicated servers
 
