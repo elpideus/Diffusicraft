@@ -305,7 +305,7 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 	}
 
 	/** Heap in use after a collection, so that garbage does not count. */
-	private static long usedHeapMiB() {
+	static long usedHeapMiB() {
 		System.gc();
 		Runtime runtime = Runtime.getRuntime();
 		return (runtime.totalMemory() - runtime.freeMemory()) >> 20;

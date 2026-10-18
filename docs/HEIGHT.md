@@ -205,6 +205,19 @@ is on the surface: `min_y` stays −256 and the oceans stay compressed to at mos
 Its mountains keep their height up to 8 km and ease above that, so its highest ground is y = 9063 and the world runs
 from −256 to 9087: 9,344 blocks, or 584 sections per column.
 
+Real terrain is not empty. The Earth 1:1 game test stands over the highest ground near the spawn, at y = 5654, with
+600 columns loaded around it at render distance 12: 350,400 sections, 161,000 of them mixed. The block storage is
+counted on the server; the heap is the whole game, server and client, after a full garbage collection. One run each:
+
+| Around the Earth 1:1 summit | Block storage | Heap |
+|---|---|---|
+| Single-block sections from world generation keeping data of their own | 425 MiB | 2,855 MiB |
+| Shared once their chunk is complete ([Empty sections](#empty-sections)) | 317 MiB | 2,548 MiB |
+| And 1 to 3 bits per block for sections with a few blocks ([Sections with a few blocks](#sections-with-a-few-blocks)) | 163 MiB | 1,942 MiB |
+
+Of the mixed sections, 152,800 are stored narrower than 4 bits per block. The chunks took as long to be ready each
+time (52 to 54 seconds).
+
 ## Filling only to the ground
 
 Minecraft fills a new chunk from the bottom of the world to the top, working out the density of every block: 2.4
@@ -225,7 +238,12 @@ million blocks for a chunk of Earth 1:1, nearly all of them air. Diffusicraft fi
   terrain.
 
 The blocks come out the same either way: the cells and the aquifer's grid are aligned to absolute positions, not to
-the part of the chunk that is filled. `TerrainCeilingTest` checks the ceiling over rivers and the sea.
+the part of the chunk that is filled. `TerrainCeilingTest` checks the ceiling over rivers and the sea, and the Earth
+1:1 game test checks that the chunks around the highest ground near the spawn hold all of it.
+
+It saves less time than the air it skips suggests. In the Earth 1:1 game test the chunks around the summit, at
+render distance 12, were ready in 52 seconds against 57 with the full fill (one run each, on the CPU): most of a
+chunk's time goes to the rest of its generation.
 
 ## Tests
 
@@ -248,6 +266,10 @@ the part of the chunk that is filled. `TerrainCeilingTest` checks the ceiling ov
   It saves screenshots of the top, the bottom and the dense column.
 - [`TerrainCeilingTest`](../src/test/java/io/github/elpideus/diffusicraft/worldgen/river/TerrainCeilingTest.java)
   checks that the ceiling of each column is under its chunk's and above its rivers, lakes and the sea.
+- [`EarthWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/EarthWorldGameTest.java)
+  creates an Earth 1:1 world and compares the chunks around the highest ground near the spawn with the terrain: their
+  ground with the LODs, and their highest block with the summit. It saves and sends a few hundred of their narrow
+  sections and reads them back, and logs what the chunks cost in memory.
 
 ## Mixin targets
 

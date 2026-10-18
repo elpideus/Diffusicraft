@@ -188,7 +188,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	}
 
 	/** Teleports the player, waits for the chunks and takes a screenshot. */
-	private static void view(ClientGameTestContext context, TestSingleplayerContext world, BlockPos at, float yaw,
+	static void view(ClientGameTestContext context, TestSingleplayerContext world, BlockPos at, float yaw,
 							 float pitch, String name) {
 		world.getServer().runCommand(String.format("tp @a %d %d %d %.1f %.1f", at.getX(), at.getY(), at.getZ(), yaw, pitch));
 		world.getConnection().waitForClientboundPackets();
@@ -324,7 +324,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	}
 
 	/** What the test reads from the server: the spawn, and what it needs to sample the generator off-thread. */
-	private record Probe(BlockPos spawn, int spawnSurface, String spawnBiome, RandomState state, NoiseRouter router,
+	record Probe(BlockPos spawn, int spawnSurface, String spawnBiome, RandomState state, NoiseRouter router,
 						 BiomeSource biomes, long hollowsSeed, TerrainField field, int minY) {
 		static Probe of(ServerLevel level) {
 			ChunkGenerator generator = level.getChunkSource().getGenerator();
@@ -344,7 +344,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		}
 	}
 
-	private static int surface(Probe probe, BlockPos at) {
+	static int surface(Probe probe, BlockPos at) {
 		return (int) Math.floor(probe.state.sampleBlockValueUncached(probe.router.chunkSurfaceLevel(), at.getX(), 0,
 			at.getZ()));
 	}
@@ -607,7 +607,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	}
 
 	/** The highest block of the ground, under the trees, the ice and the water. */
-	private static int groundAt(ServerLevel level, BlockPos.MutableBlockPos pos) {
+	static int groundAt(ServerLevel level, BlockPos.MutableBlockPos pos) {
 		int y = level.getHeight(Heightmap.Types.OCEAN_FLOOR, pos.getX(), pos.getZ()) - 1;
 		for (; y > level.getMinY(); y--) {
 			BlockState state = level.getBlockState(pos.setY(y));
