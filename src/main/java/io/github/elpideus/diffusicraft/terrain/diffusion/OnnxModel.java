@@ -78,6 +78,8 @@ public final class OnnxModel implements AutoCloseable {
 	private final OrtSession session;
 	private final String provider;
 	private final Semaphore permits;
+	/** Guarded by {@link #permits}: a closed session must never run, or the native code crashes. */
+	private boolean closed;
 	private final boolean batchable;
 	private final AtomicLong runs = new AtomicLong();
 	private final AtomicLong runNanos = new AtomicLong();
@@ -247,6 +249,9 @@ public final class OnnxModel implements AutoCloseable {
 			}
 			permits.acquireUninterruptibly();
 			acquired = true;
+			if (closed) {
+				throw new IllegalStateException("Model '" + name + "' is closed");
+			}
 			long start = System.nanoTime();
 			try (OrtSession.Result result = session.run(feed)) {
 				OnnxValue value = result.get(0);
@@ -270,12 +275,19 @@ public final class OnnxModel implements AutoCloseable {
 		}
 	}
 
+	/** Waits for a running inference to finish, then frees the session. Later runs throw. */
 	@Override
 	public void close() {
+		permits.acquireUninterruptibly();
 		try {
-			session.close();
+			if (!closed) {
+				closed = true;
+				session.close();
+			}
 		} catch (OrtException e) {
 			LOGGER.warn("Failed to close model '{}': {}", name, e.toString());
+		} finally {
+			permits.release();
 		}
 	}
 }
