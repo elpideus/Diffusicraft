@@ -7,7 +7,8 @@
 // (maven.modrinth:<slug>:<version-id-or-number>).
 //
 // Disable the whole set with -PnoDevMods (handy when a dev mod lags behind a
-// Minecraft update).
+// Minecraft update), or pick a subset with -PdevMods=slug,slug, for example
+// -PdevMods=biomes-o-plenty,glitchcore,terrablender to test the biome mods alone.
 // -----------------------------------------------------------------------------
 
 def devMods = [
@@ -39,8 +40,13 @@ def devMods = [
 ]
 
 if (!project.hasProperty('noDevMods')) {
+	def wanted = project.findProperty('devMods')?.toString()?.split(',')?.collect { it.trim() }?.findAll { it }
+	def unknown = (wanted ?: []) - devMods.keySet()
+	if (unknown) {
+		throw new GradleException("Unknown dev mods ${unknown}; pick from ${devMods.keySet()}")
+	}
 	dependencies {
-		devMods.each { slug, ver ->
+		(wanted ? devMods.subMap(wanted) : devMods).each { slug, ver ->
 			localRuntime "maven.modrinth:${slug}:${ver}"
 		}
 	}

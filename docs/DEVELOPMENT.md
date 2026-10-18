@@ -29,6 +29,9 @@ project directly, and Loom generates run configurations.
   are All Rights Reserved and can only ever be used this way.
 - **Without the modpack.** Add `-PnoDevMods` to start without it, for example when a dev mod has not caught up with a
   Minecraft update.
+- **Part of the modpack.** `-PdevMods=slug,slug` starts with only those mods, for example
+  `-PdevMods=biomes-o-plenty,glitchcore,terrablender` to test the biome mods alone. It works for the client game test
+  too.
 - **Adding or updating a mod.** Find the version id on the mod's Modrinth *Versions* page (the last part of the
   version URL) and add `'<slug>': '<version id>'`. If it fails to start, add the mod's required dependencies too.
 
