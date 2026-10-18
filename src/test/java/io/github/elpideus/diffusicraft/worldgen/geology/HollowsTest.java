@@ -153,7 +153,7 @@ class HollowsTest {
 					}
 					if (surrounded) {
 						enclosed++;
-						if (!hollows.nearGrandHollow(c, y, 1)) {
+						if (!hollows.nearGrandHollow(c, y)) {
 							hidden++;
 						}
 					}
@@ -162,6 +162,52 @@ class HollowsTest {
 		}
 		assertTrue(enclosed > 20, "only " + enclosed + " pillar or cave blocks found");
 		assertEquals(0, hidden, hidden + " of " + enclosed + " blocks inside Grand Hollows are not in them");
+	}
+
+	@Test
+	void theRockUnderGrandHollowFloorsAndOverTheirCeilingsCountsAsPartOfThem() {
+		// The game looks biomes up as much as a quart off, and sculk spreads from wherever the deep dark starts it, so
+		// the deep dark must stay well clear of the floors and the ceilings. The rest of the deep rock keeps it.
+		for (int minY : new int[] {-64, -256}) {
+			Hollows hollows = new Hollows(SEED, minY);
+			Hollows.Column c = new Hollows.Column();
+			int edges = 0;
+			long near = 0;
+			long samples = 0;
+			for (int x = -4096; x < 4096; x += 17) {
+				for (int z = -4096; z < 4096; z += 31) {
+					hollows.column(x, z, (a, b) -> SURFACE, c);
+					for (int y = minY; y < SURFACE - 28; y += 4) {
+						samples++;
+						near += hollows.nearGrandHollow(c, y) ? 1 : 0;
+					}
+					if (c.solid()) {
+						continue;
+					}
+					for (int y = minY + 1; y < SURFACE - 28; y++) {
+						Hollows.Kind kind = hollows.openKind(c, y);
+						if (kind == null || !kind.grand()) {
+							continue;
+						}
+						// The floors of the Deep Grand Hollows lie under their lava seas.
+						boolean floor = kind != Hollows.Kind.DEEP_GRAND_HOLLOW && hollows.openKind(c, y - 1) == null;
+						boolean ceiling = hollows.openKind(c, y + 1) == null;
+						for (int d = 1; d <= 10; d++) {
+							int under = y - d;
+							int over = y + d;
+							assertTrue(!floor || hollows.nearGrandHollow(c, under),
+								"deep dark " + d + " blocks under a floor at " + x + ", " + y + ", " + z);
+							assertTrue(!ceiling || hollows.nearGrandHollow(c, over),
+								"deep dark " + d + " blocks over a ceiling at " + x + ", " + y + ", " + z);
+						}
+						edges += floor || ceiling ? 1 : 0;
+					}
+				}
+			}
+			assertTrue(edges > 1000, "only " + edges + " floors and ceilings found at min_y " + minY);
+			double share = near / (double) samples;
+			assertTrue(share < 0.12, share + " of the ground counts as near a Grand Hollow at min_y " + minY);
+		}
 	}
 
 	@Test

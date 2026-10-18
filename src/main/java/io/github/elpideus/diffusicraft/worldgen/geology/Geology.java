@@ -32,6 +32,10 @@ import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.value3;
  * </ol>
  * Ores come in bodies whose mineral depends on the rock around them (copper and gold in granite, lapis in marble,
  * emerald in mountain schist, diamonds deep down), so prospecting by rock pays off. See docs/WORLDGEN.md.
+ *
+ * <p>Thicknesses are given in meters. Above the sea they follow the world's vertical scale, so mountains look the
+ * same at every scale. Below the sea they never use fewer than {@link #UNDERGROUND_METERS} meters per block, so the
+ * layers stay within reach in every world type.
  */
 public final class Geology {
 	/** The bed sequence repeats after this many blocks, far more than any world is tall. */
@@ -40,6 +44,14 @@ public final class Geology {
 	private static final int LENS_CELL_Y = 18;
 	private static final int ORE_CELL_XZ = 20;
 	private static final int ORE_CELL_Y = 14;
+	/** Every Diffusicraft scale keeps vanilla's sea level (see {@code WorldScale}). */
+	private static final int SEA_LEVEL = 63;
+	/**
+	 * The fewest meters a block stands for below the sea: the standard world's vertical scale. The underground is
+	 * sized for play, not for the real crust. Otherwise, in the tall worlds, a lowland basin's 1.7 km of sediment
+	 * would bury the basement and reach below the bottom of the world.
+	 */
+	private static final double UNDERGROUND_METERS = 10.0;
 
 	/** Where the sedimentary cover was laid down, which decides what its beds are made of. */
 	public enum Basin {
@@ -121,6 +133,7 @@ public final class Geology {
 
 	private final long seed;
 	private final double verticalMeters;
+	private final double undergroundMeters;
 	private final double stretch;
 	private final int magmaTop;
 	private final int peridotiteTop;
@@ -134,11 +147,13 @@ public final class Geology {
 	 * @param seed            the geology seed of the world
 	 * @param minY            bottom of the world
 	 * @param horizontalMeters meters per block horizontally; regions span more blocks on finer scales
-	 * @param verticalMeters  meters per block vertically, for thicknesses given in meters
+	 * @param verticalMeters  meters per block vertically, for thicknesses given in meters; below the sea, at least
+	 *                        {@link #UNDERGROUND_METERS}
 	 */
 	public Geology(long seed, int minY, double horizontalMeters, double verticalMeters) {
 		this.seed = seed;
 		this.verticalMeters = verticalMeters;
+		this.undergroundMeters = Math.max(verticalMeters, UNDERGROUND_METERS);
 		this.stretch = Math.sqrt(15.0 / horizontalMeters);
 		// The deep layers share out the room between the bottom of the world and y=0: 64 blocks in vanilla's height,
 		// 256 in tall worlds.
@@ -184,7 +199,7 @@ public final class Geology {
 			thickness += 400;
 		}
 		thickness = Math.max(thickness, 1500 * c.fold);
-		c.sedimentBase = (float) (c.meanSurfaceY - thickness / verticalMeters);
+		c.sedimentBase = heightUnder(c.meanSurfaceY, thickness);
 
 		// Beds tilt gently across a region, and fold in fold belts.
 		double foldAmplitude = (25 + 450 * c.fold) / verticalMeters;
@@ -387,7 +402,7 @@ public final class Geology {
 		};
 		if (c.fold > 0.25f) {
 			// Buried and squeezed: mudstone becomes slate, then schist; limestone becomes marble.
-			double depthMeters = (c.meanSurfaceY - y) * verticalMeters;
+			double depthMeters = metersUnder(c.meanSurfaceY, y);
 			if (depthMeters > 250) {
 				rock = switch (rock) {
 					case SHALE -> depthMeters > 900 ? Rock.SCHIST : Rock.SLATE;
@@ -401,6 +416,22 @@ public final class Geology {
 
 	private int bed(Column c, int y) {
 		return bedAt[Math.floorMod((int) Math.floor(y + c.warp), PERIOD)];
+	}
+
+	/** The height {@code meters} of rock below a mean surface, at the world's scale down to the sea and below it. */
+	private float heightUnder(float meanSurfaceY, double meters) {
+		double aboveSea = Math.max(0, meanSurfaceY - SEA_LEVEL) * verticalMeters;
+		if (meters <= aboveSea) {
+			return (float) (meanSurfaceY - meters / verticalMeters);
+		}
+		return (float) (Math.min(meanSurfaceY, SEA_LEVEL) - (meters - aboveSea) / undergroundMeters);
+	}
+
+	/** The inverse of {@link #heightUnder}: the meters of rock between a mean surface and {@code y}. */
+	private double metersUnder(float meanSurfaceY, int y) {
+		double sea = Math.min(meanSurfaceY, SEA_LEVEL);
+		return Math.max(0, meanSurfaceY - Math.max(y, sea)) * verticalMeters
+			+ Math.max(0, sea - y) * undergroundMeters;
 	}
 
 	/** The mineral an ore body forms in a host rock. {@code t} in [0, 1) is the body's own roll. */

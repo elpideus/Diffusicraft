@@ -41,12 +41,6 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 
 	/** Depth at which the Grand Hollows pick their biome: the middle of vanilla's cave biomes. */
 	private static final float HOLLOW_DEPTH = 0.5f;
-	/**
-	 * How far into a hollow's walls, in density, a quart still counts as part of it: about thirty blocks, as the
-	 * density rises by a quarter per block. Sculk veins spread up to twenty blocks from where they start, and the game
-	 * looks biomes up a quart off, so deep dark left in the rock or the caves around a hollow would creep into it.
-	 */
-	private static final double HOLLOW_MARGIN = 7.5;
 
 	private final Holder<MultiNoiseBiomeSourceParameterList> preset;
 	private final HolderSet<Biome> refinements;
@@ -95,8 +89,12 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 		};
 	}
 
+	/**
+	 * Whether a quart lies in a Grand Hollow or the rock around it. The game looks biomes up as much as a quart off,
+	 * and sculk spreads from wherever the deep dark starts it, so deep dark left just under a floor would creep onto it.
+	 */
 	private static boolean inGrandHollow(Columns.Entry column, int y) {
-		return column.hollows().nearGrandHollow(column.hollowColumn(), y, HOLLOW_MARGIN);
+		return column.hollows().nearGrandHollow(column.hollowColumn(), y);
 	}
 
 	/** The biome that replaces {@code biome} in a column, or {@code biome} itself. */

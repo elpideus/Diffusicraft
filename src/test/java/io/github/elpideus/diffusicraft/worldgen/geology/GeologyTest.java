@@ -76,6 +76,64 @@ class GeologyTest {
 	}
 
 	@Test
+	void belowTheSeaEveryScaleKeepsTheStandardProportions() {
+		Geology standard = new Geology(SEED, -64, 15, 10);
+		Geology earth = new Geology(SEED, -256, 1, 1);
+		int columns = 0;
+		int standardBasement = 0;
+		int earthBasement = 0;
+		for (int x = -6000; x < 6000; x += 211) {
+			for (int z = -6000; z < 6000; z += 199) {
+				Geology.Column s = lowland(standard, x, z);
+				Geology.Column e = lowland(earth, x, z);
+				// At most 2.1 km of cover, which is 210 blocks at 10 m per block, not the 2100 of Earth 1:1's scale.
+				assertTrue(e.sedimentBase() >= 63 - 210, "cover down to y = " + e.sedimentBase());
+				columns++;
+				if (s.sedimentBase() > s.deepslateTop()) {
+					standardBasement++;
+				}
+				if (e.sedimentBase() > e.deepslateTop()) {
+					earthBasement++;
+				}
+			}
+		}
+		assertTrue(standardBasement > columns / 10, "basement under " + standardBasement + " of " + columns);
+		assertTrue(earthBasement > standardBasement / 2,
+			"basement under " + earthBasement + " Earth 1:1 lowlands, " + standardBasement + " standard ones");
+	}
+
+	@Test
+	void aboveTheSeaThicknessesFollowTheVerticalScale() {
+		Geology oneMeter = new Geology(SEED, -256, 1, 1);
+		Geology tenMeters = new Geology(SEED, -256, 1, 10);
+		int compared = 0;
+		for (int x = -3000; x < 3000; x += 173) {
+			Geology.Column a = plateau(oneMeter, x);
+			Geology.Column b = plateau(tenMeters, x);
+			double coverA = a.meanSurfaceY - a.sedimentBase();
+			double coverB = b.meanSurfaceY - b.sedimentBase();
+			if (coverA > 10) {
+				assertEquals(coverA, 10 * coverB, 0.01 * coverA, "cover at x = " + x);
+				compared++;
+			}
+		}
+		assertTrue(compared > 5, compared + " plateau columns with a cover");
+	}
+
+	/** High, gentle land: its cover ends far above the sea at any scale. */
+	private static Geology.Column plateau(Geology geology, int x) {
+		Geology.Column c = new Geology.Column();
+		c.surfaceY = 1465;
+		c.meanSurfaceY = 1463;
+		c.meanElevation = 1400;
+		c.relief = 40;
+		c.temperature = 4;
+		c.precipitation = 600;
+		geology.column(x, 0, c);
+		return c;
+	}
+
+	@Test
 	void sameSeedSameGround() {
 		Geology a = new Geology(SEED, -256, 5, 4);
 		Geology b = new Geology(SEED, -256, 5, 4);
