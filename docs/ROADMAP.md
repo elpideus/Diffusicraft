@@ -45,8 +45,9 @@ The pieces planned add the details: geology, caves, rivers and new biomes.
 
 The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#next-steps)):
 
-- **Earth 1:1 at full height.** It still compresses mountains above 1.2 km to fit 2288 blocks. Earth's relief needs
-  about 20,000.
+- **Earth 1:1 at full height.** It still compresses mountains above 1.2 km to fit 2288 blocks. Only the top needs to
+  move: with the underground and the oceans kept game-sized, real mountains fit from −256 to about 9,200, some 9,500
+  blocks.
 - **Memory and saves.** Empty sections cost about 80 bytes now instead of 450, and the client keeps render data for
   the rows near the camera only. Still to do: share uniform sections as soon as world generation makes them, and skip
   empty sections when saving.

@@ -3,7 +3,8 @@
 With Diffusicraft installed, a dimension type can be up to **32,736 blocks tall**: Y from −16,368 to 16,367. Vanilla
 allows 4064. The price is horizontal range: worlds end at **±8,000,000 blocks** instead of ±30,000,000.
 
-Earth's relief spans about −11 km to +8.8 km. At 1 block per meter, that fits with room to spare.
+Earth's highest mountain rises 8,849 m above the sea. At 1 block per meter that fits easily, because the underground
+and the oceans keep their game depth (see [Costs](#costs)).
 
 This is the engine side only. The Diffusicraft world types still use −256 to 2031 (see [WORLDGEN.md](WORLDGEN.md)).
 A taller dimension type is plain data:
@@ -163,8 +164,11 @@ a vanilla overworld column has 24.
 - **Light and heightmaps** add little. Light data is stored only near blocks: the empty test column saved 13 sky
   light and 5 block light layers for its 2046 sections.
 
-So a tall dimension still costs save time, and some memory, in proportion to its height, whatever it contains. Make dimensions only
-as tall as the terrain needs: Earth 1:1 needs about 20,000 blocks, which is 1250 sections per column.
+So a tall dimension still costs save time, and some memory, in proportion to its height, whatever it contains. Make
+dimensions only as tall as the terrain needs. Earth 1:1 keeps the underground and the oceans game-sized, because the fun
+is on the surface: `min_y` stays −256 and the oceans stay compressed to at most 200 blocks deep. Only the top moves.
+Everest's 8,849 m above sea level 63 puts the highest block near y = 8,912, so with headroom the world runs from −256 to
+about 9,200: some 9,500 blocks, or 592 sections per column.
 
 ## Tests
 
@@ -215,5 +219,9 @@ without `BlockPos.asLong`.
 - **Leaner saves.** Skip sections that are all air with a single biome, and fill them back in on load.
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
 - **Taller Diffusicraft world types.** Earth 1:1 can then keep real mountains instead of compressing them above
-  1.2 km.
+  1.2 km. Only its top moves: from −256 to about 9,200, some 9,500 blocks (see [Costs](#costs)).
 - **Compatibility.** Test Sodium, Distant Horizons, Voxy and a dedicated server with a real network connection.
+- **Only nearby heights on the wire (not for now).** The server would send each client only the sections near the
+  player, as Cubic Chunks does, so a client's memory and bandwidth would follow what it sees instead of the height of
+  the dimension. Every mod that expects whole columns on the client would break. If it is ever done it will be opt-in,
+  and the player gets a warning about incompatible mods when they choose it.
