@@ -5,7 +5,7 @@ package io.github.elpideus.diffusicraft.worldgen.river;
  *
  * <p>Where {@link #river} is set, the ground between {@link #bandBottom} and {@link #surface} is made solid and
  * everything above {@link #surface} is cut away. Channel columns then hold water from {@link #bed} (exclusive) up to
- * {@link #waterTop}, on a bed of sand, gravel or clay.
+ * {@link #waterTop}, on a bed of sand, gravel or clay. A lake is a channel too, flagged {@link #lake}.
  */
 public final class RiverColumn {
 	/** Whether a river or its banks reshape this column. */
@@ -14,8 +14,10 @@ public final class RiverColumn {
 	public float surface;
 	/** Lowest height the ground is built up from where it lies below {@link #surface}. */
 	public float bandBottom;
-	/** Whether the column is under the river's water. */
+	/** Whether the column is under the river's water, or a lake's. */
 	public boolean channel;
+	/** Whether the water is a lake's rather than a river's. */
+	public boolean lake;
 	/** Highest water block. */
 	public int waterTop;
 	/** Highest block of the river bed, right under the water. */
@@ -30,6 +32,7 @@ public final class RiverColumn {
 	void clear() {
 		river = false;
 		channel = false;
+		lake = false;
 		valley = false;
 	}
 
@@ -38,6 +41,7 @@ public final class RiverColumn {
 		surface = other.surface;
 		bandBottom = other.bandBottom;
 		channel = other.channel;
+		lake = other.lake;
 		waterTop = other.waterTop;
 		bed = other.bed;
 		level = other.level;

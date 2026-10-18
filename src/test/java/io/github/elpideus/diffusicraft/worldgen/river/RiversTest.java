@@ -7,6 +7,7 @@ import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -231,6 +232,52 @@ class RiversTest {
 	}
 
 	@Test
+	void lakesFillTheHollowsAndTheirShoresHoldThem() {
+		Rivers rivers = Rivers.of(field());
+		// The rolling hills on the slopes between the valleys leave hollows 3 m deep: three blocks at the Earth scale,
+		// less than one at the others.
+		WorldScale scale = WorldScale.EARTH;
+		int lakes = 0;
+		for (int z = 23040; z < 30720; z += 32) {
+			for (int x = 0; x < 15360; x += 32) {
+				RiverColumn c = copy(rivers.column(scale, x, z));
+				if (!c.lake) {
+					continue;
+				}
+				lakes++;
+				assertTrue(c.channel && c.bed < c.waterTop, "a lake has water at " + x + ", " + z);
+				int[][] sides = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+				for (int[] side : sides) {
+					RiverColumn n = rivers.column(scale, x + side[0], z + side[1]);
+					assertTrue(n.channel || n.river && n.surface > c.waterTop,
+						"the shore holds the lake at " + x + ", " + z);
+				}
+			}
+		}
+		assertTrue(lakes > 20, "the hollows hold lakes, lake columns: " + lakes);
+	}
+
+	@Test
+	void aDryClimateLeavesTheHollowsDry() {
+		TerrainSource source = new ValleySource() {
+			@Override
+			public TerrainSample sample(int i0, int j0, int i1, int j1) {
+				TerrainSample sample = super.sample(i0, j0, i1, j1);
+				int plane = (i1 - i0) * (j1 - j0);
+				Arrays.fill(sample.climate(), TerrainSample.PRECIPITATION * plane,
+					(TerrainSample.PRECIPITATION + 1) * plane, 100f);
+				return sample;
+			}
+		};
+		Rivers rivers = Rivers.of(new TerrainField(1, source));
+		for (int z = 23040; z < 30720; z += 32) {
+			for (int x = 0; x < 15360; x += 32) {
+				assertFalse(rivers.column(WorldScale.EARTH, x, z).lake, "a lake at " + x + ", " + z);
+			}
+		}
+	}
+
+	@Test
 	void sameRiversOnEveryThread() throws Exception {
 		WorldScale scale = WorldScale.STANDARD;
 		Rivers serial = Rivers.of(field());
@@ -295,6 +342,7 @@ class RiversTest {
 		out.surface = c.surface;
 		out.bandBottom = c.bandBottom;
 		out.channel = c.channel;
+		out.lake = c.lake;
 		out.waterTop = c.waterTop;
 		out.bed = c.bed;
 		out.level = c.level;

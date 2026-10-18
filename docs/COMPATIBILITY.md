@@ -26,7 +26,7 @@ Its priority (20) is above the default, so it wins over SeedGen in Diffusicraft 
 
 **What an LOD holds.** `worldgen.lod.LodSampler` fills each column of an LOD the way the chunk generator would:
 
-- the terrain's height, cut by the rivers, with water in their channels and the sea up to its level;
+- the terrain's height, cut by the rivers, with water in their channels and lakes, and the sea up to its level;
 - the blocks at the top from the world's own material rules (soils, sand, gravel, snow, rock strata in cliffs), run on
   each column with the slope taken from its neighbours;
 - one rock sample for everything below, which shows in cliff faces;
@@ -60,8 +60,8 @@ needs more of the world than the stand-in gives, or ground other than grass, is 
 
 **Near and far.** An LOD of 64 columns covers `64 × 2^detail` blocks. Up to four terrain tiles across, the sampler
 reads the full-resolution terrain, which runs the models over every tile it touches, as chunks do. Wider LODs read the
-coarse map alone: no inference beyond the coarse stage, but no rivers and no detail finer than a coarse pixel
-(7.7 km). That keeps the far horizon cheap.
+coarse map alone: no inference beyond the coarse stage, but no rivers or lakes and no detail finer than a coarse
+pixel (7.7 km). That keeps the far horizon cheap.
 
 | World type | Terrain tile | Full resolution up to | Coarse from |
 |---|---|---|---|

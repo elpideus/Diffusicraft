@@ -25,8 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * ./gradlew test -PwithModels --tests '*RiverMapTest' -Pdiffusicraft.device=CUDA \
  *     [-Pdiffusicraft.riverSeed=42] [-Pdiffusicraft.riverTiles=8] [-Pdiffusicraft.riverMapDir=build/river-map]
  * </pre>
- * Each map covers {@code riverTiles}² cells at one pixel per native pixel (30 m). Water is blue, carved banks are
- * brown, and ground built up under a river that runs above the terrain is red.
+ * Each map covers {@code riverTiles}² cells at one pixel per native pixel (30 m). Rivers are blue and lakes teal,
+ * carved banks are brown, and ground built up under a river that runs above the terrain is red.
  */
 @Tag("models")
 class RiverMapTest {
@@ -96,7 +96,7 @@ class RiverMapTest {
 		int ti0 = centreI - tiles / 2, tj0 = centreJ - tiles / 2, size = tiles * TerrainField.TILE;
 		BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
 		long start = System.nanoTime();
-		int channel = 0, perched = 0, perchedBlocks = 0;
+		int channel = 0, perched = 0, perchedBlocks = 0, lake = 0;
 		int blocksPerPixel = (int) Math.round(1.0 / SCALE.pixelsPerBlock());
 		for (int a = 0; a < size; a++) {
 			for (int b = 0; b < size; b++) {
@@ -107,7 +107,10 @@ class RiverMapTest {
 				RiverColumn c = rivers.column(SCALE, j * blocksPerPixel, i * blocksPerPixel);
 				if (c.river) {
 					float terrain = SCALE.surfaceY(e);
-					if (c.channel) {
+					if (c.lake) {
+						lake++;
+						rgb = c.waterTop - c.bed >= 3 ? 0x17766c : 0x2aa198;
+					} else if (c.channel) {
 						channel++;
 						float above = c.waterTop + 1 - terrain;
 						if (above > 1f) {
@@ -132,8 +135,9 @@ class RiverMapTest {
 		}
 		ImageIO.write(image, "png", file.toFile());
 		System.out.printf("%s: cells (%d, %d) to (%d, %d) in %.1f s; %d channel pixels, %d above the ground by %.1f "
-				+ "blocks on average%n", file.getFileName(), ti0, tj0, ti0 + tiles - 1, tj0 + tiles - 1,
-			(System.nanoTime() - start) / 1e9, channel, perched, perched == 0 ? 0f : perchedBlocks / (float) perched);
+				+ "blocks on average; %d lake pixels%n", file.getFileName(), ti0, tj0, ti0 + tiles - 1, tj0 + tiles - 1,
+			(System.nanoTime() - start) / 1e9, channel, perched, perched == 0 ? 0f : perchedBlocks / (float) perched,
+			lake);
 	}
 
 	/** Hypsometric tint with a hillshade from the north-west. */

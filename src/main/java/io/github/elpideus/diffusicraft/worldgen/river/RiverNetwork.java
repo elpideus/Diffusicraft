@@ -59,10 +59,14 @@ final class RiverNetwork {
 		this.field = field;
 	}
 
+	/** Annual evapotranspiration in mm at an annual mean temperature in °C. */
+	static float evapotranspiration(float temperature) {
+		return Math.max(0f, 300f + 25f * temperature);
+	}
+
 	/** Runoff of a cell in m³/s, from its annual mean temperature (°C) and precipitation (mm). */
 	static float runoff(float temperature, float precipitation) {
-		double evapotranspiration = Math.max(0.0, 300.0 + 25.0 * temperature);
-		double meters = Math.max(0.0, precipitation - evapotranspiration) / 1000.0;
+		double meters = Math.max(0.0, precipitation - evapotranspiration(temperature)) / 1000.0;
 		return (float) (meters * CELL_METERS * CELL_METERS / SECONDS_PER_YEAR);
 	}
 

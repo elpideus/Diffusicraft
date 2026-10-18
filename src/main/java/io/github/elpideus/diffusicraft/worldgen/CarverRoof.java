@@ -6,10 +6,10 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
- * Keeps carvers from opening the ground where the hole would fill with water: under water, along rivers and on
- * lowland a few blocks above the sea. Vanilla's ravines there become straight canals of sea water running beside the
- * coast and the rivers, and a ravine across a river drains it. Under such ground the carvers still dig, but leave a
- * roof of {@link #THICKNESS} blocks; elsewhere they open to the sky as in vanilla.
+ * Keeps carvers from opening the ground where the hole would fill with water: under water, along rivers, around
+ * lakes and on lowland a few blocks above the sea. Vanilla's ravines there become straight canals of sea water running
+ * beside the coast and the rivers, and a ravine across a river drains it. Under such ground the carvers still dig, but
+ * leave a roof of {@link #THICKNESS} blocks; elsewhere they open to the sky as in vanilla.
  */
 public final class CarverRoof {
 	/** Blocks of ground a carver leaves over its hole. */

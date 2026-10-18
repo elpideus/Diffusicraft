@@ -153,6 +153,13 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, river.offset(0, 24, 36), 180f, 30f, "river");
 			view(context, world, river.above(140), 180f, 75f, "river-above");
 
+			// The deepest lake nearby, if there is one, from its shore and from high above.
+			BlockPos lake = findLake(probe);
+			if (lake != null) {
+				view(context, world, lake.offset(0, 24, 36), 180f, 30f, "lake");
+				view(context, world, lake.above(140), 180f, 75f, "lake-above");
+			}
+
 			// Each of Diffusicraft's biomes, from 45 blocks north of it.
 			for (Map.Entry<String, BlockPos> biome : diffusicraftBiomes.entrySet()) {
 				BlockPos at = biome.getValue(), camera = at.north(45);
@@ -289,6 +296,30 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			throw new AssertionError("No river within 2 km of the spawn");
 		}
 		LOGGER.info("The largest river near the spawn carries {} m³/s at {}", Math.round(most), best);
+		return best;
+	}
+
+	/** Finds the deepest lake within 2 km of the spawn, if any, and returns its water surface there. */
+	private static @Nullable BlockPos findLake(Probe probe) {
+		Rivers rivers = Rivers.of(probe.field);
+		int deepest = 0, columns = 0, sampled = 0;
+		BlockPos best = null;
+		for (int dx = -2048; dx <= 2048; dx += 16) {
+			for (int dz = -2048; dz <= 2048; dz += 16) {
+				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+				RiverColumn column = rivers.column(WorldScale.STANDARD, x, z);
+				sampled++;
+				if (column.lake) {
+					columns++;
+					if (column.waterTop - column.bed > deepest) {
+						deepest = column.waterTop - column.bed;
+						best = new BlockPos(x, column.waterTop, z);
+					}
+				}
+			}
+		}
+		LOGGER.info("Lakes cover {} of {} columns sampled within 2 km of the spawn; the deepest is {} blocks at {}",
+			columns, sampled, deepest, best);
 		return best;
 	}
 

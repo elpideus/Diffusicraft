@@ -18,14 +18,15 @@ import java.util.concurrent.atomic.AtomicLong;
  * discharge, like real rivers, and is widened at the smaller scales so that streams are still visible.
  *
  * <p>A column near a river is cut down to the water, or built up where the ground lies below it, with banks that
- * blend into the terrain around. Everything is computed on demand, on any thread, and comes out the same.
+ * blend into the terrain around. Away from the rivers, closed basins of the fine terrain hold lakes ({@link CellLakes}).
+ * Everything is computed on demand, on any thread, and comes out the same.
  */
 public final class Rivers {
 	private static final Map<TerrainField, Rivers> ALL = new ConcurrentHashMap<>();
 	/** Cells whose rivers are kept in memory. */
 	private static final int MAX_CELLS = 256;
 	/** Widest a river gets, half-width in pixels (240 m). */
-	private static final float MAX_HALF_WIDTH = 8f;
+	static final float MAX_HALF_WIDTH = 8f;
 	/** How much steeper than one block per block, horizontally, the banks are: horizontal blocks per block of height. */
 	private static final float BANK_RUN = 1.5f;
 	/** Blocks beyond the water that still count as the river's valley for biomes. */
@@ -124,9 +125,10 @@ public final class Rivers {
 		double i = scale.toPixel(z), j = scale.toPixel(x);
 		int ti = Math.floorDiv((int) Math.floor(i), TerrainField.TILE);
 		int tj = Math.floorDiv((int) Math.floor(j), TerrainField.TILE);
-		CellRivers cell = cell(ti, tj, cache);
+		Cell cell = cell(ti, tj, cache);
 		CellRivers.Hit hit = cache.hit;
-		if (!cell.nearest(i - ti * TerrainField.TILE, j - tj * TerrainField.TILE, width(scale), hit)) {
+		if (!cell.rivers.nearest(i - ti * TerrainField.TILE, j - tj * TerrainField.TILE, width(scale), hit)) {
+			lake(scale, i, j, cell.lakes, ti, tj, out);
 			return;
 		}
 		float elevation = field.elevation(i, j);
@@ -159,6 +161,7 @@ public final class Rivers {
 		float bank = Math.clamp(BANK_RUN * Math.abs(terrain - top) + 2f, 2f, Math.max(2f, reach - 0.5f));
 		float t = (distance - halfWidth) / bank;
 		if (t >= 1f) {
+			lake(scale, i, j, cell.lakes, ti, tj, out);
 			return;
 		}
 		float blend = t * t * (3f - 2f * t);
@@ -167,23 +170,89 @@ public final class Rivers {
 		out.bandBottom = Math.min(terrain, out.surface) - FOOTING;
 	}
 
-	private CellRivers cell(int ti, int tj, ChunkColumns cache) {
+	/**
+	 * Fills the column with the lake it lies in, if any, or makes it the lake's shore. A column lies in a lake where
+	 * one of the four pixels around it does and its ground is below the water. The water stops at the last whole block
+	 * below the lake's level, so it never stands above the rim of its basin and the shores need no banks. The shore,
+	 * within two pixels of a lake, keeps its ground but is solid from below the water up, so no cave opens beside the
+	 * lake to drain it. Where it still lies below the water, {@link #hold} raises it into a bank.
+	 */
+	private void lake(WorldScale scale, double i, double j, CellLakes lakes, int ti, int tj, RiverColumn out) {
+		if (lakes.isEmpty()) {
+			return;
+		}
+		double u = i - ti * TerrainField.TILE - 0.5, v = j - tj * TerrainField.TILE - 0.5;
+		int iu = (int) Math.floor(u), iv = (int) Math.floor(v);
+		float inner = Float.NaN, outer = Float.NaN;
+		for (int di = -1; di <= 2; di++) {
+			for (int dj = -1; dj <= 2; dj++) {
+				float level = lakes.level(iu + di, iv + dj);
+				if (!Float.isNaN(level)) {
+					outer = Float.isNaN(outer) ? level : Math.max(outer, level);
+					if (di >= 0 && di <= 1 && dj >= 0 && dj <= 1) {
+						inner = Float.isNaN(inner) ? level : Math.max(inner, level);
+					}
+				}
+			}
+		}
+		if (Float.isNaN(outer)) {
+			return;
+		}
+		float terrain = scale.surfaceY(field.elevation(i, j));
+		if (!Float.isNaN(inner)) {
+			int waterTop = (int) Math.floor(scale.surfaceY(inner)) - 1;
+			if (terrain <= waterTop) {
+				out.river = true;
+				out.channel = true;
+				out.lake = true;
+				out.surface = waterTop + 1;
+				out.waterTop = waterTop;
+				out.bed = (int) Math.ceil(terrain) - 1;
+				out.bandBottom = out.bed - FOOTING;
+				out.level = inner;
+				out.discharge = 0f;
+				out.valley = false;
+				return;
+			}
+		}
+		int waterTop = (int) Math.floor(scale.surfaceY(outer)) - 1;
+		out.river = true;
+		out.surface = terrain;
+		out.bandBottom = Math.min(terrain, waterTop + 1) - FOOTING;
+		out.waterTop = waterTop;
+		out.level = outer;
+		out.discharge = 0f;
+	}
+
+	private Cell cell(int ti, int tj, ChunkColumns cache) {
 		if (cache.cell != null && cache.cellI == ti && cache.cellJ == tj) {
 			return cache.cell;
 		}
 		Cell cell = RiverNetwork.once(cells, RiverNetwork.key(ti, tj), () -> {
 			CellFlows flows = network.flows(ti, tj);
-			return new Cell(flows.isEmpty() ? CellRivers.EMPTY
-				: CellRivers.build(field.paddedTile(ti, tj), flows, field.seed(), ti, tj));
+			float[] tile = field.paddedTile(ti, tj);
+			CellRivers rivers = flows.isEmpty() ? CellRivers.EMPTY
+				: CellRivers.build(tile, flows, field.seed(), ti, tj);
+			return new Cell(rivers, lakes(tile, rivers, ti, tj));
 		});
 		cell.lastUse = clock.incrementAndGet();
 		if (cells.size() > MAX_CELLS) {
 			evict();
 		}
-		cache.cell = cell.rivers;
+		cache.cell = cell;
 		cache.cellI = ti;
 		cache.cellJ = tj;
-		return cell.rivers;
+		return cell;
+	}
+
+	/** The lakes of a tile, filled as far as its precipitation outweighs the evaporation. */
+	private CellLakes lakes(float[] tile, CellRivers rivers, int ti, int tj) {
+		TerrainField.Column column = new TerrainField.Column();
+		return CellLakes.build(tile, rivers, (i, j) -> {
+			field.column(i + 0.5, j + 0.5, column);
+			float evaporation = RiverNetwork.evapotranspiration(column.temperature);
+			return evaporation <= 0f ? Float.POSITIVE_INFINITY : column.precipitation / evaporation;
+		}, ti, tj);
 	}
 
 	private synchronized void evict() {
@@ -246,10 +315,12 @@ public final class Rivers {
 
 	private static final class Cell {
 		final CellRivers rivers;
+		final CellLakes lakes;
 		volatile long lastUse;
 
-		Cell(CellRivers rivers) {
+		Cell(CellRivers rivers, CellLakes lakes) {
 			this.rivers = rivers;
+			this.lakes = lakes;
 		}
 	}
 
@@ -264,7 +335,7 @@ public final class Rivers {
 		WorldScale scale;
 		int chunkX;
 		int chunkZ;
-		CellRivers cell;
+		Cell cell;
 		int cellI;
 		int cellJ;
 

@@ -230,7 +230,8 @@ became a dry plain dotted with dry pits.
 ### Rivers
 
 Rivers come from the drainage of the coarse map and follow the fine terrain inside each tile (`worldgen/river/`).
-Everything is computed on demand, on any thread, and comes out the same.
+Lakes fill the closed basins of the fine terrain away from them. Everything is computed on demand, on any thread, and
+comes out the same.
 
 - **Network.** `RiverNetwork` routes water over the coarse map, one cell per tile (7.7 km). Each land cell drains to
   its steepest lower neighbour, judged by its 5th-percentile elevation, which follows the valley floors. Pits are
@@ -254,8 +255,20 @@ Everything is computed on demand, on any thread, and comes out the same.
 - **Water and beds.** The material rule `diffusicraft:river` (`RiverRule`) fills the channel with water on a bed of
   sand and clay in the lowlands, and mostly gravel higher up. The valley, the channel and 3 blocks on each side, takes
   a river biome.
+- **Lakes.** `CellLakes` finds the closed basins of a tile with a priority flood, which gives the height at which each
+  would spill over. Where the precipitation reaches the evapotranspiration, a basin fills to that height. Drier basins
+  fill less, down to nothing where the precipitation is 60% of the evapotranspiration, so deserts keep their dry
+  basins. A lake is at least 1 m deep and two pixels across. It lies at least 4 pixels inside its tile, so the tile
+  alone decides its columns, and beyond the reach of any river, which would drain it.
+- **Lake columns.** A column is in a lake where one of the four pixels around it is and its ground is below the water.
+  The water stops at the last whole block below the lake's level, so it never stands above the rim of its basin, and
+  a lake shallower than a block does not show. The lake takes the rivers' water rule, on a bed mostly of clay and
+  sand, but no river biome. Its shore, two pixels wide, keeps its ground but is solid from below the water up, so no
+  cave entrance drains the lake. Where the shore still lies below the water, it rises into a bank as the rivers'
+  banks do.
 - **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like
-  an embankment. Lakes, other than the ponds in pits, are not modelled yet.
+  an embankment. Rivers do not run through lakes: a basin near a river stays dry, and lakes neither feed rivers nor
+  take them in. Lakes are left out where their basin reaches the edge of a tile.
 
 ### The ground
 
@@ -384,7 +397,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
-| `worldgen/river/` | `Rivers` (what a river does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellFlows`, `RiverColumn` |
+| `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellLakes` (the lakes inside a tile), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
@@ -413,10 +426,13 @@ Other searches still read the full terrain and can take a while on new land:
   the height of the Grand Hollows in the tall worlds, determinism and the sampling speed.
 - `RiversTest` runs the river model over an analytic valley. It checks that water runs down to the sea, that the
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
-  river meets itself across tile borders, that the banks hold the water where it steps down, that every thread gets
-  the same rivers, and that the width grows with the discharge.
-- `RiverMapTest` needs the models. It surveys the rivers of a real world and draws maps of them to
-  `build/river-map`, to look at the rivers without starting the game.
+  river meets itself across tile borders, that the banks hold the water where it steps down, that lakes fill the
+  hollows between the hills and their shores hold them, that a dry climate leaves the hollows dry, that every thread
+  gets the same rivers, and that the width grows with the discharge.
+- `CellLakesTest` fills bowls: to the rim in a wet climate, partly or not at all in a dry one. A bowl at the edge of
+  the tile, at or below sea level, too shallow or too small holds no lake, and two bowls are two lakes.
+- `RiverMapTest` needs the models. It surveys the rivers of a real world and draws maps of them and their lakes to
+  `build/river-map`, to look at them without starting the game.
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
   cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the
   Lüneburg Heath, Bonneville and Uyuni, and tropical coasts.

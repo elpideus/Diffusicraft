@@ -16,9 +16,10 @@ import net.minecraft.world.level.levelgen.material.rule.MaterialRule;
 import net.minecraft.world.level.levelgen.material.rule.RuleEvaluator;
 
 /**
- * Fills the channels of the {@link Rivers} with water and lines them with a bed of sand, gravel or clay. The density
- * leaves a channel solid up to the water, as only solid blocks reach material rules; this rule turns it to water.
- * It runs before every rule but the bedrock floor. Compiled inside {@link CoarseClimate#call}, it does nothing: the
+ * Fills the channels of the {@link Rivers}, and their lakes, with water and lines them with a bed of sand, gravel or
+ * clay: mostly sand and clay in the lowlands, where rivers run slowly, mostly gravel above, and mostly clay in the still
+ * water of lakes. The density leaves a channel solid up to the water, as only solid blocks reach material rules; this
+ * rule turns it to water. It runs before every rule but the bedrock floor. Compiled inside {@link CoarseClimate#call}, it does nothing: the
  * coarse map knows no rivers.
  */
 public record RiverRule(WorldScale scale) implements MaterialRule {
@@ -63,6 +64,9 @@ public record RiverRule(WorldScale scale) implements MaterialRule {
 		long h = seed ^ (x * 0x9E3779B97F4A7C15L) ^ (z * 0xC2B2AE3D27D4EB4FL);
 		h = (h ^ (h >>> 31)) * 0xBF58476D1CE4E5B9L;
 		int roll = (int) ((h >>> 33) % 100);
+		if (column.lake) {
+			return roll < 45 ? CLAY : roll < 80 ? SAND : GRAVEL;
+		}
 		if (column.level < LOWLAND) {
 			return roll < 45 ? SAND : roll < 60 ? CLAY : GRAVEL;
 		}

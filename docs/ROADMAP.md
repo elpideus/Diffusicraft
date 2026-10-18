@@ -4,13 +4,14 @@
 climates, forests and rock layers should look and behave like real ones. It is aimed at survival, realism and RPG
 modpacks built around Create.
 
-The pieces in place generate the world's shape, climate, rock and deep caverns, and a world generator turns them into
-blocks. The pieces planned add the details: lakes, soils and new biomes.
+The pieces in place generate the world's shape, climate, rivers, lakes, rock and deep caverns, and a world generator
+turns them into blocks. The pieces planned add the details: erosion, soils and new biomes.
 
 ## Done
 
 - **Terrain Diffusion in Java.** A concurrent, deterministic port of the Terrain Diffusion pipeline: infinite
-  elevation and climate at 30 m per pixel. See [MODELS.md](MODELS.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+  elevation and climate at 30 m per pixel, interpolated to blocks with Catmull-Rom splines. See
+  [MODELS.md](MODELS.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Inference everywhere.**
   - CPU, bundled.
   - NVIDIA CUDA, a one-click download from official sources, with license acceptance.
@@ -49,9 +50,10 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
 - **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
-- **Rivers.** Drainage of the whole world from its rain and terrain, with discharge, meanders, tributaries, widths
-  that grow with the discharge, banks, beds and river biomes. Shallow seas hold water, and coastal lowland keeps its
-  cave entrances and ravines closed so they do not flood into canals. See [WORLDGEN.md](WORLDGEN.md#rivers).
+- **Rivers and lakes.** Drainage of the whole world from its rain and terrain, with discharge, meanders,
+  tributaries, widths that grow with the discharge, banks, beds and river biomes. Lakes fill the closed basins as far
+  as the climate is wet enough. Shallow seas hold water, and coastal lowland keeps its cave entrances and ravines
+  closed so they do not flood into canals. See [WORLDGEN.md](WORLDGEN.md#rivers).
 - **Distant Horizons.** Its far terrain comes straight from the terrain, without generating chunks: surface blocks
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
   (biome mods' own trees included), and the coarse map alone for the far horizon. See
@@ -70,10 +72,11 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 
 ### Terrain detail
 
-- **Interpolation.** Interpolate the 30 m grid to blocks with slope-preserving interpolation.
 - **Sub-30 m detail.** Add procedural detail below the model's resolution, driven by the local slope, rock type and
   climate.
-- **Lakes and erosion.** Lakes in closed basins, and cliffs, scree and talus.
+- **Erosion.** Cliffs, scree and talus.
+- **Lakes on rivers.** Rivers that fill the basins they cross and flow on out of them, and lakes larger than a
+  tile.
 - **Coasts.** Coastlines, beaches and cliffs follow the real sea level (y = 0 at 1:1).
 
 ### Biomes
