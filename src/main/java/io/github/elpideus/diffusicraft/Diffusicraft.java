@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft;
 
 import io.github.elpideus.diffusicraft.runtime.Resources;
+import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -18,6 +19,7 @@ public final class Diffusicraft implements ModInitializer {
 		LOGGER.info("Diffusicraft initializing");
 		FabricLoader loader = FabricLoader.getInstance();
 		Resources resources = Resources.init(loader.getGameDir(), loader.getConfigDir());
+		DiffusicraftWorldgen.init();
 		if (loader.getEnvironmentType() == EnvType.SERVER) {
 			resources.prepareServer();
 		}

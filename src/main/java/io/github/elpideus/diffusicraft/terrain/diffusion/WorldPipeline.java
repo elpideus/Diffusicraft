@@ -40,7 +40,7 @@ public final class WorldPipeline {
 	static final int DECODER_SIZE = 256;
 	static final int DECODER_STRIDE = 192;
 	/** Native pixels per coarse pixel. */
-	static final int COARSE_SCALE = 256;
+	public static final int COARSE_SCALE = 256;
 
 	private static final int COARSE_STEPS = 20;
 	private static final int LATENT_BATCH = 4;

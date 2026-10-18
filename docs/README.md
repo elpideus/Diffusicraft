@@ -11,6 +11,8 @@
 
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the mod is put together: startup, native runtime selection, and the
   windowed diffusion pipeline.
+- [WORLDGEN.md](WORLDGEN.md): how the terrain becomes chunks: world types and scales, the terrain field, biome
+  parameters, density and the spawn.
 - [DEVELOPMENT.md](DEVELOPMENT.md): building, running with the dev modpack, tests and the headless client game test.
 - [PERFORMANCE.md](PERFORMANCE.md): benchmarks, where the time goes, and what to optimise next.
 - [ROADMAP.md](ROADMAP.md): the full vision: world scales, height beyond 4064, climate biomes, geology and the

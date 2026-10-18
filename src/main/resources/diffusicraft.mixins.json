@@ -3,7 +3,10 @@
 	"package": "io.github.elpideus.diffusicraft.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"plugin": "io.github.elpideus.diffusicraft.mixin.DiffusicraftMixinPlugin",
-	"mixins": [],
+	"mixins": [
+		"ChunkGeneratorStructureStateMixin",
+		"DedicatedServerPropertiesMixin"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	},

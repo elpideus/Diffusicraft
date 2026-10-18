@@ -4,7 +4,8 @@
 climates, forests and rock layers should look and behave like real ones. It is aimed at survival, realism and RPG
 modpacks built around Create.
 
-The pieces in place generate the world's shape and climate. The pieces planned turn that into Minecraft blocks.
+The pieces in place generate the world's shape and climate, and a first world generator turns them into blocks.
+The pieces planned add the details: geology, caves, rivers and new biomes.
 
 ## Done
 
@@ -21,26 +22,26 @@ The pieces in place generate the world's shape and climate. The pieces planned t
   - Downloads in the background, then reports with a toast.
   - Detects the hardware and picks a sensible GPU memory cap.
   - Stores everything once per user.
+- **World types and scales.** Diffusicraft is the default world type on the Create World screen and on dedicated
+  servers. Three scales:
 
-## Next: the world generator
+  | World type | Horizontal | Vertical | Build height |
+  |---|---|---|---|
+  | **Diffusicraft** | 15 m per block | 10 m per block, eased above 1 km | Vanilla (−64 to 319) |
+  | **Diffusicraft Grand** | 5 m per block | 4 m per block, eased above 4.8 km | −256 to 2031 |
+  | **Diffusicraft Earth 1:1** | 1 m per block | 1 m per block, eased above 1.2 km | −256 to 2031 |
 
-### World type and scales
+  The scale factors will be tuned in game. See [WORLDGEN.md](WORLDGEN.md).
+- **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
+  and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Biome mods that
+  extend the overworld table get the same parameters.
 
-Diffusicraft becomes the default world type on the Create World screen, with three scales:
-
-| Mode | Vertical | Horizontal | Build height |
-|---|---|---|---|
-| **Vanilla** | Real relief compressed to fit | Compressed so slopes stay walkable | Vanilla (−64 to 320) |
-| **Intermediate** | Moderate exaggeration of hills and ranges | 1 block ≈ several meters | Up to the vanilla data-pack limit (4064) |
-| **Extreme / Godlike** | 1 block = 1 m | 1 block = 1 m | Beyond 4064: Earth's relief spans about −11 km to +8.8 km |
-
-The exact scale factors will be tuned in game, so that each mode keeps recognisable valleys, ridges and coasts at
-its own scale.
+## Next
 
 ### Height beyond 4064 blocks
 
-The 1:1 mode needs build heights beyond the limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This
-needs research into:
+Earth 1:1 compresses mountains above 1.2 km to fit 2288 blocks. Real 1:1 relief needs build heights beyond the
+limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs research into:
 
 - raising the codec limits and the section storage behind them;
 - lighting and heightmaps at that scale;
@@ -57,11 +58,9 @@ needs research into:
 
 ### Biomes
 
-- **Placement from climate.** Biomes are placed from the model's climate: annual temperature, seasonality,
-  precipitation and its seasonality. They also depend on elevation, slope and aspect, rather than on vanilla's noise
-  parameters.
+- **More of the climate.** Use the seasonality of temperature and precipitation, and the slope and aspect, which the
+  biome parameters ignore so far.
 - **Real sizes.** Biomes are as large as their real counterparts: a forest can be tens of kilometres across at 1:1.
-- **Snow.** Snowy peaks appear only where it is both high and cold.
 - **New real-world biomes.** For example:
   - temperate rainforest, Mediterranean maquis, steppe, moorland and heath;
   - alpine tundra, cloud forest, salt flats, fjords and mangroves.

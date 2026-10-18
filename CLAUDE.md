@@ -26,7 +26,13 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   JUnit tests.
 - **Render thread.** No I/O, hashing or blocking on it. Screens read snapshots (`Resources.status()`) and refresh on
   tick.
-- **Mixin targets** that break on Minecraft updates: `Gui.addInitialScreens` and `CreateWorldScreen$MoreTab.<init>`.
+- **Mixin targets** that break on Minecraft updates:
+  - client: `Gui.addInitialScreens`, `CreateWorldScreen$MoreTab.<init>`, `CreateWorldScreen.onCreate` and
+    `WorldCreationUiState.<init>`;
+  - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`) and the synthetic
+    `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it.
+- **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
+  `src/main/resources/data` is generated: edit `tools/worldgen_data.py` and rerun it, never the JSON.
 - **Untested paths.** The AMD ROCm/MIGraphX path has never run on AMD hardware. Say so when touching it.
 - **Commits.** Small and logical, with an imperative subject and a body saying why. Docs change in the same commit as
   the behaviour.

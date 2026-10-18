@@ -110,5 +110,9 @@
 	"diffusicraft.toast.done": "%s ready",
 	"diffusicraft.toast.ready": "Diffusicraft will use it for new terrain.",
 	"diffusicraft.toast.restart": "Restart Minecraft to start using it.",
-	"diffusicraft.toast.failed": "%s: download failed"
+	"diffusicraft.toast.failed": "%s: download failed",
+
+	"generator.diffusicraft.standard": "Diffusicraft",
+	"generator.diffusicraft.grand": "Diffusicraft Grand",
+	"generator.diffusicraft.earth": "Diffusicraft Earth 1:1"
 }

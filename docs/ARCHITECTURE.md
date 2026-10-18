@@ -7,7 +7,7 @@ three layers:
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ client: resource screen, launch hook, Create World button, Mod Menu, toasts │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ worldgen (planned): world preset, chunk generator, biome source, geology   │
+│ worldgen: world presets, density functions, climate -> biome parameters    │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ terrain.diffusion: Terrain Diffusion pipeline -> elevation + climate       │
 ├──────────────────────────────────────────────────────────────────────────┤
@@ -16,7 +16,8 @@ three layers:
           ONNX Runtime 1.31 (CPU bundled; CUDA / ROCm installed at runtime)
 ```
 
-The pipeline, the runtime management and the UI exist today. The world generator is next; see [ROADMAP.md](ROADMAP.md).
+The pipeline, the runtime management, the UI and the first world generator exist today. What comes next is in
+[ROADMAP.md](ROADMAP.md).
 
 ## Source layout
 
@@ -28,10 +29,12 @@ Loom's split source sets keep client-only code out of the server.
 | `.../runtime` | Everything downloaded or native: `Resources` (facade), `DiffusicraftConfig`, `RuntimeManifest`, `RuntimeInstaller`, `Downloader`, `RemoteZip`, `SystemLibraries`, `NativeRuntime`, `Hardware`, `Platform`, `Job` |
 | `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, `SyntheticMapFactory`, ... |
 | `.../terrain/diffusion/tensor` | `WindowedTensor` (lazy, concurrent, cached tiling) and its stores |
-| `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen); `mixin/` (launch and Create World hooks); `compat/` (Mod Menu) |
+| `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `ClimateMapping`, `TerrainFields`, `density/` (density function types). See [WORLDGEN.md](WORLDGEN.md) |
+| `src/main/resources/data` | World presets, noise settings, density functions and dimension types, written by `tools/worldgen_data.py` |
+| `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen); `mixin/` (launch hook, Create World button, default world type, model check on Create); `compat/` (Mod Menu) |
 | `src/main/resources/diffusicraft` | `model-manifest.json`, `runtime-manifest.json`: every download, pinned by SHA-256 |
 | `src/test` | JUnit tests. Those tagged `models` need the real models and run only with `-PwithModels` |
-| `src/gametest` | Fabric client game test that drives the real game through the screens |
+| `src/gametest` | Fabric client game tests: the resource screens, and a Diffusicraft world with maps and screenshots |
 
 ## Startup
 
@@ -131,20 +134,20 @@ Each stage is a `WindowedTensor`: an unbounded 2D tensor made of overlapping, we
 - **Leaving room for the game.** On CUDA, the memory arena is capped at 60% of video memory by default and grows only
   as needed. The game, LOD mods and shader packs keep the rest.
 
-## World generation (planned)
+## World generation
 
-The design is in [ROADMAP.md](ROADMAP.md). In short:
+The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
 
-- **World preset.** A `diffusicraft:terrain_diffusion` world preset, made the default on the Create World screen, with
-  three horizontal scales: Vanilla, Intermediate and 1:1 (Godlike).
-- **Chunk generator.** It samples `WorldPipeline` per region and interpolates the 30 m grid to blocks. It adds
-  procedural detail below the model's resolution, and carves rivers, cliffs and erosion features.
-- **Biome source.** Biomes come from the climate (temperature, seasonality, precipitation) and from elevation and
-  slope, not from vanilla's noise parameters. Snow caps appear only where it is both high and cold. Biomes from
-  Biomes O' Plenty, BYG and TerraBlender are mapped into the same climate space.
-- **Height.** Extreme modes need more than vanilla's 4064-block limit. This needs a dimension type and section
-  storage that go beyond it, while staying compatible with Sodium, Distant Horizons and Voxy.
-- **Geology.** Earth-like strata with depth-dependent ore and stone rarity, a magma layer above bedrock, and the
-  Hollows cave systems.
-- **SeedGen and LOD.** The terrain is a pure function of seed and position. Distant Horizons and Voxy SeedGen can
-  therefore generate LODs straight from the pipeline without creating chunks.
+- **Data, not a new generator.** The world presets use vanilla's `minecraft:noise` generator with Diffusicraft's noise
+  settings. Three registered density function types bring in the terrain:
+  - `diffusicraft:surface`: the surface height;
+  - `diffusicraft:climate`: the six biome parameters;
+  - `diffusicraft:spawn_suitability`.
+
+  Caves, aquifers, surface rules, features and structures stay vanilla's, as do the biome source and anything mods add
+  to them.
+- **`TerrainField`.** For each seed, it turns pipeline output into tiles: interpolated elevation plus a coarse grid of
+  local relief and sea-level climate. It is thread-safe and computes each tile once.
+- **`TerrainFields`.** It holds one field per seed. The models load on the first chunk and are freed when the server
+  stops. Pipeline windows are cached in the world folder.
+- **Scales.** `WorldScale` maps meters to blocks for the standard, grand and earth world types.

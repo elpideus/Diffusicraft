@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:mul",
+  "right": 0.0625,
+  "left": {
+    "type": "minecraft:sub",
+    "left": "diffusicraft:grand/surface",
+    "right": "minecraft:y"
+  }
+}
