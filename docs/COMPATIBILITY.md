@@ -11,7 +11,7 @@ for each mod, and what is still open.
 | Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Distant Horizons uses Diffusicraft's generator; Voxy is planned |
 | [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's; their trees show in the LODs |
 | Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
-| C2ME | Expected to work, not verified | The terrain pipeline is thread-safe |
+| C2ME 0.4.2-alpha.0.106+26.3 | Works, checked in game | Nothing: the terrain pipeline is thread-safe. The client game test passes with it (`-PdevMods=c2me-fabric`), LODs, rivers and lakes included, in well under half the time |
 | Sodium, Iris, shader packs | Works | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
 | Structure mods | Works | Structures are placed by the vanilla generator |
 
