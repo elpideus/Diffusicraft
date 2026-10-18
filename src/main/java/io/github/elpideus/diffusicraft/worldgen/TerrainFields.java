@@ -39,6 +39,7 @@ public final class TerrainFields {
 		ServerLifecycleEvents.SERVER_STARTING.register(server ->
 			storageRoot = server.getWorldPath(LevelResource.ROOT).resolve(Diffusicraft.MOD_ID));
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> closeAll());
+		PlayerPrefetch.register();
 	}
 
 	/** The field for the world that is compiling its density functions. */

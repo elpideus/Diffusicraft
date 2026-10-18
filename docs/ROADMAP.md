@@ -56,6 +56,8 @@ blocks. The pieces planned add the details: lakes, soils and new biomes.
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
   (biome mods' own trees included), and the coarse map alone for the far horizon. See
   [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
+- **Generating ahead.** Terrain is computed in the background where the players are heading, so chunks rarely
+  wait for inference. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 
 ## Next
 
@@ -101,4 +103,4 @@ limits `DimensionType` enforces (height ≤ 4064, multiple of 16). This needs re
 
 ### Performance
 
-See [PERFORMANCE.md](PERFORMANCE.md#next-steps): generating ahead of the player, FP16/TensorRT, I/O binding.
+See [PERFORMANCE.md](PERFORMANCE.md#next-steps): FP16/TensorRT, I/O binding, larger requests.

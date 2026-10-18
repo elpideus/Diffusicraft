@@ -46,6 +46,11 @@ public final class DiffusicraftConfig {
 	 * Off: Distant Horizons generates chunks for its LODs, or uses another mod's generator. Needs a game restart.
 	 */
 	public boolean distantHorizonsLods = true;
+	/**
+	 * Compute terrain in the background where the players are heading, so that chunks rarely wait for inference.
+	 * Read when a world opens.
+	 */
+	public boolean generateAhead = true;
 
 	public static DiffusicraftConfig load(Path file) {
 		if (Files.isRegularFile(file)) {

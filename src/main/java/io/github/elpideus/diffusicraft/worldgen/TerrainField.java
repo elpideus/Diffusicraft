@@ -17,7 +17,8 @@ import java.util.concurrent.atomic.LongAdder;
  * For every tile we keep the padded elevation, sampled with Catmull-Rom splines so the surface stays smooth at any
  * block scale, and a grid of slowly varying values every {@value #GRID} pixels, sampled bilinearly: the local mean
  * elevation and relief, and the climate reduced to sea level. Tiles are computed once, on the first thread that
- * needs them, and kept in a small LRU cache. Everything here is thread-safe and deterministic.
+ * needs them or ahead of time by {@link TerrainPrefetcher}, and kept in a small LRU cache. Everything here is
+ * thread-safe and deterministic.
  *
  * <p>Coordinates are native pixels: {@code i} grows with Minecraft Z and {@code j} with X, and the centre of pixel
  * {@code k} is at {@code k + 0.5}. {@link WorldScale#toPixel} converts block coordinates.
@@ -84,6 +85,7 @@ public final class TerrainField implements AutoCloseable {
 	private final ThreadLocal<FieldTile> lastTile = new ThreadLocal<>();
 	private final AtomicLong clock = new AtomicLong();
 	private final LongAdder computedTiles = new LongAdder();
+	private final LongAdder tileWaitNanos = new LongAdder();
 	private final FastNoiseLite variantNoise;
 
 	public TerrainField(long seed, TerrainSource source) {
@@ -190,6 +192,49 @@ public final class TerrainField implements AutoCloseable {
 		return computedTiles.sum();
 	}
 
+	/** Most tiles held in memory: more are evicted, the least recently used first. */
+	public int maxTiles() {
+		return maxTiles;
+	}
+
+	/**
+	 * Time the readers of this field have spent waiting for tiles that were not ready, in nanoseconds, summed over
+	 * threads: computing them or waiting for another thread to. {@link #prefetch} does not count.
+	 */
+	public long tileWaitNanos() {
+		return tileWaitNanos.sum();
+	}
+
+	/** The tile index of a native pixel coordinate along either axis. */
+	public static int tileOf(double pixel) {
+		return Math.floorDiv((int) Math.floor(pixel - 0.5), TILE);
+	}
+
+	/** Whether tile {@code (ti, tj)} is in memory or being computed. */
+	public boolean hasTile(int ti, int tj) {
+		return tiles.containsKey(key(ti, tj));
+	}
+
+	/**
+	 * Computes tile {@code (ti, tj)} on this thread if nobody has started it yet, so that readers find it ready. Returns
+	 * at once if it is in memory or another thread is computing it.
+	 *
+	 * @return whether this thread computed the tile
+	 * @throws RuntimeException if the source fails, as when the models are missing
+	 */
+	public boolean prefetch(int ti, int tj) {
+		long key = key(ti, tj);
+		if (tiles.containsKey(key)) {
+			return false;
+		}
+		CompletableFuture<FieldTile> mine = new CompletableFuture<>();
+		if (load(ti, tj, key, mine) != mine) {
+			return false;
+		}
+		join(mine);
+		return true;
+	}
+
 	@Override
 	public void close() {
 		tiles.clear();
@@ -208,28 +253,43 @@ public final class TerrainField implements AutoCloseable {
 		}
 		long key = key(ti, tj);
 		CompletableFuture<FieldTile> future = tiles.get(key);
-		if (future == null) {
-			CompletableFuture<FieldTile> mine = new CompletableFuture<>();
-			future = tiles.putIfAbsent(key, mine);
-			if (future == null) {
-				future = mine;
-				try {
-					FieldTile computed = computeTile(ti, tj);
-					computedTiles.increment();
-					// Mark it used before evicting, or it would be the oldest tile and go first.
-					computed.lastUse = clock.incrementAndGet();
-					mine.complete(computed);
-				} catch (Throwable t) {
-					tiles.remove(key, mine);
-					mine.completeExceptionally(t);
-				}
-				evictTiles();
+		FieldTile tile;
+		if (future != null && future.isDone()) {
+			tile = join(future);
+		} else {
+			long start = System.nanoTime();
+			try {
+				tile = join(future != null ? future : load(ti, tj, key, new CompletableFuture<>()));
+			} finally {
+				tileWaitNanos.add(System.nanoTime() - start);
 			}
 		}
-		FieldTile tile = join(future);
 		tile.lastUse = clock.incrementAndGet();
 		lastTile.set(tile);
 		return tile;
+	}
+
+	/**
+	 * The future of a tile that was not in memory: {@code mine}, completed on this thread, or the future of whichever
+	 * thread got there first.
+	 */
+	private CompletableFuture<FieldTile> load(int ti, int tj, long key, CompletableFuture<FieldTile> mine) {
+		CompletableFuture<FieldTile> future = tiles.putIfAbsent(key, mine);
+		if (future != null) {
+			return future;
+		}
+		try {
+			FieldTile computed = computeTile(ti, tj);
+			computedTiles.increment();
+			// Mark it used before evicting, or it would be the oldest tile and go first.
+			computed.lastUse = clock.incrementAndGet();
+			mine.complete(computed);
+		} catch (Throwable t) {
+			tiles.remove(key, mine);
+			mine.completeExceptionally(t);
+		}
+		evictTiles();
+		return mine;
 	}
 
 	private FieldTile computeTile(int ti, int tj) {

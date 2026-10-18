@@ -14,7 +14,8 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "useSystemLibraries": true,
   "storagePath": "",
   "rocmNativePath": "",
-  "distantHorizonsLods": true
+  "distantHorizonsLods": true,
+  "generateAhead": true
 }
 ```
 
@@ -100,6 +101,13 @@ is used. Read at startup. See [RUNTIMES.md](RUNTIMES.md#amd-rocm).
 With Distant Horizons installed, Diffusicraft draws its far terrain in Diffusicraft worlds straight from the terrain,
 without generating chunks. Set it to `false` to let Distant Horizons generate chunks for its LODs instead, or to let
 another LOD generator take over. Read at startup. See [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
+
+### `generateAhead`
+
+Computes terrain in the background where the players are heading: around them out to their view distance, and along
+their path for the next 20 seconds. Chunks then rarely wait for inference, even at elytra speed. It uses the GPU (or
+the CPU) while you move, so set it to `false` on a slow machine if it gets in the way of the game more than waiting
+for terrain does. Read when a world opens. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 
 ## Dedicated servers
 

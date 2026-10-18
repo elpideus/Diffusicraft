@@ -21,8 +21,8 @@ was running. The CPU run had the lowest priority (`nice 19`), and the GPU was ab
 CUDA runtime (preloading 15 vendor libraries) took 254 ms.
 
 **What this means in game.** At the 1:1 scale, one region is 15 km across. An elytra with rockets needs several minutes to
-cross it. Even on the CPU, terrain is ready long before the player gets there, provided generation runs
-ahead of the player. The coarse stage of a region covers 7.7 km per pixel and is shared by everything near it. At
+cross it. Even on the CPU, terrain is ready long before the player gets there, because it is
+[generated ahead](#generating-ahead) of the player. The coarse stage of a region covers 7.7 km per pixel and is shared by everything near it. At
 smaller scales, a region covers proportionally fewer blocks, so the GPU matters more. Distant Horizons' far LODs need
 whole regions quickly, and the GPU matters there too.
 
@@ -73,16 +73,41 @@ arrays. Speed has to come from the model runs themselves.
 - **Fast startup.** The status shown in the UI is computed off the render thread from file metadata. Model files are
   hashed once, then trusted through `.verified` markers.
 
+## Generating ahead
+
+A tile of terrain takes seconds of inference, and every chunk that needs it waits until it is done. Without help, the
+world stops appearing at a tile's edge while the player flies on. `TerrainPrefetcher` computes tiles before chunk
+generation asks for them:
+
+- **Where the players are heading.** Twice a second, `PlayerPrefetch` tells it where each player in a Diffusicraft
+  world is and how fast they move, averaged over the last second or so. It plans the tiles that the player's view
+  will reach along their path in the next 20 seconds, the earliest first. The view is the view distance the client
+  asked for (within the server's) plus 64 blocks for the chunks generated beyond it. Speeds above 100 blocks per
+  second count as 100, and a move of more than 200 blocks between two plans is a teleport, which says nothing of
+  where the player goes next.
+- **In the background.** One thread at the lowest priority computes the planned tiles one at a time, and switches to
+  a newer plan as soon as one arrives. Model runs take turns, so a tile that chunk generation needs right away takes
+  up to twice as long while the prefetcher works. Planning the earliest tiles first keeps that rare.
+- **Out of the way of the cache.** A plan covers at most a quarter of a field's 96 tiles, so prefetching never evicts
+  the tiles in use. A tile that chunk generation reaches first is computed there, as before, and the prefetcher
+  skips it.
+- **Quiet failures.** If inference fails, for example because the models are missing, the prefetcher leaves that
+  world alone for a minute. Chunk generation reports the error as before.
+- **An off switch.** [`generateAhead`](CONFIG.md#generateahead) in the config.
+
+How much it has to do depends on the scale. A tile is 512 blocks across at the standard scale, 1536 at Grand and 7680
+at Earth 1:1. An elytra with rockets (about 33 blocks per second) crosses a standard tile in 15.5 s. A view of 12
+chunks spans two or three rows of tiles, so each column the player flies into costs two or three tiles of inference.
+`TerrainField.tileWaitNanos()` counts the time chunk generation spent waiting for tiles.
+
 ## Next steps
 
 Ordered by expected gain:
 
-1. **Generate ahead of the player.** Request regions in the direction of travel on a background executor. Combined
-   with the disk cache, chunk generation then rarely waits for inference.
-2. **FP16 / TensorRT.** Half-precision weights or the TensorRT provider would roughly double CUDA throughput on RTX
+1. **FP16 / TensorRT.** Half-precision weights or the TensorRT provider would roughly double CUDA throughput on RTX
    cards. The output must first be checked against the FP32 reference, because the coarse stage is sensitive to
    precision.
-3. **I/O binding and CUDA graphs.** Keep intermediate tensors on the GPU between the two latent steps and the
+2. **I/O binding and CUDA graphs.** Keep intermediate tensors on the GPU between the two latent steps and the
    decoder, and replay fixed-shape runs as graphs to cut launch overhead.
-4. **Fewer, larger requests.** Each `sample` call pads its rectangle by the window overlap. Requests of 256 × 256 or
+3. **Fewer, larger requests.** Each `sample` call pads its rectangle by the window overlap. Requests of 256 × 256 or
    more amortise that padding; the world generator should batch chunk requests by region.
