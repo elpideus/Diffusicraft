@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "diffusicraft:block/selenite",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y": {
+      "model": "diffusicraft:block/selenite"
+    },
+    "axis=z": {
+      "model": "diffusicraft:block/selenite",
+      "x": 90
+    }
+  }
+}

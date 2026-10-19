@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "diffusicraft:block/selenite_end",
+    "side": "diffusicraft:block/selenite_side"
+  }
+}

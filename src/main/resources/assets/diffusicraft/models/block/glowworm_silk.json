@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross_emissive",
+  "textures": {
+    "cross": "diffusicraft:block/glowworm_silk",
+    "cross_emissive": "diffusicraft:block/glowworm_silk_emissive"
+  }
+}

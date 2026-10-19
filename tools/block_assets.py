@@ -479,6 +479,68 @@ def cottongrass(seed):
 
 SALT_CRUST = salt_polygons(30)
 
+
+# Cave blocks ------------------------------------------------------------------------------------------------------
+
+def glowworm_silk(seed, tip):
+    """Glowworm silk: a curtain of threads hanging from the block above, beaded with sticky droplets. Returns the
+    texture and its overlay, the droplets alone, which the game draws at full brightness. Threads run on into the block
+    below, except in the tip, where they end at different lengths, each in a drop."""
+    def paint():
+        rng = random.Random(seed)
+        c, glow = Canvas(), Canvas()
+        thread = hexes("#8f9aa1", "#a7b2b8", "#bfc9ce")
+        bead = hexes("#6fc9e0", "#8fdcef")
+        bright = hexes("#4fdcff", "#86ecff", "#c4f9ff")
+        for x in (1, 4, 6, 9, 11, 14):
+            x += rng.choice((-1, 0, 0, 1))
+            bottom = rng.randint(5, 14) if tip else 15
+            c.stem(x, 0, rng.choice(thread), bottom=bottom)
+            y = rng.randint(0, 3)
+            while y < bottom:
+                if rng.random() < 0.75:
+                    c.put(x, y, rng.choice(bead))
+                    glow.put(x, y, rng.choice(bright))
+                y += rng.randint(2, 4)
+            if tip:
+                for dy in (0, 1):
+                    c.put(x, bottom + dy, bead[1])
+                    glow.put(x, bottom + dy, bright[2] if dy == 0 else bright[1])
+        return c.rgba(), glow.rgba()
+    return paint
+
+
+def selenite(seed, end):
+    """Selenite: clear, faintly milky gypsum. Along the crystal (`end` false) it is streaked lengthwise; across it
+    (`end` true) it shows the crystal's lozenge-shaped section. Every pixel is partly see-through, so the game draws it
+    as translucent, like ice."""
+    def paint():
+        rng = random.Random(seed)
+        palette = hexes("#b9c2c6", "#cbd3d6", "#dce2e4", "#ebeff0", "#f8fafa")
+        streaks = [rng.random() for _ in range(SIZE)]
+        streaks = [(streaks[x - 1] + 2 * streaks[x] + streaks[(x + 1) % SIZE]) / 4 for x in range(SIZE)]
+        base = fbm(rng, ((2, 0.6), (4, 0.4)))
+        rows = []
+        for y in range(SIZE):
+            row = []
+            for x in range(SIZE):
+                if end:
+                    rim = abs(x + 0.5 - 8) / 8 + abs(y + 0.5 - 8) / 5.5
+                    v = 0.35 + base[y][x] * 0.35 + (0.35 if 0.78 < rim < 0.98 else 0) + grain(rng, 0.1)
+                else:
+                    v = 0.2 + streaks[x] * 0.55 + base[y][x] * 0.25 + grain(rng, 0.08)
+                v = min(max(v, 0.0), 1.0)
+                row.append((*shade(palette, v), int(110 + 120 * v)))
+            rows.append(row)
+        return rows
+    return paint
+
+
+GLOWWORM_SILK = glowworm_silk(36, tip=False)
+GLOWWORM_SILK_TIP = glowworm_silk(37, tip=True)
+SELENITE_SIDE = selenite(38, end=False)
+SELENITE_END = selenite(39, end=True)
+
 # name: (painter, loot, block tags, item tags, dye). Loot "self" drops the plant; "shears" only to shears and silk
 # touch, as vanilla's bush. Sheep graze on the heather and cottongrass of the moors.
 FLOWER_BLOCK_TAGS = ["small_flowers", "bee_attractive", "washed_away_by_fluids"]
@@ -569,6 +631,35 @@ def cross(name, rows, drop):
         loot(name, {"type": "minecraft:survives_explosion"})
 
 
+def hanging(name, textures, drop_tags):
+    """A hanging plant, as pale hanging moss: a cross whose lowest block is a tip, both with a full-bright overlay.
+    `textures` holds the base, base overlay, tip and tip overlay. It drops only to shears and silk touch."""
+    for suffix, rows in zip(("", "_emissive", "_tip", "_tip_emissive"), textures):
+        write_texture(name + suffix, rows)
+    write_json(f"assets/{NS}/blockstates/{name}.json", {"variants": {
+        "tip=false": {"model": f"{NS}:block/{name}"}, "tip=true": {"model": f"{NS}:block/{name}_tip"}}})
+    for model in (name, name + "_tip"):
+        write_json(f"assets/{NS}/models/block/{model}.json", {"parent": "minecraft:block/cross_emissive", "textures": {
+            "cross": f"{NS}:block/{model}", "cross_emissive": f"{NS}:block/{model}_emissive"}})
+    write_json(f"assets/{NS}/models/item/{name}.json",
+               {"parent": "minecraft:item/generated", "textures": {"layer0": f"{NS}:block/{name}_tip"}})
+    write_json(f"assets/{NS}/items/{name}.json", {"model": {"type": "minecraft:model", "model": f"{NS}:item/{name}"}})
+    loot(name, {"type": "minecraft:any_of", "terms": drop_tags})
+
+
+def pillar(name, side, end):
+    """A block with an axis, as basalt: `end` on the two faces across the axis, `side` on the other four."""
+    write_texture(f"{name}_side", side)
+    write_texture(f"{name}_end", end)
+    model = f"{NS}:block/{name}"
+    write_json(f"assets/{NS}/blockstates/{name}.json", {"variants": {
+        "axis=x": {"model": model, "x": 90, "y": 90}, "axis=y": {"model": model}, "axis=z": {"model": model, "x": 90}}})
+    write_json(f"assets/{NS}/models/block/{name}.json", {"parent": "minecraft:block/cube_column", "textures": {
+        "end": f"{NS}:block/{name}_end", "side": f"{NS}:block/{name}_side"}})
+    write_json(f"assets/{NS}/items/{name}.json", {"model": {"type": "minecraft:model", "model": model}})
+    loot(name, {"type": "minecraft:survives_explosion"})
+
+
 def write_texture(name, rows):
     texture = RESOURCES / "assets" / NS / "textures" / "block" / f"{name}.png"
     texture.parent.mkdir(parents=True, exist_ok=True)
@@ -611,13 +702,23 @@ def main():
 
     textures["salt_crust"] = SALT_CRUST()
     cube("salt_crust", textures["salt_crust"])
-    tag("data/minecraft/tags/block/mineable/pickaxe.json", every + [f"{NS}:salt_crust"])
+    textures["selenite_side"], textures["selenite_end"] = SELENITE_SIDE(), SELENITE_END()
+    pillar("selenite", textures["selenite_side"], textures["selenite_end"])
+    tag("data/minecraft/tags/block/mineable/pickaxe.json", every + [f"{NS}:salt_crust", f"{NS}:selenite"])
     # The heightmaps that features, snow, rain and spawning read count only the blocks of #blocks_motion, which lists
     # vanilla's solid blocks one by one. Without the rocks there, the ground would seem to lie under them. The soils
     # are in through #dirt.
-    tag("data/minecraft/tags/block/blocks_motion_no_leaves.json", every + [f"{NS}:salt_crust"])
+    tag("data/minecraft/tags/block/blocks_motion_no_leaves.json", every + [f"{NS}:salt_crust", f"{NS}:selenite"])
 
     block_tags, item_tags = {}, {}
+    silk, silk_glow = GLOWWORM_SILK()
+    tip, tip_glow = GLOWWORM_SILK_TIP()
+    textures["glowworm_silk"], textures["glowworm_silk_tip"] = silk, tip
+    textures["glowworm_silk_emissive"], textures["glowworm_silk_tip_emissive"] = silk_glow, tip_glow
+    hanging("glowworm_silk", (silk, silk_glow, tip, tip_glow),
+            ["minecraft:tool/can_shear", "minecraft:tool/can_silk_touch"])
+    for t in ("washed_away_by_fluids", "replaceable_by_trees", "replaceable_by_mushrooms"):
+        block_tags.setdefault(t, []).append(f"{NS}:glowworm_silk")
     for name, (painter, drop, blocks, items, dye) in PLANTS.items():
         textures[name] = painter()
         cross(name, textures[name], drop)

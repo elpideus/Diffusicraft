@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "tip=false": {
+      "model": "diffusicraft:block/glowworm_silk"
+    },
+    "tip=true": {
+      "model": "diffusicraft:block/glowworm_silk_tip"
+    }
+  }
+}

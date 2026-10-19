@@ -42,6 +42,8 @@ import java.util.function.UnaryOperator;
  *       burns, terra rossa on the Mediterranean's limestone, laterite in the tropics and loess on the steppe. They are
  *       dirt to everything that grows.</li>
  *   <li><b>Salt crust</b>, the white floor of the salt flats.</li>
+ *   <li><b>Cave blocks</b> of the Grand Hollows: the glowing silk of glowworms (see {@link GlowwormSilkBlock}) and
+ *       beams of selenite (see {@link SeleniteBlock}).</li>
  * </ul>
  */
 public final class DiffusicraftBlocks {
@@ -92,6 +94,27 @@ public final class DiffusicraftBlocks {
 		.requiresCorrectToolForDrops()
 		.strength(0.5f), p -> p);
 
+	public static final Block GLOWWORM_SILK = register("glowworm_silk", GlowwormSilkBlock::new,
+		BlockBehaviour.Properties.of()
+			.mapColor(MapColor.COLOR_LIGHT_BLUE)
+			.noCollision()
+			.instabreak()
+			.lightLevel(state -> 4)
+			.sound(SoundType.HANGING_ROOTS)
+			.ignitedByLava()
+			.pushReaction(PushReaction.POPPED), p -> p);
+	public static final Block SELENITE = register("selenite", SeleniteBlock::new, BlockBehaviour.Properties.of()
+		.mapColor(MapColor.SNOW)
+		.instrument(NoteBlockInstrument.HAT)
+		.sound(SoundType.CALCITE)
+		.requiresCorrectToolForDrops()
+		.strength(0.8f)
+		.noOcclusion()
+		.isValidSpawn((state, level, pos, entity) -> false)
+		.isRedstoneConductor((state, level, pos) -> false)
+		.isSuffocating((state, level, pos) -> false)
+		.isViewBlocking((state, level, pos, box) -> false), p -> p);
+
 	private DiffusicraftBlocks() {
 	}
 
@@ -101,6 +124,8 @@ public final class DiffusicraftBlocks {
 			output.insertAfter(Items.CALCITE, ROCKS.toArray(Block[]::new));
 			output.insertAfter(Items.ROOTED_DIRT, SOILS.toArray(Block[]::new));
 			output.insertAfter(Items.RED_SAND, SALT_CRUST);
+			output.insertAfter(Items.AMETHYST_CLUSTER, SELENITE);
+			output.insertAfter(Items.GLOW_LICHEN, GLOWWORM_SILK);
 			output.insertAfter(Items.BUSH, HEATHER, COTTONGRASS);
 			output.insertAfter(Items.LILY_OF_THE_VALLEY, LAVENDER, EDELWEISS, GENTIAN);
 		});
