@@ -3,9 +3,9 @@
   "below_trunk_provider": "minecraft:soil_beneath_tree",
   "decorators": [],
   "foliage_placer": {
-    "type": "minecraft:blob_foliage_placer",
-    "height": 3,
-    "offset": 0,
+    "type": "minecraft:fancy_foliage_placer",
+    "height": 4,
+    "offset": 2,
     "radius": 3
   },
   "foliage_provider": {
@@ -27,7 +27,7 @@
     "type": "minecraft:straight_trunk_placer",
     "base_height": 5,
     "height_rand_a": 2,
-    "height_rand_b": 2
+    "height_rand_b": 1
   },
   "trunk_provider": {
     "id": "minecraft:oak_log",

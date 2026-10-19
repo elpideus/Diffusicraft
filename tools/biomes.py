@@ -207,11 +207,11 @@ FEATURES = {
                          {"type": "minecraft:bush_foliage_placer", "height": 2, "offset": 1, "radius": 2},
                          two_layers(0, 0, 0)),
     # Teak and sal: tall, straight trunks under broad crowns, bare in the dry season.
-    "teak": tree("jungle_log", straight(6, 3, 2), "jungle_leaves",
-                 {"type": "minecraft:blob_foliage_placer", "height": 3, "offset": 0, "radius": 3}, two_layers(1, 0, 1)),
+    "teak": tree("jungle_log", straight(9, 3, 2), "jungle_leaves",
+                 {"type": "minecraft:fancy_foliage_placer", "height": 3, "offset": 2, "radius": 3}, two_layers(1, 0, 1)),
     # Laurels, camphors and evergreen oaks: tall trunks under dense, rounded crowns of glossy leaves.
-    "laurel": tree("oak_log", straight(5, 2, 2), "oak_leaves",
-                   {"type": "minecraft:blob_foliage_placer", "height": 3, "offset": 0, "radius": 3},
+    "laurel": tree("oak_log", straight(5, 2, 1), "oak_leaves",
+                   {"type": "minecraft:fancy_foliage_placer", "height": 4, "offset": 2, "radius": 3},
                    two_layers(1, 0, 1)),
     # Live oaks: short, massive trunks under crowns wider than they are tall, hung with grey moss.
     "live_oak": tree("dark_oak_log", {"type": "minecraft:dark_oak_trunk_placer", "base_height": 4,
@@ -224,11 +224,12 @@ FEATURES = {
     "frailejon": tree("pale_oak_log", straight(1, 2, 0), "pale_oak_leaves",
                       {"type": "minecraft:blob_foliage_placer", "height": 1, "offset": 0, "radius": 2},
                       two_layers(0, 0, 0)),
-    # Polylepis, the queñua: gnarled little trees with red, peeling bark, which grow higher than any other.
-    "polylepis": tree("mangrove_log", {"type": "minecraft:bending_trunk_placer", "base_height": 3, "height_rand_a": 1,
-                                       "height_rand_b": 0, "bend_length": uniform(1, 2), "min_height_for_leaves": 2},
+    # Polylepis, the queñua: gnarled little trees of many stems, with red, peeling bark, which grow higher than any
+    # other.
+    "polylepis": tree("mangrove_log", {"type": "minecraft:forking_trunk_placer", "base_height": 3, "height_rand_a": 1,
+                                       "height_rand_b": 1},
                       "mangrove_leaves", {"type": "minecraft:random_spread_foliage_placer", "radius": 2, "offset": 0,
-                                          "foliage_height": 2, "leaf_placement_attempts": 40}, two_layers()),
+                                          "foliage_height": 2, "leaf_placement_attempts": 50}, two_layers()),
     # Black spruce: thin and spindly, starved on the peat.
     "bog_spruce": tree("spruce_log", straight(4, 2, 1), "spruce_leaves",
                        {"type": "minecraft:spruce_foliage_placer", "radius": 1, "offset": uniform(0, 1),

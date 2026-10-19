@@ -349,8 +349,9 @@ the colours:
 
 The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra and
 the bogs. The frailejones of the páramo are pale oak: silver-green rosettes on trunks one to three blocks tall. The
-queñuas (Polylepis), which grow higher than any other tree, are gnarled mangrove wood for their red bark. The yareta of
-the puna is a cushion plant so dense that it looks like a green boulder: here it is one, of moss. The live oaks of the
+queñuas (Polylepis), which grow higher than any other tree, are mangrove wood for their red bark, on gnarled, forking
+trunks. The yareta of the puna is a cushion plant so dense that it looks like a green boulder: here it is one, of moss.
+The teak stands on a tall, clear trunk under a round crown, and the laurels under dense domes. The live oaks of the
 laurel forest are dark oak wood under oak leaves, hung with pale hanging moss for Spanish moss. The bog's pools are
 vanilla's `waterlogged_vegetation_patch`, the lush caves' clay pools: it sinks a patch of peat into the ground and fills
 its top with water wherever the water is held on every side.
