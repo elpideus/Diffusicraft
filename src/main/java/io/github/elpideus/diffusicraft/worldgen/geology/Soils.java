@@ -69,6 +69,7 @@ public final class Soils {
 		int subsoil;
 		int pan;
 		int weathered;
+		boolean bauxite;
 
 		public Soil soil() {
 			return soil;
@@ -87,6 +88,11 @@ public final class Soils {
 		/** The deepest block of weathered rock: the rock starts below it. */
 		public int weathered() {
 			return weathered;
+		}
+
+		/** Whether bauxite lies in the subsoil: see {@link Soils#bauxite}. */
+		public boolean hasBauxite() {
+			return bauxite;
 		}
 
 		/** What lies {@code depth} blocks down. */
@@ -117,6 +123,12 @@ public final class Soils {
 	private static final double LOESS_SLOPE = 0.25;
 	/** Wavelength of the variation in depth, in blocks. */
 	private static final double WAVELENGTH = 28;
+	/** Wavelength of the patches of bauxite, in blocks, and the noise over which they lie. */
+	private static final double BAUXITE_WAVELENGTH = 80;
+	private static final double BAUXITE_PATCH = 0.1;
+	/** The least weathering and flatness under which the laterite turns to bauxite. */
+	private static final double BAUXITE_WEATHERING = 0.75;
+	private static final double BAUXITE_FLAT = 0.8;
 
 	private final long seed;
 
@@ -157,6 +169,8 @@ public final class Soils {
 		boolean pan = soil != Soil.LATERITE && aridity >= 0.5 && aridity < 1.1 && temperature >= 6;
 		p.pan = p.subsoil + (pan ? 1 : 0);
 		p.weathered = p.pan + 1 + (int) Math.max(0, Math.round((2.5 * weathering + 0.5 * variation) * flat));
+		p.bauxite = soil == Soil.LATERITE && weathering >= BAUXITE_WEATHERING && flat >= BAUXITE_FLAT
+			&& fractal(seed + 3, x / BAUXITE_WAVELENGTH, z / BAUXITE_WAVELENGTH, 2) > BAUXITE_PATCH;
 	}
 
 	/** Whether a block at {@code depth} of the weathered rock is broken rock, rather than the soil between it. */
@@ -164,6 +178,16 @@ public final class Soils {
 		// More rock the deeper, in blobs rather than single blocks.
 		double down = (depth - p.pan) / (double) (p.weathered - p.pan + 1);
 		return value3(seed + 1, x, y, z, 2) < 0.25 + 0.6 * down;
+	}
+
+	/**
+	 * Whether a block of the subsoil is bauxite, the aluminium ore. Where the wettest tropics have weathered flat land
+	 * longest, the rain has washed all but the aluminium out of the laterite, in patches some 80 blocks across.
+	 * It lies in the lower subsoil, under a block of laterite and the topsoil.
+	 */
+	public boolean bauxite(Profile p, int x, int y, int z, int depth) {
+		return p.bauxite && depth > p.topsoil + 1 && depth <= p.subsoil
+			&& value3(seed + 3, x, y, z, 2) < Ore.ALUMINUM.grade;
 	}
 
 	/** Whether a block of clay subsoil is clay rather than a mottle of soil in it. */

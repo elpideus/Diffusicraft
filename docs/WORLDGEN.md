@@ -568,6 +568,38 @@ host rock:
 Bodies are commoner below y = 0. Ores in deep rocks take their deepslate form. Prospecting by rock pays off: marble
 lenses carry lapis, and kimberlite at the surface marks a pipe of diamonds below.
 
+**Ores of tech mods.** Tech mods add the metals vanilla lacks: Create's zinc, and the tin, lead, silver, nickel, uranium
+and platinum metals of Tech Reborn, Mekanism and others. Diffusicraft adds no blocks for them. When the tags load,
+`ModOres` looks up each mineral's ores under the common tag `c:ores/<metal>` or, where no mod tags the metal, under the
+mineral's own name (sphalerite, galena, bauxite, Tech Reborn's sheldonite). It keeps one block that sits in stone and
+one that sits in deepslate, which it tells apart by the tags `c:ores_in_ground/stone` and `c:ores_in_ground/deepslate`.
+For a block in neither, it asks the mods' own ore features what ground they put it in, by testing their targets against
+stone and deepslate, and then looks for a "deepslate" in its id and at its map colour. Where several mods add the same
+mineral, the first by id wins. Nether and End ores are never placed. Some of the bodies in a mineral's host rocks then
+hold it instead of vanilla's ore:
+
+| Host rock | Minerals of tech mods |
+|---|---|
+| Limestone | Zinc and lead, fluorite |
+| Shale and slate | Zinc, lead and silver; uranium in black shale |
+| Sandstone, red sandstone | Uranium, where groundwater left it |
+| Marble | Rubies |
+| Granite | Tin and tungsten in the veins at its top, uranium, fluorite |
+| Andesite, tuff | Silver, zinc, lead |
+| Stone | Zinc, tin, lead, silver, nickel |
+| Gneiss | Tin, sapphires, uranium |
+| Schist | Sapphires, tungsten |
+| Deepslate | Nickel, silver, uranium, tungsten |
+| Gabbro | Nickel, platinum, osmium, iridium |
+| Peridotite | Nickel, the platinum metals, peridot |
+
+With every mineral present, about one ore block in five of the lowland rock, outside the coal seams, is a tech mod's.
+Without the mods the bodies stay vanilla's, so the rock is as rich either way, and the mods' own scattered ores still
+generate as vanilla's do. Bauxite, the aluminium ore, is no body in the rock: where the wettest tropics have
+weathered flat land (weathering at least three quarters of its fastest, about 1,100 mm of rain at 26 °C and more where
+it is cooler, and slopes under 0.12), patches of the laterite some 80 blocks across hold it: almost half the blocks
+of their lower subsoil are bauxite. The log names the blocks chosen: "The geology places the ores of other mods: …".
+
 **New rocks.** Limestone, chalk, shale, rock salt, slate, marble, schist, gneiss, gabbro, peridotite and kimberlite
 (`DiffusicraftBlocks`). They drop themselves and are mined with any pickaxe. Most count as stone for tools and
 furnaces, and so do granite, diorite, andesite and tuff, because a basement can be granite for hundreds of blocks. They
@@ -738,7 +770,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, and `SeleniteBeamFeature` (`diffusicraft:selenite_beam`) |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
-| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
+| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods |
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust, glowworm silk and selenite |
@@ -764,6 +796,10 @@ Other searches still read the full terrain and can take a while on new land:
   speed. For the ledges, it checks that the ground climbs steeply through hard beds and gently through soft ones,
   with the cliffs in hard beds and the benches mostly on soft ones at full and at weak strength, that the ledges
   average out, stay within 10 blocks and change smoothly, and that there are none in the basement or in fold belts.
+  For the ores of tech mods, it checks that their minerals take only some of the bodies, only in their host rocks and
+  only where a mod adds them, and that the bodies stay vanilla's without the mods. `ModOresTest` checks how a block
+  is picked for each mineral: one in stone and one in deepslate, the first mod by id, either standing in for the
+  other, and never a Nether or End ore.
 - `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
   tall worlds keep about as much basement under the land as the standard world, and draws a cross-section of each to
   `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs, in a folder per seed.
@@ -778,7 +814,8 @@ Other searches still read the full terrain and can take a while on new land:
 - `SoilsTest` checks that the soil follows the rock (sand on sandstone, clay on shale, grus on granite, terra rossa
   on limestone in the warm), that laterite, loess and gley take over from any rock where the climate or the water
   makes them, that only semi-arid land has a calcrete pan, that the horizons come in order down to the rock, that
-  warm, wet, flat land weathers deepest, and that the weathered rock turns to solid rock downwards.
+  warm, wet, flat land weathers deepest, that the weathered rock turns to solid rock downwards, and that bauxite lies
+  in patches of the lower subsoil under the flat land of the wet tropics, not on slopes or in drier or cooler land.
 - `ErosionSurveyTest` needs the models. At every scale it finds the tile near the origin whose ground rises the most in
   blocks and sorts its land into soil, cliffs and scree. With seed 42 that tile is 87% soil, 8.3% cliffs and 4.8%
   scree in the Standard world, 90% soil, 6% cliffs and 4.2% scree at Grand, and 93% soil, 4.3% cliffs and 2.5% scree
@@ -839,4 +876,6 @@ Other searches still read the full terrain and can take a while on new land:
   cliff, the tallest sea cliff, each of Diffusicraft's biomes on the map, the tallest Grand Hollow, a lava sea nearby
   and the tallest Grand Hollow of each cave biome within 4 km, to `build/run/clientGameTest/screenshots`. The top of
   the cliff must be bare rock, the face of the sea cliff sheer, and each cave biome must hold its own blocks: silk,
-  selenite, mushrooms, moss or dripstone. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
+  selenite, mushrooms, moss or dripstone. Run with Tech Reborn (`-PdevMods=techreborn`), it checks that the geology
+  places Tech Reborn's tin, lead, silver, uranium, rubies, sapphires and bauxite, and not its Nether sphalerite. It
+  generates on the CPU unless `-Pdiffusicraft.device` names another device.

@@ -5,6 +5,7 @@ import io.github.elpideus.diffusicraft.worldgen.geology.Soils.Soil;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SoilsTest {
@@ -136,5 +137,29 @@ class SoilsTest {
 		}
 		assertTrue(top < 0.55 * n && bottom > 0.6 * n && bottom > top + 0.2 * n, top + " near the soil, " + bottom
 			+ " near the rock, of " + n);
+	}
+
+	@Test
+	void bauxiteLiesUnderTheFlatLandOfTheWetTropics() {
+		int patches = 0;
+		int n = 0;
+		for (int x = -4000; x < 4000; x += 61) {
+			for (int z = -4000; z < 4000; z += 67) {
+				n++;
+				Soils.Profile p = profile(Rock.GRANITE, 26, 2500, 0.05, x, z);
+				if (p.hasBauxite()) {
+					patches++;
+					for (int depth = 1; depth < 40; depth++) {
+						if (SOILS.bauxite(p, x, 100 - depth, z, depth)) {
+							assertTrue(depth > p.topsoil() + 1 && depth <= p.subsoil(), "in the lower subsoil");
+						}
+					}
+				}
+				assertFalse(profile(Rock.GRANITE, 26, 2500, 0.4, x, z).hasBauxite(), "not on slopes");
+				assertFalse(profile(Rock.GRANITE, MILD, MILD_RAIN, 0.05, x, z).hasBauxite(), "not out of the tropics");
+				assertFalse(profile(Rock.GRANITE, 24, 1000, 0.05, x, z).hasBauxite(), "not in the drier savannas");
+			}
+		}
+		assertTrue(patches > 0.1 * n && patches < 0.6 * n, patches + " of " + n);
 	}
 }

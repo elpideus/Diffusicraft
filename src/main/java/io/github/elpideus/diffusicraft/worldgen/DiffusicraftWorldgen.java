@@ -13,12 +13,14 @@ import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
+import io.github.elpideus.diffusicraft.worldgen.material.ModOres;
 import io.github.elpideus.diffusicraft.worldgen.material.RiverRule;
 import io.github.elpideus.diffusicraft.worldgen.material.StrataRule;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
 import net.fabricmc.fabric.api.biome.v1.ModificationPhase;
+import net.fabricmc.fabric.api.event.lifecycle.v1.CommonLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -70,6 +72,12 @@ public final class DiffusicraftWorldgen {
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
 			LevelStem overworld = server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getValue(LevelStem.OVERWORLD);
 			HeightTemperature.set(overworld != null && usesModels(overworld.generator()) ? 0f : 1f);
+		});
+		// The ores of other mods are looked up again in the tags and ore features as they are now.
+		CommonLifecycleEvents.TAGS_LOADED.register((registries, client) -> {
+			if (!client) {
+				ModOres.load(registries);
+			}
 		});
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			HeightTemperature.set(1f);

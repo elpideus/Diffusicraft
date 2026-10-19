@@ -106,12 +106,13 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		// The same seed as the hollows density function's, so the light finds the ceilings it carved.
 		Hollows hollows = Hollows.of(random.fromHashOf(HollowsFunction.SEED_ID).nextLong(), minY);
 		return new Evaluator(context, scale, field, geology, new Erosion(key.seed), new Soils(key.seed), hollows,
-			surfaceRule, CoarseClimate.active());
+			ModOres.current(), surfaceRule, CoarseClimate.active());
 	}
 
-	/** Forgets the cached geology of every world; called when the server stops. */
+	/** Forgets the cached geology of every world and the ores of other mods; called when the server stops. */
 	public static void clearCache() {
 		GEOLOGY.clear();
+		ModOres.clear();
 	}
 
 	private static final class Evaluator implements RuleEvaluator {
@@ -126,6 +127,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		private final Soils soils;
 		private final Erosion.Surface ground;
 		private final Hollows hollows;
+		private final ModOres ores;
 		private final RuleEvaluator surface;
 		private final boolean coarse;
 		private final TerrainField.Column terrain = new TerrainField.Column();
@@ -147,7 +149,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		private boolean waterlogged;
 
 		Evaluator(MaterialRuleContext context, WorldScale scale, TerrainField field, Geology geology, Erosion erosion,
-				  Soils soils, Hollows hollows, RuleEvaluator surface, boolean coarse) {
+				  Soils soils, Hollows hollows, ModOres ores, RuleEvaluator surface, boolean coarse) {
 			this.context = context;
 			this.scale = scale;
 			this.field = field;
@@ -155,6 +157,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			this.erosion = erosion;
 			this.soils = soils;
 			this.hollows = hollows;
+			this.ores = ores;
 			this.surface = surface;
 			this.coarse = coarse;
 			double perBlock = scale.pixelsPerBlock();
@@ -215,8 +218,12 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 				}
 			}
 			Rock rock = geology.rock(column, x, y, z);
-			Ore ore = geology.ore(column, x, y, z, rock);
-			return ore != null ? BlockTable.ore(ore, rock.deep()) : BlockTable.rock(rock);
+			Ore ore = geology.ore(column, x, y, z, rock, ores.available());
+			return ore != null ? ore(ore, rock.deep()) : BlockTable.rock(rock);
+		}
+
+		private BlockState ore(Ore ore, boolean deep) {
+			return Ore.VANILLA.contains(ore) ? BlockTable.ore(ore, deep) : ores.block(ore, deep);
 		}
 
 		/**
@@ -258,7 +265,8 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			Soils.Profile p = profile(x, y + depth - 1, z);
 			BlockState state = switch (p.horizon(depth)) {
 				case TOPSOIL -> DIRT;
-				case SUBSOIL -> subsoil(p.soil(), x, y, z);
+				case SUBSOIL -> ores.available().contains(Ore.ALUMINUM) && soils.bauxite(p, x, y, z, depth)
+					? ores.block(Ore.ALUMINUM, false) : subsoil(p.soil(), x, y, z);
 				case PAN -> CALCITE;
 				case WEATHERED -> soils.rubble(p, x, y, z, depth) ? BlockTable.rubble(geology.rock(column, x, y, z))
 					: p.soil() == Soils.Soil.LOAM ? COARSE_DIRT : p.soil() == Soils.Soil.GRUS ? GRAVEL
@@ -317,7 +325,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		}
 	}
 
-	/** The block of every rock and ore, looked up once. */
+	/** The block of every rock and of vanilla's ores, looked up once. The ores of other mods are in {@link ModOres}. */
 	private static final class BlockTable {
 		private static final BlockState[] ROCKS = new BlockState[Rock.values().length];
 		private static final BlockState[] ORES = new BlockState[Ore.values().length];
@@ -373,7 +381,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 					throw new IllegalStateException("No block for rock " + rock);
 				}
 			}
-			for (Ore ore : Ore.values()) {
+			for (Ore ore : Ore.VANILLA) {
 				if (ORES[ore.ordinal()] == null) {
 					throw new IllegalStateException("No block for ore " + ore);
 				}

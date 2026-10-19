@@ -17,8 +17,10 @@ import io.github.elpideus.diffusicraft.worldgen.biome.HollowBiomes;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Erosion;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
+import io.github.elpideus.diffusicraft.worldgen.geology.Ore;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodColumn;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodSampler;
+import io.github.elpideus.diffusicraft.worldgen.material.ModOres;
 import io.github.elpideus.diffusicraft.worldgen.material.StrataRule;
 import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
@@ -142,6 +144,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			Probe probe = world.getServer().computeOnServer(server -> Probe.of(server.overworld()));
 			LOGGER.info("Spawn {} at surface y={}, biome {}", probe.spawn, probe.spawnSurface, probe.spawnBiome);
 			String blocksProblem = world.getServer().computeOnServer(server -> checkSolidBlocks());
+			String oresProblem = world.getServer().computeOnServer(server -> checkModOres());
+			blocksProblem = blocksProblem != null ? blocksProblem : oresProblem;
 			Map<String, BlockPos> diffusicraftBiomes = saveMaps(probe);
 			findFarBiomes(probe, diffusicraftBiomes);
 
@@ -536,6 +540,36 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			.map(block -> BuiltInRegistries.BLOCK.getKey(block).toString())
 			.toList();
 		return missing.isEmpty() ? null : "Full blocks missing from #minecraft:blocks_motion: " + missing;
+	}
+
+	/**
+	 * With Tech Reborn (run with {@code -PdevMods=techreborn}), whether the geology places its ores: those it generates
+	 * in stone and deepslate, but not its sphalerite, which it generates in the Nether.
+	 */
+	private static @Nullable String checkModOres() {
+		if (!FabricLoader.getInstance().isModLoaded("techreborn")) {
+			return null;
+		}
+		ModOres ores = ModOres.current();
+		for (Ore ore : List.of(Ore.TIN, Ore.LEAD, Ore.SILVER, Ore.URANIUM, Ore.RUBY, Ore.SAPPHIRE, Ore.ALUMINUM)) {
+			if (!ores.available().contains(ore)) {
+				return "The geology does not place Tech Reborn's " + ore;
+			}
+		}
+		// Tin by the ground its ore features put it in, lead by the metal's tag rather than galena's.
+		for (Ore ore : List.of(Ore.TIN, Ore.LEAD)) {
+			String name = ore.tags().getFirst();
+			String blocks = BuiltInRegistries.BLOCK.getKey(ores.block(ore, false).getBlock()) + " and "
+				+ BuiltInRegistries.BLOCK.getKey(ores.block(ore, true).getBlock());
+			if (!blocks.equals("techreborn:" + name + "_ore and techreborn:deepslate_" + name + "_ore")) {
+				return "The geology places " + blocks + " for " + name;
+			}
+		}
+		if (ores.available().contains(Ore.ZINC)
+			&& BuiltInRegistries.BLOCK.getKey(ores.block(Ore.ZINC, false).getBlock()).getNamespace().equals("techreborn")) {
+			return "The geology places Tech Reborn's sphalerite, a Nether ore";
+		}
+		return null;
 	}
 
 	/** The deepest soil around the spawn, how deep it goes, and what is wrong with the soil there, if anything. */

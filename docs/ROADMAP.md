@@ -5,7 +5,7 @@ climates, forests and rock layers should look and behave like real ones. It is a
 modpacks built around Create.
 
 The pieces in place generate the world's shape, climate, rivers, lakes, rock, soils and deep caverns, and a world
-generator turns them into blocks. The pieces planned add the details: finer terrain, new minerals and new biomes.
+generator turns them into blocks. The pieces planned add the details: finer terrain and new biomes.
 
 ## Done
 
@@ -54,6 +54,10 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   terra rossa on limestone in the warm, laterite in the tropics, loess on the cool, dry plains, gley under peat and
   calcrete pans in semi-arid land. Profiles of topsoil, subsoil and weathered rock run from about 4 blocks deep in
   the cold to 15 in the wet tropics. See [WORLDGEN.md](WORLDGEN.md#the-ground).
+- **Minerals of tech mods.** Where Create, Tech Reborn, Mekanism or other mods add them, the geology's ore bodies
+  hold their minerals too, in the rocks they form in: zinc and lead in limestone, tin in granite, nickel and the
+  platinum metals in gabbro and peridotite, and bauxite in the laterite of the wet tropics. The ores come from the
+  common tags, so any mod that tags them takes part. See [WORLDGEN.md](WORLDGEN.md#the-ground).
 - **Gullies.** At Earth 1:1 the slopes are cut by gullies finer than the model's 30 m pixels, which run downhill and
   branch, deeper on steeper ground; gentle ground stays smooth. The rock and the climate shape them: crags in hard
   rock, badlands in bare soft rock, rounded hills where soil and plants cover soft rock. See
@@ -122,10 +126,6 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
   and more inland, over sills, between walls a kilometre high.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
-
-### Underground
-
-- **New minerals.** Minerals for Create and other tech mods, placed by the same geology.
 
 ### Compatibility
 

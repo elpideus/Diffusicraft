@@ -12,6 +12,8 @@ for each mod, and what is still open.
 | [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's; their trees show in the LODs |
 | Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
 | C2ME 0.4.2-alpha.0.106+26.3 | Works, checked in game | Nothing: the terrain pipeline is thread-safe. The client game test passes with it (`-PdevMods=c2me-fabric`), LODs, rivers and lakes included, in well under half the time |
+| [Tech Reborn](#tech-mods) 6.2.0 | Works, checked in game | The geology's ore bodies hold its tin, lead, silver, uranium, rubies, sapphires and the rest in their host rocks, and its bauxite lies in tropical laterite |
+| Create, Mekanism, other tech mods | Should work: not checked | The same for any ore under the common tags `c:ores/<metal>` |
 | Sodium, Iris, shader packs | Works | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
 | Structure mods | Works | Structures are placed by the vanilla generator |
 
@@ -116,3 +118,19 @@ them.
 - **Distant Horizons.** The LODs run the same combined rules, and draw the mods' trees (see
   [Trees of biome mods](#distant-horizons)). In the test the LOD shows crowns over 83% of the redwood forest, 70% of
   the old-growth woodland and 43% of the woodland.
+
+## Tech mods
+
+Tech mods add metals and gems vanilla lacks, each with its own scattered ores. Diffusicraft leaves those as they are
+and also puts the minerals in the geology's ore bodies, in the rocks where they form: tin in granite, zinc and lead in
+limestone, nickel and the platinum metals in gabbro and peridotite (see [WORLDGEN.md](WORLDGEN.md#the-ground)). It
+adds no blocks of its own and does not depend on any tech mod: `worldgen.material.ModOres` finds the ores through the
+common tags `c:ores/<metal>` when the tags load, and the bodies stay vanilla's for any mineral no mod adds.
+
+**Checked with Tech Reborn.** The client game test, run with Tech Reborn (`-PdevMods=techreborn`), checks that the
+geology places its tin and lead ores (`lead_ore`, not `galena_ore`, because the metal's tag comes first), silver,
+uranium, rubies, sapphires and bauxite, and not its sphalerite, which Tech Reborn puts in the Nether. Tech Reborn's
+ores carry neither `c:ores_in_ground` tags nor a map colour, so `ModOres` reads the ground from Tech Reborn's own ore
+features. Its tungsten, peridot and sheldonite (platinum) grow only in the End. Tech Reborn also has deepslate forms of
+them that it never generates, and the geology places those, so the three turn up in the overworld too, in their
+deepslate form even in shallow rock.

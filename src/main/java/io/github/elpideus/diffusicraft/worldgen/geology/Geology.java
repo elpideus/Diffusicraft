@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen.geology;
 
 import java.util.Arrays;
+import java.util.Set;
 
 import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.clamp01;
 import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.fractal;
@@ -31,7 +32,8 @@ import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.value3;
  *     <li><b>The magma layer</b>: magma, blackstone and basalt just above the bedrock.</li>
  * </ol>
  * Ores come in bodies whose mineral depends on the rock around them (copper and gold in granite, lapis in marble,
- * emerald in mountain schist, diamonds deep down), so prospecting by rock pays off. See docs/WORLDGEN.md.
+ * emerald in mountain schist, diamonds deep down), so prospecting by rock pays off. Where tech mods add them, the
+ * bodies hold their minerals too: zinc and lead in limestone, tin in granite, nickel in gabbro. See docs/WORLDGEN.md.
  *
  * <p>The hard beds of the cover, sandstone and limestone, stand out of slopes as ledges, and the soft beds between them
  * recede into benches: {@link #ledge}.
@@ -503,8 +505,17 @@ public final class Geology {
 		return sediment(c, y);
 	}
 
-	/** The ore at a block, or {@code null} for plain rock. */
+	/** The ore at a block, or {@code null} for plain rock, with vanilla's minerals alone. */
 	public Ore ore(Column c, int x, int y, int z, Rock host) {
+		return ore(c, x, y, z, host, Ore.VANILLA);
+	}
+
+	/**
+	 * The ore at a block, or {@code null} for plain rock. Some bodies are of the minerals of tech mods, where
+	 * {@code available} holds them; where it does not, those bodies are of vanilla's minerals, so the rock is as rich
+	 * without the mods.
+	 */
+	public Ore ore(Column c, int x, int y, int z, Rock host, Set<Ore> available) {
 		switch (host) {
 			case COAL_SEAM:
 				return unit(hash(seed + 20, x, y, z)) < Ore.COAL.grade ? Ore.COAL : null;
@@ -532,6 +543,10 @@ public final class Geology {
 		}
 		long h = c.oreHash;
 		Ore ore = mineral(host, unit2(h), y, c);
+		Ore modded = moddedMineral(host, unit(mix(h + 7)));
+		if (modded != null && available.contains(modded)) {
+			ore = modded;
+		}
 		if (ore == null) {
 			return null;
 		}
@@ -698,6 +713,35 @@ public final class Geology {
 			case GABBRO -> t < 0.3 ? Ore.IRON : t < 0.5 ? Ore.COPPER : t < 0.75 ? Ore.REDSTONE
 				: t < 0.88 ? Ore.DIAMOND : Ore.GOLD;
 			case PERIDOTITE -> t < 0.25 ? Ore.DIAMOND : t < 0.5 ? Ore.REDSTONE : t < 0.75 ? Ore.SULFUR : Ore.CINNABAR;
+			default -> null;
+		};
+	}
+
+	/**
+	 * The mineral of a tech mod that a body in a host rock is, if a mod adds it, or {@code null} for vanilla's. As on
+	 * Earth: zinc and lead in limestone and shale, tin and tungsten in granite, silver in volcanic rock, nickel and the
+	 * platinum metals in the mafic rocks, uranium in sandstone, rubies in marble.
+	 */
+	private static Ore moddedMineral(Rock host, double t) {
+		return switch (host) {
+			case LIMESTONE -> t < 0.28 ? Ore.ZINC : t < 0.44 ? Ore.LEAD : t < 0.52 ? Ore.FLUORITE : null;
+			case SHALE, SLATE -> t < 0.18 ? Ore.ZINC : t < 0.3 ? Ore.LEAD : t < 0.38 ? Ore.SILVER
+				: t < 0.43 ? Ore.URANIUM : null;
+			case SANDSTONE, RED_SANDSTONE -> t < 0.15 ? Ore.URANIUM : null;
+			case MARBLE -> t < 0.15 ? Ore.RUBY : null;
+			case GRANITE -> t < 0.22 ? Ore.TIN : t < 0.32 ? Ore.TUNGSTEN : t < 0.38 ? Ore.URANIUM
+				: t < 0.43 ? Ore.FLUORITE : null;
+			case ANDESITE, TUFF -> t < 0.2 ? Ore.SILVER : t < 0.32 ? Ore.ZINC : t < 0.4 ? Ore.LEAD : null;
+			case STONE -> t < 0.1 ? Ore.ZINC : t < 0.18 ? Ore.TIN : t < 0.26 ? Ore.LEAD : t < 0.32 ? Ore.SILVER
+				: t < 0.37 ? Ore.NICKEL : null;
+			case GNEISS -> t < 0.08 ? Ore.TIN : t < 0.14 ? Ore.SAPPHIRE : t < 0.19 ? Ore.URANIUM : null;
+			case SCHIST -> t < 0.08 ? Ore.SAPPHIRE : t < 0.14 ? Ore.TUNGSTEN : null;
+			case DEEPSLATE -> t < 0.1 ? Ore.NICKEL : t < 0.16 ? Ore.SILVER : t < 0.21 ? Ore.URANIUM
+				: t < 0.26 ? Ore.TUNGSTEN : null;
+			case GABBRO -> t < 0.25 ? Ore.NICKEL : t < 0.35 ? Ore.PLATINUM : t < 0.43 ? Ore.OSMIUM
+				: t < 0.47 ? Ore.IRIDIUM : null;
+			case PERIDOTITE -> t < 0.2 ? Ore.NICKEL : t < 0.3 ? Ore.PLATINUM : t < 0.4 ? Ore.OSMIUM
+				: t < 0.45 ? Ore.IRIDIUM : t < 0.55 ? Ore.PERIDOT : null;
 			default -> null;
 		};
 	}

@@ -372,6 +372,50 @@ class GeologyTest {
 	}
 
 	@Test
+	void modMineralsTakeSomeBodiesWhereAModAddsThem() {
+		Geology geology = new Geology(SEED, -64, 15, 10);
+		Set<Ore> all = EnumSet.allOf(Ore.class);
+		Set<Ore> zinc = EnumSet.copyOf(Ore.VANILLA);
+		zinc.add(Ore.ZINC);
+		Map<Ore, Set<Rock>> hosts = new EnumMap<>(Ore.class);
+		long vanilla = 0;
+		long modded = 0;
+		for (int x = 0; x < 512; x += 2) {
+			for (int z = 0; z < 512; z += 5) {
+				Geology.Column c = lowland(geology, x, z);
+				for (int y = -60; y < 78; y++) {
+					Rock rock = geology.rock(c, x, y, z);
+					Ore without = geology.ore(c, x, y, z, rock);
+					Ore with = geology.ore(c, x, y, z, rock, all);
+					Ore withZinc = geology.ore(c, x, y, z, rock, zinc);
+					assertTrue(without == null || Ore.VANILLA.contains(without), "vanilla's alone: " + without);
+					// A mod's mineral takes a whole body, of its own size, or leaves it as it was.
+					assertTrue(withZinc == without || withZinc == null || withZinc == Ore.ZINC,
+						without + " became " + withZinc);
+					assertTrue(with == without || with == null || !Ore.VANILLA.contains(with));
+					// Bodies only: a coal seam is coal all through.
+					vanilla += without != null && rock != Rock.COAL_SEAM ? 1 : 0;
+					if (with != null && !Ore.VANILLA.contains(with)) {
+						modded++;
+						hosts.computeIfAbsent(with, o -> EnumSet.noneOf(Rock.class)).add(rock);
+					}
+				}
+			}
+		}
+		assertTrue(modded > 0.1 * vanilla && modded < 0.6 * vanilla, modded + " modded, " + vanilla + " vanilla");
+		assertFalse(hosts.containsKey(Ore.ALUMINUM), "bauxite lies in the soil, not the rock");
+		assertTrue(EnumSet.of(Rock.LIMESTONE, Rock.SHALE, Rock.SLATE, Rock.ANDESITE, Rock.TUFF, Rock.STONE)
+			.containsAll(hosts.getOrDefault(Ore.ZINC, Set.of())), "zinc in " + hosts.get(Ore.ZINC));
+		assertTrue(hosts.containsKey(Ore.ZINC) && hosts.containsKey(Ore.NICKEL), hosts.toString());
+		for (Ore metal : new Ore[]{Ore.PLATINUM, Ore.OSMIUM, Ore.IRIDIUM}) {
+			assertTrue(EnumSet.of(Rock.GABBRO, Rock.PERIDOTITE).containsAll(hosts.getOrDefault(metal, Set.of())),
+				metal + " in " + hosts.get(metal));
+		}
+		assertTrue(EnumSet.of(Rock.MARBLE).containsAll(hosts.getOrDefault(Ore.RUBY, Set.of())));
+		assertTrue(EnumSet.of(Rock.PERIDOTITE).containsAll(hosts.getOrDefault(Ore.PERIDOT, Set.of())));
+	}
+
+	@Test
 	void sampleRateIsFastEnoughForChunkGeneration() {
 		Geology geology = new Geology(SEED, -64, 15, 10);
 		Geology.Column c = new Geology.Column();
