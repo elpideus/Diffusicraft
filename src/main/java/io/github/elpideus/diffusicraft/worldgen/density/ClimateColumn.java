@@ -36,15 +36,37 @@ public final class ClimateColumn {
 	/** Whether the column lies in a river's valley. */
 	public boolean valley;
 	private final float[] slope = new float[2];
+	/** Whether {@link #at} is sampling this column. */
+	private boolean sampling;
+	/** The column {@link #at} uses while this one is {@link #sampling}, made when first needed. */
+	private ClimateColumn nested;
 
-	/** The column at a block, from the coarse map inside {@link CoarseClimate#call}. */
+	/**
+	 * The column at a block, from the coarse map inside {@link CoarseClimate#call}. A thread handed other generation
+	 * work while it samples a column, as it waits for the terrain, gets another column for it, so the two do not mix.
+	 */
 	public static ClimateColumn at(TerrainField field, WorldScale scale, int blockX, int blockZ) {
 		ClimateColumn c = LAST.get();
+		while (c.sampling) {
+			c = c.nested();
+		}
 		boolean coarse = CoarseClimate.active();
 		if (c.field != field || c.scale != scale || c.coarse != coarse || c.blockX != blockX || c.blockZ != blockZ) {
-			c.sample(field, scale, blockX, blockZ);
+			c.sampling = true;
+			try {
+				c.sample(field, scale, blockX, blockZ);
+			} finally {
+				c.sampling = false;
+			}
 		}
 		return c;
+	}
+
+	private ClimateColumn nested() {
+		if (nested == null) {
+			nested = new ClimateColumn();
+		}
+		return nested;
 	}
 
 	/** Fills this column for a block, from the coarse map inside {@link CoarseClimate#call}. */

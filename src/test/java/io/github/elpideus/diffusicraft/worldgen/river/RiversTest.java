@@ -363,6 +363,64 @@ class RiversTest {
 	}
 
 	@Test
+	void aQuestionAskedWhileComputingLeavesTheColumnsInPlace() {
+		WorldScale scale = WorldScale.STANDARD;
+		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
+		// A bank, which needs the columns around it too.
+		Rivers plain = Rivers.of(field());
+		int[] bank = null;
+		for (int z = 2 * blocksPerTile; bank == null && z < 3 * blocksPerTile; z++) {
+			for (int x = VALLEY * blocksPerTile; x < (VALLEY + 1) * blocksPerTile; x++) {
+				RiverColumn c = plain.column(scale, x, z);
+				if (c.river && !c.channel) {
+					bank = new int[]{x, z};
+					break;
+				}
+			}
+		}
+		assertTrue(bank != null, "the valley has banks");
+		int farX = bank[0] + 4 * blocksPerTile, farZ = bank[1];
+		RiverColumn far = copy(plain.column(scale, farX, farZ));
+
+		// The first terrain the thread waits for hands it a question about a chunk four tiles away.
+		Rivers[] rivers = new Rivers[1];
+		RiverColumn[] inner = new RiverColumn[1];
+		boolean[] asked = new boolean[1];
+		TerrainSource source = new ValleySource() {
+			@Override
+			public TerrainSample sample(int i0, int j0, int i1, int j1) {
+				if (rivers[0] != null && !asked[0]) {
+					asked[0] = true;
+					inner[0] = copy(rivers[0].column(scale, farX, farZ));
+				}
+				return super.sample(i0, j0, i1, j1);
+			}
+		};
+		rivers[0] = Rivers.of(new TerrainField(1, source));
+		RiverColumn outer = copy(rivers[0].column(scale, bank[0], bank[1]));
+		assertTrue(asked[0], "the question came while the bank was computed");
+		assertSame(far, inner[0]);
+		assertSame(plain.column(scale, bank[0], bank[1]), outer);
+		// The rest of the chunk too, around the bank and away from it.
+		int x0 = bank[0] & ~15, z0 = bank[1] & ~15;
+		for (int z = z0; z < z0 + 16; z++) {
+			for (int x = x0; x < x0 + 16; x++) {
+				assertSame(copy(plain.column(scale, x, z)), rivers[0].column(scale, x, z));
+			}
+		}
+	}
+
+	private static void assertSame(RiverColumn expected, RiverColumn actual) {
+		assertEquals(expected.river, actual.river);
+		assertEquals(expected.channel, actual.channel);
+		if (actual.river) {
+			assertEquals(expected.surface, actual.surface);
+			assertEquals(expected.bandBottom, actual.bandBottom);
+			assertEquals(expected.waterTop, actual.waterTop);
+		}
+	}
+
+	@Test
 	void noRiversWithoutATileScaleCoarseMap() {
 		TerrainSource source = new ValleySource() {
 			@Override

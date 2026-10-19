@@ -348,7 +348,9 @@ became a dry plain dotted with dry pits.
 Rivers come from the drainage of the coarse map and follow the fine terrain inside each tile (`worldgen/river/`).
 Lakes fill the closed basins of the fine terrain: the rivers fill the basins they cross, the rain the others. The
 depressions of the coarse map hold the great lakes. Everything is computed on demand, on any thread, and comes out
-the same.
+the same. Each thread keeps the columns of the chunk it is working on. A thread waiting for terrain can be handed other
+generation work, which asks about another chunk; that work gets columns of its own, so the ones being computed stay in
+place.
 
 - **Network.** `RiverNetwork` routes water over the coarse map, one cell per tile (7.7 km). Each land cell drains to
   its steepest lower neighbour, judged by its 5th-percentile elevation, which follows the valley floors. Where that
@@ -702,8 +704,8 @@ Other searches still read the full terrain and can take a while on new land:
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
   river meets itself across tile borders, that the banks hold the water where it steps down, in the river and in the
   lakes it fills along its valley, that lakes fill the hollows between the hills and their shores hold them, that a
-  dry climate leaves the hollows dry, that every thread gets the same rivers, and that the width grows with the
-  discharge.
+  dry climate leaves the hollows dry, that every thread gets the same rivers, that a thread asked about another
+  chunk while it computes a column keeps that column's chunk, and that the width grows with the discharge.
 - `GreatLakeTest` sinks a bowl 500 m deep into the slope of the analytic valley, on the coarse map and the fine
   terrain alike, astride the border of two regions. It checks that both regions see the same lake, that its cells drain
   through its outlet, that no pit remains, that the rivers cross it at the level of its water and never climb, that

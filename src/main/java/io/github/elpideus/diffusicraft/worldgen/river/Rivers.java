@@ -71,9 +71,16 @@ public final class Rivers {
 	/**
 	 * What the rivers do to the column at block {@code (x, z)}. The result belongs to the calling thread and holds
 	 * until it asks about another chunk.
+	 *
+	 * <p>A thread can ask again while it is still computing a column, if it is handed other generation work while it
+	 * waits for the terrain. The columns being computed must stay where they are, so the inner question gets columns
+	 * of its own ({@link ChunkColumns#nested}).
 	 */
 	public RiverColumn column(WorldScale scale, int x, int z) {
 		ChunkColumns cache = chunks.get();
+		while (cache.busy) {
+			cache = cache.nested();
+		}
 		int chunkX = x >> 4, chunkZ = z >> 4;
 		if (cache.scale != scale || cache.chunkX != chunkX || cache.chunkZ != chunkZ) {
 			cache.scale = scale;
@@ -85,9 +92,14 @@ public final class Rivers {
 		int index = (z & 15) << 4 | (x & 15);
 		RiverColumn column = cache.columns[index];
 		if (!cache.valid[index]) {
-			column.set(raw(scale, x, z, cache));
-			if (column.river && !column.channel) {
-				hold(scale, x, z, column, cache);
+			cache.busy = true;
+			try {
+				column.set(raw(scale, x, z, cache));
+				if (column.river && !column.channel) {
+					hold(scale, x, z, column, cache);
+				}
+			} finally {
+				cache.busy = false;
 			}
 			cache.valid[index] = true;
 		}
@@ -465,6 +477,10 @@ public final class Rivers {
 		Cell cell;
 		int cellI;
 		int cellJ;
+		/** Whether the thread is computing one of these columns. */
+		boolean busy;
+		/** The columns for questions asked while {@link #busy}, made when first needed. */
+		private ChunkColumns nested;
 
 		ChunkColumns() {
 			for (int k = 0; k < columns.length; k++) {
@@ -473,6 +489,13 @@ public final class Rivers {
 			for (int k = 0; k < raw.length; k++) {
 				raw[k] = new RiverColumn();
 			}
+		}
+
+		ChunkColumns nested() {
+			if (nested == null) {
+				nested = new ChunkColumns();
+			}
+			return nested;
 		}
 	}
 }
