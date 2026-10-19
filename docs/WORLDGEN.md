@@ -505,10 +505,13 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
     stretches.
 
   The density takes the ground of the cliff columns, and of the sea within 5 blocks of them, block by block
-  (`CoastFunction`): `coast_fill` is solid from the interpolated ground up to the exact one, and `coast_carve` is air
-  above it. So the face is sheer, and the rivers, which come after, still cut through it. The top of a cliff is too high
-  for the beach band and keeps the biome inland; the shelf at its foot is beach. Like other cliffs, the face shows the
-  rock (see [the ground](#the-ground)).
+  (`CoastFunction`): `coast_fill` is solid from the lowest corner of the column's 4-block cell up to the exact ground,
+  and `coast_carve` is air above it. So the face is sheer, and the rivers, which come after, still cut through it. The
+  fill starts that low because deep in the rock a corner on the cliff is only as solid as its caves let it be, a
+  fraction of how empty a corner out at sea is: between them, the face would be undercut from the sea floor up to the
+  interpolated ground. Only the cells across a face reach down to the sea floor, so the caves under the cliff stay. The
+  top of a cliff is too high for the beach band and keeps the biome inland; the shelf at its foot is beach. Like other
+  cliffs, the face shows the rock (see [the ground](#the-ground)).
 - **The sea floor.** The terrain's seas are flats near the shore: half of the sea 120 m from land is less than 0.3 m
   deep, and 480 m from land less than 3 m. A real sea floor deepens along a beach's equilibrium profile, `0.1 d^(2/3)`
   meters at `d` meters out (Dean's profile for fine sand): 2 m deep 100 m out and 5 m deep 360 m out. So the floor
@@ -968,9 +971,10 @@ Other searches still read the full terrain and can take a while on new land:
   largest river near the spawn, the steepest cliff, the tallest sea cliff, each of Diffusicraft's biomes on the map, the
   tallest Grand Hollow, a lava sea nearby and the tallest Grand Hollow of each cave biome within 4 km, to
   `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, though vanilla's blobs of dirt may
-  show in it, the face of the sea cliff sheer, and each cave biome must hold its own blocks: silk, selenite, mushrooms,
-  moss or dripstone. Around the spawn no sand or gravel may hang over open space, and on gentle ground outside
-  limestone, chalk and marble the soil must go deeper than vanilla's dirt on average. Run with Tech Reborn
+  show in it, the face of the sea cliff (not an arch, which is open halfway up) sheer above the water, though a cave may
+  open into it there and caves and ravines below it, and each cave biome must hold its own blocks: silk, selenite,
+  mushrooms, moss or dripstone. Around the spawn no sand or gravel may hang over open space, and on gentle ground
+  outside limestone, chalk and marble the soil must go deeper than vanilla's dirt on average. Run with Tech Reborn
   (`-PdevMods=techreborn`), it checks that the geology places Tech Reborn's tin, lead, silver, uranium, rubies,
   sapphires and bauxite, and not its Nether sphalerite. It generates on the CPU unless `-Pdiffusicraft.device` names
   another device.

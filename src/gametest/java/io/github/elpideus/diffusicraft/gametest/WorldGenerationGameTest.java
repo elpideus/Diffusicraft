@@ -732,12 +732,15 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	private record SeaCliff(BlockPos top, BlockPos foot, double inlandX, double inlandZ) {
 	}
 
-	/** Finds the tallest sea cliff within 2 km of the spawn that no river cuts through, if any. */
+	/**
+	 * Finds the tallest sea cliff within 2 km of the spawn that no river cuts through, if any. The top of its face is
+	 * not an arch, whose opening would leave it open halfway up.
+	 */
 	private static @Nullable SeaCliff findSeaCliff(Probe probe) {
 		TerrainSurface surface = probe.field.surface(WorldScale.STANDARD);
 		Rivers rivers = Rivers.of(probe.field);
 		double pixelsPerBlock = WorldScale.STANDARD.pixelsPerBlock();
-		float[] inland = new float[2];
+		float[] inland = new float[2], hole = new float[2];
 		double tallest = 0;
 		int columns = 0;
 		SeaCliff best = null;
@@ -764,7 +767,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				int tx = fx + (int) Math.round(ux), tz = fz + (int) Math.round(uz);
 				double drop = surface.y(tx, tz) - surface.y(fx, fz);
 				if (drop > tallest && !rivers.column(WorldScale.STANDARD, tx, tz).river
-					&& !rivers.column(WorldScale.STANDARD, fx, fz).river) {
+					&& !rivers.column(WorldScale.STANDARD, fx, fz).river
+					&& (Float.isNaN(surface.cliff(tx, tz, hole)) || Float.isNaN(hole[0]))) {
 					tallest = drop;
 					best = new SeaCliff(new BlockPos(tx, (int) Math.ceil(surface.y(tx, tz)), tz),
 						new BlockPos(fx, (int) Math.ceil(surface.y(fx, fz)), fz), ux, uz);
@@ -777,9 +781,11 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	}
 
 	/**
-	 * Whether the face of a sea cliff is as sheer as {@link TerrainSurface} has it: the top column solid and its
-	 * neighbour at the foot open halfway up, where the density, interpolated across cells 4 blocks wide, would put a
-	 * slope.
+	 * Whether the face of a sea cliff is as sheer as {@link TerrainSurface} has it: the columns along the top of it
+	 * solid over nine tenths of the face above the water, which the density, interpolated across cells 4 blocks wide,
+	 * would undercut, and the neighbour at the foot open halfway up, where it would put a slope. Under the water, caves
+	 * and ravines may open into the face, as sea caves do; above it, a cave may open into one column of the face, so the
+	 * top is measured along it.
 	 */
 	private static @Nullable String checkSeaCliff(ServerLevel level, TerrainSurface surface, SeaCliff cliff) {
 		int middle = (cliff.top.getY() + cliff.foot.getY()) / 2;
@@ -797,8 +803,42 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		LOGGER.info("Across the sea cliff, the world's ground and the surface's: {}", profile);
 		BlockState top = level.getBlockState(cliff.top.atY(middle)), foot = level.getBlockState(cliff.foot.atY(middle));
 		LOGGER.info("Halfway up the sea cliff, at y = {}: {} behind its face, {} in front", middle, top, foot);
-		if (!top.isCollisionShapeFullBlock(level, cliff.top.atY(middle))) {
-			return "The sea cliff at " + cliff.top.atY(middle) + " is open: " + top;
+		// The columns along the top of the face, a few blocks either way, from the water up to their own ground.
+		int water = Math.max(cliff.foot.getY(), WorldScale.STANDARD.seaLevel() + 1), solid = 0, blocks = 0;
+		List<String> columns = new ArrayList<>();
+		for (int step = -4; step <= 4; step++) {
+			BlockPos column = cliff.top.offset((int) Math.round(-step * cliff.inlandZ), 0,
+				(int) Math.round(step * cliff.inlandX));
+			int ground = (int) Math.ceil(surface.y(column.getX(), column.getZ()));
+			if (ground < cliff.top.getY() - 2) {
+				continue;
+			}
+			int count = 0, openFrom = Integer.MIN_VALUE;
+			List<String> open = new ArrayList<>();
+			for (int y = water; y < ground; y++) {
+				BlockPos at = column.atY(y);
+				if (level.getBlockState(at).isCollisionShapeFullBlock(level, at)) {
+					count++;
+					if (openFrom != Integer.MIN_VALUE) {
+						open.add(openFrom + "-" + (y - 1));
+						openFrom = Integer.MIN_VALUE;
+					}
+				} else if (openFrom == Integer.MIN_VALUE) {
+					openFrom = y;
+				}
+			}
+			if (openFrom != Integer.MIN_VALUE) {
+				open.add(openFrom + "-" + (ground - 1));
+			}
+			solid += count;
+			blocks += ground - water;
+			columns.add(column.getX() + "," + column.getZ() + ": " + count + " of " + (ground - water) + " solid, open "
+				+ open);
+		}
+		LOGGER.info("Along the top of the sea cliff, from the water at y = {} up: {}", water, columns);
+		if (solid * 10 < blocks * 9) {
+			return "The sea cliff at " + cliff.top + " is open over " + (blocks - solid) + " of the " + blocks
+				+ " blocks of its face above the water";
 		}
 		if (foot.isCollisionShapeFullBlock(level, cliff.foot.atY(middle)) && !foot.is(BlockTags.LOGS)
 			&& !foot.is(BlockTags.LEAVES)) {
