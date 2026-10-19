@@ -60,6 +60,9 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
   [WORLDGEN.md](WORLDGEN.md#rivers).
 - **Lakes across tiles.** Basins that reach past the side of a tile hold lakes up to 15 km across, on which the
   tiles on both sides agree exactly. Rivers fill those they cross. See [WORLDGEN.md](WORLDGEN.md#rivers).
+- **Great lakes.** The depressions of the coarse map hold lakes of up to 16 tiles and 60 km across, where the water
+  flowing into them outweighs what they evaporate. Their water stands at one level over all their tiles, and the
+  rivers cross them at that level and flow on out. See [WORLDGEN.md](WORLDGEN.md#rivers).
 - **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
@@ -95,8 +98,11 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Terrain detail
 
-- **Great lakes.** Lakes in basins larger than a block of two by two tiles, up to the great lakes of the coarse map,
-  and rain lakes across tiles where a river runs in one of them, which stay dry for now.
+- **Rain lakes near rivers.** Lakes across tiles where a river runs in one of the tiles, and the fine basins larger
+  than a block outside the lakes of the coarse map, which stay dry for now; and depressions of more than 16 tiles,
+  like those of the Caspian or the Great Lakes, which are breached.
+- **Prefetching great lakes.** A tile in or next to a lake of the coarse map waits for all the lake's tiles; the
+  prefetcher could plan them with the view.
 - **Shores.** A surf zone where the sea floor deepens away from the beach, sea stacks and arches off the cliffs, and
   cliffs in the farther LODs.
 

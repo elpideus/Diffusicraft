@@ -6,8 +6,8 @@ elevation and climate data. The goal is a world that feels like Skyrim or The Wi
 geography, climate and geology.
 
 > **Status: early development.** The terrain pipeline, the GPU runtimes, the resource manager and the world
-> generator work, with geology, the Hollows, rivers and lakes, coasts, and real-world biomes. Larger lakes and more
-> biome mods are next. See the [roadmap](docs/ROADMAP.md).
+> generator work, with geology, the Hollows, rivers and lakes, coasts, and real-world biomes. Shores and more biome
+> mods are next. See the [roadmap](docs/ROADMAP.md).
 
 ## What works today
 
@@ -16,7 +16,7 @@ geography, climate and geology.
   real climate: snow only where it is cold, deserts only where it is hot and dry. Vanilla caves, structures and biome
   mods keep working. See [WORLDGEN.md](docs/WORLDGEN.md).
 - **Rivers, coasts, rock and caverns.** Rivers drain the whole world from its rain and terrain, and fill the lakes on
-  their way. Beaches follow the coastline, and sea cliffs rise where high land meets the sea. The rock shapes the
+  their way, up to great lakes 60 km across. Beaches follow the coastline, and sea cliffs rise where high land meets the sea. The rock shapes the
   slopes: hard beds stand out of them as ledges and cliffs. Underground, sedimentary beds, fold belts and basement rock
   hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they lie, down to the Grand Hollows
   over lava seas.

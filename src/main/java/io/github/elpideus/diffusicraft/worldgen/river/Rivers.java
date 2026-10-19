@@ -21,7 +21,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * blend into the terrain around. Closed basins of the fine terrain hold lakes ({@link CellLakes}): the rivers fill the
  * basins they cross, and the rain the others. Basins that reach past the sides of a tile are found over blocks of two
  * by two tiles ({@link BlockLakes}), so the rivers and lakes of a tile need the terrain of the eight tiles around it.
- * Everything is computed on demand, on any thread, and comes out the same.
+ * The depressions of the coarse map hold the largest lakes ({@link GreatLake}), found over all their tiles, which a
+ * tile next to one needs too. Everything is computed on demand, on any thread, and comes out the same.
  */
 public final class Rivers {
 	private static final Map<TerrainField, Rivers> ALL = new ConcurrentHashMap<>();
@@ -285,7 +286,7 @@ public final class Rivers {
 		Cell cell = RiverNetwork.once(cells, RiverNetwork.key(ti, tj), () -> {
 			CellFlows flows = network.flows(ti, tj);
 			float[] tile = field.paddedTile(ti, tj);
-			// The lakes of the four blocks the tile lies in, and the ground their rivers see.
+			// The lakes of the four blocks the tile lies in and of the coarse map, and the ground their rivers see.
 			float[] level = new float[CellLakes.SIDE * CellLakes.SIDE];
 			boolean[] fed = new boolean[level.length];
 			Arrays.fill(level, Float.NaN);
@@ -294,12 +295,15 @@ public final class Rivers {
 				for (int oj = 0; oj < 2; oj++) {
 					BlockLakes block = block(ti - oi, tj - oj);
 					if (!block.isEmpty()) {
-						if (raise == null) {
-							raise = new float[tile.length];
-							Arrays.fill(raise, Float.NaN);
-						}
+						raise = raise == null ? nan(tile.length) : raise;
 						block.paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
 					}
+				}
+			}
+			for (GreatLake lake : network.greatLakesAround(ti, tj)) {
+				if (!lake.isEmpty()) {
+					raise = raise == null ? nan(tile.length) : raise;
+					lake.paint(ti, tj, CellLakes.MARGIN, level, fed, raise);
 				}
 			}
 			CellBasins basins = CellBasins.of(tile, raise);
@@ -338,6 +342,12 @@ public final class Rivers {
 			evict(blocks);
 		}
 		return block.lakes;
+	}
+
+	private static float[] nan(int length) {
+		float[] a = new float[length];
+		Arrays.fill(a, Float.NaN);
+		return a;
 	}
 
 	/** How far the rain fills a basin: as far as the precipitation outweighs the evaporation. For one thread. */

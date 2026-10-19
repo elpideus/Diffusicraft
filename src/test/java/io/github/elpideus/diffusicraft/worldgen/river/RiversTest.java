@@ -38,6 +38,11 @@ class RiversTest {
 			return (float) (100.0 * along + 60.0 * across + 15.0 * Math.sin(i / 17.0) * Math.cos(j / 13.0));
 		}
 
+		/** Elevation at native pixel {@code (i, j)}, of the fine terrain and the coarse map alike. */
+		float height(double i, double j) {
+			return elevation(i, j);
+		}
+
 		@Override
 		public TerrainSample sample(int i0, int j0, int i1, int j1) {
 			int h = i1 - i0, w = j1 - j0, plane = h * w;
@@ -46,7 +51,7 @@ class RiversTest {
 			for (int r = 0; r < h; r++) {
 				for (int c = 0; c < w; c++) {
 					int px = r * w + c;
-					elevation[px] = elevation(i0 + r + 0.5, j0 + c + 0.5);
+					elevation[px] = height(i0 + r + 0.5, j0 + c + 0.5);
 					climate[TerrainSample.TEMPERATURE * plane + px] = 10f;
 					climate[TerrainSample.TEMPERATURE_SEASONALITY * plane + px] = 600f;
 					climate[TerrainSample.PRECIPITATION * plane + px] = 1500f;
@@ -69,7 +74,7 @@ class RiversTest {
 			for (int r = 0; r < ci1 - ci0; r++) {
 				for (int c = 0; c < w; c++) {
 					int px = r * w + c;
-					float mean = elevation((ci0 + r + 0.5) * TILE, (cj0 + c + 0.5) * TILE);
+					float mean = height((ci0 + r + 0.5) * TILE, (cj0 + c + 0.5) * TILE);
 					out[COARSE_ELEVATION * plane + px] = mean;
 					out[COARSE_LOW_ELEVATION * plane + px] = mean - 30f;
 					out[COARSE_TEMPERATURE * plane + px] = 10f;

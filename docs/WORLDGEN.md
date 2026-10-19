@@ -327,14 +327,26 @@ became a dry plain dotted with dry pits.
 ### Rivers
 
 Rivers come from the drainage of the coarse map and follow the fine terrain inside each tile (`worldgen/river/`).
-Lakes fill the closed basins of the fine terrain: the rivers fill the basins they cross, the rain the others.
-Everything is computed on demand, on any thread, and comes out the same.
+Lakes fill the closed basins of the fine terrain: the rivers fill the basins they cross, the rain the others. The
+depressions of the coarse map hold the great lakes. Everything is computed on demand, on any thread, and comes out
+the same.
 
 - **Network.** `RiverNetwork` routes water over the coarse map, one cell per tile (7.7 km). Each land cell drains to
-  its steepest lower neighbour, judged by its 5th-percentile elevation, which follows the valley floors. Pits are
-  breached: a priority flood within 8 cells finds the cheapest way out, and the cells on it are lowered just enough to
-  drain. Pits with no way out keep their rivers in a pond. The discharge of a cell is the runoff of everything
-  upstream, the precipitation less an evapotranspiration that grows with temperature. A river starts at 4 m³/s.
+  its steepest lower neighbour, judged by its 5th-percentile elevation, which follows the valley floors. Where that
+  leaves a pit, a priority flood within 8 cells finds the level at which it spills. The depression holds a lake when
+  the cells joined to the pit below that level are at most 16, within 8 cells either way, at least 2 m deep, and the
+  runoff of the cells that drain into them outweighs what the lake's surface evaporates: 1.3 times the
+  evapotranspiration, less the rain. Of nested depressions the outermost that holds a lake wins. The lake's cells take
+  the level at which it spills, and the water crosses them to the cell it spills from and on into the cell it spills
+  into. That cell and the ones after it on the flood's path are lowered evenly until the water reaches lower ground,
+  the sea or another lake. Any other pit is breached: a priority flood within 8 cells finds the cheapest way out, and
+  the cells on it are lowered just enough to drain. A lake's shores hold the flood of a pit higher than it; a lower
+  lake is a way out. Pits with no way out keep their rivers in a pond. The discharge of a cell is the runoff of
+  everything upstream, the precipitation less an evapotranspiration that grows with temperature. A river starts at
+  4 m³/s. The network is computed in regions of 32 by 32 cells, each from the map 50 cells around it, which holds
+  every lake and breach its cells depend on, so the regions agree on every lake without looking at each other. The
+  first region of a world takes some 8 s on the CPU, most of it the coarse stage over the 1,200 km around it, and
+  each further one about 2 s.
 - **Paths.** `CellRivers` draws the rivers inside a tile. A river crosses a side of the tile at that side's lowest
   point, running straight across, so the tiles on both sides agree without looking at each other. Inside, it follows
   the cheapest path, where low ground is cheap, and tributaries merge into a tree. On level ground the cost carries
@@ -372,6 +384,15 @@ Everything is computed on demand, on any thread, and comes out the same.
   blocks; where they overlap, the highest water wins. They are all real hollows of the terrain, so lakes that touch meet
   at one level, and the tiles on both sides of a side, which share the blocks that reach it, agree on the water there.
   A tile and its rivers therefore read the eight tiles around it.
+- **Great lakes.** `GreatLake` puts the water of a lake of the coarse map on the fine terrain. One priority flood over
+  the padded tiles of all its cells, the water escaping into the sea and past the edge of their padding, finds the
+  hollows the terrain holds. The water stands at one level for the whole lake, between the level of the cell it spills
+  into and the level at which it spills on the coarse map: the level at which its hollows cover the most of the lake's
+  tiles. It fills every hollow of the padded tiles that holds water at that level, and a tile takes it where it is
+  higher than its own lakes. The rivers of the coarse map run across the lake at the level of its water and leave it
+  level with it, so the lake is fed and its outlet is cut down from its surface. The rivers see the lake as they see
+  the lakes of a block. The lake is found once, for the first tile in it or next to it, which waits for the terrain of
+  all its tiles.
 - **Lake columns.** A column is in a lake where one of the four pixels around it is and its ground is below the water.
   The lake decides such a column even within a river's reach, so the river flows into the lake and out again. The
   water of a lake the rain fills stops at the last whole block below the lake's level, so it never stands above the
@@ -382,8 +403,11 @@ Everything is computed on demand, on any thread, and comes out the same.
   the rivers' banks do.
 - **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like
   an embankment. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a basin across
-  tiles that the rain would fill where a river runs in one of those tiles. Lakes are at most a block across, 15 km:
-  a basin that reaches past a block's edge stays dry, and a river crosses it as it crosses any other ground.
+  tiles that the rain would fill where a river runs in one of those tiles. A basin that reaches past a block's edge,
+  15 km, stays dry unless it lies in a lake of the coarse map, and a river crosses it as it crosses any other ground.
+  A depression of the coarse map larger than 16 cells, or wider than 8 cells (60 km), is breached rather than filled,
+  so the largest lakes of the real world stay dry. The hollows of a great lake's tiles that do not hold water at its
+  level stay dry, and so do those whose water spills past the padding of its tiles.
 
 ### Coasts
 
@@ -571,7 +595,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
-| `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `CellFlows`, `RiverColumn` |
+| `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
@@ -626,6 +650,11 @@ Other searches still read the full terrain and can take a while on new land:
   lakes it fills along its valley, that lakes fill the hollows between the hills and their shores hold them, that a
   dry climate leaves the hollows dry, that every thread gets the same rivers, and that the width grows with the
   discharge.
+- `GreatLakeTest` sinks a bowl 500 m deep into the slope of the analytic valley, on the coarse map and the fine
+  terrain alike, astride the border of two regions. It checks that both regions see the same lake, that its cells drain
+  through its outlet, that no pit remains, that the rivers cross it at the level of its water and never climb, that
+  the water fills the bowl on every tile and the tiles agree on it along their sides, that every scale has water at
+  its bottom, that a dry climate leaves no lake, and that every thread gets the same lake.
 - `CellLakesTest` fills bowls: to the rim in a wet climate, partly or not at all in a dry one. A bowl at the edge of
   the tile, at or below sea level, too shallow or too small holds no lake, and two bowls are two lakes. A river
   running down a valley fills the bowl in it, even in a desert, just below its rim, and flows on out of it.

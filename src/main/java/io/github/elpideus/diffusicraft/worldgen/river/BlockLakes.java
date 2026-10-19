@@ -23,7 +23,7 @@ import java.util.Arrays;
  * river runs in the tiles it reaches: the rivers of each tile are its own, and the block cannot tell whether one of
  * them would pass beside the lake, lower than its water, and drain it.
  *
- * <p>A lake larger than a block stays dry.
+ * <p>A lake larger than a block stays dry, unless it lies in a depression of the coarse map ({@link GreatLake}).
  */
 final class BlockLakes {
 	static final BlockLakes EMPTY = new BlockLakes(null, null, null, null, null, 0);
