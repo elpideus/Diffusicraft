@@ -11,7 +11,8 @@ import java.util.Arrays;
  * <p>A basin can hold a lake when it is at least {@value #MIN_DEPTH} m deep and {@value #MIN_PIXELS} pixels across,
  * lies above the sea, and keeps {@value #EDGE} pixels inside the tile, so that the tile alone decides its columns.
  * Rivers run over the surface of such a basin rather than its floor ({@link #ground}): they fill it and flow on out
- * over its lowest point. The {@link CellLakes} then follow from the rivers and the climate.
+ * over its lowest point. The {@link CellLakes} then follow from the rivers and the climate. Basins that reach past the
+ * sides of the tile belong to the {@link BlockLakes}, and the rivers see the surface of those that a river feeds too.
  *
  * <p>Pixels are numbered as in the padded tile, row by row over {@link TerrainField#SPAN} columns.
  */
@@ -39,9 +40,11 @@ final class CellBasins {
 	/** Per basin, from 0: its lowest pixel and whether it can hold a lake. */
 	private final int[] lowest;
 	private final boolean[] holds;
+	/** The ground the rivers see over the lakes of the blocks around, or NaN; null if there are none. */
+	private final float[] raise;
 
 	private CellBasins(float[] tile, float[] fill, int[] label, int[] pixels, int[] start, int[] lowest,
-					   boolean[] holds) {
+					   boolean[] holds, float[] raise) {
 		this.tile = tile;
 		this.fill = fill;
 		this.label = label;
@@ -49,11 +52,20 @@ final class CellBasins {
 		this.start = start;
 		this.lowest = lowest;
 		this.holds = holds;
+		this.raise = raise;
 	}
 
 	/** Finds the basins of a padded tile. */
 	static CellBasins of(float[] tile) {
-		float[] fill = fill(tile);
+		return of(tile, null);
+	}
+
+	/**
+	 * Finds the basins of a padded tile, where the rivers see the ground {@code raise} over the lakes of the blocks
+	 * around (see BlockLakes#paint), in the frame of the padded tile: NaN where none lies. It may be null.
+	 */
+	static CellBasins of(float[] tile, float[] raise) {
+		float[] fill = fill(tile, SPAN);
 		int[] label = new int[SPAN * SPAN];
 		int[] pixels = new int[SPAN * SPAN];
 		int[] start = new int[64];
@@ -101,7 +113,7 @@ final class CellBasins {
 			holds[count] = inside && size - from >= MIN_PIXELS && spill - tile[low] >= MIN_DEPTH && spill > 0f;
 			count++;
 		}
-		return new CellBasins(tile, fill, label, pixels, Arrays.copyOf(start, count), lowest, holds);
+		return new CellBasins(tile, fill, label, pixels, Arrays.copyOf(start, count), lowest, holds, raise);
 	}
 
 	/** Number of basins; they are numbered from 1. */
@@ -144,24 +156,26 @@ final class CellBasins {
 
 	/**
 	 * The ground a river sees at pixel {@code k}: the surface of a basin that can hold a lake, which the river fills,
-	 * and the terrain everywhere else.
+	 * or of a lake of the blocks around that a river feeds, and the terrain everywhere else.
 	 */
 	float ground(int k) {
 		int b = label[k];
-		return b != 0 && holds[b - 1] ? fill[k] : tile[k];
+		float ground = b != 0 && holds[b - 1] ? fill[k] : tile[k];
+		return raise != null && raise[k] > ground ? raise[k] : ground;
 	}
 
 	/**
-	 * The priority flood: the height to which water would fill each pixel of the padded tile before it could run off
-	 * the edge or into the sea. Pixels that would not hold water keep their own height.
+	 * The priority flood: the height to which water would fill each pixel of a square of elevation {@code span}
+	 * pixels across before it could run off the edge or into the sea. Pixels that would not hold water keep their own
+	 * height.
 	 */
-	private static float[] fill(float[] tile) {
-		float[] fill = new float[SPAN * SPAN];
+	static float[] fill(float[] tile, int span) {
+		float[] fill = new float[span * span];
 		Arrays.fill(fill, Float.NaN);
-		LongHeap heap = new LongHeap(4 * SPAN);
+		LongHeap heap = new LongHeap(4 * span);
 		for (int k = 0; k < fill.length; k++) {
-			int i = k / SPAN, j = k % SPAN;
-			if (i == 0 || j == 0 || i == SPAN - 1 || j == SPAN - 1 || tile[k] < 0f) {
+			int i = k / span, j = k % span;
+			if (i == 0 || j == 0 || i == span - 1 || j == span - 1 || tile[k] < 0f) {
 				fill[k] = tile[k];
 				heap.push(LongHeap.key(tile[k], k));
 			}
@@ -170,13 +184,13 @@ final class CellBasins {
 			long key = heap.pop();
 			int k = (int) key;
 			float surface = LongHeap.cost(key);
-			int i = k / SPAN, j = k % SPAN;
+			int i = k / span, j = k % span;
 			for (int d = 0; d < 8; d++) {
 				int ni = i + DI[d], nj = j + DJ[d];
-				if (ni < 0 || nj < 0 || ni >= SPAN || nj >= SPAN) {
+				if (ni < 0 || nj < 0 || ni >= span || nj >= span) {
 					continue;
 				}
-				int n = ni * SPAN + nj;
+				int n = ni * span + nj;
 				if (Float.isNaN(fill[n])) {
 					fill[n] = Math.max(tile[n], surface);
 					heap.push(LongHeap.key(fill[n], n));

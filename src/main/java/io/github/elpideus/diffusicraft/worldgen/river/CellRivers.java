@@ -42,7 +42,7 @@ final class CellRivers {
 	/** Farthest a river and its banks reach from the centre line, in pixels. */
 	static final float REACH = 16f;
 	/** Rivers run straight across a side from this far outside it to this far inside. */
-	private static final float STRAIGHT = 16f;
+	static final float STRAIGHT = 16f;
 	private static final int BUCKET = 8;
 	private static final int BUCKETS = TILE / BUCKET;
 	/** How much more a step over the highest ground of the tile costs than one over the lowest. */
@@ -164,6 +164,61 @@ final class CellRivers {
 		return new Builder(tile, basins, flows, seed, ti, tj, pathLevel).build();
 	}
 
+	/**
+	 * The node of a side of the padded elevation {@code tile} (see TerrainField#paddedTile), where the rivers that
+	 * cross that side cross it: the lowest point of the smoothed side, away from the corners, as a tile-local position
+	 * along the side. The two tiles that share a side find the same node.
+	 */
+	static int node(float[] tile, int side) {
+		int lo = NODE_MARGIN - SMOOTH, hi = TILE - NODE_MARGIN + SMOOTH;
+		float[] raw = new float[hi - lo];
+		for (int t = lo; t < hi; t++) {
+			raw[t - lo] = sideHeight(tile, side, t);
+		}
+		float best = Float.POSITIVE_INFINITY;
+		int bestT = TILE / 2;
+		for (int t = NODE_MARGIN; t < TILE - NODE_MARGIN; t++) {
+			float sum = 0f;
+			for (int k = -SMOOTH; k <= SMOOTH; k++) {
+				sum += raw[t + k - lo];
+			}
+			if (sum < best) {
+				best = sum;
+				bestT = t;
+			}
+		}
+		return bestT;
+	}
+
+	/** The lower of the two pixels on either side of a side, at position {@code t} along it. */
+	private static float sideHeight(float[] tile, int side, int t) {
+		int inside, outside;
+		switch (side) {
+			case 0 -> {
+				inside = pad(0, t);
+				outside = pad(-1, t);
+			}
+			case 1 -> {
+				inside = pad(TILE - 1, t);
+				outside = pad(TILE, t);
+			}
+			case 2 -> {
+				inside = pad(t, 0);
+				outside = pad(t, -1);
+			}
+			default -> {
+				inside = pad(t, TILE - 1);
+				outside = pad(t, TILE);
+			}
+		}
+		return Math.min(tile[inside], tile[outside]);
+	}
+
+	/** Index in the padded tile of tile-local pixel {@code (i, j)}. */
+	private static int pad(int i, int j) {
+		return (i + PAD) * SPAN + j + PAD;
+	}
+
 	// ---------------------------------------------------------------------------------------------------------
 
 	private static final class Builder {
@@ -252,46 +307,9 @@ final class CellRivers {
 			return new CellRivers(Arrays.copyOf(out, count * STRIDE), count, index());
 		}
 
-		/** The node of a side: the lowest point of the smoothed side, away from the corners. */
 		private void findNode(int side) {
-			int lo = NODE_MARGIN - SMOOTH, hi = TILE - NODE_MARGIN + SMOOTH;
-			float[] raw = new float[hi - lo];
-			for (int t = lo; t < hi; t++) {
-				float inside, outside;
-				switch (side) {
-					case 0 -> {
-						inside = h(0, t);
-						outside = h(-1, t);
-					}
-					case 1 -> {
-						inside = h(TILE - 1, t);
-						outside = h(TILE, t);
-					}
-					case 2 -> {
-						inside = h(t, 0);
-						outside = h(t, -1);
-					}
-					default -> {
-						inside = h(t, TILE - 1);
-						outside = h(t, TILE);
-					}
-				}
-				raw[t - lo] = Math.min(inside, outside);
-			}
-			float best = Float.POSITIVE_INFINITY;
-			int bestT = TILE / 2;
-			for (int t = NODE_MARGIN; t < TILE - NODE_MARGIN; t++) {
-				float sum = 0f;
-				for (int k = -SMOOTH; k <= SMOOTH; k++) {
-					sum += raw[t + k - lo];
-				}
-				if (sum < best) {
-					best = sum;
-					bestT = t;
-				}
-			}
-			node[side] = bestT;
-			nodeGround[side] = raw[bestT - lo];
+			node[side] = node(tile, side);
+			nodeGround[side] = sideHeight(tile, side, node[side]);
 		}
 
 		/** Band index of the pixel where the river of a side's node enters the band. */

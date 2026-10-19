@@ -5,12 +5,16 @@ import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import java.util.Arrays;
 
 /**
- * The lakes inside one tile: the {@link CellBasins} that can hold one, filled with water.
+ * The lakes of one tile: the {@link CellBasins} that can hold one, filled with water, and the {@link BlockLakes} that
+ * reach into it from the blocks around.
  *
  * <p>A basin that a river crosses fills to the river's level, just below its lowest point, where the river flows on
  * out of it. Any other basin is filled by the rain, up to its lowest point, or less where the climate is too dry to
  * fill it: a basin whose precipitation falls short of the evaporation holds a shallower lake, and none in a desert.
  * Such a basin stays dry within the reach of a river and its banks, as wide as a river gets at any scale.
+ *
+ * <p>The lakes cover the tile and {@value #MARGIN} pixels around it, where the lakes of the blocks it shares with its
+ * neighbours reach: the shores of the lakes beside it.
  */
 final class CellLakes {
 	static final CellLakes EMPTY = new CellLakes(null, null, null, null, null, 0);
@@ -18,15 +22,19 @@ final class CellLakes {
 	private static final int TILE = TerrainField.TILE;
 	private static final int PAD = TerrainField.PAD;
 	private static final int SPAN = TerrainField.SPAN;
+	/** Pixels around the tile that its lakes cover. */
+	static final int MARGIN = 2;
+	/** Side of the square the lakes cover, pixels. */
+	static final int SIDE = TILE + 2 * MARGIN;
 	/** Ratio of precipitation to evaporation below which a basin holds no water, and above which it fills up. */
-	private static final float DRY = 0.6f;
-	private static final float WET = 1.0f;
+	static final float DRY = 0.6f;
+	static final float WET = 1.0f;
 
 	/**
-	 * The lakes' pixels as runs along each row, which take far less memory than a level per pixel: the runs of row
-	 * {@code i} are {@code rowStart[i]} to {@code rowStart[i + 1]}, in order, each from column {@code runFrom} to
-	 * {@code runTo} (exclusive) at water level {@code runLevel} in meters, fed by a river where {@code runFed} is set.
-	 * Null if the tile has no lake.
+	 * The lakes' pixels as runs along each row, which take far less memory than a level per pixel: the runs of
+	 * tile-local row {@code i} are {@code rowStart[i + MARGIN]} to {@code rowStart[i + MARGIN + 1]}, in order, each from
+	 * tile-local column {@code runFrom} to {@code runTo} (exclusive) at water level {@code runLevel} in meters, fed by a
+	 * river where {@code runFed} is set. Null if the tile has no lake.
 	 */
 	private final int[] rowStart;
 	private final short[] runFrom;
@@ -48,16 +56,20 @@ final class CellLakes {
 		return rowStart == null;
 	}
 
+	/** Lakes in the tile's own basins. */
 	int lakeCount() {
 		return lakes;
 	}
 
-	/** The run holding tile-local pixel {@code (i, j)}, or -1 if it is not under a lake. */
+	/**
+	 * The run holding tile-local pixel {@code (i, j)}, or -1 if it is not under a lake. Pixels up to {@value #MARGIN}
+	 * outside the tile are known too.
+	 */
 	int run(int i, int j) {
-		if (rowStart == null || i < 0 || i >= TILE) {
+		if (rowStart == null || i < -MARGIN || i >= TILE + MARGIN) {
 			return -1;
 		}
-		for (int r = rowStart[i], end = rowStart[i + 1]; r < end && j >= runFrom[r]; r++) {
+		for (int r = rowStart[i + MARGIN], end = rowStart[i + MARGIN + 1]; r < end && j >= runFrom[r]; r++) {
 			if (j < runTo[r]) {
 				return r;
 			}
@@ -94,8 +106,17 @@ final class CellLakes {
 	 */
 	static CellLakes build(float[] tile, CellBasins basins, float[] pathLevel, CellRivers rivers, Climate climate,
 						   int ti, int tj) {
-		float[] level = null;
-		boolean[] fed = null;
+		return build(tile, basins, pathLevel, rivers, climate, ti, tj, null, null);
+	}
+
+	/**
+	 * Fills the {@code basins} of a tile as {@link #build(float[], CellBasins, float[], CellRivers, Climate, int, int)}
+	 * does, over the lakes of the blocks around it: {@code level} and {@code fed} hold their water over the tile and
+	 * {@value #MARGIN} pixels around, {@value #SIDE} pixels across (see BlockLakes#paint), NaN where there is none.
+	 * They may be null, and are filled in.
+	 */
+	static CellLakes build(float[] tile, CellBasins basins, float[] pathLevel, CellRivers rivers, Climate climate,
+						   int ti, int tj, float[] level, boolean[] fed) {
 		int lakes = 0;
 		CellRivers.Hit hit = new CellRivers.Hit();
 		CellRivers.Width widest = discharge -> Rivers.MAX_HALF_WIDTH;
@@ -131,17 +152,23 @@ final class CellLakes {
 				continue;
 			}
 			if (level == null) {
-				level = new float[TILE * TILE];
-				fed = new boolean[TILE * TILE];
+				level = new float[SIDE * SIDE];
+				fed = new boolean[SIDE * SIDE];
 				Arrays.fill(level, Float.NaN);
 			}
 			int pixels = 0;
 			for (int n = first; n < end; n++) {
 				int k = basins.pixel(n);
 				if (tile[k] < water) {
-					int p = (k / SPAN - PAD) * TILE + k % SPAN - PAD;
-					level[p] = water;
-					fed[p] = !Float.isNaN(river);
+					// Where a lake of the blocks around lies over this one, the higher water wins.
+					int p = (k / SPAN - PAD + MARGIN) * SIDE + k % SPAN - PAD + MARGIN;
+					boolean byRiver = !Float.isNaN(river);
+					if (!(level[p] >= water)) {
+						level[p] = water;
+						fed[p] = byRiver;
+					} else if (level[p] == water) {
+						fed[p] |= byRiver;
+					}
 					pixels++;
 				}
 			}
@@ -152,23 +179,23 @@ final class CellLakes {
 
 	/** Packs a level per pixel into runs along the rows. */
 	private static CellLakes runs(float[] level, boolean[] fed, int lakes) {
-		int[] rowStart = new int[TILE + 1];
+		int[] rowStart = new int[SIDE + 1];
 		short[] from = new short[64], to = new short[64];
 		float[] levels = new float[64];
 		boolean[] fedRuns = new boolean[64];
 		int r = 0;
-		for (int i = 0; i < TILE; i++) {
+		for (int i = 0; i < SIDE; i++) {
 			rowStart[i] = r;
 			int j = 0;
-			while (j < TILE) {
-				float water = level[i * TILE + j];
+			while (j < SIDE) {
+				float water = level[i * SIDE + j];
 				if (Float.isNaN(water)) {
 					j++;
 					continue;
 				}
 				int start = j;
-				boolean river = fed[i * TILE + j];
-				while (j < TILE && level[i * TILE + j] == water && fed[i * TILE + j] == river) {
+				boolean river = fed[i * SIDE + j];
+				while (j < SIDE && level[i * SIDE + j] == water && fed[i * SIDE + j] == river) {
 					j++;
 				}
 				if (r == from.length) {
@@ -177,14 +204,17 @@ final class CellLakes {
 					levels = Arrays.copyOf(levels, 2 * r);
 					fedRuns = Arrays.copyOf(fedRuns, 2 * r);
 				}
-				from[r] = (short) start;
-				to[r] = (short) j;
+				from[r] = (short) (start - MARGIN);
+				to[r] = (short) (j - MARGIN);
 				levels[r] = water;
 				fedRuns[r] = river;
 				r++;
 			}
 		}
-		rowStart[TILE] = r;
+		rowStart[SIDE] = r;
+		if (r == 0) {
+			return EMPTY;
+		}
 		return new CellLakes(rowStart, Arrays.copyOf(from, r), Arrays.copyOf(to, r), Arrays.copyOf(levels, r),
 			Arrays.copyOf(fedRuns, r), lakes);
 	}

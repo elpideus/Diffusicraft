@@ -58,6 +58,8 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
   [WORLDGEN.md](WORLDGEN.md#ledges).
 - **Lakes on rivers.** Rivers fill the basins they cross and flow on out of them over their lowest point. See
   [WORLDGEN.md](WORLDGEN.md#rivers).
+- **Lakes across tiles.** Basins that reach past the side of a tile hold lakes up to 15 km across, on which the
+  tiles on both sides agree exactly. Rivers fill those they cross. See [WORLDGEN.md](WORLDGEN.md#rivers).
 - **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
@@ -91,8 +93,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Terrain detail
 
-- **Lakes larger than a tile.** Lakes in basins that reach beyond their tile, which the tiles around have to agree
-  on, up to the great lakes of the coarse map.
+- **Great lakes.** Lakes in basins larger than a block of two by two tiles, up to the great lakes of the coarse map,
+  and rain lakes across tiles where a river runs in one of them, which stay dry for now.
 - **Coasts.** Coastlines, beaches and cliffs follow the real sea level (y = 0 at 1:1).
 
 ### Biomes

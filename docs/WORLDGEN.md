@@ -358,6 +358,17 @@ Everything is computed on demand, on any thread, and comes out the same.
   precipitation reaches the evapotranspiration, a basin fills to the brim. Drier basins fill less, down to nothing
   where the precipitation is 60% of the evapotranspiration, so deserts keep their dry basins. These lakes lie beyond
   the reach of any river, which would drain them.
+- **Lakes across tiles.** `BlockLakes` takes the basins that reach past the side of a tile. A block is two by two
+  tiles; blocks overlap by a tile, so every tile lies in four of them, and every side and corner lies inside one. One
+  priority flood over a block's four padded tiles finds its basins; it keeps those that stay 4 pixels inside the block
+  but not inside a single tile, which the tile already fills. A river that crosses an inner side of the block through
+  such a basin, near the point where it crosses, fills it to its own level, at most 1.5 m below the spill, and the
+  rivers of the tiles around run over the lake's surface. The rain fills the others as it fills a tile's basins, but
+  only where no river runs in any of the tiles the lake reaches: the block does not draw the rivers of its tiles, and
+  cannot tell whether one would pass beside the lake, below its water, and drain it. A tile takes the lakes of its four
+  blocks; where they overlap, the highest water wins. They are all real hollows of the terrain, so lakes that touch meet
+  at one level, and the tiles on both sides of a side, which share the blocks that reach it, agree on the water there.
+  A tile and its rivers therefore read the eight tiles around it.
 - **Lake columns.** A column is in a lake where one of the four pixels around it is and its ground is below the water.
   The lake decides such a column even within a river's reach, so the river flows into the lake and out again. The
   water of a lake the rain fills stops at the last whole block below the lake's level, so it never stands above the
@@ -367,9 +378,9 @@ Everything is computed on demand, on any thread, and comes out the same.
   water up, so no cave entrance drains the lake. Where the shore still lies below the water, it rises into a bank as
   the rivers' banks do.
 - **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like
-  an embankment. A basin beside a river, within its reach but not crossed by it, stays dry. Lakes are left out where
-  their basin reaches the edge of a tile, so none is larger than a tile, and a river crosses such a basin as it
-  crosses any other ground.
+  an embankment. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a basin across
+  tiles that the rain would fill where a river runs in one of those tiles. Lakes are at most a block across, 15 km:
+  a basin that reaches past a block's edge stays dry, and a river crosses it as it crosses any other ground.
 
 ### The ground
 

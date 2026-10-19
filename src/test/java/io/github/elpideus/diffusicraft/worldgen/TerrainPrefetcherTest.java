@@ -66,18 +66,30 @@ class TerrainPrefetcherTest {
 		return ((long) ti << 32) | (tj & 0xffffffffL);
 	}
 
+	/** Tiles {@code i0} to {@code i1} down and {@code j0} to {@code j1} across, inclusive. */
+	private static Set<Long> tiles(int i0, int j0, int i1, int j1) {
+		Set<Long> tiles = new HashSet<>();
+		for (int ti = i0; ti <= i1; ti++) {
+			for (int tj = j0; tj <= j1; tj++) {
+				tiles.add(tile(ti, tj));
+			}
+		}
+		return tiles;
+	}
+
 	@Test
-	void aStillPlayerGetsTheTilesWithinItsView() {
+	void aStillPlayerGetsTheTilesWithinItsViewAndTheRingAround() {
 		TerrainField field = new TerrainField(1, new SlowSource(0));
 		// In the middle of tile (0, 0), with a view that stays inside it.
 		double mid = TILE_BLOCKS / 2;
 		var plan = TerrainPrefetcher.plan(List.of(
 			new TerrainPrefetcher.Traveller(field, WorldScale.STANDARD, mid, mid, 0, 0, 100)));
-		assertEquals(Set.of(tile(0, 0)), tiles(plan));
-		// Near the corner of four tiles, all four.
+		assertEquals(tiles(-1, -1, 1, 1), tiles(plan));
+		assertEquals(tile(0, 0), tile(plan.get(0).ti(), plan.get(0).tj()), "the tile in view first");
+		// Near the corner of four tiles, all four and the ring around them.
 		plan = TerrainPrefetcher.plan(List.of(
 			new TerrainPrefetcher.Traveller(field, WorldScale.STANDARD, 10, -10, 0, 0, 100)));
-		assertEquals(Set.of(tile(0, 0), tile(-1, 0), tile(0, -1), tile(-1, -1)), tiles(plan));
+		assertEquals(tiles(-2, -2, 1, 1), tiles(plan));
 	}
 
 	@Test
@@ -89,13 +101,12 @@ class TerrainPrefetcherTest {
 			new TerrainPrefetcher.Traveller(field, WorldScale.STANDARD, mid, mid, 33, 0, 100)));
 		double reach = mid + 33 * TerrainPrefetcher.HORIZON_SECONDS + 100;
 		int last = (int) Math.floor(reach / TILE_BLOCKS);
-		Set<Long> expected = new HashSet<>();
-		for (int tj = 0; tj <= last; tj++) {
-			expected.add(tile(0, tj));
-		}
-		assertEquals(expected, tiles(plan));
-		for (int k = 0; k < plan.size(); k++) {
-			assertEquals(k, plan.get(k).tj(), "tiles in the order the player reaches them");
+		assertEquals(tiles(-1, -1, 1, last + 1), tiles(plan));
+		int next = 0;
+		for (TerrainPrefetcher.Request r : plan) {
+			if (r.ti() == 0 && r.tj() >= 0) {
+				assertEquals(next++, r.tj(), "tiles in the order the player reaches them");
+			}
 		}
 		assertTrue(last >= 1, "the plan reaches beyond the player's own tile");
 	}

@@ -17,8 +17,10 @@ import java.util.concurrent.atomic.LongAdder;
  * <p>A {@link TerrainField} tile takes seconds of inference, and every chunk that needs it waits until it is done:
  * without this, the world stops appearing at a tile's edge while the player flies on. Told where the players are and
  * how fast they move, the prefetcher plans the tiles their view will reach within {@value #HORIZON_SECONDS} s, the
- * earliest first, and one background thread computes them one at a time. A tile that chunk generation needs before
- * the prefetcher gets to it is computed by chunk generation as before, and the prefetcher skips it.
+ * earliest first, and one background thread computes them one at a time. The rivers and lakes of a tile need the
+ * terrain of the eight tiles around it, so the plan takes in a ring of tiles around the view. A tile that chunk
+ * generation needs before the prefetcher gets to it is computed by chunk generation as before, and the prefetcher
+ * skips it.
  *
  * <p>Model runs take turns, so such a tile takes longer while a prefetch runs beside it. Planning the earliest tiles
  * first keeps that rare. A plan covers at most a quarter of each field's tile cache, so prefetching never evicts the
@@ -105,8 +107,9 @@ public final class TerrainPrefetcher implements AutoCloseable {
 	}
 
 	/**
-	 * The tiles the travellers' view will reach within {@value #HORIZON_SECONDS} s, the earliest first and, among
-	 * those reached at the same time, the nearest. Each field gets at most a quarter of its tile cache.
+	 * The tiles the travellers' view will reach within {@value #HORIZON_SECONDS} s and the ring of tiles around them,
+	 * the earliest first and, among those reached at the same time, the nearest. Each field gets at most a quarter of
+	 * its tile cache.
 	 */
 	static List<Request> plan(List<Traveller> travellers) {
 		Map<TerrainField, Map<Long, Request>> byField = new IdentityHashMap<>();
@@ -120,8 +123,9 @@ public final class TerrainPrefetcher implements AutoCloseable {
 				// Pixel i grows with Z and j with X.
 				double pi = (t.z() + t.vz() * slow * s) * ppb;
 				double pj = (t.x() + t.vx() * slow * s) * ppb;
-				for (int ti = TerrainField.tileOf(pi - r); ti <= TerrainField.tileOf(pi + r); ti++) {
-					for (int tj = TerrainField.tileOf(pj - r); tj <= TerrainField.tileOf(pj + r); tj++) {
+				// The tiles in view, and the ring around them that their rivers and lakes need.
+				for (int ti = TerrainField.tileOf(pi - r) - 1; ti <= TerrainField.tileOf(pi + r) + 1; ti++) {
+					for (int tj = TerrainField.tileOf(pj - r) - 1; tj <= TerrainField.tileOf(pj + r) + 1; tj++) {
 						double di = (ti + 0.5) * TerrainField.TILE - pi, dj = (tj + 0.5) * TerrainField.TILE - pj;
 						Request request = new Request(t.field(), ti, tj, s, Math.hypot(di, dj));
 						tiles.merge(((long) ti << 32) | (tj & 0xffffffffL), request,

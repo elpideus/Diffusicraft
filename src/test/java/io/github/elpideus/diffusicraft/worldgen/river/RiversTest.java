@@ -275,6 +275,35 @@ class RiversTest {
 	}
 
 	@Test
+	void neighbouringTilesAgreeOnTheLakesAlongTheirSides() {
+		Rivers rivers = Rivers.of(field());
+		int m = CellLakes.MARGIN, wet = 0;
+		for (int ti = 1; ti < ValleySource.RIDGES - 1; ti++) {
+			for (int tj = VALLEY - 2; tj <= VALLEY + 2; tj++) {
+				CellLakes here = rivers.lakes(ti, tj), east = rivers.lakes(ti, tj + 1), south = rivers.lakes(ti + 1, tj);
+				for (int a = -m; a < TILE + m; a++) {
+					for (int d = -m; d < m; d++) {
+						wet += agree(here, a, TILE + d, east, a, d) + agree(here, TILE + d, a, south, d, a);
+					}
+				}
+			}
+		}
+		assertTrue(wet > 0, "lakes reach across the sides");
+	}
+
+	/** Asserts that two tiles see the same water at one pixel; returns 1 if there is some. */
+	private static int agree(CellLakes a, int ai, int aj, CellLakes b, int bi, int bj) {
+		int ra = a.run(ai, aj), rb = b.run(bi, bj);
+		assertEquals(ra < 0, rb < 0, "water at " + ai + ", " + aj);
+		if (ra < 0) {
+			return 0;
+		}
+		assertEquals(a.runLevel(ra), b.runLevel(rb), 0f);
+		assertEquals(a.runFed(ra), b.runFed(rb));
+		return 1;
+	}
+
+	@Test
 	void aDryClimateLeavesTheHollowsDry() {
 		TerrainSource source = new ValleySource() {
 			@Override

@@ -85,6 +85,11 @@ generation asks for them:
   asked for (within the server's) plus 64 blocks for the chunks generated beyond it. Speeds above 100 blocks per
   second count as 100, and a move of more than 200 blocks between two plans is a teleport, which says nothing of
   where the player goes next.
+- **The tiles around.** The rivers and lakes of a tile read the terrain of the eight tiles around it, for the
+  [lakes that reach past its sides](WORLDGEN.md#rivers), so the plan takes in a ring of tiles around the view. A new
+  world therefore waits for three by three tiles at least before its first chunk, where one tile could do before.
+  Nine tiles take some 45 s on the CPU at 5 s a tile, and about 5 s on the GPU. The lakes themselves cost little:
+  a block of four tiles takes about 27 ms on one core, and there is one block per tile.
 - **In the background.** One thread at the lowest priority computes the planned tiles one at a time, and switches to
   a newer plan as soon as one arrives. Model runs take turns, so a tile that chunk generation needs right away takes
   up to twice as long while the prefetcher works. Planning the earliest tiles first keeps that rare.
