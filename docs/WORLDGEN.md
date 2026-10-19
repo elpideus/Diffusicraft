@@ -76,6 +76,8 @@ ground reaches, so the empty height costs little (see [HEIGHT.md](HEIGHT.md#fill
 ## How a column is generated
 
 ```text
+Geography (per seed): continents, plates, hotspots and climate, the map the coarse model is conditioned on
+   ▼
 WorldPipeline (30 m pixels, per seed)
    │  PipelineSource: creates the pipeline on first use; caches windows under <world>/diffusicraft/
    ▼
@@ -93,6 +95,47 @@ noise settings diffusicraft:<scale>: noise router, aquifers, material rule diffu
    ▼                                   + diffusicraft:river, the rivers' water and beds)
 vanilla NoiseBasedChunkGenerator: caves, aquifers, ores, surface blocks, features and structures
 ```
+
+### The geography
+
+The coarse model draws the terrain and the climate to fit a conditioning map, at 7.7 km per pixel:
+
+- the elevation;
+- the temperature and its seasonality;
+- the annual precipitation and its seasonality.
+
+The reference implementation conditions it on noise, which scatters landmasses of one size across the sea. Diffusicraft
+draws the map from `terrain.geography.Geography` instead. It is a model of a planet's geography, cheap enough to
+evaluate anywhere:
+
+- **`Continents`.** Octaves of gradient noise run from 12,000 km down to 24 km and follow the spectrum of real
+  topography, so one world holds supercontinents, continents, subcontinents and islands of every size. Domain warping
+  bends them into arms, peninsulas and gulfs. A slowly varying ruggedness keeps some coasts long and smooth, as around
+  Africa, and breaks others into archipelagos and shelf seas, as in the Aegean.
+- **`Hypsometry`.** Heights are matched quantile for quantile to the real distribution the coarse model was trained
+  on: a little over two fifths land, broad platforms, narrow shelves and wide abyssal plains. The land rises from the
+  coast over a coastal plain.
+- **`Tectonics`.** Plates are the cells of a warped Voronoi diagram, their sites about 2,400 km apart. Where they
+  meet, they form the following:
+  - a trench and a cordillera inland where an ocean sinks under a continent, as the Andes;
+  - an arc of volcanic islands where two oceans meet, as the Aleutians;
+  - a wide belt of mountains and plateaus where continents collide, as the Himalaya and Tibet;
+  - a mid-ocean ridge or a rift valley where plates part.
+
+  Old boundaries are worn down, like the Appalachians.
+- **`Hotspots`.** Chains of volcanic islands sink into seamounts as they age. On a continent, a hotspot leaves a broad
+  swell.
+- **`ClimateModel`.** Winds blow in the real belts: the trades, the westerlies and the polar easterlies, with
+  monsoons. They carry moisture inland from the sea and rain it out over the land and the mountains, which leaves rain
+  shadows behind the ranges. Cold currents dry subtropical west coasts and warm ones wet east coasts. The temperature
+  is milder by the sea and more extreme deep inside a continent.
+
+The latitude runs along the z axis at 111 km per degree, at every world scale. The origin lies between 35° and 50°
+north, and the continents are shifted so that the place the seed drew for the spawn lies there.
+
+The windows cached on disk go under `map<Geography.VERSION>`. Bump the version whenever the map of a seed changes.
+A world started before a change keeps the chunks it has already generated and generates new ones from the new map, so
+the two meet at a seam. Nothing has been released yet, so no world is migrated.
 
 ### `TerrainField`
 
@@ -763,6 +806,7 @@ Other searches still read the full terrain and can take a while on new land:
 
 | Path | What |
 |---|---|
+| `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
 | `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
@@ -785,8 +829,9 @@ Other searches still read the full terrain and can take a while on new land:
 
 - **Loading.** The models load when the first chunk needs terrain, not when the world opens.
 - **Unloading.** They are freed when the server stops, which gives the GPU memory back to the game.
-- **Disk cache.** Pipeline windows are cached in `<world>/diffusicraft/<model revision>/<terrain seed>/`. Reopening a
-  world is fast, and the terrain stays the same even if newer models are installed later.
+- **Disk cache.** Pipeline windows are cached in
+  `<world>/diffusicraft/<model revision>/map<Geography.VERSION>/<terrain seed>/`. Reopening a world is fast, and the
+  terrain stays the same even if newer models are installed later.
 
 ## Tests
 
@@ -862,6 +907,10 @@ Other searches still read the full terrain and can take a while on new land:
 - `GlaciationTest` checks that the lowering keeps heights in order and leaves high ground and the deep sea alone, that
   a cold mountain coast drowns its valleys under the ridges while a mild one keeps them, that the coarse map is
   lowered alike, and that overlapping samples agree to the bit.
+- `GeographyTest` checks, on a table of heights shaped like the real one, that a seed always maps the same world,
+  that land takes about its real share, that the origin is the kind of place asked for (a coast by the open sea on a
+  continent, land far inland, a lone island, land over a Hollow or a high mountain) and that seeds draw the kinds by
+  their chances, coasts first.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;

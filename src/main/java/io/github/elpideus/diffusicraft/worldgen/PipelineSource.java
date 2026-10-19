@@ -5,6 +5,7 @@ import io.github.elpideus.diffusicraft.terrain.diffusion.TerrainSample;
 import io.github.elpideus.diffusicraft.terrain.diffusion.WorldPipeline;
 import io.github.elpideus.diffusicraft.terrain.diffusion.tensor.DiskWindowStore;
 import io.github.elpideus.diffusicraft.terrain.diffusion.tensor.Tile;
+import io.github.elpideus.diffusicraft.terrain.geography.Geography;
 
 import java.nio.file.Path;
 
@@ -70,7 +71,8 @@ final class PipelineSource implements TerrainSource {
 					ModelBundle models = TerrainFields.models();
 					Path root = TerrainFields.storageRoot();
 					DiskWindowStore store = root == null ? null
-						: new DiskWindowStore(root.resolve(models.revision()).resolve(Long.toHexString(seed)));
+						: new DiskWindowStore(root.resolve(models.revision()).resolve("map" + Geography.VERSION)
+							.resolve(Long.toHexString(seed)));
 					p = new WorldPipeline(seed, models, store, WorldPipeline.CacheLimits.defaults());
 					pipeline = p;
 				}

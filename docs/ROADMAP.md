@@ -33,6 +33,10 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   | **Diffusicraft Earth 1:1** | 1 m per block | 1 m per block, eased above 8 km | −256 to 9087 |
 
   The scale factors will be tuned in game. See [WORLDGEN.md](WORLDGEN.md).
+- **A real geography.** The coarse model is conditioned on a map of continents, plates and climate rather than on
+  noise. One world holds supercontinents and islands of every size, with smooth coasts in places and archipelagos in
+  others. It also has cordilleras, collision belts, island arcs, rifts and hotspot chains, and winds, rain shadows and
+  ocean currents. See [WORLDGEN.md](WORLDGEN.md#the-geography).
 - **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
   and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Slopes facing the
   sun are warmer and drier than those facing away, so the tree line climbs higher on them and, in dry climates, the

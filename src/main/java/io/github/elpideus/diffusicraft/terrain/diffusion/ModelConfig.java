@@ -22,7 +22,8 @@ import java.nio.file.Path;
  * @param coarseMeans        denormalisation means of the 6 coarse channels
  * @param coarseStds         denormalisation stds of the 6 coarse channels
  * @param condSnr            signal-to-noise ratio of the 5 conditioning channels
- * @param frequencyMult      frequency multipliers of the 5 synthetic-map channels
+ * @param frequencyMult      frequency multipliers of the 5 channels of the reference implementation's noise map,
+ *                           unused here since the {@code Geography} draws the map
  * @param residualMean       residual denormalisation mean
  * @param residualStd        residual denormalisation std
  * @param coarsePooling      coarse pooling factor (only 1 is supported)

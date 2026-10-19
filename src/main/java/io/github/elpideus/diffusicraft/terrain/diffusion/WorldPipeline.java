@@ -10,6 +10,7 @@ import io.github.elpideus.diffusicraft.terrain.diffusion.tensor.WindowStore;
 import io.github.elpideus.diffusicraft.terrain.diffusion.tensor.WindowedTensor;
 import io.github.elpideus.diffusicraft.terrain.diffusion.tensor.WindowedTensor.Dependency;
 import io.github.elpideus.diffusicraft.terrain.diffusion.tensor.WindowedTensor.WindowIndex;
+import io.github.elpideus.diffusicraft.terrain.geography.Geography;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,8 +21,9 @@ import java.util.List;
  * the model's native resolution (30 m per pixel).
  *
  * <ol>
- *     <li><b>Coarse</b> (1 px = 256 native px): a 20-step DPM-Solver++ diffusion conditioned on a synthetic
- *     noise map, producing elevation, its 5th percentile and four climate channels.</li>
+ *     <li><b>Coarse</b> (1 px = 256 native px): a 20-step DPM-Solver++ diffusion conditioned on the world's
+ *     {@link Geography} (continents, mountains and climate), producing elevation, its 5th percentile and four climate
+ *     channels.</li>
  *     <li><b>Latent</b> (1 px = 8 native px): two flow-matching steps of the base model, conditioned on the
  *     coarse map.</li>
  *     <li><b>Decoder</b>: one flow-matching step turning latents into a full-resolution elevation residual.</li>
@@ -45,7 +47,7 @@ public final class WorldPipeline {
 	private static final int COARSE_STEPS = 20;
 	private static final int LATENT_BATCH = 4;
 	private static final float SIGMA_DATA = EDMScheduler.SIGMA_DATA;
-	/** Synthetic-map channel {@code k} is normalised with coarse channel {@code COARSE_COND_CHANNELS[k]}. */
+	/** Conditioning channel {@code k} is normalised with coarse channel {@code COARSE_COND_CHANNELS[k]}. */
 	private static final int[] COARSE_COND_CHANNELS = {0, 2, 3, 4, 5};
 	private static final float[] COND_MEANS = {14.99f, 11.65f, 15.87f, 619.26f, 833.12f, 69.40f, 0.66f};
 	private static final float[] COND_STDS = {21.72f, 21.78f, 10.40f, 452.29f, 738.09f, 34.59f, 0.47f};
@@ -70,7 +72,7 @@ public final class WorldPipeline {
 	private final ModelBundle models;
 	private final ModelConfig config;
 	private final int latentCompression;
-	private final SyntheticMapFactory synthetic;
+	private final Geography geography;
 	private final float[] condVals;
 	private final float[] coarseWeights = linearWeightWindow(COARSE_SIZE);
 	private final float[] latentWeights = linearWeightWindow(LATENT_SIZE);
@@ -91,7 +93,7 @@ public final class WorldPipeline {
 		this.models = models;
 		this.config = models.config();
 		this.latentCompression = config.latentCompression();
-		this.synthetic = new SyntheticMapFactory(seed, config.frequencyMult(), models.quantiles());
+		this.geography = new Geography(seed, models.quantiles().dataQuantiles()[0]);
 		this.condVals = new float[config.condSnr().length];
 		for (int i = 0; i < condVals.length; i++) {
 			condVals[i] = (float) Math.log(config.condSnr()[i] / 8.0);
@@ -133,6 +135,11 @@ public final class WorldPipeline {
 
 	public ModelConfig config() {
 		return config;
+	}
+
+	/** The map the coarse model is conditioned on. */
+	public Geography geography() {
+		return geography;
 	}
 
 	/** Windows computed by inference since creation, across all stages. */
@@ -177,8 +184,8 @@ public final class WorldPipeline {
 		float[] sample = new float[batch * 6 * plane];
 		for (int b = 0; b < batch; b++) {
 			int i1 = windows.get(b).i() * COARSE_STRIDE, j1 = windows.get(b).j() * COARSE_STRIDE;
-			// The synthetic map takes (x, y) order: columns first.
-			float[][][] syn = synthetic.sample(j1, i1, j1 + s, i1 + s);
+			// The geography takes (x, z) order: columns first.
+			float[][][] map = geography.sample(j1, i1, j1 + s, i1 + s);
 			float[] noise = GaussianNoisePatch.generateFlat(seed, i1, j1, s, s, 5, s, s);
 			for (int ch = 0; ch < 5; ch++) {
 				float mean = means[COARSE_COND_CHANNELS[ch]], std = stds[COARSE_COND_CHANNELS[ch]];
@@ -186,7 +193,7 @@ public final class WorldPipeline {
 				float cos = (float) Math.cos(angle), sin = (float) Math.sin(angle);
 				int base = (b * 5 + ch) * plane;
 				for (int r = 0; r < s; r++) {
-					float[] row = syn[ch][r];
+					float[] row = map[ch][r];
 					for (int c = 0; c < s; c++) {
 						float v = row[c];
 						if (ch == 1 && v <= 20f) {

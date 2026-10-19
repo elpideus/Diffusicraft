@@ -27,7 +27,8 @@ Loom's split source sets keep client-only code out of the server.
 |---|---|
 | `src/main/java/.../diffusicraft` | Entrypoints: `Diffusicraft` (common), `DiffusicraftPreLaunch`, mixin plugin |
 | `.../runtime` | Everything downloaded or native: `Resources` (facade), `DiffusicraftConfig`, `RuntimeManifest`, `RuntimeInstaller`, `Downloader`, `RemoteZip`, `SystemLibraries`, `NativeRuntime`, `Hardware`, `Platform`, `Job` |
-| `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, `SyntheticMapFactory`, ... |
+| `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, ... |
+| `.../terrain/geography` | The map the coarse model is conditioned on: `Geography` (continents, plates, hotspots, climate) and where the world spawn lies (`SpawnKind`). See [WORLDGEN.md](WORLDGEN.md#the-geography) |
 | `.../terrain/diffusion/tensor` | `WindowedTensor` (lazy, concurrent, cached tiling) and its stores |
 | `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `TerrainSurface`, `TerrainPrefetcher`, `ClimateMapping`, `TerrainFields`, `density/` (density function types). See [WORLDGEN.md](WORLDGEN.md) |
 | `.../height`, `.../mixin/height` | Build height beyond 4064: `ExtendedHeight` (the numbers and the network format), `SharedContainerData` and `NoThreadingDetector` (memory per empty section), `AirSections` (empty sections left out of saves), `RenderWindow` (the rows the client renders), and the mixins that apply them. See [HEIGHT.md](HEIGHT.md) |
@@ -101,7 +102,7 @@ reference:
 
 | Stage | Resolution | Model | Steps |
 |---|---|---|---|
-| Coarse | 1 px = 7.7 km | `coarse_model.onnx` | 20 DPM-Solver++ steps, conditioned on a synthetic climate map (`SyntheticMapFactory`) |
+| Coarse | 1 px = 7.7 km | `coarse_model.onnx` | 20 DPM-Solver++ steps, conditioned on the world's geography (`Geography`) |
 | Latent | 1 px = 240 m | `base_model.onnx` | 2 flow-matching steps, conditioned on the coarse map |
 | Decoder | 1 px = 30 m | `decoder_model.onnx` | 1 flow-matching step producing an elevation residual |
 

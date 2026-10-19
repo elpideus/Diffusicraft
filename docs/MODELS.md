@@ -27,7 +27,7 @@ on Hugging Face, pinned to one revision in
 | `base_model.onnx` | 2.03 GB | Latent terrain, 1 px = 240 m, conditioned on the coarse map |
 | `decoder_model.onnx` | 224 MB | Full 30 m detail from the latents |
 | `world_pipeline_config.json` | 1 KB | Scheduler and window settings |
-| `pipeline_data.json` | 12 KB | Climate quantile tables for the synthetic conditioning maps |
+| `pipeline_data.json` | 12 KB | Quantile tables of the real elevations and climate, which the conditioning map is matched to |
 
 That is 2.3 GB in total. The weights are MIT-licensed and are downloaded at runtime, never shipped in the mod jar.
 
