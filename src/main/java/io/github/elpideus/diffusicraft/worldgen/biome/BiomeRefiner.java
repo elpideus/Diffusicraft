@@ -13,6 +13,8 @@ import java.util.Map;
  *
  * <p>The rules, first match wins:
  * <ul>
+ *   <li>Wetlands, from vanilla's swamp band: <b>mangroves</b> on tropical coasts, <b>bogs</b> where the summers stay
+ *       cooler than {@value #BOG_WARMEST} °C, tundra beyond the tree line, swamps elsewhere.</li>
  *   <li><b>Cloud forest</b>: tropical mountainsides (little seasonality) between 1000 and 3500 m, 10 to 20 °C, at
  *       least 1500 mm of rain.</li>
  *   <li>Snow and ice are vanilla's where the warmest month stays below {@value #ICE_WARMEST} °C or the year averages
@@ -24,6 +26,9 @@ import java.util.Map;
  *   <li>Bare summits stay bare.</li>
  *   <li><b>Moorland</b>: rolling uplands from {@value #MOOR_ELEVATION} m with cool summers (warmest month below
  *       {@value #MOOR_WARMEST} °C), mild winters and at least 800 mm of rain, as on Dartmoor or in the Pennines.</li>
+ *   <li><b>Bog</b>: the flattest land with cool summers and at least twice the rain it needs, as in Finland, the
+ *       West Siberian Plain or the Hudson Bay Lowlands. Vanilla only puts swamps on low ground; bogs grow on flat
+ *       land at any height below the mountains.</li>
  *   <li><b>Temperate rainforest</b>: mild oceanic climates (4 to 14 °C, coldest month above -3 °C) with at least
  *       1600 mm of rain.</li>
  *   <li><b>Maquis</b>: Mediterranean scrub, 12 to 21 °C with mild winters, 250 to 1000 mm of strongly seasonal
@@ -33,7 +38,6 @@ import java.util.Map;
  *   <li><b>Cold desert</b>: deserts cooler than {@value #COLD_DESERT_TEMPERATURE} °C.</li>
  *   <li><b>Steppe</b>: semi-arid grassland cooler than 18 °C.</li>
  * </ul>
- * Swamps on tropical coasts become mangroves, and mangroves elsewhere swamps.
  *
  * <p>Pure and static, so it is unit-tested without a world.
  */
@@ -48,12 +52,13 @@ public final class BiomeRefiner {
 	public static final String MOORLAND = "diffusicraft:moorland";
 	public static final String HEATH = "diffusicraft:heath";
 	public static final String SALT_FLAT = "diffusicraft:salt_flat";
+	public static final String BOG = "diffusicraft:bog";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
-		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, SWAMP, MANGROVE_SWAMP);
+		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, BOG, SWAMP, MANGROVE_SWAMP);
 
 	/** Warmest month below which snow lies all year round, °C. */
 	static final float ICE_WARMEST = 3f;
@@ -76,6 +81,12 @@ public final class BiomeRefiner {
 	static final float MOOR_ELEVATION = 300f;
 	/** Summers on the moors stay cooler than this, °C: the wind and the cold keep the trees off. */
 	static final float MOOR_WARMEST = 15.5f;
+	/** Summers in a bog stay cooler than this, °C; warmer wetlands are swamps. */
+	static final float BOG_WARMEST = 20f;
+	/** Land flatter than this, in meters of relief, holds its water and grows a bog in a cool, wet climate. */
+	static final float BOG_RELIEF = 6f;
+	/** Precipitation over the aridity threshold that a bog needs: the wetland band's. */
+	static final float BOG_ARIDITY = 2f;
 	/**
 	 * Heaths cover the part of the climate that suits them where the variant noise is below this: about a fifth of
 	 * it, in patches among the woods, as people cleared them.
@@ -145,11 +156,8 @@ public final class BiomeRefiner {
 			return null;
 		}
 		if (kind == Kind.WETLAND) {
-			boolean mangrove = c.coldestMonth() >= MANGROVE_COLDEST && c.elevation < MANGROVE_ELEVATION;
-			if (mangrove != biome.equals(MANGROVE_SWAMP)) {
-				return mangrove ? MANGROVE_SWAMP : SWAMP;
-			}
-			return null;
+			String wetland = wetland(c);
+			return wetland.equals(biome) ? null : wetland;
 		}
 		boolean dry = kind == Kind.DESERT || kind == Kind.BADLANDS;
 		if (!dry && kind != Kind.PEAK && cloudForest(c)) {
@@ -175,6 +183,9 @@ public final class BiomeRefiner {
 		if ((kind == Kind.LAND || kind == Kind.HILLS || meadow) && moorland(c)) {
 			return MOORLAND;
 		}
+		if (kind == Kind.LAND && bog(c, aridity)) {
+			return BOG;
+		}
 		boolean vegetated = kind != Kind.DESERT;
 		if (vegetated && temperateRainforest(c)) {
 			return TEMPERATE_RAINFOREST;
@@ -196,6 +207,23 @@ public final class BiomeRefiner {
 			}
 		}
 		return null;
+	}
+
+	/** The wetland that vanilla's swamp band holds in this climate. */
+	static String wetland(BiomeClimate c) {
+		if (c.coldestMonth() >= MANGROVE_COLDEST && c.elevation < MANGROVE_ELEVATION) {
+			return MANGROVE_SWAMP;
+		}
+		float warmest = c.warmestMonth();
+		if (warmest < TREE_LINE) {
+			return TUNDRA;
+		}
+		return warmest < BOG_WARMEST ? BOG : SWAMP;
+	}
+
+	static boolean bog(BiomeClimate c, float aridity) {
+		return c.relief < BOG_RELIEF && c.elevation < MOUNTAIN_ELEVATION && c.warmestMonth() < BOG_WARMEST
+			&& aridity >= BOG_ARIDITY;
 	}
 
 	static boolean cloudForest(BiomeClimate c) {

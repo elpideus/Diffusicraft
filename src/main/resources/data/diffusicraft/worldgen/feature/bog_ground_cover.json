@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:simple_block",
+  "to_place": {
+    "type": "minecraft:weighted",
+    "entries": [
+      {
+        "data": "diffusicraft:cottongrass",
+        "weight": 4
+      },
+      {
+        "data": "minecraft:short_grass",
+        "weight": 3
+      },
+      {
+        "data": "minecraft:moss_carpet",
+        "weight": 2
+      },
+      {
+        "data": "minecraft:fern",
+        "weight": 1
+      }
+    ]
+  }
+}

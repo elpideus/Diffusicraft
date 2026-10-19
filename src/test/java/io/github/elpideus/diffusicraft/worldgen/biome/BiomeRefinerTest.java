@@ -158,10 +158,31 @@ class BiomeRefinerTest {
 	}
 
 	@Test
-	void swampsFollowTheCoastsClimate() {
+	void wetlandsFollowTheClimate() {
 		// The Sundarbans, and Louisiana's bayous.
 		assertEquals(BiomeRefiner.MANGROVE_SWAMP, BiomeRefiner.refine("minecraft:swamp", climate(26f, 3f, 1800f, 80f, 3f, 5f)));
 		assertEquals(BiomeRefiner.SWAMP, BiomeRefiner.refine("minecraft:mangrove_swamp", climate(20f, 6f, 1600f, 30f, 3f, 5f)));
 		assertNull(BiomeRefiner.refine("minecraft:swamp", climate(20f, 6f, 1600f, 30f, 3f, 5f)));
+		// The Hudson Bay Lowlands, whose summers stay cool, and the edge of the Arctic, beyond the tree line.
+		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:swamp", climate(-3f, 13f, 650f, 35f, 50f, 3f)));
+		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:mangrove_swamp", climate(-3f, 13f, 650f, 35f, 3f, 3f)));
+		assertEquals(BiomeRefiner.TUNDRA, BiomeRefiner.refine("minecraft:swamp", climate(-4.5f, 9.5f, 400f, 40f, 20f, 3f)));
+	}
+
+	@Test
+	void flatLandWithCoolWetSummersIsBog() {
+		// Finland's lowland mires, the West Siberian Plain and the Bog of Allen.
+		BiomeClimate finland = climate(3f, 8.5f, 600f, 25f, 100f, 3f);
+		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:taiga", finland));
+		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:plains", finland));
+		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:taiga", climate(-2f, 13f, 500f, 40f, 120f, 2f)));
+		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:plains", climate(9.5f, 3.7f, 900f, 15f, 70f, 4f)));
+		// Rolling land in the same climate drains, and stays forest; so does flat land with less rain.
+		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(3f, 8.5f, 600f, 25f, 100f, 30f)));
+		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(3f, 8.5f, 300f, 25f, 100f, 3f)));
+		// Flat land with hot summers, as on the Illinois prairie, is no bog.
+		assertNull(BiomeRefiner.refine("minecraft:plains", climate(10f, 10f, 950f, 30f, 200f, 3f)));
+		// Hills and slopes are not land the bog takes.
+		assertNull(BiomeRefiner.refine("minecraft:grove", finland));
 	}
 }

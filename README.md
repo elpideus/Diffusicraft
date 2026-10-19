@@ -21,8 +21,8 @@ geography, climate and geology.
   the sea, with stacks and arches off them. The rock shapes the slopes: hard beds stand out of them as ledges and
   cliffs. Underground, sedimentary beds, fold belts and basement rock hold ores by rock and depth, above a magma
   layer. Caverns grow larger the deeper they lie, down to the Grand Hollows over lava seas.
-- **Real-world biomes.** Tundra, cloud forest, temperate rainforest, maquis, moorland, heath, salt flats, steppe and
-  more, with their own trees, plants and soils.
+- **Real-world biomes.** Tundra, cloud forest, temperate rainforest, maquis, moorland, heath, bogs, salt flats,
+  steppe and more, with their own trees, plants and soils.
 - **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m
   per pixel. It is thread-safe for parallel chunk generation and cached in memory and on disk.
 - **CPU, NVIDIA and AMD.**

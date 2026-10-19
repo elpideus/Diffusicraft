@@ -228,22 +228,23 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of ten new biomes. The first rule that matches wins:
+swap it for one of eleven new biomes. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
+| *(wetlands)* | Vanilla's swamp band: mangroves on tropical coasts (coldest month at least 15 °C, below 10 m), bogs where the warmest month stays below 20 °C, tundra beyond the tree line, swamps elsewhere | Swamps and mangroves |
 | **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
 | *(vanilla snow and ice)* | Warmest month below 3 °C, or a year below −10 °C | Kept as vanilla picked them |
 | **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief: the dry beds of old lakes, up on the cold Altiplano too | Plains, forests, taigas, savannas, deserts |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
 | **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
+| **Bog** | The flattest land (less than 6 m of relief) below 1500 m, with cool summers (warmest month below 20 °C) and at least twice the rain of the aridity threshold, as in Finland, the West Siberian Plain and the Hudson Bay Lowlands. Vanilla puts swamps only on low ground; bogs grow on flat land at any height below the mountains | Plains, forests, taigas, savannas |
 | **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
 | **Maquis** | 12–21 °C, coldest month at least 2 °C, 250–1000 mm of strongly seasonal rain, below 1200 m | The same, deserts and meadows too, but no other slopes |
 | **Heath** | Oceanic lowland below 300 m: 6–12 °C, coldest month above −4 °C, 550–1100 mm of rain. Only where the variant noise is below −0.3, so it comes in patches among the woods | Plains, forests, taigas, savannas |
 | **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts |
 | **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C | Plains, forests, taigas, savannas |
 
-Swamps on tropical coasts (coldest month at least 15 °C, below 10 m) become mangroves, and mangroves elsewhere swamps.
 Oceans, shores, rivers, caves and the mushroom fields are never touched, and neither is any biome a mod adds to the
 table: only vanilla's own biomes are refined. `BiomeRefiner` is pure and unit-tested.
 
@@ -285,8 +286,11 @@ the colours:
 | Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with bare peat and sphagnum (moss), peat below |
 | Heath | Plains | Heather and grass under scattered birches with bees, Scots pines and junipers | Grass with sandy coarse dirt and podzol |
 | Salt flat | Desert | Nothing | Salt crust over rock salt |
+| Bog | Swamp | Dark pools of peaty water with lily pads, cottongrass, moss carpets, heather, a few spindly black spruces, Scots pines and birches, berries, fireflies; frogs, and the swamp's slimes, witches and bogged | Sphagnum (moss) with bare peat and grass, peat all the way down |
 
-The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra.
+The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra
+and the bogs. The bog's pools are vanilla's `waterlogged_vegetation_patch`, the lush caves' clay pools: it sinks a
+patch of peat into the ground and fills its top with water wherever the water is held on every side.
 
 Their ground is the material rule `diffusicraft:biome_surface`, which runs ahead of vanilla's overworld surface rule
 and leaves every other biome to it. They join vanilla's structure tags (villages, outposts, ruins) and the `c:`
@@ -432,7 +436,7 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   coastline and lower than 5 m above the sea or 2.5 blocks, whichever is higher. The width wanders with slow noise from
   45 to 120 m, at least 5 blocks. Inside the band, continentalness is the height above the sea, so vanilla picks its
   beach, snowy beach or stony shore as it would. Before, the band went by height alone, and it covered most of the low
-  coastal plains of the Standard world, far inland. Low, wet, flat land past the beach is still a swamp.
+  coastal plains of the Standard world, far inland. Low, wet, flat land past the beach is still a swamp, or a bog.
 - **Sea cliffs.** At 30 m per pixel the terrain's coasts are gentle: the steepest is a slope, which the density's
   4-block cells would smear further. So `TerrainSurface` builds cliffs where high land meets the sea. Across a strip 60
   m wide (at least 6 blocks: 6 in the Standard world, 12 at Grand, 60 at Earth 1:1), it gathers the rise of the ground
@@ -544,7 +548,7 @@ salt crust also join `#minecraft:blocks_motion_no_leaves`. The heightmaps that f
 the blocks listed there, and would otherwise take the ground to lie under the rock.
 
 **Soils.** Under the top block, where vanilla puts dirt, some biomes have a soil of their own: peat under the moors
-and the tundra, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the savannas and
+and the tundra, and all the way down under the bogs, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the savannas and
 the cloud forest. Peat and terra rossa also lie bare on top in patches. Soils count as dirt (`#minecraft:dirt`), so
 saplings and plants grow on them as on dirt, and they dig with a shovel. Peat burns in a furnace for half as long
 as coal (`context_int_provider/cooking/time_peat.json`).
@@ -690,7 +694,8 @@ Other searches still read the full terrain and can take a while on new land:
   `build/river-map`, to look at them without starting the game.
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
   cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the
-  Lüneburg Heath, Bonneville and Uyuni, and tropical coasts. On slopes, the tree line of the Alps is higher on the
+  Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay
+  Lowlands, and tropical coasts. On slopes, the tree line of the Alps is higher on the
   sunny side, and the woods of the Rockies' foothills keep to the shaded side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope

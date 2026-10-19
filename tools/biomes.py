@@ -187,6 +187,10 @@ FEATURES = {
     "maquis_shrub": tree("oak_log", straight(1, 0, 0), "oak_leaves",
                          {"type": "minecraft:bush_foliage_placer", "height": 2, "offset": 1, "radius": 2},
                          two_layers(0, 0, 0)),
+    # Black spruce: thin and spindly, starved on the peat.
+    "bog_spruce": tree("spruce_log", straight(4, 2, 1), "spruce_leaves",
+                       {"type": "minecraft:spruce_foliage_placer", "radius": 1, "offset": uniform(0, 1),
+                        "trunk_height": uniform(1, 2)}, two_layers(2, 0, 1)),
     "tundra_ground_cover": simple([("short_grass", 4), (ours("cottongrass"), 2), ("fern", 1)]),
     "tundra_moss_vegetation": simple([("moss_carpet", 3), ("short_grass", 2)]),
     "alpine_grass": simple([("short_grass", 6), ("fern", 1)]),
@@ -200,6 +204,8 @@ FEATURES = {
     # Purple moor grass, cottongrass in the wet hollows, bracken.
     "moor_grass": simple([("short_grass", 4), (ours("cottongrass"), 2), ("fern", 1)]),
     "heath_grass": simple([("short_grass", 5), ("fern", 1), ("bush", 1)]),
+    # Cottongrass and sedges over the sphagnum.
+    "bog_ground_cover": simple([(ours("cottongrass"), 4), ("short_grass", 3), ("moss_carpet", 2), ("fern", 1)]),
     "boulder": boulder("stone", ["sand", "gravel", "coarse_dirt"]),
     "limestone_boulder": boulder(ours("limestone")),
     # The granite tors of the moors.
@@ -211,6 +217,13 @@ FEATURES["tundra_moss_patch"] = {
     "replaceable": "#minecraft:moss_replaceable", "surface": "floor", "vegetation_chance": 0.6,
     "vegetation_feature": placed(ours("tundra_moss_vegetation"), []), "vertical_range": 5,
     "xz_radius": uniform(2, 5)}
+# Pools of dark water sunk into the peat, as on a raised bog. The patch turns the ground into peat, then fills the top
+# of it with water wherever the water would be held on every side.
+FEATURES["bog_pool"] = {
+    "type": "minecraft:waterlogged_vegetation_patch", "depth": 2, "extra_bottom_block_chance": 0.5,
+    "extra_edge_column_chance": 0.4, "ground_state": {"id": ours("peat")},
+    "replaceable": "#minecraft:lush_ground_replaceable", "surface": "floor", "vegetation_chance": 0.0,
+    "vegetation_feature": placed(ours("bog_ground_cover"), []), "vertical_range": 3, "xz_radius": uniform(2, 5)}
 
 # Placed features, in the order they run within a step.
 PLACED = {
@@ -221,10 +234,12 @@ PLACED = {
     "stone_pine_checked": checked(ours("stone_pine"), "spruce_sapling"),
     "cypress_checked": checked(ours("cypress"), "spruce_sapling"),
     "maquis_shrub_checked": checked(ours("maquis_shrub"), "oak_sapling"),
+    "bog_spruce_checked": checked(ours("bog_spruce"), "spruce_sapling"),
     "boulders": scattered(ours("boulder"), chance=4),
     "boulders_rare": scattered(ours("boulder"), chance=12),
     "limestone_boulders": scattered(ours("limestone_boulder"), chance=5),
     "granite_tors": scattered(ours("granite_boulder"), chance=5),
+    "bog_pools": scattered(ours("bog_pool"), count=3),
     "trees_tundra": trees(ours("tundra_shrub"), {0: 3, 1: 2, 2: 1}, "birch_sapling"),
     "trees_alpine_tundra": trees(ours("krummholz"), {0: 4, 1: 2, 2: 1}, "spruce_sapling"),
     "trees_temperate_rainforest": trees(ours("trees_temperate_rainforest"), {12: 9, 14: 1}, "spruce_sapling"),
@@ -233,6 +248,7 @@ PLACED = {
     "trees_steppe": trees(ours("trees_steppe"), {0: 24, 1: 1}, "oak_sapling"),
     "trees_moorland": trees(ours("trees_moorland"), {0: 14, 1: 1}, "birch_sapling"),
     "trees_heath": trees(ours("trees_heath"), {0: 4, 1: 2, 2: 1}, "birch_sapling"),
+    "trees_bog": trees(ours("trees_bog"), {0: 6, 1: 3, 2: 1}, "spruce_sapling"),
     "patch_tundra_grass": patch(ours("tundra_ground_cover"), 24, count=3),
     "tundra_moss": scattered(ours("tundra_moss_patch"), chance=2),
     "rainforest_moss": scattered("minecraft:moss_patch", count=1),
@@ -248,6 +264,8 @@ PLACED = {
     "patch_moor_grass": patch(ours("moor_grass"), 32, count=3),
     "patch_heather_heath": patch(ours("heather"), 64, count=3),
     "patch_heath_grass": patch(ours("heath_grass"), 32, count=2),
+    "patch_bog_ground_cover": patch(ours("bog_ground_cover"), 32, count=4),
+    "patch_heather_bog": patch(ours("heather"), 32, count=1),
 }
 FEATURES["trees_temperate_rainforest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
                                           "features": [
@@ -272,6 +290,10 @@ FEATURES["trees_moorland"] = {"type": "minecraft:random_selector", "default": "m
 FEATURES["trees_heath"] = {"type": "minecraft:random_selector", "default": "minecraft:birch_bees_002",
                            "features": [{"chance": 0.35, "feature": "minecraft:pine_checked"},
                                         {"chance": 0.15, "feature": "minecraft:spruce_checked"}]}
+# Black spruce, Scots pine and downy birch, few and far between.
+FEATURES["trees_bog"] = {"type": "minecraft:random_selector", "default": ours("bog_spruce_checked"),
+                         "features": [{"chance": 0.25, "feature": "minecraft:pine_checked"},
+                                      {"chance": 0.2, "feature": "minecraft:birch_checked"}]}
 FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
@@ -414,6 +436,23 @@ BIOMES = {
                  "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_plains",
                  "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
     },
+    # Raised bogs of the cool, wet lowlands: sphagnum and peat around dark pools, cottongrass, heather on the
+    # hummocks, and a few spindly trees. The swamp's monsters: slimes, witches and the bogged.
+    "bog": {
+        "template": "swamp", "temperature": 0.35, "downfall": 0.9,
+        "effects": {"grass_color": "#8b9a55", "grass_color_modifier": "none", "foliage_color": "#6f8045",
+                    "dry_foliage_color": "#8a6b45", "water_color": "#6a5a3c"},
+        "creatures": [spawn("frog", 10, 2, 5), spawn("rabbit", 4, 2, 3), spawn("fox", 3, 2, 4), spawn("wolf", 2, 2, 4)],
+        "local": ["bog_pools"],
+        "vegetation": ["minecraft:glow_lichen", "trees_bog", "patch_bog_ground_cover", "patch_heather_bog",
+                       "minecraft:patch_waterlily", "minecraft:patch_berry_rare", "minecraft:brown_mushroom_normal",
+                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water"],
+        "tags": ["c:is_wet/overworld", "c:is_swamp", "c:is_cold/overworld", "c:is_sparse_vegetation/overworld",
+                 "minecraft:allows_surface_slime_spawns", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/ruined_portal_swamp", "minecraft:has_structure/swamp_hut",
+                 "minecraft:has_structure/trial_chambers", "minecraft:is_overworld",
+                 "minecraft:spawns_cold_variant_frogs", "minecraft:stronghold_biased_to"],
+    },
     # Dry lake beds: a crust of salt from one horizon to the other, and nothing growing.
     "salt_flat": {
         "template": "desert", "temperature": 0.7, "downfall": 0.0,
@@ -486,6 +525,9 @@ SURFACE_RULE = sequence(
         # Sandy, leached soil.
         when(biome_is("heath"), sequence(
             when(noise(0.45), block("coarse_dirt")), when(noise(hi=-0.6), block("podzol")), block("grass_block"))),
+        # Sphagnum, bare peat, and grass on the drier hummocks.
+        when(biome_is("bog"), sequence(
+            when(noise(0.4), block(ours("peat"))), when(noise(hi=0.05), block("moss_block")), block("grass_block"))),
     ))),
     when("minecraft:under_floor", sequence(
         when(biome_is("cold_desert"), block("sandstone")),
@@ -493,6 +535,8 @@ SURFACE_RULE = sequence(
         when(biome_is("maquis"), when(STEEP, block(ours("limestone")))),
         when(biome_is("salt_flat"), block(ours("rock_salt"))),
         when(biome_is("moorland"), when(STEEP, block("stone"))),
+        # Peat all the way down to the rock.
+        when(biome_is("bog"), block(ours("peat"))),
         when(SUBSOIL, sequence(
             when(biome_is("moorland", "tundra"), block(ours("peat"))),
             when(biome_is("maquis"), block(ours("terra_rossa"))),

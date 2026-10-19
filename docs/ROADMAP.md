@@ -39,9 +39,9 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
   woods keep to the shaded slopes. Biome mods that extend the overworld table get the same parameters; checked in
   game with Biomes O' Plenty and TerraBlender. See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
-  rainforest, Mediterranean maquis, moorland, heath, salt flats, cold desert and steppe, with their own trees
-  (krummholz, giant spruces, olives, stone pines, cypresses), plants and ground; swamps and mangroves follow the
-  coast's climate. New plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their
+  rainforest, Mediterranean maquis, moorland, heath, salt flats, bogs, cold desert and steppe, with their own trees
+  (krummholz, giant spruces, olives, stone pines, cypresses, black spruces), plants and ground; the wetlands follow
+  the climate, from mangroves to bogs. New plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their
   own under some biomes: peat, which burns, terra rossa, laterite and loess. Snow follows the
   climate rather than a fixed height, above a real tree line, and the Grand Hollows are free of sculk. See
   [WORLDGEN.md](WORLDGEN.md#refined-biomes).
@@ -107,7 +107,7 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 ### Biomes
 
 - **Real sizes.** Biomes are as large as their real counterparts: a forest can be tens of kilometres across at 1:1.
-- **More real-world biomes.** Fjords, bogs and the other biomes the climate can tell apart.
+- **More real-world biomes.** Fjords and the other biomes the climate can tell apart.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
 
