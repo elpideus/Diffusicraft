@@ -127,11 +127,23 @@ public final class TerrainSurface implements Erosion.Surface {
 			double ledges = GeoNoise.smoothstep(SMOOTH_SLOPE, LEDGE_SLOPE, slope) * (1 - (1 - COVERED_LEDGES) * cover);
 			y += geology.ledge(site, y, ledges);
 		}
+		return Math.clamp(shore(x, z, i, j, elevation, y), lowest, highest);
+	}
+
+	/**
+	 * The ground at the centre of column {@code (x, z)} for the levels of detail too coarse for the gullies and the
+	 * ledges: the terrain's height with only the shapes of the shore.
+	 */
+	public float shore(int x, int z) {
+		double cx = x + 0.5, cz = z + 0.5, i = cz * pixelsPerBlock, j = cx * pixelsPerBlock;
+		float elevation = field.elevation(i, j);
+		return (float) Math.clamp(shore(cx, cz, i, j, elevation, scale.surfaceY(elevation)), lowest, highest);
+	}
+
+	/** The ground {@code y} at a point of the given elevation, with the sea cliffs. */
+	private double shore(double x, double z, double i, double j, float elevation, double y) {
 		float coast = field.coast(i, j);
-		if (coast > 0f && coast < zone) {
-			y = sharpen(x, z, i, j, coast, y);
-		}
-		return Math.clamp(y, lowest, highest);
+		return coast > 0f && coast < zone ? sharpen(x, z, i, j, coast, y) : y;
 	}
 
 	/**

@@ -438,10 +438,9 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   above it. So the face is sheer, and the rivers, which come after, still cut through it. The top of a cliff is too high
   for the beach band and keeps the biome inland; the shelf at its foot is beach. Like other cliffs, the face shows the
   rock (see [the ground](#the-ground)).
-- **Limits.** Distant Horizons' LODs show the cliffs up close, as the chunks do. LODs coarser than a column every 4
-  blocks read the bare elevation, where a cliff is a slope, and the farthest read the coarse map, which has no
-  coastline: no beaches there. The sea floor drops a block below the shore and then follows the terrain, with no surf
-  zone. There are no sea stacks or arches.
+- **Limits.** Distant Horizons' LODs show the cliffs as the chunks do, except the farthest, which read the coarse
+  map: it has no coastline, so no beaches or cliffs there. The sea floor drops a block below the shore and then
+  follows the terrain, with no surf zone. There are no sea stacks or arches.
 
 ### The ground
 

@@ -50,7 +50,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * everything finer than a coarse pixel. Narrower grids read the full-resolution terrain, which runs the models over
  * every tile they touch. The ledges and the gullies show only in grids whose columns are at most {@value #CELL}
  * blocks apart: sampled further apart than that they would be noise. There the ground runs straight between the
- * corners of the cells the chunks interpolate their density over, as it does in the chunks.
+ * corners of the cells the chunks interpolate their density over, as it does in the chunks. The sea cliffs and the
+ * shape of the sea floor show in every grid that reads the full-resolution terrain.
  *
  * <p>Thread-safe: each call to {@link #sample} works on its own state.
  */
@@ -267,7 +268,8 @@ public final class LodSampler {
 		/** The ground, the rivers and the sea over the grid and its border. */
 		private void sampleHeights(boolean coarse) {
 			Rivers rivers = coarse ? null : Rivers.of(field);
-			TerrainSurface detailed = coarse || step > CELL ? null : field.surface(scale);
+			TerrainSurface surface = coarse ? null : field.surface(scale);
+			TerrainSurface detailed = step > CELL ? null : surface;
 			// The chunks take the ground at the corners of their cells and run straight between them, which turns the
 			// narrowest cliffs of the ledges and gullies into ramps. Do the same, or the steepest ground would stray.
 			int cellX = 0, cellZ = 0, cells = 0;
@@ -302,7 +304,7 @@ public final class LodSampler {
 								corners[c + 1], corners[c + cells], corners[c + cells + 1]);
 						}
 					} else {
-						surfaceY = scale.surfaceY(coarse ? field.coarseElevation(i, j) : field.elevation(i, j));
+						surfaceY = coarse ? scale.surfaceY(field.coarseElevation(i, j)) : surface.shore(x, z);
 					}
 					int top = Mth.ceil(surfaceY) - 1;
 					bed[k] = Integer.MIN_VALUE;

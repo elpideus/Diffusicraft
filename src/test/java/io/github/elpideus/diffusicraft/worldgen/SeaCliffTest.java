@@ -118,6 +118,32 @@ class SeaCliffTest {
 	}
 
 	@Test
+	void theFarLevelsOfDetailShowTheCliffs() {
+		for (WorldScale scale : new WorldScale[]{WorldScale.EARTH, WorldScale.STANDARD}) {
+			TerrainSurface surface = surface(HIGH, scale);
+			float cliff = (scale.surfaceY(90f) - scale.seaLevel()) * 0.4f;
+			int x0 = coast(scale) - 10, n = (int) TerrainSurface.cliffZone(scale) + 20;
+			int cliffs = 0, profiles = 0;
+			for (int z = 0; z < 40_000 / scale.metersPerBlock(); z += (int) (250 / scale.metersPerBlock())) {
+				float[] far = new float[n];
+				for (int k = 0; k < n; k++) {
+					far[k] = surface.shore(x0 + k, z);
+				}
+				int face = face(far);
+				if (rise(far, face) >= cliff) {
+					cliffs++;
+					// The face stands where the chunks have it.
+					float[] near = profile(surface, scale, z);
+					assertEquals(face, face(near), 1, scale + " z " + z);
+				}
+				profiles++;
+			}
+			double share = cliffs / (double) profiles;
+			assertTrue(share > 0.25 && share < 0.95, scale + ": " + cliffs + " cliffs in " + profiles);
+		}
+	}
+
+	@Test
 	void theDensityTakesTheCliffAndTheSeaBesideItBlockByBlock() {
 		WorldScale scale = WorldScale.EARTH;
 		TerrainSurface surface = surface(HIGH, scale);
