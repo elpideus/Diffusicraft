@@ -1,5 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen.biome;
 
+import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
+import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,6 +19,22 @@ class BiomeRefinerTest {
 		c.elevation = elevation;
 		c.relief = relief;
 		return c;
+	}
+
+	/** {@link #climate} on a 30° slope facing the south ({@code facing} 1) or the north (-1), or on flat ground (0). */
+	private static BiomeClimate onSlope(int facing, float temperature, float seasonality, float precipitation,
+										float cv, float elevation, float relief) {
+		TerrainField.Column column = new TerrainField.Column();
+		column.temperature = temperature;
+		column.temperatureSeasonality = seasonality * 100f;
+		column.precipitation = precipitation;
+		column.precipitationSeasonality = cv;
+		column.elevation = elevation;
+		column.meanElevation = elevation;
+		column.relief = relief;
+		float rise = (float) Math.tan(Math.toRadians(30));
+		ClimateMapping.expose(column, ClimateMapping.exposure(0f, -facing * rise));
+		return new BiomeClimate().set(column);
 	}
 
 	@Test
@@ -119,6 +137,24 @@ class BiomeRefinerTest {
 		assertEquals(BiomeRefiner.SALT_FLAT, BiomeRefiner.refine("minecraft:plains", climate(5f, 3f, 100f, 90f, 3650f, 0.5f)));
 		// Dunes and rocky desert stay desert.
 		assertNull(BiomeRefiner.refine("minecraft:desert", climate(25f, 7f, 50f, 100f, 300f, 25f)));
+	}
+
+	@Test
+	void theTreeLineClimbsHigherOnTheSunnySide() {
+		// 1900 m in the Alps, just under the tree line: July around 10.5 °C on flat ground.
+		assertNull(BiomeRefiner.refine("minecraft:taiga", onSlope(0, 2f, 6f, 1200f, 25f, 1900f, 200f)));
+		assertNull(BiomeRefiner.refine("minecraft:taiga", onSlope(1, 2f, 6f, 1200f, 25f, 1900f, 200f)));
+		assertEquals(BiomeRefiner.ALPINE_TUNDRA,
+			BiomeRefiner.refine("minecraft:taiga", onSlope(-1, 2f, 6f, 1200f, 25f, 1900f, 200f)));
+	}
+
+	@Test
+	void inADryClimateTheWoodsKeepToTheShadedSlopes() {
+		// The foothills of the Rockies: pines on the slopes facing north, grass on those facing south.
+		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(0, 10f, 9f, 375f, 30f, 1800f, 200f)));
+		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 375f, 30f, 1800f, 200f)));
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:forest", onSlope(1, 10f, 9f, 375f, 30f, 1800f, 200f)));
 	}
 
 	@Test

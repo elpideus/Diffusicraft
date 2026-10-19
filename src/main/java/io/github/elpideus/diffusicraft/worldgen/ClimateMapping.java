@@ -7,10 +7,11 @@ package io.github.elpideus.diffusicraft.worldgen;
  * <p>Vanilla's parameters have no physical meaning; they are noise. We give each one the meaning its biome table
  * implies, with breakpoints at vanilla's own band edges (see {@code OverworldBiomeBuilder}):
  * <ul>
- *   <li><b>temperature</b>: the annual mean at the column's elevation, so the lapse rate makes mountain tops cold.
- *       The hot band (deserts and badlands) needs dry air as well as heat.</li>
+ *   <li><b>temperature</b>: the annual mean at the column's elevation, so the lapse rate makes mountain tops cold,
+ *       and on its slope, which the sun warms or leaves in the shade ({@link #expose}). The hot band (deserts and
+ *       badlands) needs dry air as well as heat.</li>
  *   <li><b>humidity</b>: precipitation relative to the Köppen aridity threshold {@code 20 (T + 7)} mm (at least
- *       140 mm).</li>
+ *       140 mm), less what the sun dries out of a sunny slope.</li>
  *   <li><b>continentalness</b>: water depth offshore, the height above the sea on the coast, the mean elevation
  *       inland. The coast, which holds vanilla's beaches and stony shores, is the strip of low ground along the
  *       coastline, as wide as real beaches are.</li>
@@ -46,6 +47,10 @@ public final class ClimateMapping {
 	static final float SNOW_LINE_TEMPERATURE = 1f;
 	/** Bare stony summits stop below this temperature; warmer peaks are forested. */
 	static final float STONY_PEAK_TEMPERATURE = 8f;
+	/** How much warmer than flat ground a sunny slope is, at most, in °C: a cliff facing south. */
+	public static final float EXPOSURE_WARMING = 3f;
+	/** The share of its water the sun dries out of a sunny slope, at most, and a shaded slope keeps. */
+	public static final float EXPOSURE_DRYING = 0.4f;
 	/** Depth is measured from at most this many blocks above the sea. */
 	static final int DEPTH_CEILING = 60;
 	/** Blocks per unit of depth. Cave biomes sit between 0.2 and 0.9, the deep dark at 1.1. */
@@ -101,6 +106,28 @@ public final class ClimateMapping {
 		out[CONTINENTALNESS] = continentalness;
 		out[EROSION] = erosion;
 		out[WEIRDNESS] = weirdness(peaks, c.variant);
+	}
+
+	/**
+	 * How squarely a slope faces the sun, in [-1, 1]: the sine of its steepness times the cosine of the angle between
+	 * the way it faces and the south. A cliff facing south is 1, one facing north -1, flat ground and slopes facing east
+	 * or west 0. The world lies in the northern hemisphere, where the noon sun stands in the south.
+	 *
+	 * @param slopeX rise in meters per meter eastward (+X)
+	 * @param slopeZ rise in meters per meter southward (+Z)
+	 */
+	public static float exposure(float slopeX, float slopeZ) {
+		return (float) (-slopeZ / Math.sqrt(1.0 + slopeX * slopeX + slopeZ * slopeZ));
+	}
+
+	/**
+	 * Gives a column the climate of its slope. The sun warms a slope that faces it and dries its ground, and a slope
+	 * facing away stays cool and moist, so the tree line and the snow climb higher on the sunny side of a mountain,
+	 * and in a dry climate the woods keep to the shaded slopes. The precipitation becomes the water the ground keeps.
+	 */
+	public static void expose(TerrainField.Column c, float exposure) {
+		c.temperature += EXPOSURE_WARMING * exposure;
+		c.precipitation *= 1f - EXPOSURE_DRYING * exposure;
 	}
 
 	/**

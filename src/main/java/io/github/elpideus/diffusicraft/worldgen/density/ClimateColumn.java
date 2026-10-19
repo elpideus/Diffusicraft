@@ -10,6 +10,9 @@ import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
  * The biome parameters of a column. Vanilla's climate sampler reads all six parameters at the same position in a row,
  * and the biome source walks whole columns, so each thread keeps the column it last asked about ({@link #at}).
  *
+ * <p>The climate is the one the ground feels on its slope ({@link ClimateMapping#expose}): warmer and drier where
+ * the land faces the sun, cooler and moister where it faces away. The coarse map has no slopes.
+ *
  * <p>Columns in the valley of a river get the parameters of vanilla's river biomes, so rivers are rivers on the map
  * and freeze where it is cold. Along the coast, where the sea cliffs reshape the ground, the column reads the
  * {@link io.github.elpideus.diffusicraft.worldgen.TerrainSurface ground} itself: the foot of a cliff is a beach, its
@@ -32,6 +35,7 @@ public final class ClimateColumn {
 	public float surfaceY;
 	/** Whether the column lies in a river's valley. */
 	public boolean valley;
+	private final float[] slope = new float[2];
 
 	/** The column at a block, from the coarse map inside {@link CoarseClimate#call}. */
 	public static ClimateColumn at(TerrainField field, WorldScale scale, int blockX, int blockZ) {
@@ -51,6 +55,11 @@ public final class ClimateColumn {
 			field.coarseColumn(scale.toPixel(blockZ), scale.toPixel(blockX), column);
 		} else {
 			field.column(scale.toPixel(blockZ), scale.toPixel(blockX), column);
+		}
+		if (!coarse && column.elevation > 0f) {
+			// Pixel i grows with Z and j with X.
+			field.slope(scale.toPixel(blockZ), scale.toPixel(blockX), slope);
+			ClimateMapping.expose(column, ClimateMapping.exposure(slope[1], slope[0]));
 		}
 		double mpb = scale.metersPerBlock();
 		column.variant = field.variant(blockX * mpb, blockZ * mpb);

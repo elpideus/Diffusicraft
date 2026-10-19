@@ -192,8 +192,8 @@ gives each one a physical meaning, with breakpoints at the edges of vanilla's ow
 
 | Parameter | Computed from |
 |---|---|
-| temperature | Annual mean at the column's elevation. The hot band (desert, badlands) also requires dry air. |
-| humidity (vegetation) | Precipitation over the Köppen aridity threshold `20 × (T + 7)` mm. |
+| temperature | Annual mean at the column's elevation, on its slope. The hot band (desert, badlands) also requires dry air. |
+| humidity (vegetation) | Precipitation over the Köppen aridity threshold `20 × (T + 7)` mm, less what the sun dries out of a sunny slope. |
 | continentalness | Offshore: the water depth. On the [coast](#coasts): the height above the sea. Inland: the mean elevation. |
 | erosion | Local relief: rugged land is low, flat land is high. Flat, low and wet land is put in the swamp band. |
 | weirdness | Whether the column is a local peak or a hollow. The sign comes from smooth noise and only picks variants. |
@@ -201,6 +201,17 @@ gives each one a physical meaning, with breakpoints at the edges of vanilla's ow
 
 Some adjustments move biomes away from vanilla's defaults:
 
+- **Sun and shade.** The climate is the one the ground feels on its slope (`ClimateMapping.expose`). A slope that
+  faces the sun is warmer, and the sun dries out its ground; one that faces away stays cool and moist. The world lies
+  in the northern hemisphere, so the sunny slopes face south. The effect grows with the sine of the slope times the
+  cosine of the angle between the way it faces and the south. At most, for a cliff facing straight south or north,
+  it adds or takes off 3 °C and 40% of the rain; a 30° slope gets half that. The slope is the hillside's
+  (`TerrainField.slope`, over 120 m), not every bump's, and the coarse map has none. It feeds both vanilla's table and
+  the [refiner](#refined-biomes) below. Some effects:
+  - the tree line and the snow climb a few hundred meters higher on the sunny side of a mountain;
+  - in dry climates the woods keep to the shaded slopes and grass or steppe takes the sunny ones, as in the foothills
+    of the Rockies;
+  - Mediterranean scrub spreads up the sunny slopes.
 - **Snow.** Snowy slopes and peaks need temperatures below 1 °C. A warmer mountain is moved into the plateau and
   forest bands. Between 1 and 8 °C, a summit becomes stony peaks.
 - **Windswept and rivers.** Erosion never reaches the windswept band. Weirdness reaches the river band only in the
@@ -679,7 +690,11 @@ Other searches still read the full terrain and can take a while on new land:
   `build/river-map`, to look at them without starting the game.
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
   cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the
-  Lüneburg Heath, Bonneville and Uyuni, and tropical coasts.
+  Lüneburg Heath, Bonneville and Uyuni, and tropical coasts. On slopes, the tree line of the Alps is higher on the
+  sunny side, and the woods of the Rockies' foothills keep to the shaded side.
+- `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
+  its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
+  faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.
 - `CoastlineTest` checks the distance to straight and round coasts, at sea and on land, that it is continuous across
   tile borders with its gradient, that a coast just outside a tile counts and that saddles follow the mean of their
   corners. `SeaCliffTest` builds straight coasts: some stretches of a high one get cliffs, a full cliff's foot is a
@@ -691,7 +706,8 @@ Other searches still read the full terrain and can take a while on new land:
   - continuity across tile borders;
   - eviction;
   - concurrent tile computation;
-  - the coarse column.
+  - the coarse column;
+  - the hillside's slope, across tile corners too.
 - `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings and
   checks that it uses Diffusicraft and that the heightmaps count all of Diffusicraft's full blocks. It then saves a
   biome map, a height map, in-game views around the spawn and views of the largest river near the spawn, the steepest

@@ -42,6 +42,8 @@ public final class TerrainField implements AutoCloseable {
 	 * over 1.4 km.
 	 */
 	static final float COARSE_RELIEF = 0.2f;
+	/** Half the run, in pixels, over which {@link #slope} measures a hillside (60 m). */
+	static final int HILLSIDE = 2;
 	/** Real-world wavelength of the noise that picks vanilla's biome variants, in meters. */
 	static final float VARIANT_WAVELENGTH = 4000f;
 
@@ -148,6 +150,22 @@ public final class TerrainField implements AutoCloseable {
 		int iu = (int) Math.floor(u), iv = (int) Math.floor(v);
 		FieldTile tile = tile(Math.floorDiv(iu, TILE), Math.floorDiv(iv, TILE));
 		return tile.elevation(iu, iv, (float) (u - iu), (float) (v - iv), gradient);
+	}
+
+	/**
+	 * The slope of a hillside at a native pixel coordinate: the rise in meters per meter along {@code i} in
+	 * {@code slope[0]} and along {@code j} in {@code slope[1]}, as differences over {@value #HILLSIDE} pixels either
+	 * way. Smoother than {@link #elevation(double, double, float[]) the gradient}, which follows every bump. It reads
+	 * the margin of the pixel's own tile, never the next one.
+	 */
+	public void slope(double i, double j, float[] slope) {
+		double u = i - 0.5, v = j - 0.5;
+		int iu = (int) Math.floor(u), iv = (int) Math.floor(v);
+		FieldTile tile = tile(Math.floorDiv(iu, TILE), Math.floorDiv(iv, TILE));
+		float fu = (float) (u - iu), fv = (float) (v - iv);
+		float run = (float) (2 * HILLSIDE * WorldScale.METERS_PER_PIXEL);
+		slope[0] = (tile.elevation(iu + HILLSIDE, iv, fu, fv) - tile.elevation(iu - HILLSIDE, iv, fu, fv)) / run;
+		slope[1] = (tile.elevation(iu, iv + HILLSIDE, fu, fv) - tile.elevation(iu, iv - HILLSIDE, fu, fv)) / run;
 	}
 
 	/** The ground of a world at {@code scale} over this terrain. */

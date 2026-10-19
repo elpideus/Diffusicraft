@@ -13,13 +13,14 @@ geography, climate and geology.
 
 - **A world generator.** Diffusicraft is the default world type, at three scales: Diffusicraft (vanilla height),
   Grand (up to y = 2383) and Earth 1:1, whose mountains stand at their real height (up to y = 9087). Biomes follow the
-  real climate: snow only where it is cold, deserts only where it is hot and dry. Vanilla caves, structures and biome
-  mods keep working. See [WORLDGEN.md](docs/WORLDGEN.md).
+  real climate: snow only where it is cold, deserts only where it is hot and dry, and the sunny side of a valley is
+  warmer and drier than the shaded one. Vanilla caves, structures and biome mods keep working. See
+  [WORLDGEN.md](docs/WORLDGEN.md).
 - **Rivers, coasts, rock and caverns.** Rivers drain the whole world from its rain and terrain, and fill the lakes on
-  their way, up to great lakes 60 km across. Beaches follow the coastline, and sea cliffs rise where high land meets the sea, with stacks and arches off them. The rock shapes the
-  slopes: hard beds stand out of them as ledges and cliffs. Underground, sedimentary beds, fold belts and basement rock
-  hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they lie, down to the Grand Hollows
-  over lava seas.
+  their way, up to great lakes 60 km across. Beaches follow the coastline, and sea cliffs rise where high land meets
+  the sea, with stacks and arches off them. The rock shapes the slopes: hard beds stand out of them as ledges and
+  cliffs. Underground, sedimentary beds, fold belts and basement rock hold ores by rock and depth, above a magma
+  layer. Caverns grow larger the deeper they lie, down to the Grand Hollows over lava seas.
 - **Real-world biomes.** Tundra, cloud forest, temperate rainforest, maquis, moorland, heath, salt flats, steppe and
   more, with their own trees, plants and soils.
 - **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m

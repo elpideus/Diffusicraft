@@ -146,6 +146,38 @@ class ClimateMappingTest {
 	}
 
 	@Test
+	void slopesFacingTheSunAreWarmerAndDrier() {
+		assertEquals(0f, ClimateMapping.exposure(0f, 0f), 0f);
+		// 45°, falling toward the south and toward the north, and facing west.
+		assertEquals(Math.sqrt(0.5), ClimateMapping.exposure(0f, -1f), 1e-6);
+		assertEquals(-Math.sqrt(0.5), ClimateMapping.exposure(0f, 1f), 1e-6);
+		assertEquals(0f, ClimateMapping.exposure(1f, 0f), 0f);
+		// Only the part of the slope that faces the sun counts.
+		assertEquals(0.5, ClimateMapping.exposure(1f, -1f), 0.08);
+
+		float steep = (float) Math.tan(Math.toRadians(30));
+		TerrainField.Column south = column(1500f, 1500f, 100f, 6f, 600f);
+		ClimateMapping.expose(south, ClimateMapping.exposure(0f, -steep));
+		assertEquals(6f + 0.5f * ClimateMapping.EXPOSURE_WARMING, south.temperature, 1e-4);
+		assertEquals(600f * (1f - 0.5f * ClimateMapping.EXPOSURE_DRYING), south.precipitation, 1e-2);
+		TerrainField.Column north = column(1500f, 1500f, 100f, 6f, 600f);
+		ClimateMapping.expose(north, ClimateMapping.exposure(0f, steep));
+		assertEquals(6f - 0.5f * ClimateMapping.EXPOSURE_WARMING, north.temperature, 1e-4);
+		assertEquals(600f * (1f + 0.5f * ClimateMapping.EXPOSURE_DRYING), north.precipitation, 1e-2);
+		assertTrue(parameters(south)[ClimateMapping.HUMIDITY] < parameters(north)[ClimateMapping.HUMIDITY]);
+
+		// On a mountainside at 0 °C, the shaded side is snowy and the sunny side is not.
+		TerrainField.Column cold = column(2500f, 2500f, 300f, 0f, 900f);
+		TerrainField.Column shaded = column(2500f, 2500f, 300f, 0f, 900f);
+		TerrainField.Column sunny = column(2500f, 2500f, 300f, 0f, 900f);
+		ClimateMapping.expose(shaded, ClimateMapping.exposure(0f, steep));
+		ClimateMapping.expose(sunny, ClimateMapping.exposure(0f, -steep));
+		assertTrue(parameters(shaded)[ClimateMapping.TEMPERATURE] < parameters(cold)[ClimateMapping.TEMPERATURE]);
+		assertTrue(parameters(shaded)[ClimateMapping.EROSION] < -0.375f, "snowy slopes");
+		assertTrue(parameters(sunny)[ClimateMapping.EROSION] >= -0.3f, "no snow");
+	}
+
+	@Test
 	void depthIsMeasuredFromACappedSurface() {
 		assertEquals(0f, ClimateMapping.depth(WorldScale.STANDARD, 70f, 70), 1e-6);
 		assertEquals(1f, ClimateMapping.depth(WorldScale.STANDARD, 70f, 70 - 128), 1e-6);

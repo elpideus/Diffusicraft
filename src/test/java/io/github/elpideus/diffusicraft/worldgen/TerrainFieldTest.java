@@ -116,6 +116,22 @@ class TerrainFieldTest {
 	}
 
 	@Test
+	void slopeIsTheRiseAcrossTheHillside() {
+		TerrainField field = new TerrainField(1, new AnalyticSource());
+		float[] slope = new float[2];
+		int d = TerrainField.HILLSIDE;
+		double run = 2 * d * WorldScale.METERS_PER_PIXEL;
+		// Across the corner of four tiles too.
+		for (double i = 250.3; i < 262; i += 0.7) {
+			for (double j = -7.9; j < 8; j += 1.3) {
+				field.slope(i, j, slope);
+				assertEquals((field.elevation(i + d, j) - field.elevation(i - d, j)) / run, slope[0], 1e-4);
+				assertEquals((field.elevation(i, j + d) - field.elevation(i, j - d)) / run, slope[1], 1e-4);
+			}
+		}
+	}
+
+	@Test
 	void theGroundKeepsCloseToTheTerrain() {
 		TerrainField field = new TerrainField(1, new AnalyticSource());
 		for (WorldScale scale : WorldScale.values()) {
