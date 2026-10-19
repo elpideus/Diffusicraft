@@ -69,9 +69,12 @@ the reader can tell the two apart. `FriendlyByteBuf.writeBlockPos` and `readBloc
 game keeps using in-memory packing.
 
 **Chunk packets.** A chunk packet may carry up to 8 MiB of block data (vanilla: 2 MiB). A column of 2046 sections
-needs more than 2 MiB once its sections hold varied blocks: the densest test column is 5.4 MiB. On a dedicated server,
-packets are compressed before they are framed, and a frame holds up to 2 MiB compressed. Real terrain compresses far
-below that, but the worst case has not been tested over a real connection.
+needs more than 2 MiB once its sections hold varied blocks: the densest test column is 5.4 MiB. Over a real
+connection, a dedicated server compresses each packet before it frames it. A frame holds up to 2 MiB compressed, and
+the client inflates a packet to at most 8 MiB. The densest test column compresses to 64 KiB and reaches the client of a
+dedicated server whole ([Tests](#tests)). A column reaches either limit only when about two thirds of its sections each
+hold more than 16 kinds of block, or several thousand blocks of it hold blocks at random. Neither terrain nor builds
+come near that. A column that did would disconnect the player, as vanilla does with any packet that is too large.
 
 ### In saves
 
@@ -278,9 +281,11 @@ chunk's time goes to the rest of its generation.
   - that empty sections share their data, on the server and the client;
   - that the client's render grid holds only the rows around the camera;
   - saving and reloading the world, with the empty sections of a column left out of the save and their biomes back
-    after loading.
+    after loading;
+  - the same on a dedicated server, whose packets go over a socket in compressed frames: blocks at both ends and at
+    the top of the world, changes in both directions, light, heightmaps and the dense column.
 
-  It saves screenshots of the top, the bottom and the dense column.
+  It saves screenshots of the top, the bottom and the dense column, and of the dense column on the dedicated server.
 - [`TerrainCeilingTest`](../src/test/java/io/github/elpideus/diffusicraft/worldgen/river/TerrainCeilingTest.java)
   checks that the ceiling of each column is under its chunk's and above its rivers, lakes and the sea.
 - [`EarthWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/EarthWorldGameTest.java)
@@ -320,8 +325,8 @@ without `BlockPos.asLong`.
 ## Next steps
 
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
-- **Compatibility.** Test Sodium, Voxy and a dedicated server with a real network connection. Distant Horizons could
-  hold all of Earth 1:1 by drawing its LODs from a raised bottom, at the cost of the deepest underground.
+- **Compatibility.** Test Sodium and Voxy. Distant Horizons could hold all of Earth 1:1 by drawing its LODs from a
+  raised bottom, at the cost of the deepest underground.
 - **Only nearby heights on the wire (not for now).** The server would send each client only the sections near the
   player, as Cubic Chunks does, so a client's memory and bandwidth would follow what it sees instead of the height of
   the dimension. Every mod that expects whole columns on the client would break. If it is ever done it will be opt-in,

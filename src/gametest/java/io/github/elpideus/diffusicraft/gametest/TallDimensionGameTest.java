@@ -1,8 +1,12 @@
 package io.github.elpideus.diffusicraft.gametest;
 
 import io.github.elpideus.diffusicraft.height.SharedContainerData;
+import io.netty.buffer.ByteBufUtil;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.world.TestWorldSave;
@@ -44,13 +48,15 @@ import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.function.BiFunction;
 import java.util.zip.DeflaterOutputStream;
 
 /**
  * Builds in a dimension 32,736 blocks tall (Y from −16,368 to 16,367), the most that extended height allows, and checks
  * everything vanilla's 12-bit Y would break: block packets both ways, chunk packets over 2 MiB, light, heightmaps, and
- * section Y beyond a byte in saves. Screenshots go to {@code build/run/clientGameTest/screenshots}.
+ * section Y beyond a byte in saves. Then it plays the same on a dedicated server, whose packets go over a socket in
+ * compressed frames. Screenshots go to {@code build/run/clientGameTest/screenshots}.
  *
  * <p>The dimension comes from this mod's data pack ({@code data/diffusicraft-gametest/dimension}): a flat world with
  * bedrock and deepslate at the very bottom, and nothing else.
@@ -96,56 +102,18 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 			server.runOnServer(TallDimensionGameTest::build);
 			server.runCommand("gamemode creative @a");
 
-			// The top: blocks and light come from chunk packets, then from block updates in the tall wire layout.
-			enter(context, world, TOP, -45, 30);
-			check(context.computeOnClient(mc -> mc.level.getMinY() == MIN_Y && mc.level.getHeight() == MAX_Y - MIN_Y + 1),
-				"the client sees the tall dimension");
-			checkBlock(context, TOP.below(), Blocks.GOLD_BLOCK);
-			checkBlock(context, new BlockPos(4, MAX_Y, 4), Blocks.EMERALD_BLOCK);
-			server.runOnServer(s -> {
-				ServerLevel level = s.getLevel(TALL);
-				level.setBlock(TOP.offset(1, 3, 1), Blocks.GLOWSTONE.defaultBlockState(), Block.UPDATE_ALL);
-				level.setBlock(BOTTOM.offset(-1, 3, -1), Blocks.SEA_LANTERN.defaultBlockState(), Block.UPDATE_ALL);
-			});
-			// Block changes go out on the server's next tick and the sync packet at once, so let a tick pass first.
-			context.waitTick();
-			world.getConnection().waitForClientboundPackets();
-			checkBlock(context, TOP.offset(1, 3, 1), Blocks.GLOWSTONE);
-			checkBlock(context, BOTTOM.offset(-1, 3, -1), Blocks.SEA_LANTERN);
-			// Where vanilla's 12-bit Y would have put them.
-			checkBlock(context, new BlockPos(1, (TOP.getY() + 3) << 20 >> 20, 1), Blocks.AIR);
-			checkLight(context, TOP.offset(2, 1, 2), LightLayer.BLOCK, 14);
-			checkLight(context, TOP.offset(0, 10, 0), LightLayer.SKY, 15);
-			server.runOnServer(s -> {
-				ServerLevel level = s.getLevel(TALL);
-				check(level.getHeight(Heightmap.Types.WORLD_SURFACE, 4, 4) == MAX_Y + 1, "heightmap at the top of the world");
-				check(level.getHeight(Heightmap.Types.WORLD_SURFACE, 1, 1) == TOP.getY() + 4, "heightmap after a block update");
-			});
-			check(context.computeOnClient(mc -> mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, 4, 4)) == MAX_Y + 1,
-				"client heightmap at the top of the world");
+			checkTop(context, server, world.getConnection());
 			checkMemory(context, server);
-
-			// The server reads positions from the client too: break a platform block next to the player.
-			BlockPos broken = TOP.offset(1, -1, 0);
-			context.runOnClient(mc -> mc.gameMode.startDestroyBlock(broken, Direction.UP));
-			world.getConnection().waitForServerboundPackets();
-			check(server.computeOnServer(s -> s.getLevel(TALL).getBlockState(broken).isAir()), "the server broke the block the client clicked");
 			context.runOnClient(mc -> mc.debugEntries.setOverlayVisible(true));
 			screenshot(context, "tall-top");
 
 			// The bottom.
-			enter(context, world, BOTTOM, 135, 20);
+			enter(context, server, world.getConnection(), BOTTOM, 135, 20);
 			checkBlock(context, BOTTOM.below(), Blocks.GOLD_BLOCK);
 			checkLight(context, BOTTOM.offset(-2, 1, -2), LightLayer.BLOCK, 14);
 			screenshot(context, "tall-bottom");
 
-			// A chunk packet over 2 MiB, which vanilla rejects.
-			int bytes = server.computeOnServer(s -> new ClientboundLevelChunkPacketData(s.getLevel(TALL).getChunk(DENSE.x(), DENSE.z())).getReadBuffer().readableBytes());
-			LOGGER.info("Dense chunk: {} KiB of chunk data", bytes >> 10);
-			check(bytes > 2 << 20, "the dense chunk needs more than vanilla's 2 MiB");
-			server.runCommand("gamemode spectator @a");
-			enter(context, world, new BlockPos(DENSE.getMiddleBlockX() + 20, 16340, DENSE.getMiddleBlockZ()), 90, 25);
-			checkDense(context);
+			visitDense(context, server, world.getConnection());
 			screenshot(context, "tall-dense");
 			server.runOnServer(TallDimensionGameTest::measureSaving);
 		}
@@ -173,6 +141,80 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 			checkDense(context);
 			LOGGER.info("Tall dimension: saved and reloaded");
 		}
+
+		// The same over a real connection. Singleplayer hands packets over in memory, while a dedicated server frames
+		// them and compresses those over its threshold, and the client rejects any that inflates to more than 8 MiB.
+		Properties properties = new Properties();
+		properties.setProperty("view-distance", "4");
+		properties.setProperty("simulation-distance", "4");
+		try (TestDedicatedServerContext server = context.worldBuilder().createServer(properties);
+			TestDedicatedServerConnection connection = server.connect()) {
+			connection.waitForChunksRender();
+			check(!context.computeOnClient(mc -> mc.getConnection().getConnection().isMemoryConnection()),
+				"the client reaches the dedicated server over a socket");
+			int threshold = server.computeOnServer(MinecraftServer::getCompressionThreshold);
+			check(threshold >= 0, "the dedicated server compresses its packets");
+			server.runOnServer(TallDimensionGameTest::build);
+			server.runCommand("gamemode creative @a");
+			checkTop(context, server, connection);
+			enter(context, server, connection, BOTTOM, 135, 20);
+			checkBlock(context, BOTTOM.below(), Blocks.GOLD_BLOCK);
+			checkBlock(context, BOTTOM.offset(-2, 0, -2), Blocks.GLOWSTONE);
+			visitDense(context, server, connection);
+			screenshot(context, "tall-dedicated");
+			LOGGER.info("Tall dimension: played on a dedicated server, packets compressed from {} bytes", threshold);
+		}
+	}
+
+	/**
+	 * Enters the tall dimension at the top. Blocks and light come from chunk packets, then from block updates in the tall
+	 * wire layout, and the client breaks a block.
+	 */
+	private static void checkTop(ClientGameTestContext context, TestServerContext server, TestServerConnection connection) {
+		enter(context, server, connection, TOP, -45, 30);
+		check(context.computeOnClient(mc -> mc.level.getMinY() == MIN_Y && mc.level.getHeight() == MAX_Y - MIN_Y + 1),
+			"the client sees the tall dimension");
+		checkBlock(context, TOP.below(), Blocks.GOLD_BLOCK);
+		checkBlock(context, new BlockPos(4, MAX_Y, 4), Blocks.EMERALD_BLOCK);
+		server.runOnServer(s -> {
+			ServerLevel level = s.getLevel(TALL);
+			level.setBlock(TOP.offset(1, 3, 1), Blocks.GLOWSTONE.defaultBlockState(), Block.UPDATE_ALL);
+			level.setBlock(BOTTOM.offset(-1, 3, -1), Blocks.SEA_LANTERN.defaultBlockState(), Block.UPDATE_ALL);
+		});
+		// Block changes go out on the server's next tick and the sync packet at once, so let a tick pass first.
+		context.waitTick();
+		connection.waitForClientboundPackets();
+		checkBlock(context, TOP.offset(1, 3, 1), Blocks.GLOWSTONE);
+		checkBlock(context, BOTTOM.offset(-1, 3, -1), Blocks.SEA_LANTERN);
+		// Where vanilla's 12-bit Y would have put them.
+		checkBlock(context, new BlockPos(1, (TOP.getY() + 3) << 20 >> 20, 1), Blocks.AIR);
+		checkLight(context, TOP.offset(2, 1, 2), LightLayer.BLOCK, 14);
+		checkLight(context, TOP.offset(0, 10, 0), LightLayer.SKY, 15);
+		server.runOnServer(s -> {
+			ServerLevel level = s.getLevel(TALL);
+			check(level.getHeight(Heightmap.Types.WORLD_SURFACE, 4, 4) == MAX_Y + 1, "heightmap at the top of the world");
+			check(level.getHeight(Heightmap.Types.WORLD_SURFACE, 1, 1) == TOP.getY() + 4, "heightmap after a block update");
+		});
+		check(context.computeOnClient(mc -> mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, 4, 4)) == MAX_Y + 1,
+			"client heightmap at the top of the world");
+
+		// The server reads positions from the client too: break a platform block next to the player.
+		BlockPos broken = TOP.offset(1, -1, 0);
+		context.runOnClient(mc -> mc.gameMode.startDestroyBlock(broken, Direction.UP));
+		connection.waitForServerboundPackets();
+		check(server.computeOnServer(s -> s.getLevel(TALL).getBlockState(broken).isAir()), "the server broke the block the client clicked");
+	}
+
+	/** Flies over the dense chunk, whose packet vanilla rejects as over 2 MiB, and checks every block of it. */
+	private static void visitDense(ClientGameTestContext context, TestServerContext server, TestServerConnection connection) {
+		byte[] bytes = server.computeOnServer(s -> ByteBufUtil.getBytes(
+			new ClientboundLevelChunkPacketData(s.getLevel(TALL).getChunk(DENSE.x(), DENSE.z())).getReadBuffer()));
+		LOGGER.info("Dense chunk: {} KiB of chunk data, {} KiB deflated as a dedicated server sends it", bytes.length >> 10,
+			deflated(bytes) >> 10);
+		check(bytes.length > 2 << 20, "the dense chunk needs more than vanilla's 2 MiB");
+		server.runCommand("gamemode spectator @a");
+		enter(context, server, connection, new BlockPos(DENSE.getMiddleBlockX() + 20, 16340, DENSE.getMiddleBlockZ()), 90, 25);
+		checkDense(context);
 	}
 
 	/** Platforms with a light at the top and bottom, a block at the very top, and the dense chunk. */
@@ -247,6 +289,17 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 		return bytes.size();
 	}
 
+	/** The size of {@code bytes} deflated at the level that network compression and region files use. */
+	private static int deflated(byte[] bytes) {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		try (DeflaterOutputStream deflater = new DeflaterOutputStream(out)) {
+			deflater.write(bytes);
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+		return out.size();
+	}
+
 	/** The biome in the middle of the empty column at {@code y}, as stored, without vanilla's fuzz between cells. */
 	private static Holder<Biome> biome(ServerLevel level, int y) {
 		return level.getNoiseBiome(QuartPos.fromBlock(EMPTY.getMiddleBlockX()), QuartPos.fromBlock(y),
@@ -281,12 +334,13 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 	}
 
 	/** Teleports the player into the tall dimension and waits until everything around has rendered. */
-	private static void enter(ClientGameTestContext context, TestSingleplayerContext world, BlockPos feet, float yaw, float pitch) {
+	private static void enter(ClientGameTestContext context, TestServerContext server, TestServerConnection connection,
+			BlockPos feet, float yaw, float pitch) {
 		long start = System.nanoTime();
-		world.getServer().runCommand("execute in " + TALL.identifier() + " run tp @a " + (feet.getX() + 0.5) + " " + feet.getY() + " "
+		server.runCommand("execute in " + TALL.identifier() + " run tp @a " + (feet.getX() + 0.5) + " " + feet.getY() + " "
 			+ (feet.getZ() + 0.5) + " " + yaw + " " + pitch);
 		context.waitFor(mc -> mc.level != null && mc.level.dimension() == TALL && mc.player.blockPosition().closerThan(feet, 2));
-		world.getConnection().waitForChunksRender();
+		connection.waitForChunksRender();
 		LOGGER.info("Tall dimension: {} loaded and rendered in {} ms (heap {} MiB)", feet,
 			(System.nanoTime() - start) / 1_000_000, usedHeapMiB());
 	}

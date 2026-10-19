@@ -84,7 +84,8 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   the server sends a circle, so above a render distance of 6 it never returns.
 - [`TallDimensionGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TallDimensionGameTest.java)
   plays in a 32,736-block dimension: blocks, light and heightmaps at both ends, the network in both directions, a
-  column full of blocks, and saving. It logs memory and save times. See [HEIGHT.md](HEIGHT.md#tests).
+  column full of blocks, and saving. Then it plays the same on a dedicated server over a real connection. It logs
+  memory and save times. See [HEIGHT.md](HEIGHT.md#tests).
 - [`EarthWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/EarthWorldGameTest.java)
   creates an Earth 1:1 world and goes to the highest ground within 123 km of the spawn. It checks that the chunks
   there, which are filled only up to their ground, hold all of it, saves two views of the summit and logs how long
