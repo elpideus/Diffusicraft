@@ -37,6 +37,9 @@ public class ResourceScreensGameTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		if (GameTests.skips(this)) {
+			return;
+		}
 		context.getInput().resizeWindow(1280, 720);
 		context.waitFor(mc -> Resources.get().status() != null && Resources.get().hardware().isDone(), 20 * 60);
 

@@ -108,6 +108,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   env -u WAYLAND_DISPLAY -u DISPLAY gamescope --backend headless -W 1600 -H 900 -- ./gradlew runClientGameTest -PnoDevMods -Pdiffusicraft.device=CUDA
   ```
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
+- **Some of them.** `-Pdiffusicraft.gametests=TallDimension,Earth` runs only the tests whose class names start with
+  one of those. The tall dimension alone takes under a minute.
 - **Not part of `build`.** Run them yourself after changing anything in `client/screen`, `worldgen` or the mixins.
 
 ## Project conventions

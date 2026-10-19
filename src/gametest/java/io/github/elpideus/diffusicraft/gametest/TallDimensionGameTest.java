@@ -77,6 +77,9 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		if (GameTests.skips(this)) {
+			return;
+		}
 		context.getInput().resizeWindow(1280, 720);
 		context.runOnClient(mc -> mc.options.renderDistance().set(4));
 		check(BlockPos.MAX_HORIZONTAL_COORDINATE == (1 << 23) - 1, "block positions pack 24 horizontal bits, not 26");

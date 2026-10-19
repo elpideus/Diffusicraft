@@ -58,6 +58,9 @@ public class EarthWorldGameTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		if (GameTests.skips(this)) {
+			return;
+		}
 		context.waitFor(mc -> Resources.get().status() != null, TICKS_PER_MINUTE);
 		if (!Resources.get().status().modelsReady()) {
 			LOGGER.warn("The Terrain Diffusion models are not downloaded; skipping the Earth 1:1 test");

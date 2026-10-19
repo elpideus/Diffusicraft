@@ -121,6 +121,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		if (GameTests.skips(this)) {
+			return;
+		}
 		context.getInput().resizeWindow(1280, 720);
 		context.waitFor(mc -> Resources.get().status() != null, TICKS_PER_MINUTE);
 		if (!Resources.get().status().modelsReady()) {
