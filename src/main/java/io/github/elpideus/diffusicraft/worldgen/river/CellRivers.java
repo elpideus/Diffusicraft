@@ -18,6 +18,10 @@ import java.util.List;
  * a little noise in the cost makes rivers wander instead of running in the straight lines of the pixel grid. The water
  * level goes down along the path, never rises, and never sinks below the level of the exit.
  *
+ * <p>Rivers see a basin that can hold a lake ({@link CellBasins}) as the surface of its water, not its floor: they
+ * cross it at the height of its lowest point, less the depth of their channel, and leave it over that point. The
+ * {@link CellLakes} fill it to their level.
+ *
  * <p>Paths stay in the interior band, {@value #LO} pixels from the sides, and nothing reaches farther than
  * {@value #REACH} pixels from a river, so every column of the tile is decided by this tile alone.
  */
@@ -149,19 +153,22 @@ final class CellRivers {
 
 	/**
 	 * Routes the rivers of {@code flows} through the padded elevation {@code tile} (see TerrainField#paddedTile) of
-	 * tile {@code (ti, tj)} in a world with {@code seed}.
+	 * tile {@code (ti, tj)} in a world with {@code seed}, over its {@code basins}. Where {@code pathLevel} is given,
+	 * with a NaN for every pixel of the padded tile, it gets the water level of every pixel a river runs through.
 	 */
-	static CellRivers build(float[] tile, CellFlows flows, long seed, int ti, int tj) {
+	static CellRivers build(float[] tile, CellBasins basins, CellFlows flows, long seed, int ti, int tj,
+							float[] pathLevel) {
 		if (flows.isEmpty()) {
 			return EMPTY;
 		}
-		return new Builder(tile, flows, seed, ti, tj).build();
+		return new Builder(tile, basins, flows, seed, ti, tj, pathLevel).build();
 	}
 
 	// ---------------------------------------------------------------------------------------------------------
 
 	private static final class Builder {
 		private final float[] tile;
+		private final CellBasins basins;
 		private final CellFlows flows;
 		private final long seed;
 		private final int ti;
@@ -175,15 +182,18 @@ final class CellRivers {
 		private final float[] discharge = new float[BAND * BAND];
 		private final float[] extra = new float[BAND * BAND];
 		private final boolean[] drawn = new boolean[BAND * BAND];
+		private final float[] pathLevel;
 		private float[] out = new float[STRIDE * 64];
 		private int count;
 
-		Builder(float[] tile, CellFlows flows, long seed, int ti, int tj) {
+		Builder(float[] tile, CellBasins basins, CellFlows flows, long seed, int ti, int tj, float[] pathLevel) {
 			this.tile = tile;
+			this.basins = basins;
 			this.flows = flows;
 			this.seed = seed;
 			this.ti = ti;
 			this.tj = tj;
+			this.pathLevel = pathLevel;
 		}
 
 		/** Elevation of tile-local pixel {@code (i, j)}; the margin allows -32 to 287. */
@@ -195,9 +205,18 @@ final class CellRivers {
 			return h(LO + k / BAND, LO + k % BAND);
 		}
 
+		/** The ground the river sees at tile-local pixel {@code (i, j)}: the surface of a lake, or the terrain. */
+		float g(int i, int j) {
+			return basins.ground((i + PAD) * SPAN + j + PAD);
+		}
+
+		float g(int k) {
+			return g(LO + k / BAND, LO + k % BAND);
+		}
+
 		/** Height difference between pixel (i, j) and {@code e}, with the sea counted as level with the coast. */
 		private float drop(int i, int j, float e) {
-			return Math.abs(Math.max(0f, h(i, j)) - e);
+			return Math.abs(Math.max(0f, g(i, j)) - e);
 		}
 
 		CellRivers build() {
@@ -208,7 +227,7 @@ final class CellRivers {
 			}
 			float min = Float.POSITIVE_INFINITY, max = Float.NEGATIVE_INFINITY;
 			for (int k = 0; k < cost.length; k++) {
-				float e = Math.max(0f, h(k));
+				float e = Math.max(0f, g(k));
 				min = Math.min(min, e);
 				max = Math.max(max, e);
 			}
@@ -216,7 +235,7 @@ final class CellRivers {
 			long noiseSeed = seed ^ MEANDER_SALT;
 			for (int k = 0; k < cost.length; k++) {
 				int i = LO + k / BAND, j = LO + k % BAND;
-				float e = Math.max(0f, h(i, j));
+				float e = Math.max(0f, g(i, j));
 				cost[k] = 1f + scale * (e - min);
 				float slope = Math.max(Math.max(drop(i - 1, j, e), drop(i + 1, j, e)),
 					Math.max(drop(i, j - 1, e), drop(i, j + 1, e)));
@@ -313,7 +332,7 @@ final class CellRivers {
 				int start = sourcePixel();
 				starts.add(new int[]{start, -1});
 				startDischarge.add(Math.min(0.5f * RiverNetwork.MIN_DISCHARGE, flows.outDischarge[target]));
-				startLevel.add(h(start) - DROP);
+				startLevel.add(g(start) - DROP);
 			}
 			if (starts.isEmpty()) {
 				return;
@@ -351,7 +370,7 @@ final class CellRivers {
 				float run = startLevel.get(s), q = startDischarge.get(s);
 				for (int t = 0; t < path.length; t++) {
 					int p = path[t];
-					run = Math.min(run, h(p) - DROP);
+					run = Math.min(run, g(p) - DROP);
 					if (level[p] == Float.POSITIVE_INFINITY) {
 						touched.add(p);
 						discharge[p] = 0f;
@@ -364,6 +383,10 @@ final class CellRivers {
 			}
 			for (int p : touched) {
 				level[p] = Math.max(Math.max(level[p], rootLevel), 0f);
+				if (pathLevel != null) {
+					int k = (LO + p / BAND + PAD) * SPAN + LO + p % BAND + PAD;
+					pathLevel[k] = Float.isNaN(pathLevel[k]) ? level[p] : Math.min(pathLevel[k], level[p]);
+				}
 			}
 
 			for (int s = 0; s < paths.size(); s++) {

@@ -56,6 +56,8 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
 - **Ledges.** Where a slope cuts through the sedimentary cover, its hard beds of sandstone and limestone stand out as
   cliffs and the soft beds between them recede into benches, as in the Grand Canyon, in every world. See
   [WORLDGEN.md](WORLDGEN.md#ledges).
+- **Lakes on rivers.** Rivers fill the basins they cross and flow on out of them over their lowest point. See
+  [WORLDGEN.md](WORLDGEN.md#rivers).
 - **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
@@ -89,8 +91,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Terrain detail
 
-- **Lakes on rivers.** Rivers that fill the basins they cross and flow on out of them, and lakes larger than a
-  tile.
+- **Lakes larger than a tile.** Lakes in basins that reach beyond their tile, which the tiles around have to agree
+  on, up to the great lakes of the coarse map.
 - **Coasts.** Coastlines, beaches and cliffs follow the real sea level (y = 0 at 1:1).
 
 ### Biomes

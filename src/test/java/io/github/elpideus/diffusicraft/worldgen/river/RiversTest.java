@@ -258,6 +258,23 @@ class RiversTest {
 	}
 
 	@Test
+	void theRiverFillsTheHollowsOfItsValley() {
+		Rivers rivers = Rivers.of(field());
+		int fed = 0;
+		for (int ti = 1; ti < ValleySource.RIDGES - 1; ti++) {
+			CellLakes lakes = rivers.lakes(ti, VALLEY);
+			for (int i = 0; i < TILE; i++) {
+				for (int j = 0; j < TILE; j++) {
+					int run = lakes.run(i, j);
+					fed += run >= 0 && lakes.runFed(run) ? 1 : 0;
+				}
+			}
+		}
+		// The banks of these lakes are checked with the river's in banksHoldTheWaterWhereItStepsDown.
+		assertTrue(fed > 0, "the river fills the hollows it crosses");
+	}
+
+	@Test
 	void aDryClimateLeavesTheHollowsDry() {
 		TerrainSource source = new ValleySource() {
 			@Override
