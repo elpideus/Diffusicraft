@@ -143,6 +143,25 @@ def scattered(feature, chance=None, count=None):
                                         {"type": "minecraft:biome"}])
 
 
+def hollow(feature, surface, count):
+    """Features of the Grand Hollows' floors or ceilings: `count` columns per chunk, each moved onto a floor or a
+    ceiling of the Grand Hollow it crosses (see HollowSurfacePlacement.java). Vanilla's way of finding cave floors
+    misses nearly all of a hollow a hundred blocks tall."""
+    return placed(feature, [{"type": "minecraft:count", "count": count}, {"type": "minecraft:in_square"},
+                            {"type": f"{NS}:hollow_surface", "surface": surface}, {"type": "minecraft:biome"}])
+
+
+def hollow_patch(feature, count, tries, spread=6):
+    """A patch of plants around `count` spots per chunk on the floors of the Grand Hollows."""
+    trapezoid = {"type": "minecraft:trapezoid", "min": -spread, "max": spread, "plateau": 0}
+    return placed(feature, hollow(feature, "floor", count)["placement"] + [
+        {"type": "minecraft:count", "count": tries},
+        {"type": "minecraft:offset", "x": trapezoid, "z": trapezoid,
+         "y": {"type": "minecraft:trapezoid", "min": -2, "max": 2, "plateau": 0}},
+        {"type": "minecraft:block_predicate_filter",
+         "predicate": {"type": "minecraft:matching_block_tag", "tag": "minecraft:air"}}])
+
+
 # Configured features. Names are diffusicraft's unless they carry a namespace.
 FEATURES = {
     # Krummholz: spruce bent into knee-high mats by the wind at the tree line.
@@ -225,6 +244,24 @@ FEATURES["bog_pool"] = {
     "replaceable": "#minecraft:lush_ground_replaceable", "surface": "floor", "vegetation_chance": 0.0,
     "vegetation_feature": placed(ours("bog_ground_cover"), []), "vertical_range": 3, "xz_radius": uniform(2, 5)}
 
+# The glowing silk threads that the larvae of fungus gnats let down from the ceilings of the glowworm grottoes: mostly
+# short, a few long, each ending in a drop that holds the light.
+FEATURES["glowworm_silk"] = {
+    "type": "minecraft:block_column", "direction": "down", "prioritize_tip": True,
+    "allowed_placement": {"type": "minecraft:matching_block_tag", "tag": "minecraft:air"},
+    "layers": [
+        {"height": {"type": "minecraft:weighted_list", "distribution": [
+            {"data": uniform(0, 2), "weight": 4}, {"data": uniform(2, 5), "weight": 1}]},
+         "provider": {"id": ours("glowworm_silk"), "properties": {"tip": "false"}}},
+        {"height": 1, "provider": {"id": ours("glowworm_silk"), "properties": {"tip": "true"}}}]}
+# Still pools over beds of clay, where the stream that carved the grotto slows down.
+FEATURES["grotto_pool"] = {
+    "type": "minecraft:waterlogged_vegetation_patch", "depth": 2, "extra_bottom_block_chance": 0.6,
+    "extra_edge_column_chance": 0.5, "ground_state": {"id": "minecraft:clay"},
+    "replaceable": "#minecraft:lush_ground_replaceable", "surface": "floor", "vegetation_chance": 0.0,
+    "vegetation_feature": placed("minecraft:glow_lichen", []), "vertical_range": 4, "xz_radius": uniform(3, 7)}
+FEATURES["selenite_beam"] = {"type": f"{NS}:selenite_beam"}
+
 # Placed features, in the order they run within a step.
 PLACED = {
     "giant_spruce_checked": checked(ours("giant_spruce"), "spruce_sapling"),
@@ -266,6 +303,22 @@ PLACED = {
     "patch_heath_grass": patch(ours("heath_grass"), 32, count=2),
     "patch_bog_ground_cover": patch(ours("bog_ground_cover"), 32, count=4),
     "patch_heather_bog": patch(ours("heather"), 32, count=1),
+    "glowworm_silk_ceilings": hollow(ours("glowworm_silk"), "ceiling", 48),
+    "grotto_pools": hollow(ours("grotto_pool"), "floor", 2),
+    "selenite_beams_floor": hollow(ours("selenite_beam"), "floor", 2),
+    "selenite_beams_ceiling": hollow(ours("selenite_beam"), "ceiling", 1),
+    "giant_mushrooms": hollow("minecraft:mushroom_island_vegetation", "floor", 4),
+    "hollow_brown_mushrooms": hollow_patch("minecraft:brown_mushroom", 4, 24),
+    "hollow_red_mushrooms": hollow_patch("minecraft:red_mushroom", 2, 24),
+    # Vanilla's cave plants and dripstone, placed for the Grand Hollows. Besides the biomes here, Java adds them to
+    # vanilla's lush and dripstone caves (see DiffusicraftWorldgen.addHollowFeatures), in this order.
+    "hollow_dripstone_floor": hollow("minecraft:pointed_dripstone", "floor", 24),
+    "hollow_dripstone_ceiling": hollow("minecraft:pointed_dripstone", "ceiling", 24),
+    "hollow_moss_floor": hollow("minecraft:moss_patch", "floor", 8),
+    "hollow_moss_ceiling": hollow("minecraft:moss_patch_ceiling", "ceiling", 8),
+    "hollow_lush_clay": hollow("minecraft:lush_caves_clay", "floor", 3),
+    "hollow_cave_vines": hollow("minecraft:cave_vine", "ceiling", 32),
+    "hollow_spore_blossoms": hollow("minecraft:spore_blossom", "ceiling", 4),
 }
 FEATURES["trees_temperate_rainforest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
                                           "features": [
@@ -302,8 +355,12 @@ def spawn(mob, weight, lo, hi=None):
     return {"type": mc(mob), "count": lo if hi is None else uniform(lo, hi), "weight": weight}
 
 
+# The tags of the Grand Hollows' biomes, which sit underground like vanilla's cave biomes.
+CAVE_TAGS = ["c:is_cave", "c:is_underground", "minecraft:has_structure/mineshaft",
+             "minecraft:has_structure/trial_chambers", "minecraft:is_overworld", "minecraft:stronghold_biased_to"]
+
 # Each biome: its vanilla template, what it changes, the vegetation it grows and the tags it carries. `fog` is the
-# distance at which the fog closes in, in blocks.
+# distance at which the fog closes in, in blocks; `without` lists the template's features it leaves out.
 BIOMES = {
     "tundra": {
         "template": "snowy_plains", "temperature": 0.2, "downfall": 0.3,
@@ -472,6 +529,32 @@ BIOMES = {
                  "minecraft:has_structure/mineshaft", "minecraft:has_structure/ruined_portal_desert",
                  "minecraft:has_structure/trial_chambers", "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
     },
+    # The biomes of the Grand Hollows, one to a cavern (see HollowBiomes.java). Glowworm grottoes, like those of
+    # Waitomo in New Zealand: ceilings strung with the glowing silk of fungus-gnat larvae, over still pools on clay.
+    "glowworm_grotto": {
+        "template": "dripstone_caves", "temperature": 0.6, "downfall": 0.9,
+        "effects": {"water_color": "#2b5d6e"},
+        "vegetation": ["minecraft:glow_lichen", "glowworm_silk_ceilings", "grotto_pools", "hollow_dripstone_floor",
+                       "hollow_dripstone_ceiling"],
+        "tags": CAVE_TAGS,
+    },
+    # Caverns of selenite beams, like the Cave of the Crystals at Naica, in Mexico: hot, dry, and lifeless now that
+    # the water that grew them has been pumped away. No dripstone: the crystals grew under water.
+    "selenite_caverns": {
+        "template": "dripstone_caves", "temperature": 1.0, "downfall": 0.0,
+        "without": ["minecraft:large_dripstone", "minecraft:dripstone_cluster", "minecraft:pointed_dripstone"],
+        "local": ["selenite_beams_floor", "selenite_beams_ceiling"],
+        "vegetation": [],
+        "tags": CAVE_TAGS,
+    },
+    # The forest of giant mushrooms that Verne set by the Lidenbrock Sea, on mycelium, lit by shroomlight.
+    "mushroom_forest": {
+        "template": "lush_caves", "temperature": 0.6, "downfall": 0.9,
+        "attributes": {"minecraft:visual/ambient_particles": {
+            "argument": [{"particle": {"type": "minecraft:mycelium"}, "probability": 0.01}], "modifier": "append"}},
+        "vegetation": ["minecraft:glow_lichen", "giant_mushrooms", "hollow_brown_mushrooms", "hollow_red_mushrooms"],
+        "tags": CAVE_TAGS,
+    },
 }
 # Vanilla biomes the refiner swaps between, which the source must be able to return.
 REFINED_VANILLA = ["minecraft:swamp", "minecraft:mangrove_swamp"]
@@ -556,6 +639,19 @@ SURFACE_RULE = sequence(
 )
 
 
+# The ground of the Grand Hollows' biomes, run below the surface (see worldgen_data.py).
+CAVE_RULE = sequence(
+    # Mycelium over a few blocks of dirt, on which the giant mushrooms grow.
+    when(biome_is("mushroom_forest"), sequence(
+        when("minecraft:on_floor", block("mycelium")), when("minecraft:under_floor", block("dirt")))),
+    # A white crust of gypsum, as calcite, over the floor and the ceiling the crystals grew from.
+    when(biome_is("selenite_caverns"), sequence(
+        when("minecraft:on_floor", block("calcite")), when("minecraft:on_ceiling", block("calcite")))),
+    # Clay where the stream has left it.
+    when(biome_is("glowworm_grotto"), when("minecraft:on_floor", when(noise(0.2), block("clay")))),
+)
+
+
 def find_jar():
     if len(sys.argv) > 1:
         return Path(sys.argv[1])
@@ -608,7 +704,9 @@ def features_of(name, spec, template, placed, copies):
     vanilla feature keeps its name only where the template lists it too, in the template's order, which vanilla
     itself already imposes. Any other vanilla feature runs as a copy of its own (collected in `copies`), and all of
     Diffusicraft's run after vanilla's."""
-    steps = [list(template["features"][s]) if s < len(template["features"]) else [] for s in range(STEPS)]
+    without = set(spec.get("without", []))
+    steps = [[f for f in template["features"][s] if f not in without] if s < len(template["features"]) else []
+             for s in range(STEPS)]
     steps[VEGETAL_DECORATION] = []
     for step, key in ((LOCAL_MODIFICATIONS, "local"), (VEGETAL_DECORATION, "vegetation")):
         steps[step] += spec.get(key, [])
@@ -684,6 +782,7 @@ def main():
     write(f"{NS}/tags/worldgen/biome/refinements.json",
           {"replace": False, "values": [ours(n) for n in BIOMES] + REFINED_VANILLA})
     write(f"{NS}/worldgen/material_rule/biome_surface.json", SURFACE_RULE)
+    write(f"{NS}/worldgen/material_rule/biome_caves.json", CAVE_RULE)
 
 
 if __name__ == "__main__":

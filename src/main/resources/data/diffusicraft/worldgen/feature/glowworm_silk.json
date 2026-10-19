@@ -1,0 +1,49 @@
+{
+  "type": "minecraft:block_column",
+  "direction": "down",
+  "prioritize_tip": true,
+  "allowed_placement": {
+    "type": "minecraft:matching_block_tag",
+    "tag": "minecraft:air"
+  },
+  "layers": [
+    {
+      "height": {
+        "type": "minecraft:weighted_list",
+        "distribution": [
+          {
+            "data": {
+              "type": "minecraft:uniform",
+              "min_inclusive": 0,
+              "max_inclusive": 2
+            },
+            "weight": 4
+          },
+          {
+            "data": {
+              "type": "minecraft:uniform",
+              "min_inclusive": 2,
+              "max_inclusive": 5
+            },
+            "weight": 1
+          }
+        ]
+      },
+      "provider": {
+        "id": "diffusicraft:glowworm_silk",
+        "properties": {
+          "tip": "false"
+        }
+      }
+    },
+    {
+      "height": 1,
+      "provider": {
+        "id": "diffusicraft:glowworm_silk",
+        "properties": {
+          "tip": "true"
+        }
+      }
+    }
+  ]
+}

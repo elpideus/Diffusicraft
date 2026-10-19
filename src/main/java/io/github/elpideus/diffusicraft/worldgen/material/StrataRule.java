@@ -9,6 +9,7 @@ import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
+import io.github.elpideus.diffusicraft.worldgen.biome.HollowBiomes;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Erosion;
 import io.github.elpideus.diffusicraft.worldgen.geology.Geology;
@@ -60,6 +61,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 	private static final BlockState GLOWSTONE = Blocks.GLOWSTONE.defaultBlockState();
 	private static final BlockState SHROOMLIGHT = Blocks.SHROOMLIGHT.defaultBlockState();
 	private static final BlockState GRAVEL = Blocks.GRAVEL.defaultBlockState();
+	private static final Identifier GLOWWORM_GROTTO = Identifier.parse(HollowBiomes.GLOWWORM_GROTTO);
 	private static final BlockState COBBLESTONE = Blocks.COBBLESTONE.defaultBlockState();
 	private static final BlockState COBBLED_DEEPSLATE = Blocks.COBBLED_DEEPSLATE.defaultBlockState();
 	/**
@@ -144,9 +146,10 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			if (!hasColumn || x != columnX || z != columnZ) {
 				sampleColumn(x, z);
 			}
-			if (state != null && (state == STONE || SOILS.test(state)) && context.waterHeight() <= y) {
-				// Soil, or the biome's bare stone, above the water: the slope decides what stays. Under a cliff's
-				// rock or scree lies the rock, not the soil.
+			if (state != null && (state == STONE || SOILS.test(state)) && context.waterHeight() <= y
+				&& y >= context.getMinSurfaceLevel()) {
+				// Soil, or the biome's bare stone, on the surface above the water: the slope decides what stays.
+				// Under a cliff's rock or scree lies the rock, not the soil. The soils of cave floors stay.
 				Erosion.Kind kind = cover();
 				if (kind == Erosion.Kind.SCREE && context.stoneDepthAbove() <= Erosion.SCREE_DEPTH
 					&& y >= Mth.ceil(column.surfaceY) - Erosion.SCREE_DEPTH) {
@@ -160,7 +163,8 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			}
 			if (context.stoneDepthBelow() == 1) {
 				Hollows.Kind lit = litHollowBelow(x, y, z);
-				if (lit != null) {
+				// The glowworms light their grottoes themselves.
+				if (lit != null && !context.getBiome().is(GLOWWORM_GROTTO)) {
 					return lit == Hollows.Kind.ANCIENT_GRAND_HOLLOW ? SHROOMLIGHT : GLOWSTONE;
 				}
 			}

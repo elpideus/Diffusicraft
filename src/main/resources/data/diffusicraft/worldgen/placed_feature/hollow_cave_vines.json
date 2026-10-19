@@ -1,0 +1,19 @@
+{
+  "feature": "minecraft:cave_vine",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 32
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "diffusicraft:hollow_surface",
+      "surface": "ceiling"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -34,7 +34,8 @@
               "biome_is": "minecraft:sulfur_caves"
             },
             "then_run": "minecraft:overworld/sulfur_cave_bands"
-          }
+          },
+          "diffusicraft:biome_caves"
         ]
       }
     }

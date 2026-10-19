@@ -211,6 +211,43 @@ class HollowsTest {
 	}
 
 	@Test
+	void eachBlockOfAGrandHollowBelongsToOneOfThemWithinItsBand() {
+		for (int minY : new int[] {-64, -256}) {
+			Hollows hollows = new Hollows(SEED, minY);
+			Hollows.Column c = new Hollows.Column();
+			long open = 0;
+			long same = 0;
+			for (int x = -4096; x < 4096; x += 23) {
+				for (int z = -4096; z < 4096; z += 29) {
+					hollows.column(x, z, (a, b) -> SURFACE, c);
+					if (c.solid()) {
+						continue;
+					}
+					Hollows.Chamber previous = null;
+					for (int y = minY + 1; y < SURFACE - 28; y++) {
+						Hollows.Kind kind = hollows.openKind(c, y);
+						if (kind == null || !kind.grand()) {
+							previous = null;
+							continue;
+						}
+						Hollows.Chamber chamber = hollows.grandHollowNear(c, y);
+						assertTrue(chamber != null && chamber.kind().grand(), "no Grand Hollow at " + x + ", " + y
+							+ ", " + z);
+						assertTrue(y >= c.grandBottom() && y <= c.grandTop(), y + " outside the band "
+							+ c.grandBottom() + ".." + c.grandTop() + " at " + x + ", " + z);
+						open++;
+						// One cavern from floor to ceiling, but where two overlap.
+						same += previous == null || previous.id() == chamber.id() ? 1 : 0;
+						previous = chamber;
+					}
+				}
+			}
+			assertTrue(open > 10_000, "only " + open + " open blocks at min_y " + minY);
+			assertTrue(same > 0.99 * open, (open - same) + " of " + open + " blocks change cavern at min_y " + minY);
+		}
+	}
+
+	@Test
 	void sameSeedSameHollows() {
 		Hollows a = new Hollows(SEED, -64);
 		Hollows b = new Hollows(SEED, -64);

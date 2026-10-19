@@ -189,8 +189,8 @@ def noise_settings(scale, min_y, height):
 
 def material_rule(scale):
     """Vanilla's overworld rule with the underground replaced by Diffusicraft's geology (see StrataRule), the
-    rivers' water and beds (see RiverRule), and the ground of Diffusicraft's biomes (written by biomes.py) ahead of
-    vanilla's surface."""
+    rivers' water and beds (see RiverRule), and the ground of Diffusicraft's biomes (written by biomes.py): on the
+    surface ahead of vanilla's, and in the Grand Hollows."""
     return {"type": "minecraft:sequence", "sequence": [
         "minecraft:bedrock_floor",
         {"type": f"{NS}:river", "scale": scale},
@@ -202,6 +202,7 @@ def material_rule(scale):
                           "sequence": [f"{NS}:biome_surface", "minecraft:overworld/surface"]}},
             {"type": "minecraft:condition", "if_true": {"type": "minecraft:biome", "biome_is": "minecraft:sulfur_caves"},
              "then_run": "minecraft:overworld/sulfur_cave_bands"},
+            f"{NS}:biome_caves",
         ]}},
     ]}
 

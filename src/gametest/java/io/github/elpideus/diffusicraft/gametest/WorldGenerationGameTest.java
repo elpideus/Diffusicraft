@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.gametest;
 
+import io.github.elpideus.diffusicraft.block.DiffusicraftBlocks;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
@@ -10,6 +11,7 @@ import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner;
+import io.github.elpideus.diffusicraft.worldgen.biome.HollowBiomes;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Erosion;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
@@ -74,9 +76,10 @@ import java.util.stream.IntStream;
  * Creates a Diffusicraft world with the default settings and checks that the overworld really uses Diffusicraft.
  * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
  * the generator without building chunks, in-game views from above the spawn, over the largest river nearby, of the
- * tallest sea cliff nearby and of each of Diffusicraft's biomes on the map, and views inside the nearest Grand Hollow and over the nearest lava sea of a Deep
- * Grand Hollow. It also checks the levels of detail Distant Horizons draws against the chunks generated around the
- * spawn, and saves maps of them near and far.
+ * tallest sea cliff nearby and of each of Diffusicraft's biomes on the map, and views inside the nearest Grand Hollow,
+ * inside the tallest Grand Hollow of each of their biomes and over the nearest lava sea of a Deep Grand Hollow. It also
+ * checks that each Grand Hollow biome grows what it should, and the levels of detail Distant Horizons draws against the
+ * chunks generated around the spawn, and saves maps of them near and far.
  *
  * <p>Needs the Terrain Diffusion models; without them the test logs a warning and does nothing. Generation runs on the
  * CPU, so the test leaves the GPU alone; pass {@code -Pdiffusicraft.device=CUDA} (or {@code AUTO}) to change that.
@@ -204,6 +207,23 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, grand, 180f, 0f, "hollow-grand-lit-north");
 			BlockPos sea = findHollow(probe, EnumSet.of(Hollows.Kind.DEEP_GRAND_HOLLOW), true);
 			view(context, world, sea, 0f, 25f, "hollow-lava-sea");
+
+			// The tallest Grand Hollow of each biome nearby, lit up and looking up at the ceiling. The glowworm
+			// grotto by its own light too. Each must grow its own blocks.
+			for (Map.Entry<String, BlockPos> biome : findHollowBiomes(probe).entrySet()) {
+				String name = "hollow-" + biome.getKey().substring(biome.getKey().indexOf(':') + 1);
+				BlockPos at = biome.getValue();
+				view(context, world, at, 0f, 0f, name);
+				view(context, world, at, 0f, -40f, name + "-up");
+				if (biome.getKey().equals(HollowBiomes.GLOWWORM_GROTTO)) {
+					world.getServer().runCommand("effect clear @a minecraft:night_vision");
+					view(context, world, at, 0f, -40f, name + "-dark");
+					world.getServer().runCommand("effect give @a minecraft:night_vision infinite 0 true");
+				}
+				String lifeProblem = world.getServer().computeOnServer(server ->
+					checkHollowLife(server.overworld(), biome.getKey(), at));
+				problem = problem != null ? problem : lifeProblem;
+			}
 			if (problem != null) {
 				throw new AssertionError(problem);
 			}
@@ -303,6 +323,78 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		}
 		LOGGER.info("The tallest {} near the spawn is {} blocks high at {}", kinds, bestRun, best);
 		return best;
+	}
+
+	/** The biomes of the Grand Hollows, and a block each grows that no other cave does. */
+	private static final Map<String, Block> HOLLOW_LIFE = Map.of(
+		HollowBiomes.GLOWWORM_GROTTO, DiffusicraftBlocks.GLOWWORM_SILK,
+		HollowBiomes.SELENITE_CAVERNS, DiffusicraftBlocks.SELENITE,
+		HollowBiomes.MUSHROOM_FOREST, Blocks.MUSHROOM_STEM,
+		HollowBiomes.LUSH_CAVES, Blocks.MOSS_BLOCK,
+		HollowBiomes.DRIPSTONE_CAVES, Blocks.POINTED_DRIPSTONE);
+
+	/**
+	 * Finds, for each biome of the Grand Hollows within 4 km of the spawn, the column with the tallest open run of a
+	 * Grand Hollow of that biome, and returns the middle of that run.
+	 */
+	private static Map<String, BlockPos> findHollowBiomes(Probe probe) {
+		long start = System.nanoTime();
+		Hollows hollows = Hollows.of(probe.hollowsSeed, probe.minY);
+		Hollows.Column column = new Hollows.Column();
+		Map<String, BlockPos> best = new TreeMap<>();
+		Map<String, Integer> bestRun = new TreeMap<>();
+		// On the coarse map, which is enough to place the hollows under the ground and spares the model 64 km² of land.
+		CoarseClimate.call(() -> {
+			BiomeResolver resolver = probe.biomes.createResolver(
+				probe.state.createClimateSampler(SamplerContext.EMPTY_UNCACHED));
+			for (int dx = -4096; dx <= 4096; dx += 64) {
+				for (int dz = -4096; dz <= 4096; dz += 64) {
+					int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+					hollows.column(x, z, (px, pz) -> (int) Math.floor(probe.state.sampleBlockValueUncached(
+						probe.router.chunkSurfaceLevel(), px, 0, pz)), column);
+					int run = 0;
+					for (int y = column.grandBottom(); y <= column.grandTop() + 1; y++) {
+						Hollows.Kind kind = hollows.openKind(column, y);
+						if (kind == Hollows.Kind.GRAND_HOLLOW || kind == Hollows.Kind.ANCIENT_GRAND_HOLLOW) {
+							run++;
+							continue;
+						}
+						if (run >= 24) {
+							int middle = y - run / 2;
+							String biome = biomeAt(resolver, x, middle, z);
+							if (HOLLOW_LIFE.containsKey(biome) && run > bestRun.getOrDefault(biome, 0)) {
+								bestRun.put(biome, run);
+								best.put(biome, new BlockPos(x, middle, z));
+							}
+						}
+						run = 0;
+					}
+				}
+			}
+			return null;
+		});
+		LOGGER.info("Grand Hollow biomes within 4 km in {} ms: {} (open runs {})",
+			(System.nanoTime() - start) / 1_000_000L, best, bestRun);
+		return best;
+	}
+
+	/** A problem if the Grand Hollow at a point grows none of its biome's own block within 32 blocks, else null. */
+	private static @Nullable String checkHollowLife(ServerLevel level, String biome, BlockPos at) {
+		Block life = HOLLOW_LIFE.get(biome);
+		int count = 0;
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+		for (int y = Math.max(at.getY() - 64, level.getMinY()); y <= Math.min(at.getY() + 64, level.getMaxY()); y++) {
+			for (int z = at.getZ() - 32; z <= at.getZ() + 32; z++) {
+				for (int x = at.getX() - 32; x <= at.getX() + 32; x++) {
+					if (level.getBlockState(pos.set(x, y, z)).is(life)) {
+						count++;
+					}
+				}
+			}
+		}
+		LOGGER.info("The {} at {} has {} blocks of {} within 32 blocks", biome, at, count,
+			BuiltInRegistries.BLOCK.getKey(life));
+		return count > 0 ? null : "The " + biome + " at " + at + " grows no " + BuiltInRegistries.BLOCK.getKey(life);
 	}
 
 	/** Finds the river channel within 2 km of the spawn that carries the most water, and returns its water surface. */

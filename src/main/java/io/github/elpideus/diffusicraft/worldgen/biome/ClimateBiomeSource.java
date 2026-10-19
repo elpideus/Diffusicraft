@@ -4,6 +4,8 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
+import io.github.elpideus.diffusicraft.worldgen.TerrainField;
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateColumn;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import net.minecraft.core.Holder;
@@ -26,9 +28,11 @@ import java.util.stream.Stream;
  * {@link BiomeRefiner}). It is still a {@link MultiNoiseBiomeSource} reading the same parameter list, so mods that
  * add biomes to that list, or look for a multi-noise source, work with it as they do with vanilla's.
  *
- * <p>It also keeps the deep dark out of the Grand {@link Hollows}: their floors would otherwise be carpeted in sculk.
- * There it picks what vanilla would pick halfway down to the deep dark: lush or dripstone caves where the climate
- * calls for them, and the biome above otherwise.
+ * <p>Each Grand {@link Hollows} cavern gets one cave biome of its own, from the climate over it (see
+ * {@link HollowBiomes}), in place of whatever vanilla picks there. Biomes of other mods are left where vanilla's
+ * parameter list puts them. The Deep Grand Hollows keep vanilla's picks, but not the deep dark, whose sculk would
+ * carpet their floors: there they get what vanilla would pick halfway down to it, lush or dripstone caves where the
+ * climate calls for them and the biome above otherwise.
  *
  * <p>In worlds that are not Diffusicraft's (the sampler carries no {@link BiomeWorld}), it behaves exactly like
  * vanilla's source.
@@ -81,20 +85,47 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 		}
 		return (quartX, quartY, quartZ) -> {
 			Holder<Biome> biome = vanilla.getNoiseBiome(quartX, quartY, quartZ);
-			Columns.Entry column = Columns.CACHE.get().entry(world, quartX, quartZ);
-			if (biome.is(Biomes.DEEP_DARK)) {
-				return inGrandHollow(column, QuartPos.toBlock(quartY) + 2) ? column.hollowBiome(this) : biome;
+			Columns columns = Columns.CACHE.get();
+			Columns.Entry column = columns.entry(world, quartX, quartZ);
+			boolean deepDark = biome.is(Biomes.DEEP_DARK);
+			Hollows.Chamber chamber = grandHollow(column, QuartPos.toBlock(quartY) + 2);
+			if (chamber != null && (deepDark || isVanilla(biome))) {
+				Holder<Biome> own = columns.hollowBiome(world, chamber, this);
+				if (own != null) {
+					return own;
+				}
+				if (deepDark) {
+					return column.hollowBiome(this);
+				}
 			}
-			return column.refine(biome, this);
+			return deepDark ? biome : column.refine(biome, this);
 		};
 	}
 
 	/**
-	 * Whether a quart lies in a Grand Hollow or the rock around it. The game looks biomes up as much as a quart off,
-	 * and sculk spreads from wherever the deep dark starts it, so deep dark left just under a floor would creep onto it.
+	 * The Grand Hollow a quart lies in, or in the rock around, or {@code null}. The game looks biomes up as much as a
+	 * quart off, and sculk spreads from wherever the deep dark starts it, so deep dark left just under a floor would
+	 * creep onto it.
 	 */
-	private static boolean inGrandHollow(Columns.Entry column, int y) {
-		return column.hollows().nearGrandHollow(column.hollowColumn(), y);
+	private static Hollows.@Nullable Chamber grandHollow(Columns.Entry column, int y) {
+		if (y > column.column.surfaceY) {
+			return null;
+		}
+		return column.hollows().grandHollowNear(column.hollowColumn(), y);
+	}
+
+	private static boolean isVanilla(Holder<Biome> biome) {
+		return biome.unwrapKey().map(key -> key.identifier().getNamespace().equals("minecraft")).orElse(false);
+	}
+
+	/** The biome a Grand Hollow picks for itself, or {@code null} if it leaves it to vanilla or it is missing. */
+	private @Nullable Holder<Biome> hollowBiome(Hollows.Chamber chamber, BiomeWorld world, TerrainField.Column scratch,
+												BiomeClimate climate) {
+		WorldScale scale = world.scale();
+		world.field().coarseColumn(scale.toPixel((int) Math.floor(chamber.z())),
+			scale.toPixel((int) Math.floor(chamber.x())), scratch);
+		String id = HollowBiomes.pick(chamber.kind(), chamber.id(), climate.set(scratch));
+		return id == null ? null : targets().get(id);
 	}
 
 	/** The biome that replaces {@code biome} in a column, or {@code biome} itself. */
@@ -128,7 +159,27 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 	private static final class Columns {
 		static final ThreadLocal<Columns> CACHE = ThreadLocal.withInitial(Columns::new);
 		private static final int SIZE = 8;
+		private static final int HOLLOWS = 16;
 		private final Entry[] entries = new Entry[SIZE * SIZE];
+		/** The biomes of the Grand Hollows met lately, by chamber id; a null biome is stored as a missing one. */
+		private final long[] hollowIds = new long[HOLLOWS];
+		@SuppressWarnings("unchecked")
+		private final @Nullable Holder<Biome>[] hollowBiomes = new Holder[HOLLOWS];
+		private final @Nullable BiomeWorld[] hollowWorlds = new BiomeWorld[HOLLOWS];
+		private final @Nullable ClimateBiomeSource[] hollowSources = new ClimateBiomeSource[HOLLOWS];
+		private final TerrainField.Column scratch = new TerrainField.Column();
+		private final BiomeClimate climate = new BiomeClimate();
+
+		@Nullable Holder<Biome> hollowBiome(BiomeWorld world, Hollows.Chamber chamber, ClimateBiomeSource source) {
+			int slot = (int) (chamber.id() ^ chamber.id() >>> 32) & (HOLLOWS - 1);
+			if (hollowIds[slot] != chamber.id() || hollowWorlds[slot] != world || hollowSources[slot] != source) {
+				hollowBiomes[slot] = source.hollowBiome(chamber, world, scratch, climate);
+				hollowIds[slot] = chamber.id();
+				hollowWorlds[slot] = world;
+				hollowSources[slot] = source;
+			}
+			return hollowBiomes[slot];
+		}
 
 		Entry entry(BiomeWorld world, int quartX, int quartZ) {
 			int slot = (quartX & (SIZE - 1)) | (quartZ & (SIZE - 1)) * SIZE;

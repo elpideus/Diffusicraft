@@ -1,0 +1,19 @@
+{
+  "feature": "diffusicraft:selenite_beam",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 1
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "diffusicraft:hollow_surface",
+      "surface": "ceiling"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

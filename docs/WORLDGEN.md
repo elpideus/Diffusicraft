@@ -258,12 +258,16 @@ would count the cold twice: `BiomeMixin` turns the lapse rate off while a Diffus
 line, as on real mountains. On a dedicated server the clients keep vanilla's lapse rate, so high ground can show snow
 falling where the server has rain; only the weather on screen differs.
 
-**Grand Hollows.** The deep dark would carpet their floors in sculk. Inside the Grand, Ancient Grand and Deep Grand
-Hollows the source picks what vanilla would pick halfway down to the deep dark instead: lush or dripstone caves where
-the climate calls for them, and the biome above otherwise. So do their pillars, the smaller caves that cut into them and
-the rock around them (`Hollows.nearGrandHollow`): a few dozen blocks of their walls, and at least a dozen blocks under
-their floors and over their ceilings. The game looks a biome up as much as a quart off, so deep dark left a few blocks
-under a floor would put sculk on it, and sculk veins spread up to twenty blocks from wherever the deep dark starts them.
+**Grand Hollows.** Each Grand and Ancient Grand Hollow is one cave biome of its own from floor to ceiling, picked
+from the climate over it (see [Life in the Hollows](#life-in-the-hollows)), in place of whatever vanilla would pick
+there. So are their pillars, the smaller caves that cut into them and the rock around them
+(`Hollows.grandHollowNear`): a few dozen blocks of their walls, and at least a dozen blocks under their floors and
+over their ceilings. Biomes that other mods add to the parameter list stay where vanilla puts them. The Deep Grand
+Hollows over the lava seas keep vanilla's picks, but not the deep dark, which would carpet their floors in sculk:
+there the source picks what vanilla would pick halfway down to the deep dark, lush or dripstone caves where the climate
+calls for them and the biome above otherwise. The game looks a biome up as much as a quart off, so deep dark left a
+few blocks under a floor would put sculk on it, and sculk veins spread up to twenty blocks from wherever the deep dark
+starts them.
 
 **Plumbing.** A biome source is shared by every world that uses a preset, so it learns which world it serves from the
 climate sampler. `RandomStateMixin` attaches a `BiomeWorld` (the terrain, scale and Hollows) to the random state of
@@ -605,7 +609,7 @@ blocks high and the Ancient ones up to 170.
   warped by 3D noise. Caverns of different kinds can overlap and merge.
 - **Pillars.** Grand and Ancient Grand Hollows have rock pillars that flare where they meet the floor and the ceiling.
 - **Light.** `StrataRule` puts patches of glowstone in the ceilings of Grand Hollows and shroomlight in those of
-  Ancient ones.
+  Ancient ones, except in the glowworm grottoes, which their glowworms light.
 - **Lava seas.** Deep Grand Hollows reach below the floor limit, which cuts them flat well under the lava level, so
   most of their floor lies under a lava sea. A floor that only just dipped under the lava would stay dry: the world
   interpolates the density over 8 blocks of height and fades it to solid towards the bottom.
@@ -615,6 +619,46 @@ blocks high and the Ancient ones up to 170.
 
 Vanilla's aquifers can flood parts of a hollow with water, as they do vanilla's caves. The density is sampled at the
 corners of the 4 × 8 × 4 cells that vanilla interpolates. Each sample takes a few tens of nanoseconds.
+
+### Life in the Hollows
+
+Each Grand and Ancient Grand Hollow is one cave biome, which `HollowBiomes` picks from the climate over the cavern's
+centre, read on the coarse map, and a roll of the cavern's own. A cave keeps the mean temperature of the land above it
+all year round, and is as wet as the rain that soaks down into it.
+
+| Biome | Where | Life | Ground |
+|---|---|---|---|
+| Lush caves | Seven in ten Grand Hollows under the wet tropics (at least 20 °C and 1500 mm of rain) | Moss on floors and ceilings, with azaleas, clay pools, cave vines, spore blossoms | The lush caves' own |
+| **Glowworm grotto** | Seven in ten Grand Hollows under mild, wet land (4–20 °C, at least 1000 mm), like the Waitomo caves | Glowworm silk hanging in curtains from the ceiling, pools in clay, stalactites and stalagmites. No glowstone: the silk gives the only light | Patches of clay |
+| **Selenite caverns** | Three in four Ancient Grand Hollows under dry land (aridity below 1), one in five under wet land. Like the Cave of the Crystals at Naica | Beams of selenite, from the floors and the ceilings, that cross the cavern at every angle. No dripstone, nothing alive | Calcite |
+| **Mushroom forest** | More than half the Ancient Grand Hollows under wet land: the forest that Verne set by the Lidenbrock Sea | Huge brown and red mushrooms, patches of small ones, glow lichen, spores drifting in the air | Mycelium over dirt |
+| Dripstone caves | Every other Grand and Ancient Grand Hollow | Stalactites and stalagmites on every floor and ceiling | The dripstone caves' own |
+
+The Deep Grand Hollows keep vanilla's biomes (see [Refined biomes](#refined-biomes)).
+
+**Placement.** Vanilla finds the floor of a cave by scanning a dozen blocks up or down from a random height. That
+finds the floors of its own caves, but nearly never those of a cavern a hundred blocks tall. The placement
+`diffusicraft:hollow_surface` (`HollowSurfacePlacement`) knows from the model where a column's Grand Hollows lie, scans
+just that band, and moves the position to one of its floors or ceilings at random: the floor itself, a ledge or a
+pillar's top. It drops columns where no Grand Hollow opens, and places nothing outside a Diffusicraft world. The
+caves' features use it. Fabric's biome API also adds copies of vanilla's moss, clay, cave vines, spore blossoms and
+dripstone, placed this way, to vanilla's lush and dripstone caves, so that they reach the floors of the Grand Hollows
+too. Like every Diffusicraft feature they run after vanilla's.
+
+**Blocks and features.**
+
+- **Glowworm silk** hangs from the ceiling in pale threads up to six blocks long, beaded with droplets that glow
+  blue at full brightness. It gives light 4 and breaks at a touch.
+- **Selenite** grows in beams (`diffusicraft:selenite_beam`, `SeleniteBeamFeature`) up to 22 blocks long and one to
+  three blocks thick. Each beam is rooted two blocks deep in the rock and tapers to a point. Its blocks lie along
+  whichever axis the beam runs closest to. A beam fills only open space and water beyond its root, and reaches at most
+  15 blocks sideways, so it stays in the chunks a feature may write to. Selenite is translucent, like ice, and
+  needs a pickaxe.
+- **Huge mushrooms** are vanilla's, from the mushroom fields.
+
+The ground is the material rule `diffusicraft:biome_caves`, the last of the rules `StrataRule` runs over its rock.
+The erosion that bares rock on steep ground and lays scree under cliffs keeps to the land's surface, so the soils of
+cave floors stay.
 
 ### Spawn and far-away searches
 
@@ -652,7 +696,8 @@ Other searches still read the full terrain and can take a while on new land:
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
-| `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
+| `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `HollowBiomes` (the biomes of the Grand Hollows), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, and `SeleniteBeamFeature` (`diffusicraft:selenite_beam`) |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods |
@@ -660,9 +705,9 @@ Other searches still read the full terrain and can take a while on new land:
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust, glowworm silk and selenite |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |
-| `data/diffusicraft/worldgen/{biome,feature,placed_feature}/`, `material_rule/biome_surface.json`, biome tags | The new biomes, their trees and plants, their ground and their tags |
+| `data/diffusicraft/worldgen/{biome,feature,placed_feature}/`, `material_rule/biome_surface.json`, `material_rule/biome_caves.json`, biome tags | The new biomes, their trees and plants, their ground and their tags |
 | `tools/worldgen_data.py` | Writes the noise settings, material rules, density functions, presets and dimension types. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
-| `tools/biomes.py` | Writes the new biomes, their features, surface rule and tags. Edit it, run `python3 tools/biomes.py`, and commit the output. |
+| `tools/biomes.py` | Writes the new biomes, the cave biomes of the Grand Hollows, their features, ground rules and tags. Edit it, run `python3 tools/biomes.py`, and commit the output. |
 | `tools/block_assets.py` | Draws the textures of the rocks, soils, plants, salt crust, glowworm silk and selenite, and writes the block states, models, loot tables, dye recipes, peat's burn time and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
 
 ## Lifetime and storage
@@ -699,7 +744,10 @@ Other searches still read the full terrain and can take a while on new land:
   in the Standard world, 0.3% at Grand and nearly none at Earth 1:1.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
-  as part of them, determinism and the sampling speed.
+  as part of them, that every open block of a Grand Hollow belongs to one cavern from floor to ceiling, within the band
+  of the column the placements scan, determinism and the sampling speed. `HollowBiomesTest` checks that the Deep Grand
+  Hollows keep vanilla's biomes, that the Grand Hollows follow the climate, that the Ancient ones grow crystals under
+  dry land and mushrooms under wet land, and that a cavern always picks the same biome.
 - `RiversTest` runs the river model over an analytic valley. It checks that water runs down to the sea, that the
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
   river meets itself across tile borders, that the banks hold the water where it steps down, in the river and in the
@@ -743,6 +791,7 @@ Other searches still read the full terrain and can take a while on new land:
 - `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings and
   checks that it uses Diffusicraft and that the heightmaps count all of Diffusicraft's full blocks. It then saves a
   biome map, a height map, in-game views around the spawn and views of the largest river near the spawn, the steepest
-  cliff, the tallest sea cliff, each of Diffusicraft's biomes on the map, the tallest Grand Hollow and a lava sea nearby
-  to `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, and the face of the sea cliff
-  sheer. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
+  cliff, the tallest sea cliff, each of Diffusicraft's biomes on the map, the tallest Grand Hollow, a lava sea nearby
+  and the tallest Grand Hollow of each cave biome within 4 km, to `build/run/clientGameTest/screenshots`. The top of
+  the cliff must be bare rock, the face of the sea cliff sheer, and each cave biome must hold its own blocks: silk,
+  selenite, mushrooms, moss or dripstone. It generates on the CPU unless `-Pdiffusicraft.device` names another device.

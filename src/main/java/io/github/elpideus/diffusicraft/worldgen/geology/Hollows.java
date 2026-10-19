@@ -1,5 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen.geology;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.IntBinaryOperator;
@@ -74,8 +76,12 @@ public final class Hollows {
 						double maxHeight, double minCenterY, double maxCenterY, double pillarScale, long salt) {
 	}
 
-	private record Chamber(Kind kind, long id, double x, double y, double z, double rx, double rz, double cos,
-						   double sin, double up, double down, double wallScale, double pillarScale) {
+	/**
+	 * One cavern: its kind, a hash that tells it from every other, its centre, its radii in plan, how far it is turned,
+	 * and how far its ceiling rises over the centre and its floor sinks under it.
+	 */
+	public record Chamber(Kind kind, long id, double x, double y, double z, double rx, double rz, double cos,
+						  double sin, double up, double down, double wallScale, double pillarScale) {
 	}
 
 	/**
@@ -93,6 +99,9 @@ public final class Hollows {
 		/** Top and bottom of everything that can be open in this column. */
 		private double top;
 		private double bottom;
+		/** Top and bottom of the Grand Hollows in this column alone. */
+		private double grandTop;
+		private double grandBottom;
 		private double pillarDistance;
 		private double pillarRadius;
 		private double noodleMask;
@@ -115,6 +124,15 @@ public final class Hollows {
 
 		public double bottom() {
 			return bottom;
+		}
+
+		/** The highest block a Grand Hollow can open in this column; below {@link #grandBottom()} if none comes near. */
+		public int grandTop() {
+			return (int) Math.floor(Math.min(grandTop, top));
+		}
+
+		public int grandBottom() {
+			return (int) Math.ceil(Math.max(grandBottom, bottom));
 		}
 	}
 
@@ -166,6 +184,8 @@ public final class Hollows {
 		c.count = 0;
 		c.top = Double.NEGATIVE_INFINITY;
 		c.bottom = Double.POSITIVE_INFINITY;
+		c.grandTop = Double.NEGATIVE_INFINITY;
+		c.grandBottom = Double.POSITIVE_INFINITY;
 		c.pillarDistance = Double.POSITIVE_INFINITY;
 		c.pillarRadius = 0;
 		boolean pillars = false;
@@ -196,6 +216,10 @@ public final class Hollows {
 					c.horizontal[c.count++] = h2;
 					c.top = Math.max(c.top, chamber.y + chamber.up * REACH);
 					c.bottom = Math.min(c.bottom, chamber.y - chamber.down * REACH);
+					if (chamber.kind.grand()) {
+						c.grandTop = Math.max(c.grandTop, chamber.y + chamber.up * REACH);
+						c.grandBottom = Math.min(c.grandBottom, chamber.y - chamber.down * REACH);
+					}
 					pillars |= chamber.pillarScale > 0;
 				}
 			}
@@ -291,9 +315,19 @@ public final class Hollows {
 	 * into it does not hide it.
 	 */
 	public boolean nearGrandHollow(Column c, int y) {
+		return grandHollowNear(c, y) != null;
+	}
+
+	/**
+	 * The Grand Hollow that {@link #nearGrandHollow} finds at a height of a prepared column, or {@code null}. Where two
+	 * reach that far, the one the height lies deeper in.
+	 */
+	public @Nullable Chamber grandHollowNear(Column c, int y) {
 		if (y > c.top + GRAND_CEILING_MARGIN || y < c.bottom - GRAND_FLOOR_MARGIN) {
-			return false;
+			return null;
 		}
+		Chamber nearest = null;
+		double best = REACH * REACH;
 		for (int i = 0; i < c.count; i++) {
 			Chamber chamber = c.chambers[i];
 			if (!chamber.kind.grand()) {
@@ -304,11 +338,13 @@ public final class Hollows {
 			double v = dy >= 0 ? Math.max(0, dy - GRAND_CEILING_MARGIN) / chamber.up
 				: Math.max(0, -dy - GRAND_FLOOR_MARGIN) / chamber.down;
 			double v2 = v * v;
-			if (c.horizontal[i] + (dy >= 0 ? v2 : v2 * v2) < REACH * REACH) {
-				return true;
+			double d2 = c.horizontal[i] + (dy >= 0 ? v2 : v2 * v2);
+			if (d2 < best) {
+				best = d2;
+				nearest = chamber;
 			}
 		}
-		return false;
+		return nearest;
 	}
 
 	/** Whether the ceiling of a lit hollow glows at this column: patches of light about a tenth of the ceiling. */
