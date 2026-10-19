@@ -364,6 +364,49 @@ class HollowsTest {
 	}
 
 	@Test
+	void theCavernOverALakeDrainsIntoIt() {
+		// The open blocks over a lake and beside its surface, up to the ceiling, belong to the cavern over it, where the
+		// aquifer may put no water or lava: it would stand on the lake, higher than its brim.
+		int[][] sides = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+		for (int minY : new int[] {-64, -256}) {
+			Hollows hollows = new Hollows(SEED, minY);
+			Hollows.Column c = new Hollows.Column();
+			Hollows.Column side = new Hollows.Column();
+			long open = 0;
+			long left = 0;
+			for (int x = -4096; x < 4096; x += 7) {
+				for (int z = -4096; z < 4096; z += 11) {
+					hollows.column(x, z, (a, b) -> SURFACE, c);
+					if (c.solid()) {
+						continue;
+					}
+					Hollows.Chamber lake = null;
+					for (int y = hollows.highestLake() - 1; y > minY && lake == null; y--) {
+						lake = hollows.density(c, y) < 0 ? hollows.lakeAt(c, y) : null;
+					}
+					if (lake == null) {
+						continue;
+					}
+					assertTrue(lake.y() + lake.up() * 1.35 < hollows.highestCavern(), "a cavern over a lake reaches "
+						+ hollows.highestCavern() + " at min_y " + minY);
+					for (int[] s : sides) {
+						hollows.column(x + s[0], z + s[1], (a, b) -> SURFACE, side);
+						// Up from the lake's level to the ceiling, or to a pillar. Where another Grand Hollow with a basin
+						// opens into the cavern, the water drains into either.
+						for (int y = lake.lakeLevel(); y < lake.y() + lake.up() && hollows.density(side, y) < 0; y++) {
+							open++;
+							left += hollows.overLake(side, y) == null ? 1 : 0;
+						}
+					}
+				}
+			}
+			assertTrue(open > 100_000, "only " + open + " open blocks over lakes at min_y " + minY);
+			assertTrue(left < 0.001 * open, left + " of " + open + " open blocks over lakes are left to the aquifer at min_y "
+				+ minY);
+		}
+	}
+
+	@Test
 	void chambersAroundAPlaceComeNearestFirst() {
 		Hollows hollows = new Hollows(SEED, -256);
 		int x = 1000, z = -3000;

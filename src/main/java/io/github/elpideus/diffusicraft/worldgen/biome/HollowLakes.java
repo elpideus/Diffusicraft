@@ -12,33 +12,37 @@ import java.util.Arrays;
 
 /**
  * Fills the lakes of the Grand Hollows: the basins sunk into the middle of their floors ({@link Hollows#lakeAt}) fill
- * with water up to their brims, where {@link HollowBiomes#holdsLake} says the cavern holds one. It stands in front of
- * the aquifer of every noise chunk of a Diffusicraft world, which the noise fill and the carvers both ask what fills
- * open space, so a carver's tunnel through a lake bed floods too.
+ * with water up to their brims, where {@link HollowBiomes#holdsLake} says the cavern holds one. The cavern over a lake
+ * ({@link Hollows#overLake}) drains into it, so the aquifer puts no water or lava there, which would stand on the lake
+ * a few blocks higher than its brim. It stands in front of the aquifer of every noise chunk of a Diffusicraft world,
+ * which the noise fill and the carvers both ask what fills open space, so a carver's tunnel through a lake bed floods
+ * too.
  */
 public final class HollowLakes {
 	private static final BlockState WATER = Blocks.WATER.defaultBlockState();
+	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 	private static final ThreadLocal<Cache> CACHE = ThreadLocal.withInitial(Cache::new);
 
 	private HollowLakes() {
 	}
 
-	/** The aquifer of a noise chunk with the lakes of the Hollows in front of it. */
+	/** The aquifer of a noise chunk with the lakes of the Hollows, and the caverns over them, in front of it. */
 	public static Aquifer aquifer(BiomeWorld world, Aquifer aquifer) {
-		int top = world.hollows().highestLake();
+		int top = world.hollows().highestCavern();
 		return new Aquifer() {
-			private boolean lake;
+			private boolean own;
 
 			@Override
 			public @Nullable BlockState computeSubstance(int x, int y, int z, double density) {
-				lake = density <= 0 && y < top && CACHE.get().lake(world, x, y, z);
-				return lake ? WATER : aquifer.computeSubstance(x, y, z, density);
+				BlockState state = density <= 0 && y < top ? CACHE.get().substance(world, x, y, z) : null;
+				own = state != null;
+				return own ? state : aquifer.computeSubstance(x, y, z, density);
 			}
 
 			@Override
 			public boolean shouldScheduleFluidUpdate() {
 				// A lake is still: its water stays where it is put, like that of vanilla's lakes.
-				return !lake && aquifer.shouldScheduleFluidUpdate();
+				return !own && aquifer.shouldScheduleFluidUpdate();
 			}
 		};
 	}
@@ -54,7 +58,8 @@ public final class HollowLakes {
 		private final TerrainField.Column scratch = new TerrainField.Column();
 		private final BiomeClimate climate = new BiomeClimate();
 
-		boolean lake(BiomeWorld world, int x, int y, int z) {
+		/** Water in a lake, air in the cavern over one, or {@code null} where the aquifer decides. */
+		@Nullable BlockState substance(BiomeWorld world, int x, int y, int z) {
 			Hollows hollows = world.hollows();
 			if (owner != hollows) {
 				// Another world: forget the columns and caverns of the last.
@@ -69,9 +74,14 @@ public final class HollowLakes {
 				TerrainSurface ground = world.field().surface(world.scale());
 				hollows.column(x, z, (px, pz) -> (int) Math.floor(ground.y(px, pz)), column);
 			}
+			BlockState fill = WATER;
 			Hollows.Chamber chamber = hollows.lakeAt(column, y);
 			if (chamber == null) {
-				return false;
+				fill = AIR;
+				chamber = hollows.overLake(column, y);
+				if (chamber == null) {
+					return null;
+				}
 			}
 			int slot = (int) (chamber.id() ^ chamber.id() >>> 32) & (CAVERNS - 1);
 			if (!known[slot] || ids[slot] != chamber.id()) {
@@ -80,7 +90,7 @@ public final class HollowLakes {
 				ids[slot] = chamber.id();
 				known[slot] = true;
 			}
-			return lakes[slot];
+			return lakes[slot] ? fill : null;
 		}
 	}
 }

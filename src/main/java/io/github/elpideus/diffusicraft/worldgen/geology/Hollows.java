@@ -46,6 +46,8 @@ public final class Hollows {
 	private static final int ROOF = 28;
 	/** Chambers are skipped past this normalised distance, beyond where the warp could reach. */
 	private static final double REACH = 1.35;
+	/** The share of a chamber's height above its centre. */
+	private static final double UP = 0.65;
 	/**
 	 * Rock under the floor of a Grand Hollow and over its ceiling that still counts as part of it, in blocks, beyond
 	 * the chamber's reach: see {@link #nearGrandHollow}.
@@ -173,6 +175,7 @@ public final class Hollows {
 	private final int floorLimit;
 	private final int noodleTop;
 	private final int highestLake;
+	private final int highestCavern;
 	private final Tier[] tiers;
 
 	/**
@@ -196,13 +199,15 @@ public final class Hollows {
 			new Tier(Kind.DEEP_GRAND_HOLLOW, 640, 0.14, 100, 230, Math.max(18, 0.3 * room), Math.max(26, 0.45 * room),
 				lava + 0.06 * room, lava + 0.14 * room, 0, 5),
 		};
-		double lakes = Double.NEGATIVE_INFINITY;
+		double lakes = Double.NEGATIVE_INFINITY, caverns = Double.NEGATIVE_INFINITY;
 		for (Tier tier : tiers) {
 			if (hasBasins(tier.kind)) {
 				lakes = Math.max(lakes, tier.maxCenterY);
+				caverns = Math.max(caverns, tier.maxCenterY + tier.maxHeight * UP * REACH);
 			}
 		}
 		highestLake = (int) Math.ceil(lakes);
+		highestCavern = (int) Math.ceil(caverns) + 1;
 	}
 
 	/** Whether chambers of a kind have basins: the Grand Hollows, but not the deep ones, which hold lava seas instead. */
@@ -238,6 +243,11 @@ public final class Hollows {
 	/** A height above every lake: {@link #lakeAt} finds none from here up. */
 	public int highestLake() {
 		return highestLake;
+	}
+
+	/** A height above every cavern with a basin: {@link #overLake} finds none from here up. */
+	public int highestCavern() {
+		return highestCavern;
 	}
 
 	/** The shared instance for a world. */
@@ -455,6 +465,35 @@ public final class Hollows {
 		return null;
 	}
 
+	/**
+	 * The Grand Hollow whose lake lies under a height of a prepared column, or {@code null}: one with a basin whose
+	 * cavern takes in that height, walls and all, at or above its {@link Chamber#lakeLevel()}. Water that seeps into
+	 * the cavern there runs down into the basin, so none stands there. Where two such caverns open into each other, the
+	 * one the height lies deeper in. Whether the lake holds water is up to the climate over it.
+	 */
+	public @Nullable Chamber overLake(Column c, int y) {
+		if (y > c.top || y >= highestCavern) {
+			return null;
+		}
+		Chamber nearest = null;
+		double best = REACH * REACH;
+		for (int i = 0; i < c.count; i++) {
+			Chamber chamber = c.chambers[i];
+			if (chamber.basin <= 0 || y < chamber.lakeLevel()) {
+				continue;
+			}
+			double dy = y + 0.5 - chamber.y;
+			double v = dy >= 0 ? dy / chamber.up : -dy / chamber.floor(c.horizontal[i]);
+			double v2 = v * v;
+			double d2 = c.horizontal[i] + (dy >= 0 ? v2 : v2 * v2);
+			if (d2 < best) {
+				best = d2;
+				nearest = chamber;
+			}
+		}
+		return nearest;
+	}
+
 	/** Whether the ceiling of a lit hollow glows at this column: patches of light about a tenth of the ceiling. */
 	public boolean glows(int x, int z) {
 		return gradient(seed + 50, x / 7.0, z / 7.0) > 0.5;
@@ -493,7 +532,7 @@ public final class Hollows {
 		long h4 = mix(h3 + 1);
 		double angle = Math.PI * unit(h4);
 		double rz = radius * (0.55 + 0.45 * unit2(h4));
-		double up = height * 0.65;
+		double up = height * UP;
 		// The deepest hollows reach under the floor limit, which cuts them flat well under the lava level: lava seas.
 		// The world interpolates the density over eight blocks of height and fades it to solid towards the bottom,
 		// which would lift a floor that only just dips under the lava out of it again.

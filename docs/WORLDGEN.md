@@ -726,8 +726,9 @@ blocks high and the Ancient ones up to 170.
   sky or the sea. Nothing is carved within 6 blocks of the bottom, so the bedrock is whole. Only the lava seas sink
   lower: their lava rests on the bedrock, 3 blocks above the bottom.
 
-Vanilla's aquifers can flood parts of a hollow with water, as they do vanilla's caves. The density is sampled at the
-corners of the 4 × 8 × 4 cells that vanilla interpolates. Each sample takes a few tens of nanoseconds.
+Vanilla's aquifers can flood parts of a hollow with water, as they do vanilla's caves, but not the cavern over a lake
+(see [Life in the Hollows](#life-in-the-hollows)). The density is sampled at the corners of the 4 × 8 × 4 cells that
+vanilla interpolates. Each sample takes a few tens of nanoseconds.
 
 ### Life in the Hollows
 
@@ -768,13 +769,15 @@ too. Like every Diffusicraft feature they run after vanilla's.
 **Lakes.** Under wet land (aridity at least 1, and a mean temperature of at least 0 °C) the water that soaks down
 fills the basin of a Grand or Ancient Grand Hollow to 0.92 of the floor's depth under the centre: just under the plain
 floor at its rim, so the rock holds it. In the standard world the lakes are 7 to 11 blocks deep in the middle, deeper
-in the tall worlds. Under dry or frozen land the basins stay dry, and so do those of the selenite caverns, drained like
-the Cave of the Crystals. `HollowLakes` fills them: a mixin at the end of `NoiseChunk`'s constructor puts it in front of
-the chunk's aquifer, which the noise fill and the carvers both ask what fills open space, so a carver's tunnel through
-a lake bed floods too. It finds the lake with `Hollows.lakeAt` and asks `HollowBiomes.holdsLake` once per cavern. Like
-vanilla's lakes, the water is still: it schedules no fluid updates. The beds are clay in the glowworm grottoes and lush
-caves, sand by the mushroom forest's lake, and gravel among the dripstone. Every floor under water in those biomes
-above the lava level gets them, so vanilla's aquifer pools there do too.
+in the tall worlds. Under dry or frozen land the basins stay dry, and so do those of the selenite caverns, drained
+like the Cave of the Crystals. `HollowLakes` fills them: a mixin at the end of `NoiseChunk`'s constructor puts it in
+front of the chunk's aquifer, which the noise fill and the carvers both ask what fills open space, so a carver's
+tunnel through a lake bed floods too. It finds the lake with `Hollows.lakeAt` and asks `HollowBiomes.holdsLake` once
+per cavern. The cavern over a lake drains into it, so `HollowLakes` keeps the aquifer out of it (`Hollows.overLake`):
+the aquifer's pools would stand on the lake, a block or more over its brim. Where another cave opens into the cavern,
+its water may spill in. Like vanilla's lakes, the water is still: it schedules no fluid updates. The beds are clay in
+the glowworm grottoes and lush caves, sand by the mushroom forest's lake, and gravel among the dripstone. Every floor
+under water in those biomes above the lava level gets them, so vanilla's aquifer pools there do too.
 
 The ground is the material rule `diffusicraft:biome_caves`, the last of the rules `StrataRule` runs over its rock.
 The erosion that bares rock on steep ground and lays scree under cliffs keeps to the land's surface, so the soils of
