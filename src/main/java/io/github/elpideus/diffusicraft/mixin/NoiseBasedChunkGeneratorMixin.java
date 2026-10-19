@@ -17,6 +17,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.chunk.CarvingMask;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.dimension.DimensionType;
@@ -42,9 +43,9 @@ import java.util.function.Function;
 /**
  * Puts the lava level of Diffusicraft worlds ten blocks above the bottom, where vanilla has it in its own height.
  * Vanilla fixes it at y=-54, which in a world that goes down to y=-256 would flood every cave in 200 blocks of lava.
- * Also keeps carvers under a roof where their holes would fill with water; see {@link CarverRoof}. And fills chunks,
- * and the columns structures ask about, only up to the highest block their ground can reach; see
- * {@link TerrainCeiling}.
+ * Also keeps carvers under a roof where their holes would fill with water (see {@link CarverRoof}) and under sand and
+ * gravel, which would hang over them. And fills chunks, and the columns structures ask about, only up to the highest
+ * block their ground can reach; see {@link TerrainCeiling}.
  */
 @Mixin(NoiseBasedChunkGenerator.class)
 abstract class NoiseBasedChunkGeneratorMixin {
@@ -131,7 +132,12 @@ abstract class NoiseBasedChunkGeneratorMixin {
 			CarvingMask.Filter roofed = CarverRoof.filter(chunk, scale, rivers, settings.seaLevel(), filter);
 			// The aquifer knows only the filled blocks (see diffusicraft$fillToTheGround); above them is air.
 			int top = noiseChunk.volume().maxBlockY();
-			filter = (x, y, z) -> y <= top && roofed.test(x, y, z);
+			// Sand and gravel would hang over the hole: the carver leaves a block of roof under them. It carves each
+			// column top down, so the block above is already carved where the hole goes on up.
+			int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
+			BlockPos.MutableBlockPos above = new BlockPos.MutableBlockPos();
+			filter = (x, y, z) -> y <= top && roofed.test(x, y, z)
+				&& !(chunk.getBlockState(above.set(minX + x, y + 1, minZ + z)).getBlock() instanceof FallingBlock);
 		}
 		original.call(generator, chunk, mask, randomState, materialRule, context, noiseChunk, biomes, filter);
 	}

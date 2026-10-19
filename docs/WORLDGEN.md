@@ -381,7 +381,9 @@ Vanilla's cave entrances fade out on low ground, from 8 blocks above sea level d
 fill everything under sea level with the sea, so an entrance in a coastal plain became a bay or a straight canal of
 sea water. For the same reason the carvers (ravines and vanilla's carved caves) leave a roof of 4 blocks under water,
 along rivers and on ground at most 3 blocks above sea level (`CarverRoof`, applied by `NoiseBasedChunkGeneratorMixin`).
-A ravine there would become a canal, or drain a river.
+A ravine there would become a canal, or drain a river. Everywhere, they leave a block of roof under sand and gravel,
+which would otherwise hang over their holes: they carve after the surface rules, which keep the soil over the noise
+caves.
 
 `chunk_surface_level` is the exact surface rather than vanilla's estimate. Surface rules therefore place grass, sand
 and snow at the right height.
