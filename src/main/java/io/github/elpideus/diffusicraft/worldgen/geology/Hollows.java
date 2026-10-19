@@ -21,7 +21,8 @@ import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.unit2;
  *     <li><b>Hollows</b>, caverns a few dozen blocks across in the basement, above y=0;</li>
  *     <li><b>Deep Hollows</b>, larger, in the deepslate;</li>
  *     <li><b>Grand Hollows</b>, cavern worlds a few hundred blocks across with domed ceilings, flat floors, rock
- *     pillars and patches of light in the ceiling;</li>
+ *     pillars and patches of light in the ceiling, and a basin sunk into the middle of the floor that holds a lake
+ *     where the land above is wet enough;</li>
  *     <li><b>Ancient Grand Hollows</b>, rarer and larger still, deeper, with thicker pillars;</li>
  *     <li><b>Deep Grand Hollows</b> just above the magma layer, whose floors dip under the lava level into lava seas;</li>
  *     <li><b>deep noodle caverns</b>, winding tunnels below y=0 that run between them.</li>
@@ -48,6 +49,19 @@ public final class Hollows {
 	 */
 	private static final int GRAND_FLOOR_MARGIN = 12;
 	private static final int GRAND_CEILING_MARGIN = 8;
+	/**
+	 * The basin of a Grand Hollow sinks the middle of its floor by up to this share of the floor's depth under the
+	 * centre, out to this squared normalised distance from it.
+	 */
+	private static final double BASIN_DEPTH = 0.8;
+	private static final double BASIN_REACH2 = 0.36;
+	/**
+	 * A lake fills its basin up to this share of the floor's depth under the centre: just under the plain floor at the
+	 * basin's rim, so that the rock around it holds the water.
+	 */
+	private static final double LAKE_LEVEL = 0.92;
+	/** Rock under the floor of a basin that belongs to its lake, in blocks, beyond the chamber's reach. */
+	private static final int LAKE_MARGIN = 3;
 	private static final int MAX_CANDIDATES = 32;
 	private static final int PILLAR_CELL = 22;
 	/** Deep noodle caverns run where a regional noise is above this: in about two fifths of the world. */
@@ -78,10 +92,24 @@ public final class Hollows {
 
 	/**
 	 * One cavern: its kind, a hash that tells it from every other, its centre, its radii in plan, how far it is turned,
-	 * and how far its ceiling rises over the centre and its floor sinks under it.
+	 * how far its ceiling rises over the centre and its floor sinks under it, and how much deeper its basin sinks the
+	 * middle of the floor.
 	 */
 	public record Chamber(Kind kind, long id, double x, double y, double z, double rx, double rz, double cos,
-						  double sin, double up, double down, double wallScale, double pillarScale) {
+						  double sin, double up, double down, double basin, double wallScale, double pillarScale) {
+		/** How far the floor sinks under the centre at a squared normalised distance from it, basin and all. */
+		double floor(double h2) {
+			if (basin == 0) {
+				return down;
+			}
+			double s = Math.max(0, 1 - h2 / BASIN_REACH2);
+			return down + basin * s * s;
+		}
+
+		/** The lowest height a lake in the basin leaves dry: water fills the open blocks below it. */
+		public int lakeLevel() {
+			return (int) Math.floor(y - LAKE_LEVEL * down);
+		}
 	}
 
 	/**
@@ -105,6 +133,8 @@ public final class Hollows {
 		private double pillarDistance;
 		private double pillarRadius;
 		private double noodleMask;
+		/** Whether the basin of a Grand Hollow lies under this column. */
+		private boolean basins;
 		private Kind kind;
 		private double value;
 
@@ -139,6 +169,7 @@ public final class Hollows {
 	private final long seed;
 	private final int floorLimit;
 	private final int noodleTop;
+	private final int highestLake;
 	private final Tier[] tiers;
 
 	/**
@@ -162,6 +193,23 @@ public final class Hollows {
 			new Tier(Kind.DEEP_GRAND_HOLLOW, 640, 0.14, 100, 230, Math.max(18, 0.3 * room), Math.max(26, 0.45 * room),
 				lava + 0.06 * room, lava + 0.14 * room, 0, 5),
 		};
+		double lakes = Double.NEGATIVE_INFINITY;
+		for (Tier tier : tiers) {
+			if (hasBasins(tier.kind)) {
+				lakes = Math.max(lakes, tier.maxCenterY);
+			}
+		}
+		highestLake = (int) Math.ceil(lakes);
+	}
+
+	/** Whether chambers of a kind have basins: the Grand Hollows, but not the deep ones, which hold lava seas instead. */
+	private static boolean hasBasins(Kind kind) {
+		return kind == Kind.GRAND_HOLLOW || kind == Kind.ANCIENT_GRAND_HOLLOW;
+	}
+
+	/** A height above every lake: {@link #lakeAt} finds none from here up. */
+	public int highestLake() {
+		return highestLake;
 	}
 
 	/** The shared instance for a world. */
@@ -188,6 +236,7 @@ public final class Hollows {
 		c.grandBottom = Double.POSITIVE_INFINITY;
 		c.pillarDistance = Double.POSITIVE_INFINITY;
 		c.pillarRadius = 0;
+		c.basins = false;
 		boolean pillars = false;
 		for (Tier tier : tiers) {
 			int cx = Math.floorDiv(x, tier.cell);
@@ -215,12 +264,13 @@ public final class Hollows {
 					c.chambers[c.count] = chamber;
 					c.horizontal[c.count++] = h2;
 					c.top = Math.max(c.top, chamber.y + chamber.up * REACH);
-					c.bottom = Math.min(c.bottom, chamber.y - chamber.down * REACH);
+					c.bottom = Math.min(c.bottom, chamber.y - (chamber.down + chamber.basin) * REACH);
 					if (chamber.kind.grand()) {
 						c.grandTop = Math.max(c.grandTop, chamber.y + chamber.up * REACH);
-						c.grandBottom = Math.min(c.grandBottom, chamber.y - chamber.down * REACH);
+						c.grandBottom = Math.min(c.grandBottom, chamber.y - (chamber.down + chamber.basin) * REACH);
 					}
 					pillars |= chamber.pillarScale > 0;
+					c.basins |= chamber.basin > 0 && h2 < 1;
 				}
 			}
 		}
@@ -249,14 +299,19 @@ public final class Hollows {
 		double value = SOLID;
 		Kind kind = null;
 		double warp = Double.NaN;
+		// No other hollow opens into a lake, or it would drain: the basin and the rock under it stay its own.
+		Chamber lake = lakeAt(c, y);
 		for (int i = 0; i < c.count; i++) {
 			Chamber chamber = c.chambers[i];
+			if (lake != null && chamber != lake) {
+				continue;
+			}
 			double dy = y + 0.5 - chamber.y;
-			double v = dy >= 0 ? dy / chamber.up : -dy / chamber.down;
+			double v = dy >= 0 ? dy / chamber.up : -dy / chamber.floor(c.horizontal[i]);
 			if (v >= REACH) {
 				continue;
 			}
-			// A domed ceiling over a flat floor.
+			// A domed ceiling over a flat floor, and the basin in the middle of it.
 			double v2 = v * v;
 			double d2 = c.horizontal[i] + (dy >= 0 ? v2 : v2 * v2);
 			if (d2 >= REACH * REACH) {
@@ -276,7 +331,7 @@ public final class Hollows {
 				kind = chamber.kind;
 			}
 		}
-		if (c.noodleMask > NOODLE_MASK && y <= noodleTop + 8) {
+		if (lake == null && c.noodleMask > NOODLE_MASK && y <= noodleTop + 8) {
 			double noodle = noodle(c, y);
 			if (noodle < value) {
 				value = noodle;
@@ -336,7 +391,7 @@ public final class Hollows {
 			// Measured as if the floor and the ceiling were moved out by the margins.
 			double dy = y + 0.5 - chamber.y;
 			double v = dy >= 0 ? Math.max(0, dy - GRAND_CEILING_MARGIN) / chamber.up
-				: Math.max(0, -dy - GRAND_FLOOR_MARGIN) / chamber.down;
+				: Math.max(0, -dy - GRAND_FLOOR_MARGIN) / chamber.floor(c.horizontal[i]);
 			double v2 = v * v;
 			double d2 = c.horizontal[i] + (dy >= 0 ? v2 : v2 * v2);
 			if (d2 < best) {
@@ -345,6 +400,31 @@ public final class Hollows {
 			}
 		}
 		return nearest;
+	}
+
+	/**
+	 * The Grand Hollow whose lake takes in a height of a prepared column, or {@code null}: one whose basin lies under
+	 * the column, below its {@link Chamber#lakeLevel()}, and within its outline and {@value #LAKE_MARGIN} blocks of
+	 * rock under its floor. No other hollow opens there, so the basin holds its water, and every open block there
+	 * belongs to the lake. Whether the lake holds water is up to the climate over it.
+	 */
+	public @Nullable Chamber lakeAt(Column c, int y) {
+		if (!c.basins || y >= highestLake || y < c.bottom - LAKE_MARGIN) {
+			return null;
+		}
+		for (int i = 0; i < c.count; i++) {
+			Chamber chamber = c.chambers[i];
+			double h2 = c.horizontal[i];
+			if (chamber.basin <= 0 || h2 >= 1 || y >= chamber.lakeLevel()) {
+				continue;
+			}
+			double v = Math.max(0, chamber.y - (y + 0.5) - LAKE_MARGIN) / chamber.floor(h2);
+			double v2 = v * v;
+			if (h2 + v2 * v2 < REACH * REACH) {
+				return chamber;
+			}
+		}
+		return null;
 	}
 
 	/** Whether the ceiling of a lit hollow glows at this column: patches of light about a tenth of the ceiling. */
@@ -391,10 +471,13 @@ public final class Hollows {
 		// which would lift a floor that only just dips under the lava out of it again.
 		double down = tier.kind == Kind.DEEP_GRAND_HOLLOW ? y - (floorLimit - 4)
 			: Math.max(2, Math.min(height * 0.35, y - floorLimit));
+		// The basin keeps two blocks over the lava level, which is four over the floor limit.
+		double basin = hasBasins(tier.kind) ? Math.max(0, Math.min(BASIN_DEPTH * down, y - down - (floorLimit + 6)))
+			: 0;
 		// Densities fall by about a quarter per block near the walls, like vanilla's caves.
 		double wallScale = Math.min(Math.min(radius, rz), up + down) / 4;
-		return new Chamber(tier.kind, h4, x, y, z, radius, rz, Math.cos(angle), Math.sin(angle), up, down, wallScale,
-			tier.pillarScale);
+		return new Chamber(tier.kind, h4, x, y, z, radius, rz, Math.cos(angle), Math.sin(angle), up, down, basin,
+			wallScale, tier.pillarScale);
 	}
 
 	private void pillar(int x, int z, Column c) {

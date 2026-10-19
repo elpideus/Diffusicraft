@@ -70,7 +70,8 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
 - **Life in the Hollows.** Each Grand Hollow is one cave biome, from the climate over it: lush caves under the wet
   tropics, glowworm grottoes hung with glowing silk under mild, wet land, selenite caverns crossed by beams of crystal
   under dry land, forests of giant mushrooms, and dripstone caves elsewhere. Their plants and crystals reach the floors
-  and ceilings of caverns a hundred blocks tall. See [WORLDGEN.md](WORLDGEN.md#life-in-the-hollows).
+  and ceilings of caverns a hundred blocks tall. Under wet land, a lake fills the basin in the middle of the floor.
+  See [WORLDGEN.md](WORLDGEN.md#life-in-the-hollows).
 - **Rivers and lakes.** Drainage of the whole world from its rain and terrain, with discharge, meanders,
   tributaries, widths that grow with the discharge, banks, beds and river biomes. Lakes fill the closed basins as far
   as the climate is wet enough. Shallow seas hold water, and coastal lowland keeps its cave entrances and ravines
@@ -122,8 +123,6 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 - **Soils.** Soil that follows the rock beneath as well as the climate, and soil profiles deeper than a few blocks.
 - **New minerals.** Minerals for Create and other tech mods, placed by the same geology.
-- **Lakes in the Hollows.** Underground lakes of their own on the floors of the Grand Hollows. The caverns already
-  have cave biomes and flora (see [WORLDGEN.md](WORLDGEN.md#life-in-the-hollows)).
 
 ### Compatibility
 

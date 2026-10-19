@@ -10,7 +10,9 @@ import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
+import io.github.elpideus.diffusicraft.worldgen.biome.BiomeClimate;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner;
+import io.github.elpideus.diffusicraft.worldgen.biome.BiomeWorld;
 import io.github.elpideus.diffusicraft.worldgen.biome.HollowBiomes;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Erosion;
@@ -37,6 +39,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.biome.Biome;
@@ -64,6 +67,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,8 +81,9 @@ import java.util.stream.IntStream;
  * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
  * the generator without building chunks, in-game views from above the spawn, over the largest river nearby, of the
  * tallest sea cliff nearby and of each of Diffusicraft's biomes on the map, and views inside the nearest Grand Hollow,
- * inside the tallest Grand Hollow of each of their biomes and over the nearest lava sea of a Deep Grand Hollow. It also
- * checks that each Grand Hollow biome grows what it should, and the levels of detail Distant Horizons draws against the
+ * inside the tallest Grand Hollow of each of their biomes, over the nearest lake in a Grand Hollow and over the nearest
+ * lava sea of a Deep Grand Hollow. It also checks that each Grand Hollow biome grows what it should, that the lake
+ * holds its water, and the levels of detail Distant Horizons draws against the
  * chunks generated around the spawn, and saves maps of them near and far.
  *
  * <p>Needs the Terrain Diffusion models; without them the test logs a warning and does nothing. Generation runs on the
@@ -223,6 +228,15 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				String lifeProblem = world.getServer().computeOnServer(server ->
 					checkHollowLife(server.overworld(), biome.getKey(), at));
 				problem = problem != null ? problem : lifeProblem;
+			}
+
+			// The lake of the nearest Grand Hollow that holds one, from just over its water.
+			BlockPos hollowLake = findHollowLake(probe);
+			if (hollowLake != null) {
+				view(context, world, hollowLake, 0f, 25f, "hollow-lake");
+				String lakeProblem = world.getServer().computeOnServer(server -> checkHollowLake(server.overworld(),
+					hollowLake));
+				problem = problem != null ? problem : lakeProblem;
 			}
 			if (problem != null) {
 				throw new AssertionError(problem);
@@ -395,6 +409,85 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		LOGGER.info("The {} at {} has {} blocks of {} within 32 blocks", biome, at, count,
 			BuiltInRegistries.BLOCK.getKey(life));
 		return count > 0 ? null : "The " + biome + " at " + at + " grows no " + BuiltInRegistries.BLOCK.getKey(life);
+	}
+
+	/**
+	 * Finds the nearest Grand Hollow within 4 km of the spawn whose basin holds a lake, and returns a point six blocks
+	 * over its water near the middle, or {@code null} if no cavern nearby holds one.
+	 */
+	private static @Nullable BlockPos findHollowLake(Probe probe) {
+		BiomeWorld biomeWorld = ((BiomeWorld.Carrier) (Object) probe.state).diffusicraft$biomeWorld();
+		Hollows hollows = Hollows.of(probe.hollowsSeed, probe.minY);
+		Hollows.Column column = new Hollows.Column();
+		TerrainField.Column scratch = new TerrainField.Column();
+		BiomeClimate climate = new BiomeClimate();
+		Map<Long, Boolean> holds = new HashMap<>();
+		// On the coarse map, like findHollowBiomes.
+		return CoarseClimate.call(() -> {
+			Hollows.Chamber nearest = null;
+			double best = Double.POSITIVE_INFINITY;
+			for (int dx = -4096; dx <= 4096; dx += 64) {
+				for (int dz = -4096; dz <= 4096; dz += 64) {
+					int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+					hollows.column(x, z, (px, pz) -> surface(probe, new BlockPos(px, 0, pz)), column);
+					for (int y = column.grandBottom(); y < hollows.highestLake(); y++) {
+						Hollows.Chamber chamber = hollows.lakeAt(column, y);
+						if (chamber == null) {
+							continue;
+						}
+						boolean lake = holds.computeIfAbsent(chamber.id(), id -> HollowBiomes.holdsLake(
+							HollowBiomes.pick(chamber.kind(), id, HollowBiomes.climate(biomeWorld, chamber, scratch,
+								climate)), climate));
+						double distance = Math.hypot(chamber.x() - probe.spawn.getX(), chamber.z() - probe.spawn.getZ());
+						if (lake && distance < best) {
+							best = distance;
+							nearest = chamber;
+						}
+						break;
+					}
+				}
+			}
+			if (nearest == null) {
+				LOGGER.info("No Grand Hollow within 4 km holds a lake: {} caverns with basins", holds.size());
+				return null;
+			}
+			// Over open water near the middle, clear of the pillars.
+			int y = nearest.lakeLevel() + 6;
+			for (int r = 0; r <= 32; r += 4) {
+				for (int a = 0; a < 8; a++) {
+					int x = (int) Math.floor(nearest.x() + r * Math.cos(a * Math.PI / 4));
+					int z = (int) Math.floor(nearest.z() + r * Math.sin(a * Math.PI / 4));
+					hollows.column(x, z, (px, pz) -> surface(probe, new BlockPos(px, 0, pz)), column);
+					if (hollows.density(column, y) < 0 && hollows.density(column, nearest.lakeLevel() - 1) < 0) {
+						LOGGER.info("The nearest Grand Hollow lake is at {}, level {}, of {} caverns with basins",
+							new BlockPos(x, y, z), nearest.lakeLevel(), holds.size());
+						return new BlockPos(x, y, z);
+					}
+				}
+			}
+			LOGGER.info("The lake at {}, {} is all pillars near the middle", nearest.x(), nearest.z());
+			return null;
+		});
+	}
+
+	/** A problem if a lake's water does not lie in a sheet under the camera six blocks up, else null. */
+	private static @Nullable String checkHollowLake(ServerLevel level, BlockPos camera) {
+		int surface = camera.getY() - 7;
+		int water = 0;
+		int above = 0;
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+		for (int z = camera.getZ() - 16; z <= camera.getZ() + 16; z++) {
+			for (int x = camera.getX() - 16; x <= camera.getX() + 16; x++) {
+				water += level.getFluidState(pos.set(x, surface, z)).is(FluidTags.WATER) ? 1 : 0;
+				above += level.getFluidState(pos.set(x, surface + 1, z)).is(FluidTags.WATER) ? 1 : 0;
+			}
+		}
+		LOGGER.info("The lake at {} has {} blocks of water at its surface, {} over it", camera, water, above);
+		if (water < 33 * 33 / 4) {
+			return "The lake at " + camera + " has only " + water + " blocks of water at its surface";
+		}
+		return above > water / 10 ? "The lake at " + camera + " has " + above + " blocks of water over its surface"
+			: null;
 	}
 
 	/** Finds the river channel within 2 km of the spawn that carries the most water, and returns its water surface. */

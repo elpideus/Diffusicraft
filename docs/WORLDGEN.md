@@ -608,6 +608,10 @@ blocks high and the Ancient ones up to 170.
 - **Shape.** Each cavern is an ellipse in plan with a lobed outline, a domed ceiling over a flatter floor, and walls
   warped by 3D noise. Caverns of different kinds can overlap and merge.
 - **Pillars.** Grand and Ancient Grand Hollows have rock pillars that flare where they meet the floor and the ceiling.
+- **Basins.** The middle of the floor of a Grand or Ancient Grand Hollow sinks into a basin, up to 0.8 times the
+  floor's depth under the centre deeper, out to 0.6 of the way to the wall, and at least two blocks over the lava
+  level. Below the level of its lake (see [Life in the Hollows](#life-in-the-hollows)) no other hollow opens into the
+  basin or the 3 blocks of rock under it, so nothing drains it.
 - **Light.** `StrataRule` puts patches of glowstone in the ceilings of Grand Hollows and shroomlight in those of
   Ancient ones, except in the glowworm grottoes, which their glowworms light.
 - **Lava seas.** Deep Grand Hollows reach below the floor limit, which cuts them flat well under the lava level, so
@@ -656,6 +660,17 @@ too. Like every Diffusicraft feature they run after vanilla's.
   needs a pickaxe.
 - **Huge mushrooms** are vanilla's, from the mushroom fields.
 
+**Lakes.** Under wet land (aridity at least 1, and a mean temperature of at least 0 °C) the water that soaks down
+fills the basin of a Grand or Ancient Grand Hollow to 0.92 of the floor's depth under the centre: just under the plain
+floor at its rim, so the rock holds it. In the standard world the lakes are 7 to 11 blocks deep in the middle, deeper
+in the tall worlds. Under dry or frozen land the basins stay dry, and so do those of the selenite caverns, drained like
+the Cave of the Crystals. `HollowLakes` fills them: a mixin at the end of `NoiseChunk`'s constructor puts it in front of
+the chunk's aquifer, which the noise fill and the carvers both ask what fills open space, so a carver's tunnel through
+a lake bed floods too. It finds the lake with `Hollows.lakeAt` and asks `HollowBiomes.holdsLake` once per cavern. Like
+vanilla's lakes, the water is still: it schedules no fluid updates. The beds are clay in the glowworm grottoes and lush
+caves, sand by the mushroom forest's lake, and gravel among the dripstone. Every floor under water in those biomes
+above the lava level gets them, so vanilla's aquifer pools there do too.
+
 The ground is the material rule `diffusicraft:biome_caves`, the last of the rules `StrataRule` runs over its rock.
 The erosion that bares rock on steep ground and lays scree under cliffs keeps to the land's surface, so the soils of
 cave floors stay.
@@ -693,10 +708,10 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
+| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
-| `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `HollowBiomes` (the biomes of the Grand Hollows), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
+| `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, and `SeleniteBeamFeature` (`diffusicraft:selenite_beam`) |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
@@ -745,9 +760,11 @@ Other searches still read the full terrain and can take a while on new land:
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
   as part of them, that every open block of a Grand Hollow belongs to one cavern from floor to ceiling, within the band
-  of the column the placements scan, determinism and the sampling speed. `HollowBiomesTest` checks that the Deep Grand
-  Hollows keep vanilla's biomes, that the Grand Hollows follow the climate, that the Ancient ones grow crystals under
-  dry land and mushrooms under wet land, and that a cavern always picks the same biome.
+  of the column the placements scan, that the basins hold their lakes, with no open block outside a lake beside or
+  under one, mostly 5 blocks deep or more in the middle, determinism and the sampling speed. `HollowBiomesTest` checks
+  that the Deep Grand Hollows keep vanilla's biomes, that the Grand Hollows follow the climate, that the Ancient ones
+  grow crystals under dry land and mushrooms under wet land, that a cavern always picks the same biome, and that only
+  wet, unfrozen land fills a basin, never in the selenite caverns.
 - `RiversTest` runs the river model over an analytic valley. It checks that water runs down to the sea, that the
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
   river meets itself across tile borders, that the banks hold the water where it steps down, in the river and in the

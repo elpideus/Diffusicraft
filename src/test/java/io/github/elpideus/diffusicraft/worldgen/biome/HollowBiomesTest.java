@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -77,5 +78,18 @@ class HollowBiomesTest {
 				HollowBiomes.pick(Hollows.Kind.ANCIENT_GRAND_HOLLOW, id, climate(12, 1400)));
 		}
 		assertTrue(shares(Hollows.Kind.GRAND_HOLLOW, c).size() > 1);
+	}
+
+	@Test
+	void onlyWetLandFillsTheBasins() {
+		BiomeClimate wet = climate(12, 1400);
+		assertTrue(HollowBiomes.holdsLake(HollowBiomes.DRIPSTONE_CAVES, wet));
+		assertTrue(HollowBiomes.holdsLake(HollowBiomes.MUSHROOM_FOREST, wet));
+		assertTrue(HollowBiomes.holdsLake(HollowBiomes.LUSH_CAVES, climate(26, 2500)));
+		// Drained, dry, frozen, or left to vanilla.
+		assertFalse(HollowBiomes.holdsLake(HollowBiomes.SELENITE_CAVERNS, wet));
+		assertFalse(HollowBiomes.holdsLake(HollowBiomes.DRIPSTONE_CAVES, climate(24, 250)));
+		assertFalse(HollowBiomes.holdsLake(HollowBiomes.DRIPSTONE_CAVES, climate(-4, 900)));
+		assertFalse(HollowBiomes.holdsLake(null, wet));
 	}
 }

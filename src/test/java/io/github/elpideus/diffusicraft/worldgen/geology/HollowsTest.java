@@ -3,6 +3,7 @@ package io.github.elpideus.diffusicraft.worldgen.geology;
 import org.junit.jupiter.api.Test;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -294,5 +295,68 @@ class HollowsTest {
 		// Generous: well under a microsecond once warm, columns included.
 		assertTrue(nsPerSample < 3000, nsPerSample + " ns per sample");
 		assertTrue(sink != 0);
+	}
+
+	@Test
+	void basinsHoldDeepLakesThatStayInThem() {
+		// Water fills every open block of a basin below the lake's level. If one of them is next to an open block outside
+		// the lake, at its side or under it, the water spills out.
+		int[][] sides = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+		for (int minY : new int[] {-64, -256}) {
+			Hollows hollows = new Hollows(SEED, minY);
+			Hollows.Column c = new Hollows.Column();
+			Hollows.Column[] around = new Hollows.Column[sides.length];
+			for (int i = 0; i < around.length; i++) {
+				around[i] = new Hollows.Column();
+			}
+			Map<Long, Hollows.Chamber> lakes = new HashMap<>();
+			long water = 0;
+			long spills = 0;
+			for (int x = -4096; x < 4096; x += 7) {
+				for (int z = -4096; z < 4096; z += 11) {
+					hollows.column(x, z, (a, b) -> SURFACE, c);
+					if (c.solid()) {
+						continue;
+					}
+					boolean prepared = false;
+					for (int y = minY + 1; y < hollows.highestLake(); y++) {
+						Hollows.Chamber lake = hollows.lakeAt(c, y);
+						if (lake == null || hollows.density(c, y) >= 0) {
+							continue;
+						}
+						if (!prepared) {
+							for (int i = 0; i < sides.length; i++) {
+								hollows.column(x + sides[i][0], z + sides[i][1], (a, b) -> SURFACE, around[i]);
+							}
+							prepared = true;
+						}
+						water++;
+						lakes.putIfAbsent(lake.id(), lake);
+						boolean spill = hollows.density(c, y - 1) < 0 && hollows.lakeAt(c, y - 1) == null;
+						for (int i = 0; i < sides.length && !spill; i++) {
+							spill = hollows.density(around[i], y) < 0 && hollows.lakeAt(around[i], y) == null;
+						}
+						spills += spill ? 1 : 0;
+					}
+				}
+			}
+			assertTrue(lakes.size() > 20, "only " + lakes.size() + " lakes at min_y " + minY);
+			assertTrue(spills < 0.001 * water, spills + " of " + water + " lake blocks spill at min_y " + minY);
+
+			// Deep in the middle, but where a pillar stands there.
+			int deep = 0;
+			for (Hollows.Chamber lake : lakes.values()) {
+				int x = (int) Math.floor(lake.x());
+				int z = (int) Math.floor(lake.z());
+				hollows.column(x, z, (a, b) -> SURFACE, c);
+				int depth = 0;
+				for (int y = lake.lakeLevel() - 1; y > minY && hollows.lakeAt(c, y) != null; y--) {
+					depth += hollows.density(c, y) < 0 ? 1 : 0;
+				}
+				deep += depth >= 5 ? 1 : 0;
+			}
+			assertTrue(deep > 0.75 * lakes.size(), "only " + deep + " of " + lakes.size()
+				+ " lakes are 5 blocks deep in the middle at min_y " + minY);
+		}
 	}
 }

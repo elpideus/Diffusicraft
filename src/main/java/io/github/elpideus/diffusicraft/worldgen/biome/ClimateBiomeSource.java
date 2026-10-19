@@ -5,7 +5,6 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
-import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateColumn;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import net.minecraft.core.Holder;
@@ -121,10 +120,7 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 	/** The biome a Grand Hollow picks for itself, or {@code null} if it leaves it to vanilla or it is missing. */
 	private @Nullable Holder<Biome> hollowBiome(Hollows.Chamber chamber, BiomeWorld world, TerrainField.Column scratch,
 												BiomeClimate climate) {
-		WorldScale scale = world.scale();
-		world.field().coarseColumn(scale.toPixel((int) Math.floor(chamber.z())),
-			scale.toPixel((int) Math.floor(chamber.x())), scratch);
-		String id = HollowBiomes.pick(chamber.kind(), chamber.id(), climate.set(scratch));
+		String id = HollowBiomes.pick(chamber.kind(), chamber.id(), HollowBiomes.climate(world, chamber, scratch, climate));
 		return id == null ? null : targets().get(id);
 	}
 

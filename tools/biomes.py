@@ -639,8 +639,20 @@ SURFACE_RULE = sequence(
 )
 
 
+# Under water: the inverse of vanilla's not_underwater, whose water is any fluid.
+UNDER_WATER = {"type": "minecraft:not", "invert": "minecraft:not_underwater"}
+# Above the lava level, so that the floors of the lava seas stay rock.
+ABOVE_LAVA = {"type": "minecraft:y_above", "anchor": {"above_bottom": 10}, "surface_depth_multiplier": 0,
+              "add_stone_depth": False}
+
 # The ground of the Grand Hollows' biomes, run below the surface (see worldgen_data.py).
 CAVE_RULE = sequence(
+    # The beds of the lakes in the basins (see HollowLakes): clay in the wet caves, sand by the Lidenbrock Sea, and
+    # gravel washed down among the dripstone.
+    when("minecraft:on_floor", when(UNDER_WATER, when(ABOVE_LAVA, sequence(
+        when(biome_is("glowworm_grotto", "minecraft:lush_caves"), block("clay")),
+        when(biome_is("mushroom_forest"), block("sand")),
+        when(biome_is("minecraft:dripstone_caves"), block("gravel")))))),
     # Mycelium over a few blocks of dirt, on which the giant mushrooms grow.
     when(biome_is("mushroom_forest"), sequence(
         when("minecraft:on_floor", block("mycelium")), when("minecraft:under_floor", block("dirt")))),

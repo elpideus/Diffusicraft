@@ -1,5 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen.biome;
 
+import io.github.elpideus.diffusicraft.worldgen.TerrainField;
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import org.jspecify.annotations.Nullable;
@@ -53,6 +55,32 @@ public final class HollowBiomes {
 			case GRAND_HOLLOW -> grand(roll, c);
 			default -> null;
 		};
+	}
+
+	/**
+	 * The climate over a Grand Hollow's centre, from the coarse map: the same wherever in the cavern it is asked for.
+	 *
+	 * @param scratch a column to read the terrain into
+	 * @return {@code climate}, filled in
+	 */
+	public static BiomeClimate climate(BiomeWorld world, Hollows.Chamber chamber, TerrainField.Column scratch,
+									   BiomeClimate climate) {
+		WorldScale scale = world.scale();
+		world.field().coarseColumn(scale.toPixel((int) Math.floor(chamber.z())),
+			scale.toPixel((int) Math.floor(chamber.x())), scratch);
+		return climate.set(scratch);
+	}
+
+	/**
+	 * Whether the basin of a Grand Hollow holds a lake. Under wet land the water that soaks down through the rock fills
+	 * it to the brim. Under dry land too little reaches it, under frozen ground none does, and the selenite caverns
+	 * have been drained, like the Cave of the Crystals, whose crystals grew in water pumped out for the mine.
+	 *
+	 * @param biome the cavern's biome, from {@link #pick}
+	 * @param c     the climate over the cavern's centre
+	 */
+	public static boolean holdsLake(@Nullable String biome, BiomeClimate c) {
+		return biome != null && !biome.equals(SELENITE_CAVERNS) && c.aridity() >= 1 && c.temperature >= 0;
 	}
 
 	private static String grand(double roll, BiomeClimate c) {

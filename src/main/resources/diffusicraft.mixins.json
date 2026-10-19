@@ -10,6 +10,7 @@
 		"DedicatedServerPropertiesMixin",
 		"MaterialRuleContextAccessor",
 		"NoiseBasedChunkGeneratorMixin",
+		"NoiseChunkMixin",
 		"NoiseGeneratorSettingsAccessor",
 		"RandomStateAccessor",
 		"RandomStateMixin",

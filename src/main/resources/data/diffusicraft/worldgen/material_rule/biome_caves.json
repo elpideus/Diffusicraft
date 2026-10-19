@@ -3,6 +3,73 @@
   "sequence": [
     {
       "type": "minecraft:condition",
+      "if_true": "minecraft:on_floor",
+      "then_run": {
+        "type": "minecraft:condition",
+        "if_true": {
+          "type": "minecraft:not",
+          "invert": "minecraft:not_underwater"
+        },
+        "then_run": {
+          "type": "minecraft:condition",
+          "if_true": {
+            "type": "minecraft:y_above",
+            "anchor": {
+              "above_bottom": 10
+            },
+            "surface_depth_multiplier": 0,
+            "add_stone_depth": false
+          },
+          "then_run": {
+            "type": "minecraft:sequence",
+            "sequence": [
+              {
+                "type": "minecraft:condition",
+                "if_true": {
+                  "type": "minecraft:biome",
+                  "biome_is": [
+                    "diffusicraft:glowworm_grotto",
+                    "minecraft:lush_caves"
+                  ]
+                },
+                "then_run": {
+                  "type": "minecraft:block",
+                  "result_state": "minecraft:clay"
+                }
+              },
+              {
+                "type": "minecraft:condition",
+                "if_true": {
+                  "type": "minecraft:biome",
+                  "biome_is": [
+                    "diffusicraft:mushroom_forest"
+                  ]
+                },
+                "then_run": {
+                  "type": "minecraft:block",
+                  "result_state": "minecraft:sand"
+                }
+              },
+              {
+                "type": "minecraft:condition",
+                "if_true": {
+                  "type": "minecraft:biome",
+                  "biome_is": [
+                    "minecraft:dripstone_caves"
+                  ]
+                },
+                "then_run": {
+                  "type": "minecraft:block",
+                  "result_state": "minecraft:gravel"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "minecraft:condition",
       "if_true": {
         "type": "minecraft:biome",
         "biome_is": [
