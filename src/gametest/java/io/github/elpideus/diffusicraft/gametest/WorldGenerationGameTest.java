@@ -107,6 +107,12 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	/** The steepest ground, in blocks per block, whose soil must go deeper than vanilla's, and how much is needed. */
 	private static final double GENTLE_SLOPE = 0.1;
 	private static final int MIN_GENTLE_COLUMNS = 25;
+	/**
+	 * How far under the top of the ground the solid rock lies at most, under the deepest soil and its weathered rock,
+	 * and how far down the rock is searched for dirt and gravel.
+	 */
+	private static final int ROCK_DEPTH = 24;
+	private static final int ROCK_REACH = 80;
 	/** Spacing of the LOD columns whose tree crowns are counted by biome, which spans several biomes. */
 	private static final int LOD_CANOPY_STEP = 16;
 	private static final int LOD_FAR_STEP = 256;
@@ -602,12 +608,13 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	 * Walks down the grass-covered columns within 96 blocks of the spawn to the rock, and tallies their soil. On gentle
 	 * ground ({@value #GENTLE_SLOPE} blocks per block or less) outside limestone, chalk and marble, the soil must go
 	 * deeper than vanilla's few blocks of dirt on average: the slopes and those rocks keep it thin. No sand or gravel
-	 * may hang over open space in it.
+	 * may hang over open space in it, and the solid rock under it holds no dirt or gravel down to the first open space:
+	 * Diffusicraft worlds leave vanilla's blobs of them out.
 	 */
 	private static SoilSurvey checkSoils(ServerLevel level, TerrainSurface surface, BlockPos spawn) {
 		Set<Block> carbonates = Set.of(DiffusicraftBlocks.LIMESTONE, DiffusicraftBlocks.CHALK, DiffusicraftBlocks.MARBLE);
 		Map<String, Integer> tally = new TreeMap<>();
-		int columns = 0, gentle = 0;
+		int columns = 0, gentle = 0, buried = 0;
 		long total = 0, gentleTotal = 0;
 		int deepestDepth = 0;
 		BlockPos deepest = null;
@@ -637,6 +644,19 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 						problem = "The soil at " + at + " is " + state + " over open space";
 					}
 				}
+				for (int y = top - 1; y > top - ROCK_REACH; y--) {
+					BlockPos at = new BlockPos(x, y, z);
+					BlockState state = level.getBlockState(at);
+					if (state.isAir() || !state.getFluidState().isEmpty()) {
+						break;
+					}
+					if (y < top - ROCK_DEPTH && (state.is(Blocks.DIRT) || state.is(Blocks.GRAVEL))) {
+						buried++;
+						if (problem == null) {
+							problem = "The rock at " + at + ", " + (top - y) + " blocks under the grass, is " + state;
+						}
+					}
+				}
 				total += depth;
 				if (Erosion.slope(surface, x, z) <= GENTLE_SLOPE && (rock == null || !carbonates.contains(rock.getBlock()))) {
 					gentle++;
@@ -651,8 +671,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		double mean = columns == 0 ? 0 : total / (double) columns;
 		double gentleMean = gentle == 0 ? 0 : gentleTotal / (double) gentle;
 		LOGGER.info("Under the grass of {} columns around the spawn the soil goes {} blocks deep on average and {} at "
-			+ "most, at {}: {}. On the {} of gentle ground outside carbonate rock it goes {} blocks deep", columns,
-			Math.round(mean * 10) / 10.0, deepestDepth, deepest, tally, gentle, Math.round(gentleMean * 10) / 10.0);
+			+ "most, at {}: {}. On the {} of gentle ground outside carbonate rock it goes {} blocks deep. The rock "
+			+ "under it holds {} blocks of dirt and gravel", columns, Math.round(mean * 10) / 10.0, deepestDepth, deepest,
+			tally, gentle, Math.round(gentleMean * 10) / 10.0, buried);
 		if (problem == null && gentle >= MIN_GENTLE_COLUMNS && gentleMean < 4) {
 			problem = "The soil on gentle ground around the spawn goes only " + gentleMean + " blocks deep on average";
 		}
@@ -696,9 +717,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	}
 
 	/**
-	 * Whether the cliff at {@code at} shows its rock: no soil or sand among the top blocks of the ground. Plain dirt
-	 * does not count: vanilla's blobs of dirt spread through the rock, and show where they reach the ground without
-	 * the biome's cover over them. The soil the biome lays has that cover, grass or podzol, on top.
+	 * Whether the cliff at {@code at} shows its rock: no soil or sand among the top blocks of the ground.
 	 */
 	private static @Nullable String checkCliff(ServerLevel level, BlockPos at) {
 		int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR, at.getX(), at.getZ()) - 1;
@@ -707,8 +726,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		for (int y = top; y > top - 4; y--) {
 			BlockState state = level.getBlockState(at.atY(y));
 			blocks.add(BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath());
-			if (problem == null && (state.is(BlockTags.SUBSTRATE_OVERWORLD) && !state.is(Blocks.DIRT)
-				|| state.is(BlockTags.SAND))) {
+			if (problem == null && (state.is(BlockTags.SUBSTRATE_OVERWORLD) || state.is(BlockTags.SAND))) {
 				problem = "The cliff at " + at.atY(y) + " is covered with " + state;
 			}
 		}

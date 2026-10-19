@@ -25,6 +25,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.data.worldgen.placement.OrePlacements;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
@@ -34,9 +35,12 @@ import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.material.rule.MaterialRule;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.levelgen.presets.WorldPreset;
 
 import java.util.Arrays;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Registers the world generator. The generator itself is data: noise settings, density functions, world presets and
@@ -48,6 +52,13 @@ public final class DiffusicraftWorldgen {
 	public static final ResourceKey<WorldPreset> STANDARD_PRESET = preset(WorldScale.STANDARD);
 	public static final ResourceKey<WorldPreset> GRAND_PRESET = preset(WorldScale.GRAND);
 	public static final ResourceKey<WorldPreset> EARTH_PRESET = preset(WorldScale.EARTH);
+	/**
+	 * Vanilla's features that Diffusicraft worlds leave out: the blobs of dirt and gravel that vanilla scatters through
+	 * the rock. A soil is rock weathered at the top of the ground ({@link StrataRule}), and loose gravel lies in scree,
+	 * river beds and on beaches, not deep in solid rock. Where the blobs reached a cliff, they showed through its face.
+	 */
+	private static final Set<ResourceKey<PlacedFeature>> LEFT_OUT = Set.of(OrePlacements.ORE_DIRT,
+		OrePlacements.ORE_GRAVEL);
 
 	private DiffusicraftWorldgen() {
 	}
@@ -137,6 +148,11 @@ public final class DiffusicraftWorldgen {
 	/** The material rule the settings were loaded with, before biome mods such as TerraBlender add theirs to it. */
 	private static Holder<MaterialRule> ownRule(NoiseGeneratorSettings settings) {
 		return ((NoiseGeneratorSettingsAccessor) (Object) settings).diffusicraft$materialRule();
+	}
+
+	/** Whether Diffusicraft worlds leave out a placed feature, which vanilla's biomes and its own list. */
+	public static boolean leavesOut(Optional<ResourceKey<PlacedFeature>> feature) {
+		return feature.isPresent() && LEFT_OUT.contains(feature.get());
 	}
 
 	/** Whether a generator uses Diffusicraft's noise settings, and so needs the models. */

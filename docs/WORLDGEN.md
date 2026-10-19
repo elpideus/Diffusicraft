@@ -686,6 +686,12 @@ profile, so the floors of caves and the ground under arches and rivers keep what
 dirt (`#minecraft:dirt`), so saplings and plants grow on them as on dirt, and they dig with a shovel. Peat burns in a
 furnace for half as long as coal (`context_int_provider/cooking/time_peat.json`).
 
+Soil and loose gravel lie only at the top of the ground, in scree, in river beds and on beaches. So Diffusicraft
+worlds leave out the blobs of dirt and gravel that vanilla scatters through the rock (`ore_dirt` and `ore_gravel`),
+which showed through the faces of cliffs. Biomes are shared by every world, so their feature lists keep them:
+`ChunkGeneratorMixin` skips them while it decorates a Diffusicraft world's chunks (`DiffusicraftWorldgen.leavesOut`).
+The other features keep their seeds.
+
 **New plants.** Heather and cottongrass of the moors, lavender of the maquis, edelweiss and gentian above the tree
 line, and salt crust, the ground of the salt flats. The flowers join `#minecraft:small_flowers`, so bees visit them;
 the plants burn, compost and craft into dye (lavender purple, gentian blue, edelweiss white, heather magenta).
@@ -973,11 +979,11 @@ Other searches still read the full terrain and can take a while on new land:
   Diffusicraft's full blocks. It then saves a biome map, a height map, in-game views around the spawn and views of the
   largest river near the spawn, the steepest cliff, the tallest sea cliff, each of Diffusicraft's biomes on the map, the
   tallest Grand Hollow, a lava sea nearby and the tallest Grand Hollow of each cave biome within 4 km, to
-  `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, though vanilla's blobs of dirt may
-  show in it, the face of the sea cliff (not an arch, which is open halfway up) sheer above the water, though a cave may
-  open into it there and caves and ravines below it, and each cave biome must hold its own blocks: silk, selenite,
-  mushrooms, moss or dripstone. Around the spawn no sand or gravel may hang over open space, and on gentle ground
-  outside limestone, chalk and marble the soil must go deeper than vanilla's dirt on average. Run with Tech Reborn
-  (`-PdevMods=techreborn`), it checks that the geology places Tech Reborn's tin, lead, silver, uranium, rubies,
-  sapphires and bauxite, and not its Nether sphalerite. It generates on the CPU unless `-Pdiffusicraft.device` names
-  another device.
+  `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, the face of the sea cliff (not an
+  arch, which is open halfway up) sheer above the water, though a cave may open into it there and caves and ravines
+  below it, and each cave biome must hold its own blocks: silk, selenite, mushrooms, moss or dripstone. Around the spawn
+  no sand or gravel may hang over open space, the rock under the soil may hold no dirt or gravel down to the first cave,
+  and on gentle ground outside limestone, chalk and marble the soil must go deeper than vanilla's dirt on average. Run
+  with Tech Reborn (`-PdevMods=techreborn`), it checks that the geology places Tech Reborn's tin, lead, silver, uranium,
+  rubies, sapphires and bauxite, and not its Nether sphalerite. It generates on the CPU unless `-Pdiffusicraft.device`
+  names another device.

@@ -5,6 +5,7 @@
 	"plugin": "io.github.elpideus.diffusicraft.mixin.DiffusicraftMixinPlugin",
 	"mixins": [
 		"BiomeMixin",
+		"ChunkGeneratorMixin",
 		"ChunkGeneratorStructureStateMixin",
 		"ClimateSamplerMixin",
 		"DedicatedServerPropertiesMixin",
