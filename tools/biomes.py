@@ -209,6 +209,17 @@ FEATURES = {
     # Teak and sal: tall, straight trunks under broad crowns, bare in the dry season.
     "teak": tree("jungle_log", straight(6, 3, 2), "jungle_leaves",
                  {"type": "minecraft:blob_foliage_placer", "height": 3, "offset": 0, "radius": 3}, two_layers(1, 0, 1)),
+    # Laurels, camphors and evergreen oaks: tall trunks under dense, rounded crowns of glossy leaves.
+    "laurel": tree("oak_log", straight(5, 2, 2), "oak_leaves",
+                   {"type": "minecraft:blob_foliage_placer", "height": 3, "offset": 0, "radius": 3},
+                   two_layers(1, 0, 1)),
+    # Live oaks: short, massive trunks under crowns wider than they are tall, hung with grey moss.
+    "live_oak": tree("dark_oak_log", {"type": "minecraft:dark_oak_trunk_placer", "base_height": 4,
+                                      "height_rand_a": 2, "height_rand_b": 1}, "oak_leaves",
+                     {"type": "minecraft:dark_oak_foliage_placer", "radius": 0, "offset": 0},
+                     {"type": "minecraft:three_layers_feature_size", "upper_size": 2},
+                     [{"type": "minecraft:pale_moss", "ground_probability": 0.0, "leaves_probability": 0.15,
+                       "trunk_probability": 0.0}]),
     # Frailejones: woolly, silver-green rosettes held up on trunks clad in their own dead leaves, a few feet tall.
     "frailejon": tree("pale_oak_log", straight(1, 2, 0), "pale_oak_leaves",
                       {"type": "minecraft:blob_foliage_placer", "height": 1, "offset": 0, "radius": 2},
@@ -238,6 +249,9 @@ FEATURES = {
     # Cottongrass and sedges over the sphagnum.
     "bog_ground_cover": simple([(ours("cottongrass"), 4), ("short_grass", 3), ("moss_carpet", 2), ("fern", 1)]),
     "monsoon_grass": simple([("short_grass", 3), ("short_dry_grass", 2), ("fern", 1)]),
+    "laurel_ground_cover": simple([("fern", 3), ("short_grass", 3), ("bush", 1)]),
+    # Camellias and rhododendrons.
+    "azaleas": simple([("azalea", 3), ("flowering_azalea", 2)]),
     # Tussock grass of the páramo, green and straw-coloured.
     "paramo_grass": simple([("short_grass", 4), ("short_dry_grass", 2), ("tall_grass", 1), ("fern", 1)]),
     # Gentians, yellow groundsels and blue lupins between the tussocks.
@@ -294,6 +308,9 @@ PLACED = {
     "maquis_shrub_checked": checked(ours("maquis_shrub"), "oak_sapling"),
     "bog_spruce_checked": checked(ours("bog_spruce"), "spruce_sapling"),
     "teak_checked": checked(ours("teak"), "jungle_sapling"),
+    "laurel_checked": checked(ours("laurel"), "oak_sapling"),
+    "live_oak_checked": checked(ours("live_oak"), "dark_oak_sapling"),
+    "azalea_tree_checked": checked("minecraft:azalea_tree", "azalea"),
     "frailejon_checked": checked(ours("frailejon"), "pale_oak_sapling"),
     "polylepis_checked": checked(ours("polylepis"), "oak_sapling"),
     "boulders": scattered(ours("boulder"), chance=4),
@@ -313,6 +330,7 @@ PLACED = {
     "trees_heath": trees(ours("trees_heath"), {0: 4, 1: 2, 2: 1}, "birch_sapling"),
     "trees_bog": trees(ours("trees_bog"), {0: 6, 1: 3, 2: 1}, "spruce_sapling"),
     "trees_monsoon_forest": trees(ours("trees_monsoon_forest"), {4: 3, 6: 4, 8: 2}, "jungle_sapling"),
+    "trees_laurel_forest": trees(ours("trees_laurel_forest"), {8: 9, 10: 1}, "oak_sapling"),
     "trees_paramo": trees(ours("trees_paramo"), {0: 2, 1: 3, 2: 3, 4: 2}, "oak_sapling"),
     "trees_puna": trees(ours("polylepis"), {0: 16, 1: 1}, "oak_sapling"),
     "patch_tundra_grass": patch(ours("tundra_ground_cover"), 24, count=3),
@@ -335,6 +353,9 @@ PLACED = {
     "patch_monsoon_grass": patch(ours("monsoon_grass"), 32, count=4),
     # The dry season's fallen leaves.
     "patch_monsoon_leaf_litter": patch("minecraft:leaf_litter", 48, count=3),
+    "patch_laurel_ground_cover": patch(ours("laurel_ground_cover"), 32, count=4),
+    "patch_azaleas": patch(ours("azaleas"), 24, spread=5, count=2),
+    "patch_laurel_leaf_litter": patch("minecraft:leaf_litter", 48, count=2),
     "patch_paramo_grass": patch(ours("paramo_grass"), 48, count=5),
     "patch_paramo_flowers": patch(ours("paramo_flowers"), 32, spread=6, chance=2),
     "patch_puna_grass": patch(ours("puna_grass"), 48, count=6),
@@ -387,6 +408,12 @@ FEATURES["trees_monsoon_forest"] = {"type": "minecraft:random_selector", "defaul
                                     "features": [{"chance": 0.2, "feature": "minecraft:acacia_checked"},
                                                  {"chance": 0.2, "feature": "minecraft:jungle_bush"},
                                                  {"chance": 0.03, "feature": "minecraft:fallen_jungle_tree"}]}
+# Laurels and live oaks, azalea trees for the camellias and rhododendrons, and fallen trunks.
+FEATURES["trees_laurel_forest"] = {"type": "minecraft:random_selector", "default": ours("laurel_checked"),
+                                   "features": [{"chance": 0.3, "feature": ours("live_oak_checked")},
+                                                {"chance": 0.1, "feature": ours("azalea_tree_checked")},
+                                                {"chance": 0.1, "feature": "minecraft:jungle_bush"},
+                                                {"chance": 0.03, "feature": "minecraft:fallen_oak_tree"}]}
 # Frailejones, and here and there a queñua.
 FEATURES["trees_paramo"] = {"type": "minecraft:random_selector", "default": ours("frailejon_checked"),
                             "features": [{"chance": 0.05, "feature": ours("polylepis_checked")}]}
@@ -555,6 +582,24 @@ BIOMES = {
                  "minecraft:spawns_warm_variant_farm_animals", "minecraft:spawns_warm_variant_frogs",
                  "minecraft:stronghold_biased_to"],
     },
+    # Humid subtropical forest: laurels, camphors and evergreen oaks with dense, glossy crowns, live oaks hung with
+    # grey moss, camellias and rhododendrons under them, ferns and groves of bamboo. Southern China, Taiwan and the
+    # south of Japan, the foothills of the Himalayas, Madeira and the Canaries, and the American Southeast.
+    "laurel_forest": {
+        "template": "forest", "temperature": 0.8, "downfall": 0.9,
+        "effects": {"grass_color": "#68a443", "foliage_color": "#4c8f30", "dry_foliage_color": "#8f6a3c"},
+        "creatures": [spawn("pig", 6, 2, 4), spawn("rabbit", 4, 2, 3), spawn("fox", 4, 2, 4),
+                      spawn("armadillo", 2, 1, 2), spawn("panda", 1, 1, 2)],
+        "vegetation": ["minecraft:glow_lichen", "minecraft:bamboo_light", "trees_laurel_forest",
+                       "patch_laurel_ground_cover", "patch_azaleas", "minecraft:patch_large_fern",
+                       "patch_laurel_leaf_litter", "minecraft:brown_mushroom_normal", "minecraft:red_mushroom_normal",
+                       "minecraft:patch_sugar_cane", "minecraft:patch_firefly_bush_near_water"],
+        "tags": ["c:is_wet/overworld", "c:is_temperate/overworld", "c:is_dense_vegetation/overworld", "c:is_forest",
+                 "c:is_tree/deciduous", "c:primary_wood_type/oak", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trail_ruins",
+                 "minecraft:has_structure/trial_chambers", "minecraft:is_forest", "minecraft:is_overworld",
+                 "minecraft:stronghold_biased_to"],
+    },
     # Tropical alpine grassland, wet: tussock grass, cushions of moss and dark pools under the clouds, and the
     # frailejones standing over them like people. The northern Andes; the afro-alpine moors of Mount Kenya, with their
     # giant groundsels, look much the same.
@@ -683,8 +728,10 @@ STEEP = {"type": "minecraft:steep"}
 SUBSOIL = {"type": "minecraft:not", "invert": {
     "type": "minecraft:stone_depth", "offset": 0, "add_surface_depth": False, "secondary_depth_range": 0,
     "surface_type": "floor"}}
+# Laterite: the red, leached soil of the tropics, and the red earths of the humid subtropics.
 TROPICAL = ["minecraft:jungle", "minecraft:sparse_jungle", "minecraft:bamboo_jungle", "minecraft:savanna",
-            "minecraft:savanna_plateau", "minecraft:windswept_savanna", "cloud_forest", "monsoon_forest"]
+            "minecraft:savanna_plateau", "minecraft:windswept_savanna", "cloud_forest", "monsoon_forest",
+            "laurel_forest"]
 SURFACE_RULE = sequence(
     when("minecraft:on_floor", when("minecraft:not_underwater", sequence(
         # Scree and bare rock between the alpine grass.
@@ -695,6 +742,9 @@ SURFACE_RULE = sequence(
         when(biome_is("monsoon_forest"), sequence(
             when(noise(0.45), block(ours("laterite"))), when(noise(hi=-0.5), block("coarse_dirt")),
             block("grass_block"))),
+        # Leaf mould on red earth.
+        when(biome_is("laurel_forest"), sequence(
+            when(noise(0.35), block("podzol")), when(noise(hi=-0.55), block("coarse_dirt")), block("grass_block"))),
         # Black, wet soil under the tussocks, and cushion bogs of moss.
         when(biome_is("paramo"), sequence(
             when(STEEP, block("stone")), when(noise(0.3), block("moss_block")),

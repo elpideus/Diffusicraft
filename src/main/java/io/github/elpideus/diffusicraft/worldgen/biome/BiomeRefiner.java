@@ -37,7 +37,11 @@ import java.util.Set;
  *       puts a temperate forest, and seasonal jungles (rain seasonality from {@value #MONSOON_SEASONALITY} %) with less
  *       than {@value #MONSOON_RAIN} mm of rain: the teak and sal forests of India and Southeast Asia, which shed their
  *       leaves in the dry season.</li>
- *   <li>Bare summits stay bare, and wetter jungles stay jungle.</li>
+ *   <li><b>Laurel forest</b>: jungles where the coldest month falls below {@value #TROPICAL_COLDEST} °C. Vanilla's
+ *       jungles start at a yearly mean of 15 °C, which takes in the humid subtropics and their frosty winters: the
+ *       evergreen oaks and laurels of southern China and Japan, and the live oaks and magnolias of the American
+ *       Southeast.</li>
+ *   <li>Bare summits stay bare, and the other jungles stay jungle.</li>
  *   <li><b>Moorland</b>: rolling uplands from {@value #MOOR_ELEVATION} m with cool summers (warmest month below
  *       {@value #MOOR_WARMEST} °C), mild winters and at least 800 mm of rain, as on Dartmoor or in the Pennines.</li>
  *   <li><b>Bog</b>: the flattest land with cool summers and at least twice the rain it needs, as in Finland, the
@@ -69,6 +73,7 @@ public final class BiomeRefiner {
 	public static final String PARAMO = "diffusicraft:paramo";
 	public static final String PUNA = "diffusicraft:puna";
 	public static final String MONSOON_FOREST = "diffusicraft:monsoon_forest";
+	public static final String LAUREL_FOREST = "diffusicraft:laurel_forest";
 	public static final String BOG = "diffusicraft:bog";
 	public static final String FJORD = "diffusicraft:fjord";
 	public static final String SWAMP = "minecraft:swamp";
@@ -76,8 +81,8 @@ public final class BiomeRefiner {
 
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
-		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, BOG, FJORD, SWAMP,
-		MANGROVE_SWAMP);
+		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
+		FJORD, SWAMP, MANGROVE_SWAMP);
 
 	/** Warmest month below which snow lies all year round, °C. */
 	static final float ICE_WARMEST = 3f;
@@ -229,6 +234,9 @@ public final class BiomeRefiner {
 		}
 		if (monsoonForest(biome, kind, c, aridity)) {
 			return MONSOON_FOREST;
+		}
+		if (kind == Kind.JUNGLE && c.coldestMonth() < TROPICAL_COLDEST) {
+			return LAUREL_FOREST;
 		}
 		if (kind == Kind.PEAK || kind == Kind.JUNGLE || kind == Kind.BADLANDS || kind == Kind.SNOWY) {
 			return null;

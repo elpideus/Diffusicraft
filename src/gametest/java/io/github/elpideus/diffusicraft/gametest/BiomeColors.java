@@ -70,6 +70,7 @@ final class BiomeColors {
 		Map.entry("diffusicraft:paramo", 0x6a8a62),
 		Map.entry("diffusicraft:puna", 0xb89c5c),
 		Map.entry("diffusicraft:monsoon_forest", 0x7f8a26),
+		Map.entry("diffusicraft:laurel_forest", 0x2f6f3a),
 		Map.entry("diffusicraft:bog", 0x7a5c2e),
 		Map.entry("diffusicraft:fjord", 0x2d6a8c)
 	);

@@ -274,7 +274,7 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of fifteen new biomes. The first rule that matches wins:
+swap it for one of sixteen new biomes. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
@@ -286,6 +286,7 @@ swap it for one of fifteen new biomes. The first rule that matches wins:
 | **Páramo**, **puna** | Tropical mountains (little seasonality) from 2500 m where the year averages below 10 °C. Every month is a growing season there, so the tree line follows the year rather than the summer, and the cloud forest gives way to them. Páramo with at least three times the rain of the aridity threshold, as in the northern Andes or on Mount Kenya; puna where it is drier, as on the Altiplano or Mauna Kea | Any land, peaks included |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
 | **Monsoon forest** | Frost-free lowland (coldest month at least 15 °C) with at least the rain of the aridity threshold. Vanilla only has temperate woods for it between its savannas and its jungles; jungles count too where the rain is strongly seasonal (BIO15 at least 80 %) and below 2000 mm, as in India and Thailand. Wetter jungles stay, as in the Amazon | Forests and taigas, jungles |
+| **Laurel forest** | Jungle where the coldest month falls below 15 °C, so frost can come. Vanilla's jungles start at a yearly mean of 15 °C, which takes in the humid subtropics, as around Shanghai or Atlanta | Jungles |
 | **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
 | **Bog** | The flattest land (less than 6 m of relief) below 1500 m, with cool summers (warmest month below 20 °C) and at least twice the rain of the aridity threshold, as in Finland, the West Siberian Plain and the Hudson Bay Lowlands. Vanilla puts swamps only on low ground; bogs grow on flat land at any height below the mountains | Plains, forests, taigas, savannas |
 | **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
@@ -343,12 +344,14 @@ the colours:
 | Puna | Meadow | Golden ichu grass, tola scrub, yareta cushions among boulders, a rare queñua; herds of llamas, under a deep blue sky. Its villages are the desert's, whose sandstone looks like adobe | Grass with gravel and coarse dirt, rock where it is steep |
 | Fjord | Cold ocean | Kelp and seagrass in deep teal water; the cold ocean's fish and squid, wrecks and ruins, but no monuments, which keep to the open deep sea | The cold ocean's |
 | Monsoon forest | Jungle | Teak and sal, acacias, jungle bushes, bamboo, dry grass, drifts of fallen leaves, warm flowers; junglefowl (chickens), wild boar (pigs), parrots and ocelots | Grass with red laterite and coarse dirt showing, laterite below |
+| Laurel forest | Forest | Laurels with dense, glossy crowns, live oaks hung with moss, azalea trees and bushes (camellias and rhododendrons), bamboo, ferns, fallen leaves, fireflies; wild boar (pigs), foxes, rabbits, armadillos and, rarely, pandas | Grass with leaf mould (podzol) and coarse dirt, red laterite below |
 | Bog | Swamp | Dark pools of peaty water with lily pads, cottongrass, moss carpets, heather, a few spindly black spruces, Scots pines and birches, berries, fireflies; frogs, and the swamp's slimes, witches and bogged | Sphagnum (moss) with bare peat and grass, peat all the way down |
 
 The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra and
 the bogs. The frailejones of the páramo are pale oak: silver-green rosettes on trunks one to three blocks tall. The
 queñuas (Polylepis), which grow higher than any other tree, are gnarled mangrove wood for their red bark. The yareta of
-the puna is a cushion plant so dense that it looks like a green boulder: here it is one, of moss. The bog's pools are
+the puna is a cushion plant so dense that it looks like a green boulder: here it is one, of moss. The live oaks of the
+laurel forest are dark oak wood under oak leaves, hung with pale hanging moss for Spanish moss. The bog's pools are
 vanilla's `waterlogged_vegetation_patch`, the lush caves' clay pools: it sinks a patch of peat into the ground and fills
 its top with water wherever the water is held on every side.
 
@@ -688,11 +691,11 @@ world type. Sand and gravel never hang over open space: there they stay sandston
 
 Some biomes lay a soil of their own on top, to vanilla's depth: peat under the moors, the tundra, the páramo and the
 bogs, whose pools it lines too, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the
-monsoon forests, the savannas and the cloud forest. Peat, terra rossa and laterite also lie bare on top in patches. The
-profile goes on under them. Vanilla's plain dirt stays only as topsoil: below it lies the subsoil. Only the column's top
-run of ground gets a profile, so the floors of caves and the ground under arches and rivers keep what the biome gives
-them. Soils count as dirt (`#minecraft:dirt`), so saplings and plants grow on them as on dirt, and they dig with a
-shovel. Peat burns in a furnace for half as long as coal (`context_int_provider/cooking/time_peat.json`).
+monsoon and laurel forests, the savannas and the cloud forest. Peat, terra rossa and laterite also lie bare on top in
+patches. The profile goes on under them. Vanilla's plain dirt stays only as topsoil: below it lies the subsoil. Only the
+column's top run of ground gets a profile, so the floors of caves and the ground under arches and rivers keep what the
+biome gives them. Soils count as dirt (`#minecraft:dirt`), so saplings and plants grow on them as on dirt, and they dig
+with a shovel. Peat burns in a furnace for half as long as coal (`context_int_provider/cooking/time_peat.json`).
 
 Soil and loose gravel lie only at the top of the ground, in scree, in river beds and on beaches. So Diffusicraft
 worlds leave out the blobs of dirt and gravel that vanilla scatters through the rock (`ore_dirt` and `ore_gravel`),
@@ -952,12 +955,12 @@ Other searches still read the full terrain and can take a while on new land:
   running down a valley fills the bowl in it, even in a desert, just below its rim, and flows on out of it.
 - `RiverMapTest` needs the models. It surveys the rivers of a real world and draws maps of them and their lakes to
   `build/river-map`, to look at them without starting the game.
-- `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
-  cloud forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, the Pacific
-  Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the Lüneburg Heath, Bonneville
-  and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands, tropical coasts and
-  the Sognefjord. On slopes, the tree line of the Alps is higher on the sunny side, and the woods of the Rockies'
-  foothills keep to the shaded side.
+- `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes' cloud
+  forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, Shanghai, Atlanta and
+  Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the Lüneburg
+  Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands,
+  tropical coasts and the Sognefjord. On slopes, the tree line of the Alps is higher on the sunny side, and the woods of
+  the Rockies' foothills keep to the shaded side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

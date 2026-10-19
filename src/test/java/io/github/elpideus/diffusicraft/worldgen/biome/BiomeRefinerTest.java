@@ -117,6 +117,19 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void humidSubtropicsAreLaurelForest() {
+		// Shanghai: 17 °C over the year, but January averages 5 °C. Vanilla puts a jungle there.
+		BiomeClimate shanghai = climate(17f, 8.4f, 1170f, 45f, 5f, 10f);
+		assertEquals(BiomeRefiner.LAUREL_FOREST, BiomeRefiner.refine("minecraft:jungle", shanghai));
+		assertEquals(BiomeRefiner.LAUREL_FOREST, BiomeRefiner.refine("minecraft:bamboo_jungle", shanghai));
+		// Atlanta, inland on the Piedmont.
+		assertEquals(BiomeRefiner.LAUREL_FOREST,
+			BiomeRefiner.refine("minecraft:sparse_jungle", climate(17f, 7.5f, 1270f, 20f, 300f, 60f)));
+		// Hong Kong, frost-free and too wet for the monsoon forest, stays jungle.
+		assertNull(BiomeRefiner.refine("minecraft:jungle", climate(23.3f, 4.9f, 2400f, 85f, 30f, 40f)));
+	}
+
+	@Test
 	void oceanicRainyCoastIsTemperateRainforest() {
 		// The Olympic Peninsula.
 		BiomeClimate c = climate(10f, 4.5f, 3000f, 60f, 100f, 60f);

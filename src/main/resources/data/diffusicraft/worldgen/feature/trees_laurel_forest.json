@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:laurel_checked",
+  "features": [
+    {
+      "chance": 0.3,
+      "feature": "diffusicraft:live_oak_checked"
+    },
+    {
+      "chance": 0.1,
+      "feature": "diffusicraft:azalea_tree_checked"
+    },
+    {
+      "chance": 0.1,
+      "feature": "minecraft:jungle_bush"
+    },
+    {
+      "chance": 0.03,
+      "feature": "minecraft:fallen_oak_tree"
+    }
+  ]
+}
