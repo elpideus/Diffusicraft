@@ -25,6 +25,11 @@ import io.github.elpideus.diffusicraft.worldgen.geology.Gullies;
  * terrain's interpolation between cells, so the density takes the columns of a cliff and those beside it one by one
  * ({@link #cliff}).
  *
+ * <p>The terrain's seas are flats near the shore, a metre deep or less for hundreds of meters, where real ones deepen
+ * along a beach's equilibrium profile. Out to sea, the floor lies at least as deep as that profile reaches, up to
+ * {@link TerrainField#COAST_REACH} from the coastline and as deep as it reaches there beyond it: 5 m. Only the
+ * Earth 1:1 world shows it; the others keep the shallowest sea a block deep.
+ *
  * <p>Points are given in blocks, block {@code x} spanning {@code [x, x + 1)}, as {@link Erosion.Surface} has them.
  * Get one from {@link TerrainField#surface}; it holds no state of its own and is safe on any thread.
  */
@@ -59,6 +64,11 @@ public final class TerrainSurface implements Erosion.Surface {
 	 * would smear the cliff over a cell, 4 blocks, into the sea.
 	 */
 	static final double CLIFF_MARGIN = 5;
+	/**
+	 * The shape of the sea floor off a beach, in m^(1/3): the depth {@code d} meters out to sea is {@code A d^(2/3)}
+	 * (Dean's equilibrium profile, for fine sand).
+	 */
+	private static final double SHOREFACE = 0.1;
 
 	private final TerrainField field;
 	private final WorldScale scale;
@@ -75,6 +85,8 @@ public final class TerrainSurface implements Erosion.Surface {
 	private final double highCliff;
 	/** The ground under a cliff, a block above the water. */
 	private final double shelf;
+	/** Whether the profile of the sea floor off the shore lies deeper anywhere than the shallowest sea. */
+	private final boolean shoreface;
 
 	TerrainSurface(TerrainField field, WorldScale scale) {
 		this.field = field;
@@ -92,6 +104,7 @@ public final class TerrainSurface implements Erosion.Surface {
 		this.lowCliff = Math.max(scale.surfaceY(LOW_CLIFF) - sea, LOW_CLIFF_BLOCKS);
 		this.highCliff = Math.max(scale.surfaceY(HIGH_CLIFF) - sea, HIGH_CLIFF_BLOCKS);
 		this.shelf = sea + 0.5;
+		this.shoreface = shoreface(-Coastline.REACH) < sea - 1;
 	}
 
 	/** Width of the strip along the coastline that cliffs reshape at a scale, in blocks. */
@@ -140,10 +153,21 @@ public final class TerrainSurface implements Erosion.Surface {
 		return (float) Math.clamp(shore(cx, cz, i, j, elevation, scale.surfaceY(elevation)), lowest, highest);
 	}
 
-	/** The ground {@code y} at a point of the given elevation, with the sea cliffs. */
+	/** The ground {@code y} at a point of the given elevation, with the sea cliffs and the profile of the sea floor. */
 	private double shore(double x, double z, double i, double j, float elevation, double y) {
 		float coast = field.coast(i, j);
-		return coast > 0f && coast < zone ? sharpen(x, z, i, j, coast, y) : y;
+		if (coast > 0f && coast < zone) {
+			return sharpen(x, z, i, j, coast, y);
+		}
+		if (coast < 0f && elevation < 0f && shoreface) {
+			return Math.min(y, shoreface(coast));
+		}
+		return y;
+	}
+
+	/** The highest the sea floor lies {@code coast} pixels from the coastline, out to sea, in blocks. */
+	private double shoreface(float coast) {
+		return scale.surfaceY((float) (-SHOREFACE * Math.cbrt(Math.pow(coast * WorldScale.METERS_PER_PIXEL, 2))));
 	}
 
 	/**

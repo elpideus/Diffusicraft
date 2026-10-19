@@ -118,6 +118,33 @@ class SeaCliffTest {
 	}
 
 	@Test
+	void theSeaFloorDeepensAwayFromAFlatShore() {
+		// A shore that barely leaves the sea level: 0.02 m per pixel either way.
+		FormulaSource.Elevation flat = (i, j) -> (float) (0.02 * (j - 100));
+		WorldScale earth = WorldScale.EARTH;
+		TerrainSurface surface = surface(flat, earth);
+		// The coastline runs through block 3014.5, a block a meter.
+		for (int z = 0; z < 2000; z += 173) {
+			float previous = earth.seaLevel();
+			for (int d = 5; d < 600; d += 5) {
+				int x = 3014 - d;
+				float y = surface.y(x, z);
+				double depth = 0.1 * Math.pow(Math.min(d + 0.5, TerrainField.COAST_REACH), 2.0 / 3.0);
+				assertEquals(earth.seaLevel() - Math.max(1, depth), y, 0.3, "z " + z + ", " + d + " m out");
+				assertTrue(y <= previous + 1e-3f, "the floor never rises away from the shore: " + d + " m out");
+				previous = y;
+			}
+		}
+		// The other worlds keep the shallowest sea a block deep: the profile is less than a block there.
+		for (WorldScale scale : new WorldScale[]{WorldScale.GRAND, WorldScale.STANDARD}) {
+			TerrainSurface other = surface(flat, scale);
+			for (int x = coast(scale) - 100; x < coast(scale) - 1; x += 3) {
+				assertEquals(scale.seaLevel() - 1, other.y(x, 0), 1e-3f, scale + " " + x);
+			}
+		}
+	}
+
+	@Test
 	void theFarLevelsOfDetailShowTheCliffs() {
 		for (WorldScale scale : new WorldScale[]{WorldScale.EARTH, WorldScale.STANDARD}) {
 			TerrainSurface surface = surface(HIGH, scale);

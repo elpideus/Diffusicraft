@@ -438,9 +438,15 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   above it. So the face is sheer, and the rivers, which come after, still cut through it. The top of a cliff is too high
   for the beach band and keeps the biome inland; the shelf at its foot is beach. Like other cliffs, the face shows the
   rock (see [the ground](#the-ground)).
-- **Limits.** Distant Horizons' LODs show the cliffs as the chunks do, except the farthest, which read the coarse
-  map: it has no coastline, so no beaches or cliffs there. The sea floor drops a block below the shore and then
-  follows the terrain, with no surf zone. There are no sea stacks or arches.
+- **The sea floor.** The terrain's seas are flats near the shore: half of the sea 120 m from land is less than 0.3 m
+  deep, and 480 m from land less than 3 m. A real sea floor deepens along a beach's equilibrium profile, `0.1 d^(2/3)`
+  meters at `d` meters out (Dean's profile for fine sand): 2 m deep 100 m out and 5 m deep 360 m out. So the floor
+  lies at least that deep out to `COAST_REACH`, and at least 5 m deep beyond it. Only the Earth 1:1 world shows it,
+  5 blocks deep 360 blocks out; at the other scales the profile stays within the block of water the shallowest sea
+  already has.
+- **Limits.** Distant Horizons' LODs show the cliffs and the sea floor as the chunks do, except the farthest, which
+  read the coarse map: it has no coastline, so no beaches, cliffs or profile there. The profile has no bars or
+  troughs. There are no sea stacks or arches.
 
 ### The ground
 
