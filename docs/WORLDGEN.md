@@ -698,9 +698,10 @@ column's top run of ground gets a profile, so the floors of caves and the ground
 biome gives them. Soils count as dirt (`#minecraft:dirt`), so saplings and plants grow on them as on dirt, and they dig
 with a shovel. Peat burns in a furnace for half as long as coal (`context_int_provider/cooking/time_peat.json`).
 
-Soil and loose gravel lie only at the top of the ground, in scree, in river beds and on beaches. So Diffusicraft
-worlds leave out the blobs of dirt and gravel that vanilla scatters through the rock (`ore_dirt` and `ore_gravel`),
-which showed through the faces of cliffs. Biomes are shared by every world, so their feature lists keep them:
+Soil and loose gravel lie only at the top of the ground, in scree, in river beds and on beaches. So Diffusicraft worlds
+leave out the blobs of dirt and gravel that vanilla scatters through the rock (`ore_dirt` and `ore_gravel`), which
+showed through the faces of cliffs, and the lava lakes on the surface (`lake_lava_surface`), which no plain, steppe or
+forest has; those underground stay. Biomes are shared by every world, so their feature lists keep them:
 `ChunkGeneratorMixin` skips them while it decorates a Diffusicraft world's chunks (`DiffusicraftWorldgen.leavesOut`).
 The other features keep their seeds.
 

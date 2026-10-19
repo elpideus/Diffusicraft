@@ -25,6 +25,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.data.worldgen.placement.MiscOverworldPlacements;
 import net.minecraft.data.worldgen.placement.OrePlacements;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
@@ -53,12 +54,13 @@ public final class DiffusicraftWorldgen {
 	public static final ResourceKey<WorldPreset> GRAND_PRESET = preset(WorldScale.GRAND);
 	public static final ResourceKey<WorldPreset> EARTH_PRESET = preset(WorldScale.EARTH);
 	/**
-	 * Vanilla's features that Diffusicraft worlds leave out: the blobs of dirt and gravel that vanilla scatters through
-	 * the rock. A soil is rock weathered at the top of the ground ({@link StrataRule}), and loose gravel lies in scree,
+	 * Vanilla's features that Diffusicraft worlds leave out. The blobs of dirt and gravel that vanilla scatters through
+	 * the rock: a soil is rock weathered at the top of the ground ({@link StrataRule}), and loose gravel lies in scree,
 	 * river beds and on beaches, not deep in solid rock. Where the blobs reached a cliff, they showed through its face.
+	 * And the lava lakes on the surface, which no plain, steppe or forest has; the lava lakes underground stay.
 	 */
 	private static final Set<ResourceKey<PlacedFeature>> LEFT_OUT = Set.of(OrePlacements.ORE_DIRT,
-		OrePlacements.ORE_GRAVEL);
+		OrePlacements.ORE_GRAVEL, MiscOverworldPlacements.LAKE_LAVA_SURFACE);
 
 	private DiffusicraftWorldgen() {
 	}
