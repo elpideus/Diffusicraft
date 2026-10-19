@@ -5,6 +5,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Refines vanilla's choice of biome with the real climate. Vanilla's table only sees five coarse bands of
@@ -32,7 +33,11 @@ import java.util.Map;
  *       ones puna, as on the Altiplano or Mauna Kea.</li>
  *   <li><b>Tundra</b> and <b>alpine tundra</b>: beyond the tree line, where the warmest month stays below
  *       {@value #TREE_LINE} °C; alpine on mountains. This is what moves the snow line above the tree line.</li>
- *   <li>Bare summits stay bare.</li>
+ *   <li><b>Monsoon forest</b>: frost-free lowlands (coldest month from {@value #TROPICAL_COLDEST} °C) where vanilla
+ *       puts a temperate forest, and seasonal jungles (rain seasonality from {@value #MONSOON_SEASONALITY} %) with less
+ *       than {@value #MONSOON_RAIN} mm of rain: the teak and sal forests of India and Southeast Asia, which shed their
+ *       leaves in the dry season.</li>
+ *   <li>Bare summits stay bare, and wetter jungles stay jungle.</li>
  *   <li><b>Moorland</b>: rolling uplands from {@value #MOOR_ELEVATION} m with cool summers (warmest month below
  *       {@value #MOOR_WARMEST} °C), mild winters and at least 800 mm of rain, as on Dartmoor or in the Pennines.</li>
  *   <li><b>Bog</b>: the flattest land with cool summers and at least twice the rain it needs, as in Finland, the
@@ -63,6 +68,7 @@ public final class BiomeRefiner {
 	public static final String SALT_FLAT = "diffusicraft:salt_flat";
 	public static final String PARAMO = "diffusicraft:paramo";
 	public static final String PUNA = "diffusicraft:puna";
+	public static final String MONSOON_FOREST = "diffusicraft:monsoon_forest";
 	public static final String BOG = "diffusicraft:bog";
 	public static final String FJORD = "diffusicraft:fjord";
 	public static final String SWAMP = "minecraft:swamp";
@@ -70,7 +76,8 @@ public final class BiomeRefiner {
 
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
-		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, BOG, FJORD, SWAMP, MANGROVE_SWAMP);
+		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, BOG, FJORD, SWAMP,
+		MANGROVE_SWAMP);
 
 	/** Warmest month below which snow lies all year round, °C. */
 	static final float ICE_WARMEST = 3f;
@@ -86,6 +93,12 @@ public final class BiomeRefiner {
 	static final float TROPICAL_TREE_LINE = 10f;
 	/** Precipitation over the aridity threshold above which tropical alpine land is páramo rather than puna. */
 	static final float PARAMO_ARIDITY = 3f;
+	/** Coldest month from which the lowlands are tropical, °C: frost never comes. */
+	static final float TROPICAL_COLDEST = 15f;
+	/** Precipitation seasonality (BIO15, %) from which a tropical forest sheds its leaves in the dry season. */
+	static final float MONSOON_SEASONALITY = 80f;
+	/** Rain, in mm, from which even a seasonal tropical forest stays evergreen. */
+	static final float MONSOON_RAIN = 2000f;
 	/** Land this rugged, in meters of relief, or this high, in meters, is mountainous. */
 	static final float MOUNTAIN_RELIEF = 90f;
 	static final float MOUNTAIN_ELEVATION = 1500f;
@@ -163,6 +176,10 @@ public final class BiomeRefiner {
 		kind("taiga", Kind.LAND), kind("old_growth_pine_taiga", Kind.LAND),
 		kind("old_growth_spruce_taiga", Kind.LAND), kind("savanna", Kind.LAND), kind("savanna_plateau", Kind.LAND));
 
+	/** Vanilla's open land, as opposed to its woods. */
+	private static final Set<String> OPEN_LAND = Set.of("minecraft:plains", "minecraft:sunflower_plains",
+		"minecraft:savanna", "minecraft:savanna_plateau");
+
 	private BiomeRefiner() {
 	}
 
@@ -209,6 +226,9 @@ public final class BiomeRefiner {
 		}
 		if (warmest < TREE_LINE) {
 			return mountain ? ALPINE_TUNDRA : TUNDRA;
+		}
+		if (monsoonForest(biome, kind, c, aridity)) {
+			return MONSOON_FOREST;
 		}
 		if (kind == Kind.PEAK || kind == Kind.JUNGLE || kind == Kind.BADLANDS || kind == Kind.SNOWY) {
 			return null;
@@ -276,6 +296,20 @@ public final class BiomeRefiner {
 	static boolean tropicalAlpine(BiomeClimate c) {
 		return c.seasonality < TROPICAL_SEASONALITY && c.elevation >= TROPICAL_ALPINE_ELEVATION
 			&& c.temperature < TROPICAL_TREE_LINE;
+	}
+
+	/**
+	 * Vanilla's table only has temperate woods for tropical land between its savannas and its jungles, and only
+	 * jungles for wetter land, whatever the seasons.
+	 */
+	static boolean monsoonForest(String biome, Kind kind, BiomeClimate c, float aridity) {
+		if (c.coldestMonth() < TROPICAL_COLDEST || aridity < 1f) {
+			return false;
+		}
+		if (kind == Kind.JUNGLE) {
+			return c.precipitationSeasonality >= MONSOON_SEASONALITY && c.precipitation < MONSOON_RAIN;
+		}
+		return kind == Kind.LAND && !OPEN_LAND.contains(biome);
 	}
 
 	static boolean temperateRainforest(BiomeClimate c) {

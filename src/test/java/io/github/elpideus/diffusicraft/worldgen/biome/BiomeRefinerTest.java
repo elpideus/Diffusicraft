@@ -100,6 +100,23 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void seasonalTropicsAreMonsoonForest() {
+		// Nagpur, in the middle of India: 1100 mm, nearly all of it in the monsoon. Vanilla puts an oak forest there.
+		BiomeClimate india = climate(27f, 4.5f, 1100f, 140f, 310f, 40f);
+		assertEquals(BiomeRefiner.MONSOON_FOREST, BiomeRefiner.refine("minecraft:forest", india));
+		assertEquals(BiomeRefiner.MONSOON_FOREST, BiomeRefiner.refine("minecraft:birch_forest", india));
+		// Its open land stays savanna and plains.
+		assertNull(BiomeRefiner.refine("minecraft:savanna", india));
+		assertNull(BiomeRefiner.refine("minecraft:plains", india));
+		// Central Thailand: 1500 mm with a long dry season, where vanilla puts a jungle.
+		assertEquals(BiomeRefiner.MONSOON_FOREST,
+			BiomeRefiner.refine("minecraft:jungle", climate(28.5f, 1.5f, 1500f, 85f, 20f, 10f)));
+		// The Amazon, rainy all year round, and Mumbai's coast, too wet to go bare, stay jungle.
+		assertNull(BiomeRefiner.refine("minecraft:jungle", climate(27f, 0.6f, 2300f, 45f, 50f, 20f)));
+		assertNull(BiomeRefiner.refine("minecraft:jungle", climate(27.5f, 1.5f, 2400f, 160f, 20f, 30f)));
+	}
+
+	@Test
 	void oceanicRainyCoastIsTemperateRainforest() {
 		// The Olympic Peninsula.
 		BiomeClimate c = climate(10f, 4.5f, 3000f, 60f, 100f, 60f);

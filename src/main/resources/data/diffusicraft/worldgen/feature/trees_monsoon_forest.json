@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:teak_checked",
+  "features": [
+    {
+      "chance": 0.2,
+      "feature": "minecraft:acacia_checked"
+    },
+    {
+      "chance": 0.2,
+      "feature": "minecraft:jungle_bush"
+    },
+    {
+      "chance": 0.03,
+      "feature": "minecraft:fallen_jungle_tree"
+    }
+  ]
+}

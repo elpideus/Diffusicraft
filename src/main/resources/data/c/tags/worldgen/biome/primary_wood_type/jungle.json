@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "diffusicraft:cloud_forest"
+    "diffusicraft:cloud_forest",
+    "diffusicraft:monsoon_forest"
   ]
 }

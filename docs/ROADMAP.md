@@ -46,12 +46,13 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   woods keep to the shaded slopes. Biome mods that extend the overworld table get the same parameters; checked in
   game with Biomes O' Plenty and TerraBlender. See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
-  rainforest, Mediterranean maquis, moorland, heath, salt flats, bogs, cold desert, steppe, fjords, and the páramo and
-  puna of tropical mountains, with their own trees (krummholz, giant spruces, olives, stone pines, cypresses, black
-  spruces, frailejones, queñuas), plants and ground; the wetlands follow the climate, from mangroves to bogs. New
-  plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their own under some biomes:
-  peat, which burns, terra rossa, laterite and loess. Snow follows the climate rather than a fixed height, above a
-  real tree line, and the Grand Hollows are free of sculk. See [WORLDGEN.md](WORLDGEN.md#refined-biomes).
+  rainforest, Mediterranean maquis, moorland, heath, salt flats, bogs, cold desert, steppe, fjords, monsoon forest,
+  and the páramo and puna of tropical mountains, with their own trees (krummholz, giant spruces, olives, stone pines,
+  cypresses, black spruces, teak, frailejones, queñuas), plants and ground; the wetlands follow the climate, from
+  mangroves to bogs. New plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their
+  own under some biomes: peat, which burns, terra rossa, laterite and loess. Snow follows the climate rather than a
+  fixed height, above a real tree line, and the Grand Hollows are free of sculk. See
+  [WORLDGEN.md](WORLDGEN.md#refined-biomes).
 - **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
   and a magma layer above the bedrock. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See
   [WORLDGEN.md](WORLDGEN.md#the-ground).
