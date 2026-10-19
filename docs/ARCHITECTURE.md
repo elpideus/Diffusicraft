@@ -141,10 +141,10 @@ Each stage is a `WindowedTensor`: an unbounded 2D tensor made of overlapping, we
 The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
 
 - **Data, not a new generator.** The world presets use vanilla's `minecraft:noise` generator with Diffusicraft's noise
-  settings. Three registered density function types bring in the terrain:
+  settings. Five registered density function types bring in the terrain:
   - `diffusicraft:surface`: the surface height;
   - `diffusicraft:climate`: the six biome parameters;
-  - `diffusicraft:spawn_suitability`.
+  - `diffusicraft:hollows`, `diffusicraft:river` and `diffusicraft:coast`: the caverns, the rivers and the sea cliffs.
 
   Caves, aquifers, surface rules, features and structures stay vanilla's, as do the biome source and anything mods add
   to them.

@@ -63,14 +63,7 @@
     "surface_level": "diffusicraft:grand/aquifer_surface"
   },
   "material_rule": "diffusicraft:grand",
-  "spawn_target": [
-    {
-      "diffusicraft:grand/spawn": [
-        0.75,
-        1.0
-      ]
-    }
-  ],
+  "spawn_target": [],
   "debug_functions": [
     {
       "function": "diffusicraft:grand/final_density",

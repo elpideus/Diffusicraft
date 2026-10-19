@@ -6,6 +6,7 @@ import io.github.elpideus.diffusicraft.terrain.diffusion.WorldPipeline;
 import io.github.elpideus.diffusicraft.terrain.diffusion.tensor.DiskWindowStore;
 import io.github.elpideus.diffusicraft.terrain.diffusion.tensor.Tile;
 import io.github.elpideus.diffusicraft.terrain.geography.Geography;
+import io.github.elpideus.diffusicraft.terrain.geography.SpawnKind;
 
 import java.nio.file.Path;
 
@@ -57,6 +58,11 @@ final class PipelineSource implements TerrainSource {
 			}
 		}
 		return out;
+	}
+
+	@Override
+	public SpawnKind spawnKind() {
+		return pipeline().geography().spawnKind();
 	}
 
 	private WorldPipeline pipeline() {

@@ -37,6 +37,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   noise. One world holds supercontinents and islands of every size, with smooth coasts in places and archipelagos in
   others. It also has cordilleras, collision belts, island arcs, rifts and hotspot chains, and winds, rain shadows and
   ocean currents. See [WORLDGEN.md](WORLDGEN.md#the-geography).
+- **Where the world begins.** Most worlds start on a coast, then inland on a continent, mostly on a plain. A few
+  start on a lone island far out at sea, and a rare few on the floor of an Ancient Grand Hollow or near a mountain's
+  summit. See [WORLDGEN.md](WORLDGEN.md#the-world-spawn).
 - **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
   and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Slopes facing the
   sun are warmer and drier than those facing away, so the tree line climbs higher on them and, in dry climates, the

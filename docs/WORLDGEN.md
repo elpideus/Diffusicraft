@@ -86,7 +86,7 @@ TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    ▼
 TerrainSurface: the ground in blocks for one scale, with ledges, sea cliffs and stacks, and gullies at Earth 1:1
    ▼
-density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability,
+density functions: diffusicraft:surface, diffusicraft:climate,
    │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model),
    │                diffusicraft:coast (the sea cliffs and stacks, block by block)
    ▼
@@ -131,7 +131,8 @@ evaluate anywhere:
   is milder by the sea and more extreme deep inside a continent.
 
 The latitude runs along the z axis at 111 km per degree, at every world scale. The origin lies between 35° and 50°
-north, and the continents are shifted so that the place the seed drew for the spawn lies there.
+north, and the continents are shifted so that the place the seed drew for the spawn lies there (see
+[The world spawn](#the-world-spawn)).
 
 The windows cached on disk go under `map<Geography.VERSION>`. Bump the version whenever the map of a seed changes.
 A world started before a change keeps the chunks it has already generated and generates new ones from the new map, so
@@ -774,14 +775,51 @@ The ground is the material rule `diffusicraft:biome_caves`, the last of the rule
 The erosion that bares rock on steep ground and lays scree under cliffs keeps to the land's surface, so the soils of
 cave floors stay.
 
-### Spawn and far-away searches
+### The world spawn
 
-`diffusicraft:spawn_suitability` scores land between 100 and 700 m highest. It falls off towards the sea and on high
-mountains. It reads only the coarse map, at 7.7 km per pixel. The spawn search covers a few kilometres and would
-otherwise run the full model over all of it.
+Each seed draws the kind of place where the world spawn lies (`SpawnKind`):
 
-Stronghold rings have the same problem on a larger scale. Before the first chunk generates, each of the 128
-strongholds searches the biomes within 112 blocks of its ring position, up to about 20 000 blocks out.
+| Kind | Chance | Where |
+|---|---|---|
+| Coast | 55% | On dry land by the open sea, a beach where there is one, on a landmass more than 150 km across |
+| Inland | 33% | At least 100 km from the sea; three seeds in four put it on a plain under 500 m |
+| Island | 8% | On an island at least 25 km across, with no other land within 120 km and little within 300 km |
+| Hollow | 2% | On the floor of an Ancient Grand Hollow, under the land |
+| Peak | 2% | Near the summit of a mountain over 3,000 m |
+
+`Geography` shifts the continents so that such a place lies at the origin. It tries up to 4,096 places within
+30,000 km, or 65,536 for an island, and keeps the first that suits. If none does, the origin lies inland. The sea by a
+coast must be more than 100 m deep 30 and 60 km out, because the coarse model fills a small or shallow inlet with
+land.
+
+The map is only what the coarse model is conditioned on, so the shore or the summit the model draws lies a little
+away from where the map puts it. `SpawnSearch` reads the coarse map within 6 coarse pixels (46 km) of the origin.
+Then it reads the full terrain of at most six coarse pixels:
+
+- **Coasts and islands.** It takes the shore nearest the origin: dry land within 180 m of the water, 1 to 40 blocks
+  above the sea, or a beach no higher than 4 blocks if there is one.
+- **Peaks.** It takes the highest coarse pixel around, then its highest point. If that point lies on the pixel's
+  edge, it follows the ground into the next pixel.
+- **Inland.** It keeps the origin. If the origin is at sea, it takes the nearest dry, gentle coarse pixel.
+
+`WorldSpawn` replaces vanilla's `setInitialSpawn` (through `MinecraftServerMixin`). It puts the spawn on the nearest
+column within 48 blocks where vanilla would let a player respawn, or else in the first chunk of vanilla's spiral that
+has one.
+
+For a Hollow, it takes the nearest Ancient Grand Hollow within four cells (3,584 blocks) of the origin that has at
+least 50 m of land over its middle. It stands the player on the floor three quarters of the way out from the middle,
+clear of the lake. The bonus chest goes beside the player, with torches around it. If no Hollow has a floor to stand
+on, the spawn goes inland on the surface. A player without a bed respawns on that floor too
+(`PlayerSpawnFinderMixin`), where vanilla would look for open sky over it.
+
+The search runs the full model over the pixels it reads, which takes a few seconds the first time a world loads. The
+noise settings have an empty `spawn_target`, so vanilla's own search does not run, and the structures take (0, 0) as
+their origin.
+
+### Far-away searches
+
+Before the first chunk generates, each of the 128 strongholds searches the biomes within 112 blocks of its ring
+position, up to about 20 000 blocks out. Run on the full terrain, that would take far longer than the spawn.
 `ChunkGeneratorStructureStateMixin` runs that search inside `CoarseClimate.call`. In that scope the climate functions
 describe each column from the coarse map alone (`TerrainField.coarseColumn`):
 
@@ -807,9 +845,9 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
-| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
-| `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
+| `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, and `SeleniteBeamFeature` (`diffusicraft:selenite_beam`) |
@@ -871,10 +909,11 @@ Other searches still read the full terrain and can take a while on new land:
   the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
   as part of them, that every open block of a Grand Hollow belongs to one cavern from floor to ceiling, within the band
   of the column the placements scan, that the basins hold their lakes, with no open block outside a lake beside or
-  under one, mostly 5 blocks deep or more in the middle, determinism and the sampling speed. `HollowBiomesTest` checks
-  that the Deep Grand Hollows keep vanilla's biomes, that the Grand Hollows follow the climate, that the Ancient ones
-  grow crystals under dry land and mushrooms under wet land, that a cavern always picks the same biome, and that only
-  wet, unfrozen land fills a basin, never in the selenite caverns.
+  under one, mostly 5 blocks deep or more in the middle, determinism, the sampling speed, and that the chambers around
+  a place come nearest first. `HollowBiomesTest` checks that the Deep Grand Hollows keep vanilla's biomes, that the
+  Grand Hollows follow the climate, that the Ancient ones grow crystals under dry land and mushrooms under wet land,
+  that a cavern always picks the same biome, and that only wet, unfrozen land fills a basin, never in the selenite
+  caverns.
 - `RiversTest` runs the river model over an analytic valley. It checks that water runs down to the sea, that the
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
   river meets itself across tile borders, that the banks hold the water where it steps down, in the river and in the
@@ -910,7 +949,9 @@ Other searches still read the full terrain and can take a while on new land:
 - `GeographyTest` checks, on a table of heights shaped like the real one, that a seed always maps the same world,
   that land takes about its real share, that the origin is the kind of place asked for (a coast by the open sea on a
   continent, land far inland, a lone island, land over a Hollow or a high mountain) and that seeds draw the kinds by
-  their chances, coasts first.
+  their chances, coasts first. `SpawnSearchTest` checks on analytic terrain that a coastal spawn is on the beach
+  nearest the origin, that a spawn by a peak is on its summit, that without a mountain or at sea the spawn moves to the
+  nearest land, and that land at the origin keeps it.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;
@@ -920,11 +961,14 @@ Other searches still read the full terrain and can take a while on new land:
   - the coarse column;
   - the hillside's slope, across tile corners too.
 - `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings and
-  checks that it uses Diffusicraft and that the heightmaps count all of Diffusicraft's full blocks. It then saves a
-  biome map, a height map, in-game views around the spawn and views of the largest river near the spawn, the steepest
-  cliff, the tallest sea cliff, each of Diffusicraft's biomes on the map, the tallest Grand Hollow, a lava sea nearby
-  and the tallest Grand Hollow of each cave biome within 4 km, to `build/run/clientGameTest/screenshots`. The top of
-  the cliff must be bare rock, the face of the sea cliff sheer, and each cave biome must hold its own blocks: silk,
-  selenite, mushrooms, moss or dripstone. Run with Tech Reborn (`-PdevMods=techreborn`), it checks that the geology
-  places Tech Reborn's tin, lead, silver, uranium, rubies, sapphires and bauxite, and not its Nether sphalerite. It
-  generates on the CPU unless `-Pdiffusicraft.device` names another device.
+  checks that it uses Diffusicraft, that a player can stand at the world spawn, and that the heightmaps count all of
+  Diffusicraft's full blocks. It then saves a biome map, a height map, in-game views around the spawn and views of the
+  largest river near the spawn, the steepest cliff, the tallest sea cliff, each of Diffusicraft's biomes on the map, the
+  tallest Grand Hollow, a lava sea nearby and the tallest Grand Hollow of each cave biome within 4 km, to
+  `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, though vanilla's blobs of dirt may
+  show in it, the face of the sea cliff sheer, and each cave biome must hold its own blocks: silk, selenite, mushrooms,
+  moss or dripstone. Around the spawn no sand or gravel may hang over open space, and on gentle ground outside
+  limestone, chalk and marble the soil must go deeper than vanilla's dirt on average. Run with Tech Reborn
+  (`-PdevMods=techreborn`), it checks that the geology places Tech Reborn's tin, lead, silver, uranium, rubies,
+  sapphires and bauxite, and not its Nether sphalerite. It generates on the CPU unless `-Pdiffusicraft.device` names
+  another device.

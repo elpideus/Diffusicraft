@@ -173,7 +173,8 @@ def noise_settings(scale, min_y, height):
         },
         # Also how DiffusicraftWorldgen.isDiffusicraft tells Diffusicraft's noise settings apart.
         "material_rule": f"{NS}:{scale}",
-        "spawn_target": [{ref(scale, "spawn"): [0.75, 1.0]}],
+        # WorldSpawn places the spawn; an empty target keeps vanilla from searching for one.
+        "spawn_target": [],
         "debug_functions": [
             {"function": ref(scale, "final_density"), "label": "N"},
             {"function": ref(scale, "temperature"), "label": "T"},
@@ -283,7 +284,6 @@ def main():
             "min_inclusive": -1000000.0, "max_exclusive": float(SEA_LEVEL),
             "when_in_range": {"type": "minecraft:min", "left": ref(scale, "surface"), "right": float(SEA_LEVEL - 12)},
             "when_out_of_range": ref(scale, "surface")})
-        write(f"{functions}/spawn.json", {"type": f"{NS}:spawn_suitability", "scale": scale})
         write(f"{functions}/hollows.json", {"type": f"{NS}:hollows", "scale": scale, "min_y": min_y})
         for mode in ("carve", "fill"):
             write(f"{functions}/river_{mode}.json", {"type": f"{NS}:river", "scale": scale, "mode": mode})

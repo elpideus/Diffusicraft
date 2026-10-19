@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.terrain.diffusion.TerrainSample;
+import io.github.elpideus.diffusicraft.terrain.geography.SpawnKind;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -191,6 +192,11 @@ public final class Glaciation implements TerrainSource {
 			}
 		}
 		return out;
+	}
+
+	@Override
+	public SpawnKind spawnKind() {
+		return source.spawnKind();
 	}
 
 	@Override

@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.terrain.diffusion.FastNoiseLite;
 import io.github.elpideus.diffusicraft.terrain.diffusion.TerrainSample;
+import io.github.elpideus.diffusicraft.terrain.geography.SpawnKind;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -279,6 +280,11 @@ public final class TerrainField implements AutoCloseable {
 	/** Native pixels per coarse pixel. */
 	public int coarseScale() {
 		return source.coarseScale();
+	}
+
+	/** The kind of place the map put at the origin for the world spawn; see {@link SpawnSearch}. */
+	public SpawnKind spawnKind() {
+		return source.spawnKind();
 	}
 
 	/**

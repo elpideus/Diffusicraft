@@ -2,6 +2,9 @@ package io.github.elpideus.diffusicraft.worldgen.geology;
 
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.IntBinaryOperator;
@@ -205,6 +208,31 @@ public final class Hollows {
 	/** Whether chambers of a kind have basins: the Grand Hollows, but not the deep ones, which hold lava seas instead. */
 	private static boolean hasBasins(Kind kind) {
 		return kind == Kind.GRAND_HOLLOW || kind == Kind.ANCIENT_GRAND_HOLLOW;
+	}
+
+	/**
+	 * The chambers of a kind in the cells within {@code cells} cells of a column's, nearest first. The ground decides
+	 * how much of each opens: every hollow stays under a roof of rock.
+	 */
+	public List<Chamber> chambers(Kind kind, int x, int z, int cells) {
+		for (Tier tier : tiers) {
+			if (tier.kind != kind) {
+				continue;
+			}
+			int cx = Math.floorDiv(x, tier.cell), cz = Math.floorDiv(z, tier.cell);
+			List<Chamber> chambers = new ArrayList<>();
+			for (int dz = -cells; dz <= cells; dz++) {
+				for (int dx = -cells; dx <= cells; dx++) {
+					Chamber chamber = chamber(tier, cx + dx, cz + dz);
+					if (chamber != null) {
+						chambers.add(chamber);
+					}
+				}
+			}
+			chambers.sort(Comparator.comparingDouble(c -> (c.x - x) * (c.x - x) + (c.z - z) * (c.z - z)));
+			return chambers;
+		}
+		throw new IllegalArgumentException("No chambers of kind " + kind);
 	}
 
 	/** A height above every lake: {@link #lakeAt} finds none from here up. */

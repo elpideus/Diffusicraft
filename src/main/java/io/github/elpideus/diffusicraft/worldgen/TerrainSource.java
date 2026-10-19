@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.terrain.diffusion.TerrainSample;
+import io.github.elpideus.diffusicraft.terrain.geography.SpawnKind;
 
 /**
  * Where a {@link TerrainField} gets its data: the Terrain Diffusion pipeline in the game, or an analytic source in
@@ -29,6 +30,11 @@ public interface TerrainSource extends AutoCloseable {
 	 * one at the pixel's mean elevation. Much cheaper than {@link #sample}: it needs no full-resolution inference.
 	 */
 	float[] coarse(int ci0, int cj0, int ci1, int cj1);
+
+	/** The kind of place the map put at the origin for the world spawn. */
+	default SpawnKind spawnKind() {
+		return SpawnKind.INLAND;
+	}
 
 	@Override
 	default void close() {

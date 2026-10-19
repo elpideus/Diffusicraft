@@ -4,9 +4,12 @@ import org.junit.jupiter.api.Test;
 
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HollowsTest {
@@ -358,5 +361,21 @@ class HollowsTest {
 			assertTrue(deep > 0.75 * lakes.size(), "only " + deep + " of " + lakes.size()
 				+ " lakes are 5 blocks deep in the middle at min_y " + minY);
 		}
+	}
+
+	@Test
+	void chambersAroundAPlaceComeNearestFirst() {
+		Hollows hollows = new Hollows(SEED, -256);
+		int x = 1000, z = -3000;
+		List<Hollows.Chamber> chambers = hollows.chambers(Hollows.Kind.ANCIENT_GRAND_HOLLOW, x, z, 4);
+		assertFalse(chambers.isEmpty());
+		double last = -1;
+		for (Hollows.Chamber chamber : chambers) {
+			assertEquals(Hollows.Kind.ANCIENT_GRAND_HOLLOW, chamber.kind());
+			double d = (chamber.x() - x) * (chamber.x() - x) + (chamber.z() - z) * (chamber.z() - z);
+			assertTrue(d >= last);
+			last = d;
+		}
+		assertThrows(IllegalArgumentException.class, () -> hollows.chambers(Hollows.Kind.DEEP_NOODLE, x, z, 1));
 	}
 }

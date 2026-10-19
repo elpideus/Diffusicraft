@@ -34,6 +34,7 @@ import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -93,7 +94,7 @@ import java.util.stream.IntStream;
  */
 public class WorldGenerationGameTest implements FabricClientGameTest {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Diffusicraft world test");
-	private static final String SEED = "20261018";
+	private static final String SEED = "20261029";
 	/** Map size in pixels, and blocks per pixel. */
 	private static final int MAP_SIZE = 256;
 	private static final int MAP_STRIDE = 8;
@@ -103,6 +104,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	/** Columns per side of the LOD grids, and blocks between their columns near and far. */
 	private static final int LOD_WIDTH = 64;
 	private static final int LOD_NEAR_STEP = 8;
+	/** The steepest ground, in blocks per block, whose soil must go deeper than vanilla's, and how much is needed. */
+	private static final double GENTLE_SLOPE = 0.1;
+	private static final int MIN_GENTLE_COLUMNS = 25;
 	/** Spacing of the LOD columns whose tree crowns are counted by biome, which spans several biomes. */
 	private static final int LOD_CANOPY_STEP = 16;
 	private static final int LOD_FAR_STEP = 256;
@@ -142,10 +146,12 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			LOGGER.info("World loaded in {} s", (System.nanoTime() - start) / 1_000_000_000L);
 
 			Probe probe = world.getServer().computeOnServer(server -> Probe.of(server.overworld()));
-			LOGGER.info("Spawn {} at surface y={}, biome {}", probe.spawn, probe.spawnSurface, probe.spawnBiome);
+			LOGGER.info("Spawn {} ({}) at surface y={}, biome {}", probe.spawn, probe.field.spawnKind(), probe.spawnSurface,
+				probe.spawnBiome);
+			String spawnProblem = world.getServer().computeOnServer(server -> checkSpawn(server.overworld(), probe.spawn));
 			String blocksProblem = world.getServer().computeOnServer(server -> checkSolidBlocks());
 			String oresProblem = world.getServer().computeOnServer(server -> checkModOres());
-			blocksProblem = blocksProblem != null ? blocksProblem : oresProblem;
+			blocksProblem = spawnProblem != null ? spawnProblem : blocksProblem != null ? blocksProblem : oresProblem;
 			Map<String, BlockPos> diffusicraftBiomes = saveMaps(probe);
 			findFarBiomes(probe, diffusicraftBiomes);
 
@@ -167,7 +173,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, above.above(120), 90f, 40f, "view-high-west");
 
 			// The soil under the grass around the spawn, and a pit dug beside its deepest column to show it.
-			SoilSurvey soils = world.getServer().computeOnServer(server -> checkSoils(server.overworld(), probe.spawn));
+			SoilSurvey soils = world.getServer().computeOnServer(server -> checkSoils(server.overworld(),
+				probe.field.surface(WorldScale.STANDARD), probe.spawn));
 			problem = problem != null ? problem : soils.problem;
 			if (soils.deepest != null) {
 				BlockPos at = soils.deepest;
@@ -526,6 +533,21 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		return best;
 	}
 
+	/** Whether a player can stand at the world spawn: on a full block, with two blocks free of solids and water. */
+	private static @Nullable String checkSpawn(ServerLevel level, BlockPos spawn) {
+		BlockState ground = level.getBlockState(spawn.below());
+		if (!Block.isFaceFull(ground.getCollisionShape(level, spawn.below()), Direction.UP)) {
+			return "The world spawn " + spawn + " stands on " + ground;
+		}
+		for (BlockPos pos : new BlockPos[]{spawn, spawn.above()}) {
+			BlockState state = level.getBlockState(pos);
+			if (!state.getCollisionShape(level, pos).isEmpty() || !state.getFluidState().isEmpty()) {
+				return "The world spawn " + spawn + " is blocked by " + state + " at " + pos;
+			}
+		}
+		return null;
+	}
+
 	/**
 	 * Whether every full block of Diffusicraft's is in {@code #blocks_motion}, which lists vanilla's solid blocks one by
 	 * one. The heightmaps count only the blocks there, so features and snow would look through a missing one.
@@ -577,13 +599,16 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	}
 
 	/**
-	 * Walks down the grass-covered columns within 96 blocks of the spawn to the rock, and tallies their soil. The soil
-	 * must go deeper than vanilla's few blocks of dirt on average, and no sand or gravel may hang over open space in it.
+	 * Walks down the grass-covered columns within 96 blocks of the spawn to the rock, and tallies their soil. On gentle
+	 * ground ({@value #GENTLE_SLOPE} blocks per block or less) outside limestone, chalk and marble, the soil must go
+	 * deeper than vanilla's few blocks of dirt on average: the slopes and those rocks keep it thin. No sand or gravel
+	 * may hang over open space in it.
 	 */
-	private static SoilSurvey checkSoils(ServerLevel level, BlockPos spawn) {
+	private static SoilSurvey checkSoils(ServerLevel level, TerrainSurface surface, BlockPos spawn) {
+		Set<Block> carbonates = Set.of(DiffusicraftBlocks.LIMESTONE, DiffusicraftBlocks.CHALK, DiffusicraftBlocks.MARBLE);
 		Map<String, Integer> tally = new TreeMap<>();
-		int columns = 0;
-		long total = 0;
+		int columns = 0, gentle = 0;
+		long total = 0, gentleTotal = 0;
 		int deepestDepth = 0;
 		BlockPos deepest = null;
 		String problem = null;
@@ -596,12 +621,14 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				}
 				columns++;
 				int depth = 1;
+				BlockState rock = null;
 				for (int y = top - 1; y > top - 40; y--) {
 					BlockPos at = new BlockPos(x, y, z);
 					BlockState state = level.getBlockState(at);
 					boolean falls = state.is(BlockTags.SAND) || state.is(Blocks.GRAVEL);
 					if (!falls && !state.is(BlockTags.SUBSTRATE_OVERWORLD) && !state.is(Blocks.CLAY)
 						&& !state.is(Blocks.CALCITE)) {
+						rock = state;
 						break;
 					}
 					depth++;
@@ -611,6 +638,10 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 					}
 				}
 				total += depth;
+				if (Erosion.slope(surface, x, z) <= GENTLE_SLOPE && (rock == null || !carbonates.contains(rock.getBlock()))) {
+					gentle++;
+					gentleTotal += depth;
+				}
 				if (depth > deepestDepth) {
 					deepestDepth = depth;
 					deepest = new BlockPos(x, top, z);
@@ -618,10 +649,12 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			}
 		}
 		double mean = columns == 0 ? 0 : total / (double) columns;
+		double gentleMean = gentle == 0 ? 0 : gentleTotal / (double) gentle;
 		LOGGER.info("Under the grass of {} columns around the spawn the soil goes {} blocks deep on average and {} at "
-			+ "most, at {}: {}", columns, Math.round(mean * 10) / 10.0, deepestDepth, deepest, tally);
-		if (problem == null && columns > 0 && mean < 4) {
-			problem = "The soil around the spawn goes only " + mean + " blocks deep on average";
+			+ "most, at {}: {}. On the {} of gentle ground outside carbonate rock it goes {} blocks deep", columns,
+			Math.round(mean * 10) / 10.0, deepestDepth, deepest, tally, gentle, Math.round(gentleMean * 10) / 10.0);
+		if (problem == null && gentle >= MIN_GENTLE_COLUMNS && gentleMean < 4) {
+			problem = "The soil on gentle ground around the spawn goes only " + gentleMean + " blocks deep on average";
 		}
 		return new SoilSurvey(deepest, deepestDepth, problem);
 	}
@@ -662,7 +695,11 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		return best;
 	}
 
-	/** Whether the cliff at {@code at} shows its rock: no soil or sand among the top blocks of the ground. */
+	/**
+	 * Whether the cliff at {@code at} shows its rock: no soil or sand among the top blocks of the ground. Plain dirt
+	 * does not count: vanilla's blobs of dirt spread through the rock, and show where they reach the ground without
+	 * the biome's cover over them. The soil the biome lays has that cover, grass or podzol, on top.
+	 */
 	private static @Nullable String checkCliff(ServerLevel level, BlockPos at) {
 		int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR, at.getX(), at.getZ()) - 1;
 		List<String> blocks = new ArrayList<>();
@@ -670,11 +707,21 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		for (int y = top; y > top - 4; y--) {
 			BlockState state = level.getBlockState(at.atY(y));
 			blocks.add(BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath());
-			if (problem == null && (state.is(BlockTags.SUBSTRATE_OVERWORLD) || state.is(BlockTags.SAND))) {
+			if (problem == null && (state.is(BlockTags.SUBSTRATE_OVERWORLD) && !state.is(Blocks.DIRT)
+				|| state.is(BlockTags.SAND))) {
 				problem = "The cliff at " + at.atY(y) + " is covered with " + state;
 			}
 		}
-		LOGGER.info("The cliff from y = {} down: {}", top, blocks);
+		List<String> around = new ArrayList<>();
+		for (int dz = -1; dz <= 1; dz++) {
+			for (int dx = -1; dx <= 1; dx++) {
+				BlockPos column = at.offset(dx, 0, dz);
+				int y = level.getHeight(Heightmap.Types.OCEAN_FLOOR, column.getX(), column.getZ()) - 1;
+				around.add(y + " " + BuiltInRegistries.BLOCK.getKey(level.getBlockState(column.atY(y)).getBlock()).getPath());
+			}
+		}
+		LOGGER.info("The cliff from y = {} down: {}; the tops of the columns around it, row by row: {}", top, blocks,
+			around);
 		return problem;
 	}
 

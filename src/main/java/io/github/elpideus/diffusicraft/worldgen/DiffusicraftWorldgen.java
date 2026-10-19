@@ -8,7 +8,6 @@ import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.CoastFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.RiverFunction;
-import io.github.elpideus.diffusicraft.worldgen.density.SpawnSuitabilityFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
@@ -56,8 +55,6 @@ public final class DiffusicraftWorldgen {
 	public static void init() {
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("surface"), SurfaceFunction.CODEC);
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("climate"), ClimateFunction.CODEC);
-		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("spawn_suitability"),
-			SpawnSuitabilityFunction.CODEC);
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("hollows"), HollowsFunction.CODEC);
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("river"), RiverFunction.CODEC);
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("coast"), CoastFunction.CODEC);
