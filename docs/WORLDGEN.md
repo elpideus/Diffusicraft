@@ -193,7 +193,7 @@ gives each one a physical meaning, with breakpoints at the edges of vanilla's ow
 |---|---|
 | temperature | Annual mean at the column's elevation. The hot band (desert, badlands) also requires dry air. |
 | humidity (vegetation) | Precipitation over the Köppen aridity threshold `20 × (T + 7)` mm. |
-| continentalness | Offshore: the water depth. On the coast: the height above the sea. Inland: the mean elevation. |
+| continentalness | Offshore: the water depth. On the [coast](#coasts): the height above the sea. Inland: the mean elevation. |
 | erosion | Local relief: rugged land is low, flat land is high. Flat, low and wet land is put in the swamp band. |
 | weirdness | Whether the column is a local peak or a hollow. The sign comes from smooth noise and only picks variants. |
 | depth | Blocks below the surface, capped at 60 blocks above the sea. |
@@ -390,6 +390,14 @@ traces it through each tile with marching squares, between the centres of the pi
 pixel to it: positive on land, negative at sea, up to 12 pixels (360 m). `TerrainField.coast` reads that distance
 bilinearly, and its gradient, which points inland. Neighbouring tiles agree on it to the bit. Tracing a tile's coastline
 takes about 1 ms on one core for a straight coast and 14 ms for a tile full of islands, against seconds of inference.
+
+- **Beaches.** Vanilla's beach band (continentalness from −0.19 to −0.11) goes to the land within a beach's width of the
+  coastline and lower than 5 m above the sea or 2.5 blocks, whichever is higher. The width wanders with slow noise from
+  45 to 120 m, at least 5 blocks. Inside the band, continentalness is the height above the sea, so vanilla picks its
+  beach, snowy beach or stony shore as it would. Before, the band went by height alone, and it covered most of the low
+  coastal plains of the Standard world, far inland. Low, wet, flat land past the beach is still a swamp.
+- **Limits.** The farthest LODs of Distant Horizons read the coarse map, which has no coastline: no beaches there. The
+  sea floor drops a block below the shore and then follows the terrain, with no surf zone.
 
 ### The ground
 

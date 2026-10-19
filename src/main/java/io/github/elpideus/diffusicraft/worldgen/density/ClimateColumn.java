@@ -11,7 +11,9 @@ import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
  * and the biome source walks whole columns, so each thread keeps the column it last asked about ({@link #at}).
  *
  * <p>Columns in the valley of a river get the parameters of vanilla's river biomes, so rivers are rivers on the map
- * and freeze where it is cold.
+ * and freeze where it is cold. Along the coast the column reads the
+ * {@link io.github.elpideus.diffusicraft.worldgen.TerrainSurface ground} itself, so the beaches follow the ground the
+ * world has.
  */
 public final class ClimateColumn {
 	/** Highest erosion at which vanilla still picks a river biome for weirdness zero, inland. */
@@ -26,6 +28,7 @@ public final class ClimateColumn {
 	public final TerrainField.Column column = new TerrainField.Column();
 	/** The 2D biome parameters, indexed as in {@link ClimateMapping}. */
 	public final float[] parameters = new float[ClimateMapping.PARAMETERS];
+	/** The ground, in blocks: exact along the coast, the smooth surface elsewhere. */
 	public float surfaceY;
 	/** Whether the column lies in a river's valley. */
 	public boolean valley;
@@ -51,14 +54,16 @@ public final class ClimateColumn {
 		}
 		double mpb = scale.metersPerBlock();
 		column.variant = field.variant(blockX * mpb, blockZ * mpb);
-		ClimateMapping.compute(scale, column, parameters);
+		surfaceY = column.coast >= 0f && column.coast < ClimateMapping.maxCoastWidth(scale)
+			? field.surface(scale).y(blockX, blockZ)
+			: scale.surfaceY(column.elevation);
+		ClimateMapping.compute(scale, column, surfaceY, parameters);
 		valley = !coarse && Rivers.of(field).column(scale, blockX, blockZ).valley;
 		if (valley) {
 			// Vanilla picks its river biomes where weirdness is near zero, unless the land is very eroded.
 			parameters[ClimateMapping.WEIRDNESS] = 0f;
 			parameters[ClimateMapping.EROSION] = Math.max(parameters[ClimateMapping.EROSION], RIVER_EROSION);
 		}
-		surfaceY = scale.surfaceY(column.elevation);
 		this.field = field;
 		this.scale = scale;
 		this.coarse = coarse;

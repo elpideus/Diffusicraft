@@ -19,13 +19,22 @@ class ClimateMappingTest {
 		c.temperature = temperature;
 		c.precipitation = precipitation;
 		c.variant = 0.5f;
+		c.coast = TerrainField.COAST_REACH;
 		return c;
 	}
 
 	private static float[] parameters(TerrainField.Column c) {
+		return parameters(WorldScale.STANDARD, c, WorldScale.STANDARD.surfaceY(c.elevation));
+	}
+
+	private static float[] parameters(WorldScale scale, TerrainField.Column c, float groundY) {
 		float[] out = new float[ClimateMapping.PARAMETERS];
-		ClimateMapping.compute(WorldScale.STANDARD, c, out);
+		ClimateMapping.compute(scale, c, groundY, out);
 		return out;
+	}
+
+	private static boolean isCoast(float[] p) {
+		return p[ClimateMapping.CONTINENTALNESS] >= -0.19f && p[ClimateMapping.CONTINENTALNESS] < -0.11f;
 	}
 
 	@Test
@@ -67,9 +76,44 @@ class ClimateMappingTest {
 	}
 
 	@Test
-	void lowFlatLandNearTheSeaIsCoast() {
-		float[] p = parameters(column(10f, 20f, 3f, 15f, 500f));
-		assertTrue(p[ClimateMapping.CONTINENTALNESS] >= -0.19f && p[ClimateMapping.CONTINENTALNESS] < -0.11f);
+	void lowLandAlongTheCoastlineIsCoast() {
+		TerrainField.Column c = column(10f, 20f, 3f, 15f, 500f);
+		c.coast = 30f;
+		assertTrue(isCoast(parameters(c)));
+		c.coast = 130f;
+		assertFalse(isCoast(parameters(c)), "past the widest beach");
+		c.coast = TerrainField.COAST_REACH;
+		assertFalse(isCoast(parameters(c)), "low land far from the sea");
+	}
+
+	@Test
+	void theCoastIsAsWideAsRealBeaches() {
+		TerrainField.Column c = column(1f, 1f, 3f, 15f, 500f);
+		c.coast = 60f;
+		c.variant = -1f;
+		assertFalse(isCoast(parameters(WorldScale.EARTH, c, 64f)), "a narrow beach is 45 m wide");
+		c.variant = 1f;
+		assertTrue(isCoast(parameters(WorldScale.EARTH, c, 64f)), "a wide one 120 m");
+		c.variant = -1f;
+		assertTrue(isCoast(parameters(WorldScale.STANDARD, c, 63.5f)), "5 blocks at least");
+	}
+
+	@Test
+	void theTopOfACliffIsNotCoast() {
+		TerrainField.Column c = column(1f, 1f, 3f, 15f, 500f);
+		c.coast = 20f;
+		assertTrue(isCoast(parameters(WorldScale.EARTH, c, 64f)), "the beach at its foot");
+		assertFalse(isCoast(parameters(WorldScale.EARTH, c, 90f)));
+		assertTrue(isCoast(parameters(WorldScale.STANDARD, c, 65f)), "2.5 blocks at least");
+	}
+
+	@Test
+	void lowLandFlushWithTheSeaPastTheBeachIsMarsh() {
+		TerrainField.Column c = column(0f, 0f, 1f, 15f, 1200f);
+		c.coast = 200f;
+		assertEquals(0.75f, parameters(c)[ClimateMapping.EROSION], 1e-6);
+		c.coast = 20f;
+		assertTrue(parameters(c)[ClimateMapping.EROSION] < 0.75f, "the beach stays a beach");
 	}
 
 	@Test

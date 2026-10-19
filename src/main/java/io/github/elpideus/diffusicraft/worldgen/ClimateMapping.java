@@ -12,7 +12,8 @@ package io.github.elpideus.diffusicraft.worldgen;
  *   <li><b>humidity</b>: precipitation relative to the Köppen aridity threshold {@code 20 (T + 7)} mm (at least
  *       140 mm).</li>
  *   <li><b>continentalness</b>: water depth offshore, the height above the sea on the coast, the mean elevation
- *       inland.</li>
+ *       inland. The coast, which holds vanilla's beaches and stony shores, is the strip of low ground along the
+ *       coastline, as wide as real beaches are.</li>
  *   <li><b>erosion</b>: the local relief. Rugged land has low erosion, flat land high. Flat, low, wet land gets
  *       vanilla's swamp band.</li>
  *   <li><b>weirdness</b>: whether the column is a local peak or a hollow, from its elevation against the local mean
@@ -32,8 +33,15 @@ public final class ClimateMapping {
 	public static final int WEIRDNESS = 4;
 	public static final int PARAMETERS = 5;
 
-	/** Height above the sea, in blocks, up to which land counts as coast. */
+	/** Height above the sea, in blocks, up to which land counts as coast at least. */
 	static final float COAST_HEIGHT_BLOCKS = 2.5f;
+	/** Real height above the sea up to which land counts as coast, in meters, where that is more blocks. */
+	static final float COAST_HEIGHT = 5f;
+	/** Real width of the coast inland from the coastline, in meters, from narrow to wide beaches. */
+	static final float COAST_WIDTH_MIN = 45f;
+	static final float COAST_WIDTH_MAX = 120f;
+	/** Narrowest coast, in blocks, so that the smaller scales still have beaches. */
+	static final float COAST_WIDTH_BLOCKS = 5f;
 	/** Mountains warmer than this have no snow. */
 	static final float SNOW_LINE_TEMPERATURE = 1f;
 	/** Bare stony summits stop below this temperature; warmer peaks are forested. */
@@ -59,15 +67,19 @@ public final class ClimateMapping {
 	private ClimateMapping() {
 	}
 
-	/** Fills {@code out} (length {@link #PARAMETERS}) with the 2D biome parameters of a column. */
-	public static void compute(WorldScale scale, TerrainField.Column c, float[] out) {
+	/**
+	 * Fills {@code out} (length {@link #PARAMETERS}) with the 2D biome parameters of a column whose ground lies at
+	 * {@code groundY}, in blocks. Only the coast reads the ground; elsewhere it may be the smooth surface.
+	 */
+	public static void compute(WorldScale scale, TerrainField.Column c, float groundY, float[] out) {
 		float aridity = aridityRatio(c.temperature, c.precipitation);
 		float humidity = humidity(aridity);
 		boolean hot = isHotDesert(c.temperature, aridity);
 		float temperature = temperature(c.temperature, hot);
 
-		float heightBlocks = scale.surfaceY(c.elevation) - scale.seaLevel();
-		float continentalness = continentalness(c.elevation, heightBlocks, c.meanElevation);
+		float coastHeight = (groundY - scale.seaLevel()) / coastHeight(scale);
+		boolean coast = c.elevation >= 0f && c.coast < coastWidth(scale, c.variant) && coastHeight < 1f;
+		float continentalness = continentalness(c.elevation, c.meanElevation, coast ? coastHeight : Float.NaN);
 		float peaks = peaksAndValleys(c.elevation, c.meanElevation, c.relief);
 		float erosion = erosion(c.relief);
 
@@ -79,8 +91,7 @@ public final class ClimateMapping {
 				erosion = Math.max(erosion, -0.3f);
 			}
 		}
-		boolean wetland = c.relief < 6f && c.elevation < 60f && heightBlocks >= COAST_HEIGHT_BLOCKS
-			&& humidity >= 0.1f && c.temperature > -5f;
+		boolean wetland = c.relief < 6f && c.elevation < 60f && !coast && humidity >= 0.1f && c.temperature > -5f;
 		if (wetland) {
 			erosion = 0.75f;
 		}
@@ -116,14 +127,34 @@ public final class ClimateMapping {
 		return piecewise(aridity, ARIDITY_Q, ARIDITY_P);
 	}
 
-	static float continentalness(float elevation, float heightBlocks, float meanElevation) {
+	/**
+	 * The continentalness of the sea from its depth, of the coast from {@code coastHeight}, its height over
+	 * {@link #coastHeight}, and inland from the mean elevation. {@code coastHeight} is NaN away from the coast.
+	 */
+	static float continentalness(float elevation, float meanElevation, float coastHeight) {
 		if (elevation < 0f) {
 			return piecewise(-elevation, OCEAN_DEPTH_M, OCEAN_DEPTH_P);
 		}
-		if (heightBlocks < COAST_HEIGHT_BLOCKS && meanElevation < 50f) {
-			return -0.19f + 0.08f * Math.max(0f, heightBlocks) / COAST_HEIGHT_BLOCKS;
+		if (!Float.isNaN(coastHeight)) {
+			return -0.19f + 0.08f * clamp(coastHeight, 0f, 1f);
 		}
 		return piecewise(meanElevation, INLAND_MEAN_M, INLAND_MEAN_P);
+	}
+
+	/** Height above the sea, in blocks, below which land along the coastline is coast. */
+	public static float coastHeight(WorldScale scale) {
+		return Math.max(COAST_HEIGHT_BLOCKS, scale.surfaceY(COAST_HEIGHT) - scale.seaLevel());
+	}
+
+	/** How far inland the coast reaches, in meters, where the variant noise is {@code variant}. */
+	public static float coastWidth(WorldScale scale, float variant) {
+		float width = COAST_WIDTH_MIN + (COAST_WIDTH_MAX - COAST_WIDTH_MIN) * clamp((variant + 1f) * 0.5f, 0f, 1f);
+		return Math.max(width, (float) (COAST_WIDTH_BLOCKS * scale.metersPerBlock()));
+	}
+
+	/** The widest {@link #coastWidth} at a scale, in meters. */
+	public static float maxCoastWidth(WorldScale scale) {
+		return Math.max(COAST_WIDTH_MAX, (float) (COAST_WIDTH_BLOCKS * scale.metersPerBlock()));
 	}
 
 	static float erosion(float relief) {
