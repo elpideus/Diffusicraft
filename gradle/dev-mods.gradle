@@ -9,6 +9,7 @@
 // Disable the whole set with -PnoDevMods (handy when a dev mod lags behind a
 // Minecraft update), or pick a subset with -PdevMods=slug,slug, for example
 // -PdevMods=biomes-o-plenty,glitchcore,terrablender to test the biome mods alone.
+// The optional mods below the pack load only when named that way.
 // -----------------------------------------------------------------------------
 
 def devMods = [
@@ -39,14 +40,20 @@ def devMods = [
 	'visuality'                  : 'BNe9kpJ7',  // 0.7.15+26.3
 ]
 
+// Compatibility targets outside the maintainer's pack, loaded only when named in -PdevMods.
+def optionalDevMods = [
+	'techreborn'                 : 'CHhIdHEn',  // 6.2.0 (tech-mod ores for the geology; embeds RebornCore)
+]
+
 if (!project.hasProperty('noDevMods')) {
 	def wanted = project.findProperty('devMods')?.toString()?.split(',')?.collect { it.trim() }?.findAll { it }
-	def unknown = (wanted ?: []) - devMods.keySet()
+	def known = devMods + optionalDevMods
+	def unknown = (wanted ?: []) - known.keySet()
 	if (unknown) {
-		throw new GradleException("Unknown dev mods ${unknown}; pick from ${devMods.keySet()}")
+		throw new GradleException("Unknown dev mods ${unknown}; pick from ${known.keySet()}")
 	}
 	dependencies {
-		(wanted ? devMods.subMap(wanted) : devMods).each { slug, ver ->
+		(wanted ? known.subMap(wanted) : devMods).each { slug, ver ->
 			localRuntime "maven.modrinth:${slug}:${ver}"
 		}
 	}

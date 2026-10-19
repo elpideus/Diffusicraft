@@ -33,6 +33,9 @@ project directly, and Loom generates run configurations.
 - **Part of the modpack.** `-PdevMods=slug,slug` starts with only those mods, for example
   `-PdevMods=biomes-o-plenty,glitchcore,terrablender` to test the biome mods alone. It works for the client game test
   too.
+- **Mods outside the modpack.** Some compatibility targets are not in the maintainer's pack and load only when named
+  in `-PdevMods`, for example `-PdevMods=techreborn` to see the geology place the ores of a tech mod. They are listed
+  under `optionalDevMods` in the same file.
 - **Adding or updating a mod.** Find the version id on the mod's Modrinth *Versions* page (the last part of the
   version URL) and add `'<slug>': '<version id>'`. If it fails to start, add the mod's required dependencies too.
 
