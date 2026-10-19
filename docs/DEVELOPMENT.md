@@ -70,15 +70,15 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   Nothing is downloaded.
 - [`WorldGenerationGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WorldGenerationGameTest.java)
   creates a world with the default settings and checks that it is a Diffusicraft world. It saves a biome map, a height
-  map, three views around the spawn and views of the tallest Grand Hollow, a lava sea nearby, a Grand Hollow of each
-  cave biome, whose own blocks it checks for, and the nearest lake in a Grand Hollow, whose water it checks. It checks
-  the LODs
-  that Distant Horizons draws against the chunks generated at the spawn, ground and tree crowns, logs how much of each
-  biome's LOD is under crowns, checks that far LODs run no terrain inference and saves maps of them
-  (`diffusicraft-lod-near.png`, `diffusicraft-lod-far.png`). It needs the models, and skips itself without them. It
-  generates on the CPU, so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to use the GPU. Each view waits until
-  the chunks the server sends are rendered: Fabric's own wait expects a square of chunks, but the server sends a
-  circle, so above a render distance of 6 it never returns.
+  map, three views around the spawn, a view into a pit dug beside the deepest soil near the spawn, whose soil it checks
+  goes deeper than vanilla's dirt with no sand or gravel over open space, and views of the tallest Grand Hollow, a lava
+  sea nearby, a Grand Hollow of each cave biome, whose own blocks it checks for, and the nearest lake in a Grand Hollow,
+  whose water it checks. It checks the LODs that Distant Horizons draws against the chunks generated at the spawn,
+  ground and tree crowns, logs how much of each biome's LOD is under crowns, checks that far LODs run no terrain
+  inference and saves maps of them (`diffusicraft-lod-near.png`, `diffusicraft-lod-far.png`). It needs the models, and
+  skips itself without them. It generates on the CPU, so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to use the
+  GPU. Each view waits until the chunks the server sends are rendered: Fabric's own wait expects a square of chunks, but
+  the server sends a circle, so above a render distance of 6 it never returns.
 - [`TallDimensionGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TallDimensionGameTest.java)
   plays in a 32,736-block dimension: blocks, light and heightmaps at both ends, the network in both directions, a
   column full of blocks, and saving. It logs memory and save times. See [HEIGHT.md](HEIGHT.md#tests).

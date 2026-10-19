@@ -575,11 +575,35 @@ join `#minecraft:base_stone_overworld`, so moss, sculk, dripstone and vanilla's 
 salt crust also join `#minecraft:blocks_motion_no_leaves`. The heightmaps that features, snow and rain read count only
 the blocks listed there, and would otherwise take the ground to lie under the rock.
 
-**Soils.** Under the top block, where vanilla puts dirt, some biomes have a soil of their own: peat under the moors
-and the tundra, and all the way down under the bogs, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the savannas and
-the cloud forest. Peat and terra rossa also lie bare on top in patches. Soils count as dirt (`#minecraft:dirt`), so
-saplings and plants grow on them as on dirt, and they dig with a shovel. Peat burns in a furnace for half as long
-as coal (`context_int_provider/cooking/time_peat.json`).
+**Soils.** A soil is the rock beneath it, weathered by the climate where it lies. `Soils`, a pure model like
+`Geology`, works out each column's soil from the rock four blocks under its top, the climate and the slope, and
+`StrataRule` lays it under the biome's top block: a block or two of topsoil, then the subsoil, then weathered rock,
+broken rock with soil between it that gives way downwards to the solid rock.
+
+| Where | Subsoil |
+|---|---|
+| The wet tropics and the savannas: 18 °C or more, and at least 1.2 times the Köppen aridity threshold | Laterite, from any rock |
+| Cool, dry plains: −3 to 14 °C, 0.5 to 1.4 times the threshold, slopes under 0.25 | Loess, over any rock |
+| Under peat and mud | Clay: the waterlogged gley |
+| Limestone, chalk and marble | Terra rossa where it is 12 °C or warmer and not too wet. Elsewhere a block of dirt at most: limestone dissolves rather than crumbles |
+| Sandstone and red sandstone | Sand and red sand |
+| Shale, slate and coal seams | Clay mottled with dirt where it is wet enough, dirt where it is dry |
+| Granite, gneiss and diorite | Grus, the coarse sand and gravel of their crystals: coarse dirt, over gravel in the weathered rock |
+| Other rocks | Dirt, over coarse dirt in the weathered rock |
+
+Weathering is a chemical reaction that warmth and rain drive, so the profiles go about 4 blocks deep in cold or dry
+land and on slopes, 6 in temperate land, 8 or 9 under loess, 12 in the savannas and 15 in the wet tropics, varying
+by a few blocks over some 30. Semi-arid land, from 0.5 to 1.1 times the threshold and 6 °C or warmer, has a pan of
+calcrete (calcite) under the subsoil, where the rain stops sinking in. The depths are in blocks, the same in every
+world type. Sand and gravel never hang over open space: there they stay sandstone and rock.
+
+Some biomes lay a soil of their own on top, to vanilla's depth: peat under the moors, the tundra and the bogs, whose
+pools it lines too, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the
+savannas and the cloud forest. Peat and terra rossa also lie bare on top in patches. The profile goes on under them.
+Vanilla's plain dirt stays only as topsoil: below it lies the subsoil. Only the column's top run of ground gets a
+profile, so the floors of caves and the ground under arches and rivers keep what the biome gives them. Soils count as
+dirt (`#minecraft:dirt`), so saplings and plants grow on them as on dirt, and they dig with a shovel. Peat burns in a
+furnace for half as long as coal (`context_int_provider/cooking/time_peat.json`).
 
 **New plants.** Heather and cottongrass of the moors, lavender of the maquis, edelweiss and gentian above the tree
 line, and salt crust, the ground of the salt flats. The flowers join `#minecraft:small_flowers`, so bees visit them;
@@ -713,7 +737,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, and `SeleniteBeamFeature` (`diffusicraft:selenite_beam`) |
-| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
+| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods |
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
@@ -751,6 +775,10 @@ Other searches still read the full terrain and can take a while on new land:
   of the terrain in every world.
 - `ErosionTest` checks that gentle ground keeps its soil, steep ground shows the rock in any direction, and scree
   lies at the foot of a cliff, whichever way it faces, and not on the flat beyond.
+- `SoilsTest` checks that the soil follows the rock (sand on sandstone, clay on shale, grus on granite, terra rossa
+  on limestone in the warm), that laterite, loess and gley take over from any rock where the climate or the water
+  makes them, that only semi-arid land has a calcrete pan, that the horizons come in order down to the rock, that
+  warm, wet, flat land weathers deepest, and that the weathered rock turns to solid rock downwards.
 - `ErosionSurveyTest` needs the models. At every scale it finds the tile near the origin whose ground rises the most in
   blocks and sorts its land into soil, cliffs and scree. With seed 42 that tile is 87% soil, 8.3% cliffs and 4.8%
   scree in the Standard world, 90% soil, 6% cliffs and 4.2% scree at Grand, and 93% soil, 4.3% cliffs and 2.5% scree

@@ -53,10 +53,20 @@ public final class Erosion {
 
 	/** What covers the ground of column {@code (x, z)} on {@code surface}. */
 	public Kind kind(Surface surface, int x, int z) {
+		return kind(surface, x, z, slope(surface, x, z));
+	}
+
+	/** The slope of column {@code (x, z)} on {@code surface}, in blocks per block. */
+	public static double slope(Surface surface, int x, int z) {
 		double cx = x + 0.5, cz = z + 0.5;
 		double gx = (surface.y(cx + 1, cz) - surface.y(cx - 1, cz)) / 2;
 		double gz = (surface.y(cx, cz + 1) - surface.y(cx, cz - 1)) / 2;
-		double slope = Math.sqrt(gx * gx + gz * gz);
+		return Math.sqrt(gx * gx + gz * gz);
+	}
+
+	/** {@link #kind(Surface, int, int)} for a column whose {@link #slope} is known. */
+	public Kind kind(Surface surface, int x, int z, double slope) {
+		double cx = x + 0.5, cz = z + 0.5;
 		double wander = 1 + WANDER * GeoNoise.fractal(seed, cx / WAVELENGTH, cz / WAVELENGTH, 2);
 		if (slope >= CLIFF_SLOPE * wander) {
 			return Kind.CLIFF;
@@ -65,6 +75,8 @@ public final class Erosion {
 			return Kind.SOIL;
 		}
 		// Scree lies under a cliff: the ground rises steeply within reach uphill.
+		double gx = (surface.y(cx + 1, cz) - surface.y(cx - 1, cz)) / 2;
+		double gz = (surface.y(cx, cz + 1) - surface.y(cx, cz - 1)) / 2;
 		double rise = surface.y(cx + gx / slope * REACH, cz + gz / slope * REACH) - surface.y(cx, cz);
 		return rise >= FEED_SLOPE * REACH * wander ? Kind.SCREE : Kind.SOIL;
 	}

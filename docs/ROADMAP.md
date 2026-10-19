@@ -4,8 +4,8 @@
 climates, forests and rock layers should look and behave like real ones. It is aimed at survival, realism and RPG
 modpacks built around Create.
 
-The pieces in place generate the world's shape, climate, rivers, lakes, rock and deep caverns, and a world generator
-turns them into blocks. The pieces planned add the details: finer terrain, soils and new biomes.
+The pieces in place generate the world's shape, climate, rivers, lakes, rock, soils and deep caverns, and a world
+generator turns them into blocks. The pieces planned add the details: finer terrain, new minerals and new biomes.
 
 ## Done
 
@@ -50,6 +50,10 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
   [WORLDGEN.md](WORLDGEN.md#the-ground).
 - **Cliffs and scree.** Ground too steep for soil shows the rock beneath, and scree of gravel and broken rock lies
   under the cliffs. See [WORLDGEN.md](WORLDGEN.md#the-ground).
+- **Soils.** Soil that follows the rock beneath and the climate: sand on sandstone, clay on shale, grus on granite,
+  terra rossa on limestone in the warm, laterite in the tropics, loess on the cool, dry plains, gley under peat and
+  calcrete pans in semi-arid land. Profiles of topsoil, subsoil and weathered rock run from about 4 blocks deep in
+  the cold to 15 in the wet tropics. See [WORLDGEN.md](WORLDGEN.md#the-ground).
 - **Gullies.** At Earth 1:1 the slopes are cut by gullies finer than the model's 30 m pixels, which run downhill and
   branch, deeper on steeper ground; gentle ground stays smooth. The rock and the climate shape them: crags in hard
   rock, badlands in bare soft rock, rounded hills where soil and plants cover soft rock. See
@@ -121,7 +125,6 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Underground
 
-- **Soils.** Soil that follows the rock beneath as well as the climate, and soil profiles deeper than a few blocks.
 - **New minerals.** Minerals for Create and other tech mods, placed by the same geology.
 
 ### Compatibility

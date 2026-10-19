@@ -162,6 +162,16 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, above, 180f, 20f, "view-north");
 			view(context, world, above.above(120), 90f, 40f, "view-high-west");
 
+			// The soil under the grass around the spawn, and a pit dug beside its deepest column to show it.
+			SoilSurvey soils = world.getServer().computeOnServer(server -> checkSoils(server.overworld(), probe.spawn));
+			problem = problem != null ? problem : soils.problem;
+			if (soils.deepest != null) {
+				BlockPos at = soils.deepest;
+				world.getServer().runCommand(String.format("fill %d %d %d %d %d %d minecraft:air", at.getX() - 12,
+					at.getY() - soils.depth - 6, at.getZ() + 1, at.getX() + 12, at.getY() + 3, at.getZ() + 14));
+				view(context, world, at.offset(0, -soils.depth / 2, 13), 180f, 0f, "soil");
+			}
+
 			// The largest river nearby, from its bank and from high above.
 			BlockPos river = findRiver(probe);
 			view(context, world, river.offset(0, 24, 36), 180f, 30f, "river");
@@ -526,6 +536,60 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			.map(block -> BuiltInRegistries.BLOCK.getKey(block).toString())
 			.toList();
 		return missing.isEmpty() ? null : "Full blocks missing from #minecraft:blocks_motion: " + missing;
+	}
+
+	/** The deepest soil around the spawn, how deep it goes, and what is wrong with the soil there, if anything. */
+	private record SoilSurvey(@Nullable BlockPos deepest, int depth, @Nullable String problem) {
+	}
+
+	/**
+	 * Walks down the grass-covered columns within 96 blocks of the spawn to the rock, and tallies their soil. The soil
+	 * must go deeper than vanilla's few blocks of dirt on average, and no sand or gravel may hang over open space in it.
+	 */
+	private static SoilSurvey checkSoils(ServerLevel level, BlockPos spawn) {
+		Map<String, Integer> tally = new TreeMap<>();
+		int columns = 0;
+		long total = 0;
+		int deepestDepth = 0;
+		BlockPos deepest = null;
+		String problem = null;
+		for (int dx = -96; dx <= 96; dx += 2) {
+			for (int dz = -96; dz <= 96; dz += 2) {
+				int x = spawn.getX() + dx, z = spawn.getZ() + dz;
+				int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z) - 1;
+				if (top <= level.getSeaLevel() || !level.getBlockState(new BlockPos(x, top, z)).is(Blocks.GRASS_BLOCK)) {
+					continue;
+				}
+				columns++;
+				int depth = 1;
+				for (int y = top - 1; y > top - 40; y--) {
+					BlockPos at = new BlockPos(x, y, z);
+					BlockState state = level.getBlockState(at);
+					boolean falls = state.is(BlockTags.SAND) || state.is(Blocks.GRAVEL);
+					if (!falls && !state.is(BlockTags.SUBSTRATE_OVERWORLD) && !state.is(Blocks.CLAY)
+						&& !state.is(Blocks.CALCITE)) {
+						break;
+					}
+					depth++;
+					tally.merge(BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath(), 1, Integer::sum);
+					if (problem == null && falls && level.getBlockState(at.below()).isAir()) {
+						problem = "The soil at " + at + " is " + state + " over open space";
+					}
+				}
+				total += depth;
+				if (depth > deepestDepth) {
+					deepestDepth = depth;
+					deepest = new BlockPos(x, top, z);
+				}
+			}
+		}
+		double mean = columns == 0 ? 0 : total / (double) columns;
+		LOGGER.info("Under the grass of {} columns around the spawn the soil goes {} blocks deep on average and {} at "
+			+ "most, at {}: {}", columns, Math.round(mean * 10) / 10.0, deepestDepth, deepest, tally);
+		if (problem == null && columns > 0 && mean < 4) {
+			problem = "The soil around the spawn goes only " + mean + " blocks deep on average";
+		}
+		return new SoilSurvey(deepest, deepestDepth, problem);
 	}
 
 	/** A column on a cliff, and which way the ground rises there, as a unit vector. */

@@ -19,7 +19,8 @@ geography, climate and geology.
 - **Rivers, coasts, rock and caverns.** Rivers drain the whole world from its rain and terrain, and fill the lakes on
   their way, up to great lakes 60 km across. Beaches follow the coastline, and sea cliffs rise where high land meets
   the sea, with stacks and arches off them. On cold mountain coasts the valleys drown into fjords. The rock shapes the
-  slopes: hard beds stand out of them as ledges and cliffs. Underground, sedimentary beds, fold belts and basement
+  slopes: hard beds stand out of them as ledges and cliffs. Soils follow the rock under them and the climate, from
+  thin, stony ground in the cold to deep laterite in the tropics. Underground, sedimentary beds, fold belts and basement
   rock hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they lie, down to the Grand
   Hollows over lava seas, each a cave biome of its own: glowworm grottoes, selenite caverns, mushroom forests, lush
   and dripstone caves, with lakes in their floors under wet land.

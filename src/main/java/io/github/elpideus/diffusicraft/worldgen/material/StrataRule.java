@@ -16,6 +16,7 @@ import io.github.elpideus.diffusicraft.worldgen.geology.Geology;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import io.github.elpideus.diffusicraft.worldgen.geology.Ore;
 import io.github.elpideus.diffusicraft.worldgen.geology.Rock;
+import io.github.elpideus.diffusicraft.worldgen.geology.Soils;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
@@ -42,6 +43,8 @@ import java.util.function.Predicate;
  * plain stone, as mountain biomes do under their surface, the local rock goes there instead, so cliffs show the
  * strata. Above the water, the slope has the last word ({@link Erosion}): where the ground is too steep to hold soil,
  * sand or snow, the rock shows through, and scree of gravel and broken rock lies on the slopes under the cliffs.
+ * Elsewhere the {@link Soils} model lays the soil under the biome's top block: topsoil, then a subsoil that the rock
+ * beneath and the climate decide, then weathered rock.
  *
  * <p>The ceilings of the Grand {@link Hollows} get patches of light. The rule is compiled for every chunk; the
  * per-world state is cached, so compiling costs a few hashes. Compiled inside {@link CoarseClimate#call}, it reads the
@@ -64,6 +67,16 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 	private static final Identifier GLOWWORM_GROTTO = Identifier.parse(HollowBiomes.GLOWWORM_GROTTO);
 	private static final BlockState COBBLESTONE = Blocks.COBBLESTONE.defaultBlockState();
 	private static final BlockState COBBLED_DEEPSLATE = Blocks.COBBLED_DEEPSLATE.defaultBlockState();
+	private static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
+	private static final BlockState COARSE_DIRT = Blocks.COARSE_DIRT.defaultBlockState();
+	private static final BlockState CLAY = Blocks.CLAY.defaultBlockState();
+	private static final BlockState SAND = Blocks.SAND.defaultBlockState();
+	private static final BlockState SANDSTONE = Blocks.SANDSTONE.defaultBlockState();
+	private static final BlockState RED_SAND = Blocks.RED_SAND.defaultBlockState();
+	private static final BlockState RED_SANDSTONE = Blocks.RED_SANDSTONE.defaultBlockState();
+	private static final BlockState CALCITE = Blocks.CALCITE.defaultBlockState();
+	/** How far under the top of the ground the rock lies that its soil weathered from. */
+	private static final int PARENT_DEPTH = 4;
 	/**
 	 * What the biomes lay on the ground that slides off cliffs: the soils (dirt, grass, podzol, moss, mud and
 	 * Diffusicraft's own, all under {@code #substrate_overworld}), sand, gravel and snow.
@@ -92,8 +105,8 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			k.scale.verticalMetersPerBlock()));
 		// The same seed as the hollows density function's, so the light finds the ceilings it carved.
 		Hollows hollows = Hollows.of(random.fromHashOf(HollowsFunction.SEED_ID).nextLong(), minY);
-		return new Evaluator(context, scale, field, geology, new Erosion(key.seed), hollows, surfaceRule,
-			CoarseClimate.active());
+		return new Evaluator(context, scale, field, geology, new Erosion(key.seed), new Soils(key.seed), hollows,
+			surfaceRule, CoarseClimate.active());
 	}
 
 	/** Forgets the cached geology of every world; called when the server stops. */
@@ -110,6 +123,7 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		private final TerrainField field;
 		private final Geology geology;
 		private final Erosion erosion;
+		private final Soils soils;
 		private final Erosion.Surface ground;
 		private final Hollows hollows;
 		private final RuleEvaluator surface;
@@ -117,19 +131,29 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 		private final TerrainField.Column terrain = new TerrainField.Column();
 		private final Geology.Column column = new Geology.Column();
 		private final Hollows.Column hollowColumn = new Hollows.Column();
+		private final Soils.Profile profile = new Soils.Profile();
 		private int columnX;
 		private int columnZ;
 		private boolean hasColumn;
 		/** What covers the ground of the column, worked out the first time a block near the surface asks. */
 		private Erosion.@Nullable Kind cover;
+		private double slope;
+		private boolean hasProfile;
+		/** The blocks of the column seen so far. */
+		private int run;
+		/** The lowest block of the column's soil so far, or {@link Integer#MIN_VALUE}. */
+		private int soilY;
+		/** Whether peat or mud lies on the column, keeping the soil under it wet. */
+		private boolean waterlogged;
 
 		Evaluator(MaterialRuleContext context, WorldScale scale, TerrainField field, Geology geology, Erosion erosion,
-				  Hollows hollows, RuleEvaluator surface, boolean coarse) {
+				  Soils soils, Hollows hollows, RuleEvaluator surface, boolean coarse) {
 			this.context = context;
 			this.scale = scale;
 			this.field = field;
 			this.geology = geology;
 			this.erosion = erosion;
+			this.soils = soils;
 			this.hollows = hollows;
 			this.surface = surface;
 			this.coarse = coarse;
@@ -146,20 +170,42 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			if (!hasColumn || x != columnX || z != columnZ) {
 				sampleColumn(x, z);
 			}
+			int depth = context.stoneDepthAbove();
+			// Whether the block lies in the column's top run of ground, with nothing open between it and the sky or
+			// the water: every block of the run comes here, in order.
+			boolean top = depth == ++run;
 			if (state != null && (state == STONE || SOILS.test(state)) && context.waterHeight() <= y
 				&& y >= context.getMinSurfaceLevel()) {
 				// Soil, or the biome's bare stone, on the surface above the water: the slope decides what stays.
 				// Under a cliff's rock or scree lies the rock, not the soil. The soils of cave floors stay.
 				Erosion.Kind kind = cover();
-				if (kind == Erosion.Kind.SCREE && context.stoneDepthAbove() <= Erosion.SCREE_DEPTH
+				if (kind == Erosion.Kind.SCREE && depth <= Erosion.SCREE_DEPTH
 					&& y >= Mth.ceil(column.surfaceY) - Erosion.SCREE_DEPTH) {
 					return erosion.gravel(x, y, z) ? GRAVEL : BlockTable.rubble(geology.rock(column, x, y, z));
 				}
 				if (kind == Erosion.Kind.SOIL && state != STONE) {
-					return state;
+					if (!top || !state.is(BlockTags.SUBSTRATE_OVERWORLD)) {
+						return state;
+					}
+					// The soil the biome lays. Its plain dirt is topsoil only near the top: under that lies the
+					// subsoil, however deep the biome would take the dirt.
+					waterlogged |= state.is(DiffusicraftBlocks.PEAT) || state.is(Blocks.MUD);
+					if (state != DIRT || depth <= profile(x, y + depth - 1, z).topsoil()) {
+						soilY = y;
+						return state;
+					}
+					state = null;
 				}
 			} else if (state != null && state != STONE) {
 				return state;
+			}
+			if (state == null && top && soilY == y + 1) {
+				// The soil goes on under what the biome laid, down to the rock.
+				BlockState soil = soil(x, y, z, depth);
+				if (soil != null) {
+					soilY = y;
+					return soil;
+				}
 			}
 			if (context.stoneDepthBelow() == 1) {
 				Hollows.Kind lit = litHollowBelow(x, y, z);
@@ -190,9 +236,61 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 
 		private Erosion.Kind cover() {
 			if (cover == null) {
-				cover = erosion.kind(ground, columnX, columnZ);
+				slope = Erosion.slope(ground, columnX, columnZ);
+				cover = erosion.kind(ground, columnX, columnZ, slope);
 			}
 			return cover;
+		}
+
+		/** The soil of the column, whose ground has its top block at {@code topY}. */
+		private Soils.Profile profile(int x, int topY, int z) {
+			if (!hasProfile) {
+				hasProfile = true;
+				cover();
+				Rock parent = geology.rock(column, x, topY - PARENT_DEPTH, z);
+				soils.profile(parent, column.temperature, column.precipitation, slope, waterlogged, x, z, profile);
+			}
+			return profile;
+		}
+
+		/** The soil {@code depth} blocks down the column's ground, or {@code null} where the rock starts. */
+		private @Nullable BlockState soil(int x, int y, int z, int depth) {
+			Soils.Profile p = profile(x, y + depth - 1, z);
+			BlockState state = switch (p.horizon(depth)) {
+				case TOPSOIL -> DIRT;
+				case SUBSOIL -> subsoil(p.soil(), x, y, z);
+				case PAN -> CALCITE;
+				case WEATHERED -> soils.rubble(p, x, y, z, depth) ? BlockTable.rubble(geology.rock(column, x, y, z))
+					: p.soil() == Soils.Soil.LOAM ? COARSE_DIRT : p.soil() == Soils.Soil.GRUS ? GRAVEL
+					: subsoil(p.soil(), x, y, z);
+				case ROCK -> null;
+			};
+			if (context.stoneDepthBelow() <= 1) {
+				// Over open space, sand and gravel would fall: they stay rock there.
+				if (state == SAND) {
+					return SANDSTONE;
+				}
+				if (state == RED_SAND) {
+					return RED_SANDSTONE;
+				}
+				if (state == GRAVEL) {
+					return BlockTable.rubble(geology.rock(column, x, y, z));
+				}
+			}
+			return state;
+		}
+
+		private BlockState subsoil(Soils.Soil soil, int x, int y, int z) {
+			return switch (soil) {
+				case LOAM -> DIRT;
+				case CLAY -> soils.clay(x, y, z) ? CLAY : DIRT;
+				case SAND -> SAND;
+				case RED_SAND -> RED_SAND;
+				case GRUS -> COARSE_DIRT;
+				case TERRA_ROSSA -> DiffusicraftBlocks.TERRA_ROSSA.defaultBlockState();
+				case LATERITE -> DiffusicraftBlocks.LATERITE.defaultBlockState();
+				case LOESS -> DiffusicraftBlocks.LOESS.defaultBlockState();
+			};
 		}
 
 		private void sampleColumn(int x, int z) {
@@ -200,6 +298,10 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			columnZ = z;
 			hasColumn = true;
 			cover = null;
+			hasProfile = false;
+			run = 0;
+			soilY = Integer.MIN_VALUE;
+			waterlogged = false;
 			if (coarse) {
 				field.coarseColumn(scale.toPixel(z), scale.toPixel(x), terrain);
 			} else {
