@@ -206,7 +206,8 @@ public final class TerrainField implements AutoCloseable {
 	/**
 	 * The raw elevation of tile {@code (ti, tj)} with its margin: {@value #SPAN}² row-major values in meters, the first
 	 * one at native pixel {@code (ti * TILE - PAD, tj * TILE - PAD)}. The array is shared and must not be modified.
-	 * Neighbouring tiles agree where their margins overlap: the source is seamless.
+	 * Neighbouring tiles agree to the bit where their margins overlap: the source is seamless, and each pixel depends
+	 * only on where it is, not on the window that asked for it.
 	 */
 	public float[] paddedTile(int ti, int tj) {
 		return tile(ti, tj).elevation;

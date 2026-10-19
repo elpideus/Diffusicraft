@@ -404,8 +404,10 @@ public final class WorldPipeline {
 	private float[] elevation(int i1, int j1, int i2, int j2) {
 		int lc = latentCompression;
 		int kernel = ((int) (ELEVATION_DENOISE_SIGMA * 2) / 2) * 2 + 1;
-		int pad = (kernel / 2 + 1) * lc;
-		// Pad and align to the latent grid.
+		// Pad and align to the latent grid. The edges of the padded window are extrapolated, and the blur and the two
+		// bilinear resamplings carry that kernel / 2 + 1 latent pixels in; one more keeps every pixel returned a
+		// function of the map alone, so overlapping requests agree to the bit.
+		int pad = (kernel / 2 + 2) * lc;
 		int pi1 = Math.floorDiv(i1 - pad, lc) * lc;
 		int pj1 = Math.floorDiv(j1 - pad, lc) * lc;
 		int pi2 = -Math.floorDiv(-(i2 + pad), lc) * lc;
