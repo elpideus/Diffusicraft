@@ -392,7 +392,7 @@ the same.
   higher than its own lakes. The rivers of the coarse map run across the lake at the level of its water and leave it
   level with it, so the lake is fed and its outlet is cut down from its surface. The rivers see the lake as they see
   the lakes of a block. The lake is found once, for the first tile in it or next to it, which waits for the terrain of
-  all its tiles.
+  all its tiles; the prefetcher computes them as soon as one of them is in its plan.
 - **Lake columns.** A column is in a lake where one of the four pixels around it is and its ground is below the water.
   The lake decides such a column even within a river's reach, so the river flows into the lake and out again. The
   water of a lake the rain fills stops at the last whole block below the lake's level, so it never stands above the

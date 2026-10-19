@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen.river;
 
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
+import io.github.elpideus.diffusicraft.worldgen.TerrainPrefetcher;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSource;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import org.junit.jupiter.api.Test;
@@ -251,6 +252,40 @@ class GreatLakeTest {
 			assertTrue(lakes > 20, "points in the lake: " + lakes);
 		} finally {
 			pool.shutdown();
+		}
+	}
+
+	@Test
+	void thePrefetcherComputesEveryTileOfALakeInItsPlan() throws Exception {
+		TerrainField field = field();
+		int[] cells = Rivers.of(field).lakeTiles(6, 0);
+		assertTrue(cells.length > 0, "the bowl holds a lake");
+		assertEquals(0, Rivers.of(field).lakeTiles(0, 6).length, "no lake on dry land");
+		// A still player on the lake's tile with the farthest other tiles, which its plan of 3 by 3 tiles misses.
+		int at = 0, reach = 0;
+		for (int c = 0; c < cells.length; c += 2) {
+			int far = 0;
+			for (int d = 0; d < cells.length; d += 2) {
+				far = Math.max(far, Math.max(Math.abs(cells[d] - cells[c]), Math.abs(cells[d + 1] - cells[c + 1])));
+			}
+			if (far > reach) {
+				at = c;
+				reach = far;
+			}
+		}
+		assertTrue(reach >= 2, "the lake reaches past the plan");
+		WorldScale scale = WorldScale.STANDARD;
+		double blocks = TILE / scale.pixelsPerBlock();
+		try (TerrainPrefetcher prefetcher = new TerrainPrefetcher()) {
+			prefetcher.update(List.of(new TerrainPrefetcher.Traveller(field, scale, (cells[at + 1] + 0.5) * blocks,
+				(cells[at] + 0.5) * blocks, 0, 0, 16)));
+			long deadline = System.nanoTime() + 60_000_000_000L;
+			for (int c = 0; c < cells.length; c += 2) {
+				while (!field.hasTile(cells[c], cells[c + 1]) && System.nanoTime() < deadline) {
+					Thread.sleep(10);
+				}
+				assertTrue(field.hasTile(cells[c], cells[c + 1]), "lake tile " + cells[c] + ", " + cells[c + 1]);
+			}
 		}
 	}
 

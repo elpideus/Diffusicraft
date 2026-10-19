@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
+import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,13 +19,14 @@ import java.util.concurrent.atomic.LongAdder;
  * without this, the world stops appearing at a tile's edge while the player flies on. Told where the players are and
  * how fast they move, the prefetcher plans the tiles their view will reach within {@value #HORIZON_SECONDS} s, the
  * earliest first, and one background thread computes them one at a time. The rivers and lakes of a tile need the
- * terrain of the eight tiles around it, so the plan takes in a ring of tiles around the view. A tile that chunk
- * generation needs before the prefetcher gets to it is computed by chunk generation as before, and the prefetcher
- * skips it.
+ * terrain of the eight tiles around it, so the plan takes in a ring of tiles around the view. A tile in a lake of the
+ * coarse map needs all the lake's tiles, up to 16, which can lie beyond the ring: the prefetcher computes them right
+ * after the tile. A tile that chunk generation needs before the prefetcher gets to it is computed by chunk generation
+ * as before, and the prefetcher skips it.
  *
  * <p>Model runs take turns, so such a tile takes longer while a prefetch runs beside it. Planning the earliest tiles
- * first keeps that rare. A plan covers at most a quarter of each field's tile cache, so prefetching never evicts the
- * tiles in use.
+ * first keeps that rare. A plan covers at most a quarter of each field's tile cache, so prefetching does not evict the
+ * tiles in use; the lakes on it add their tiles, seldom more than a few.
  */
 public final class TerrainPrefetcher implements AutoCloseable {
 	/** How far ahead of the players to plan, in seconds. */
@@ -162,12 +164,19 @@ public final class TerrainPrefetcher implements AutoCloseable {
 				if (closed || stale(done)) {
 					break;
 				}
-				if (r.field().hasTile(r.ti(), r.tj()) || failing(r.field())) {
+				if (failing(r.field())) {
 					continue;
 				}
 				try {
 					if (r.field().prefetch(r.ti(), r.tj())) {
 						prefetched.increment();
+					}
+					// A lake of the coarse map on the tile needs all its tiles, which can lie beyond the ring.
+					int[] lake = Rivers.of(r.field()).lakeTiles(r.ti(), r.tj());
+					for (int c = 0; c < lake.length && !closed && !stale(done); c += 2) {
+						if (r.field().prefetch(lake[c], lake[c + 1])) {
+							prefetched.increment();
+						}
 					}
 				} catch (RuntimeException e) {
 					if (!closed) {

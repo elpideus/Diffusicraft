@@ -274,6 +274,15 @@ public final class Rivers {
 		}
 	}
 
+	/**
+	 * The tiles of the lake of the coarse map on tile {@code (ti, tj)}, as pairs {@code (ti, tj)}, or none. The rivers
+	 * and lakes of the tile and of the tiles around it need the terrain of them all.
+	 */
+	public int[] lakeTiles(int ti, int tj) {
+		RiverNetwork.Lake lake = network == null ? null : network.lakeAt(ti, tj);
+		return lake == null ? new int[0] : lake.cells().clone();
+	}
+
 	/** The lakes of tile {@code (ti, tj)}. */
 	CellLakes lakes(int ti, int tj) {
 		return network == null ? CellLakes.EMPTY : cell(ti, tj, chunks.get()).lakes;

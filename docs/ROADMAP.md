@@ -101,8 +101,6 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 - **Rain lakes near rivers.** Lakes across tiles where a river runs in one of the tiles, and the fine basins larger
   than a block outside the lakes of the coarse map, which stay dry for now; and depressions of more than 16 tiles,
   like those of the Caspian or the Great Lakes, which are breached.
-- **Prefetching great lakes.** A tile in or next to a lake of the coarse map waits for all the lake's tiles; the
-  prefetcher could plan them with the view.
 - **Shores.** A surf zone where the sea floor deepens away from the beach, sea stacks and arches off the cliffs, and
   cliffs in the farther LODs.
 

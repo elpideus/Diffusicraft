@@ -90,7 +90,8 @@ generation asks for them:
   world therefore waits for three by three tiles at least before its first chunk, where one tile could do before.
   Nine tiles take some 45 s on the CPU at 5 s a tile, and about 5 s on the GPU. The lakes themselves cost little:
   a block of four tiles takes about 27 ms on one core, and there is one block per tile. A tile in or next to a lake
-  of the coarse map also waits for all the lake's tiles, up to 16, which the plan does not take in yet.
+  of the coarse map also waits for all the lake's tiles, up to 16, which the prefetcher computes right after the
+  lake's first tile in the plan.
 - **In the background.** One thread at the lowest priority computes the planned tiles one at a time, and switches to
   a newer plan as soon as one arrives. Model runs take turns, so a tile that chunk generation needs right away takes
   up to twice as long while the prefetcher works. Planning the earliest tiles first keeps that rare.
