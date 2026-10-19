@@ -67,6 +67,8 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
   tributaries, widths that grow with the discharge, banks, beds and river biomes. Lakes fill the closed basins as far
   as the climate is wet enough. Shallow seas hold water, and coastal lowland keeps its cave entrances and ravines
   closed so they do not flood into canals. See [WORLDGEN.md](WORLDGEN.md#rivers).
+- **Coasts.** Beaches a real beach's width along the coastline, and sheer sea cliffs along stretches where high land
+  meets the sea, in every world. See [WORLDGEN.md](WORLDGEN.md#coasts).
 - **Distant Horizons.** Its far terrain comes straight from the terrain, without generating chunks: surface blocks
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
   (biome mods' own trees included), and the coarse map alone for the far horizon. See
@@ -95,7 +97,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 - **Great lakes.** Lakes in basins larger than a block of two by two tiles, up to the great lakes of the coarse map,
   and rain lakes across tiles where a river runs in one of them, which stay dry for now.
-- **Coasts.** Coastlines, beaches and cliffs follow the real sea level (y = 0 at 1:1).
+- **Shores.** A surf zone where the sea floor deepens away from the beach, sea stacks and arches off the cliffs, and
+  cliffs in the farther LODs.
 
 ### Biomes
 

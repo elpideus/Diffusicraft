@@ -150,8 +150,9 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
 - **`TerrainField`.** For each seed, it turns pipeline output into tiles: interpolated elevation plus a coarse grid of
   local relief and sea-level climate, and the distance to the coastline. It is thread-safe and computes each tile once.
 - **`TerrainSurface`.** The height of the ground in blocks for one scale, with the hard beds standing out of steep
-  slopes as ledges and, at Earth 1:1, the gullies cut into them, both shaped by the rock and the climate. Everything
-  that needs the ground reads it there, so the density, rivers, caves, materials and LODs agree.
+  slopes as ledges and, at Earth 1:1, the gullies cut into them, both shaped by the rock and the climate, and with sea
+  cliffs where high land meets the sea. Everything that needs the ground reads it there, so the density, rivers, caves,
+  materials and LODs agree.
 - **`TerrainFields`.** It holds one field per seed, which also carries the world's geology seed for the gullies and
   the ledges. The models load on the first chunk and are freed when the server stops. Pipeline windows are cached in
   the world folder.

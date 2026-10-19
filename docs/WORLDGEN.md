@@ -82,10 +82,11 @@ WorldPipeline (30 m pixels, per seed)
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate, and the distance to the coastline
    ▼
-TerrainSurface: the ground in blocks for one scale, with ledges, and gullies at Earth 1:1
+TerrainSurface: the ground in blocks for one scale, with ledges, sea cliffs, and gullies at Earth 1:1
    ▼
 density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability,
-   │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model)
+   │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model),
+   │                diffusicraft:coast (the sea cliffs, block by block)
    ▼
 noise settings diffusicraft:<scale>: noise router, aquifers, material rule diffusicraft:<scale>
    ▼                                  (vanilla's surface rules + diffusicraft:strata, the Geology model,
@@ -297,6 +298,7 @@ The settings set `final_density` to vanilla's overworld density, with two change
   the mountains of Earth 1:1 solid up to the top of the world;
 - deeper than 25 blocks below the surface, the density is the minimum of vanilla's caves and
   [the Hollows](#the-hollows);
+- [the sea cliffs](#coasts) are set block by block: `diffusicraft:<scale>/coast_fill` and `coast_carve`;
 - [the rivers](#rivers) come last: `diffusicraft:<scale>/river_fill` builds the ground up under them and
   `river_carve` cuts it down to their water, so their beds seal any cave below.
 
@@ -396,8 +398,26 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   45 to 120 m, at least 5 blocks. Inside the band, continentalness is the height above the sea, so vanilla picks its
   beach, snowy beach or stony shore as it would. Before, the band went by height alone, and it covered most of the low
   coastal plains of the Standard world, far inland. Low, wet, flat land past the beach is still a swamp.
-- **Limits.** The farthest LODs of Distant Horizons read the coarse map, which has no coastline: no beaches there. The
-  sea floor drops a block below the shore and then follows the terrain, with no surf zone.
+- **Sea cliffs.** At 30 m per pixel the terrain's coasts are gentle: the steepest is a slope, which the density's
+  4-block cells would smear further. So `TerrainSurface` builds cliffs where high land meets the sea. Across a strip 60
+  m wide (at least 6 blocks: 6 in the Standard world, 12 at Grand, 60 at Earth 1:1), it gathers the rise of the ground
+  into one face. Seaward of the face is a shelf a block above the water; landward, the ground at the end of the strip.
+  The face wanders across the strip with noise 3 strips long, and the cliff fades into the ground's own details over the
+  last 30% of the strip. A cliff needs:
+  - land at least 4 m above the sea at the end of the strip, and 15 m for a full cliff (1.5 and 3 blocks at least);
+  - a straight coast, not a spit or a narrow inlet, where the gradient of the distance shrinks;
+  - a stretch of coast where noise 1.5 km across allows cliffs. They fade out over a few hundred meters between
+    stretches.
+
+  The density takes the ground of the cliff columns, and of the sea within 5 blocks of them, block by block
+  (`CoastFunction`): `coast_fill` is solid from the interpolated ground up to the exact one, and `coast_carve` is air
+  above it. So the face is sheer, and the rivers, which come after, still cut through it. The top of a cliff is too high
+  for the beach band and keeps the biome inland; the shelf at its foot is beach. Like other cliffs, the face shows the
+  rock (see [the ground](#the-ground)).
+- **Limits.** Distant Horizons' LODs show the cliffs up close, as the chunks do. LODs coarser than a column every 4
+  blocks read the bare elevation, where a cliff is a slope, and the farthest read the coarse map, which has no
+  coastline: no beaches there. The sea floor drops a block below the shore and then follows the terrain, with no surf
+  zone. There are no sea stacks or arches.
 
 ### The ground
 
@@ -548,9 +568,9 @@ Other searches still read the full terrain and can take a while on new land:
 
 | Path | What |
 |---|---|
-| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
-| `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
+| `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
@@ -616,7 +636,9 @@ Other searches still read the full terrain and can take a while on new land:
   Lüneburg Heath, Bonneville and Uyuni, and tropical coasts.
 - `CoastlineTest` checks the distance to straight and round coasts, at sea and on land, that it is continuous across
   tile borders with its gradient, that a coast just outside a tile counts and that saddles follow the mean of their
-  corners.
+  corners. `SeaCliffTest` builds straight coasts: some stretches of a high one get cliffs, a full cliff's foot is a
+  shelf a block above the water, the cliff meets the ground at the end of its strip, a low coast gets none, and the
+  density takes every cliff column block by block.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;
@@ -627,6 +649,6 @@ Other searches still read the full terrain and can take a while on new land:
 - `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings and
   checks that it uses Diffusicraft and that the heightmaps count all of Diffusicraft's full blocks. It then saves a
   biome map, a height map, in-game views around the spawn and views of the largest river near the spawn, the steepest
-  cliff, each of Diffusicraft's biomes on the map, the tallest Grand Hollow and a lava sea nearby to
-  `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock. It generates on the CPU unless
-  `-Pdiffusicraft.device` names another device.
+  cliff, the tallest sea cliff, each of Diffusicraft's biomes on the map, the tallest Grand Hollow and a lava sea nearby
+  to `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, and the face of the sea cliff
+  sheer. It generates on the CPU unless `-Pdiffusicraft.device` names another device.

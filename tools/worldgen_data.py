@@ -49,11 +49,13 @@ def gradient(y0, v0, y1, v1):
 
 
 def final_density(scale, min_y, top):
-    """Vanilla's overworld final density with our terrain in place of sloped_cheese, the Hollows and the rivers.
+    """Vanilla's overworld final density with our terrain in place of sloped_cheese, the Hollows, the sea cliffs and
+    the rivers.
 
     Caves, cave entrances, noodles, pillars, blending and structures (the beardifier) are vanilla's own functions.
-    The Hollows join the caves deep underground, where vanilla's caves are, too. The rivers come last, so their
-    beds seal any cave below them.
+    The Hollows join the caves deep underground, where vanilla's caves are, too. The sea cliffs and then the rivers
+    come last, so a cliff stays whole down to the ground around it and a river cuts its way through a cliff to the
+    sea; their beds seal any cave below them.
     The bottom of the world fades to solid and everything above the highest possible surface fades to air.
     """
     terrain = ref(scale, "terrain")
@@ -126,11 +128,16 @@ def final_density(scale, min_y, top):
                       "right": 0.64}}},
         "right": caves + "noodle",
     }
-    # Rivers build the ground up to their water where it lies lower, then cut it down to the water, block by block
-    # (outside the interpolation, so banks and beds stay sharp).
+    # Sea cliffs, then rivers, build the ground up where it lies lower, then cut it down, block by block (outside
+    # the interpolation, so cliff faces, banks and beds stay sharp).
+    coast = {
+        "type": "minecraft:min",
+        "left": {"type": "minecraft:max", "left": ground, "right": ref(scale, "coast_fill")},
+        "right": ref(scale, "coast_carve"),
+    }
     rivers = {
         "type": "minecraft:min",
-        "left": {"type": "minecraft:max", "left": ground, "right": ref(scale, "river_fill")},
+        "left": {"type": "minecraft:max", "left": coast, "right": ref(scale, "river_fill")},
         "right": ref(scale, "river_carve"),
     }
     return {"type": "minecraft:add", "left": rivers, "right": {"type": "minecraft:beardifier"}}
@@ -279,6 +286,7 @@ def main():
         write(f"{functions}/hollows.json", {"type": f"{NS}:hollows", "scale": scale, "min_y": min_y})
         for mode in ("carve", "fill"):
             write(f"{functions}/river_{mode}.json", {"type": f"{NS}:river", "scale": scale, "mode": mode})
+            write(f"{functions}/coast_{mode}.json", {"type": f"{NS}:coast", "scale": scale, "mode": mode})
         write(f"{functions}/final_density.json", final_density(scale, min_y, top))
         write(f"{NS}/worldgen/material_rule/{scale}.json", material_rule(scale))
         write(f"{NS}/worldgen/noise_settings/{scale}.json", noise_settings(scale, min_y, height))

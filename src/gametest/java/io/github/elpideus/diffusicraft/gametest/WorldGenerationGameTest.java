@@ -7,6 +7,7 @@ import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
+import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
@@ -72,8 +73,8 @@ import java.util.stream.IntStream;
 /**
  * Creates a Diffusicraft world with the default settings and checks that the overworld really uses Diffusicraft.
  * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
- * the generator without building chunks, in-game views from above the spawn, over the largest river nearby and of each
- * of Diffusicraft's biomes on the map, and views inside the nearest Grand Hollow and over the nearest lava sea of a Deep
+ * the generator without building chunks, in-game views from above the spawn, over the largest river nearby, of the
+ * tallest sea cliff nearby and of each of Diffusicraft's biomes on the map, and views inside the nearest Grand Hollow and over the nearest lava sea of a Deep
  * Grand Hollow. It also checks the levels of detail Distant Horizons draws against the chunks generated around the
  * spawn, and saves maps of them near and far.
  *
@@ -173,6 +174,19 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			view(context, world, foot.atY(Math.max(surface(probe, foot), cliff.at.getY()) + 12), yaw, 0f, "cliff");
 			String cliffProblem = world.getServer().computeOnServer(server -> checkCliff(server.overworld(), cliff.at));
 			problem = problem != null ? problem : cliffProblem;
+
+			// The tallest sea cliff nearby, if there is one, from out at sea and from above. Its face must be sheer.
+			SeaCliff seaCliff = findSeaCliff(probe);
+			if (seaCliff != null) {
+				float inland = (float) Math.toDegrees(Math.atan2(-seaCliff.inlandX, seaCliff.inlandZ));
+				BlockPos camera = seaCliff.top.offset((int) Math.round(-40 * seaCliff.inlandX), 0,
+					(int) Math.round(-40 * seaCliff.inlandZ));
+				view(context, world, camera.atY(seaCliff.top.getY() + 6), inland, 10f, "sea-cliff");
+				view(context, world, seaCliff.top.above(100), inland, 70f, "sea-cliff-above");
+				String seaProblem = world.getServer().computeOnServer(server -> checkSeaCliff(server.overworld(),
+					probe.field.surface(WorldScale.STANDARD), seaCliff));
+				problem = problem != null ? problem : seaProblem;
+			}
 
 			// Each of Diffusicraft's biomes, from 45 blocks north of it.
 			for (Map.Entry<String, BlockPos> biome : diffusicraftBiomes.entrySet()) {
@@ -379,6 +393,88 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		}
 		LOGGER.info("The cliff from y = {} down: {}", top, blocks);
 		return problem;
+	}
+
+	/**
+	 * The top of a sea cliff, the column at its foot beside it, and which way is inland, as a unit vector. The top is
+	 * the cliff column's ground as {@link TerrainSurface} has it, the first block of air above it.
+	 */
+	private record SeaCliff(BlockPos top, BlockPos foot, double inlandX, double inlandZ) {
+	}
+
+	/** Finds the tallest sea cliff within 2 km of the spawn that no river cuts through, if any. */
+	private static @Nullable SeaCliff findSeaCliff(Probe probe) {
+		TerrainSurface surface = probe.field.surface(WorldScale.STANDARD);
+		Rivers rivers = Rivers.of(probe.field);
+		double pixelsPerBlock = WorldScale.STANDARD.pixelsPerBlock();
+		float[] inland = new float[2];
+		double tallest = 0;
+		int columns = 0;
+		SeaCliff best = null;
+		for (int dx = -2048; dx <= 2048; dx += 4) {
+			for (int dz = -2048; dz <= 2048; dz += 4) {
+				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+				float top = surface.cliff(x, z);
+				if (Float.isNaN(top)) {
+					continue;
+				}
+				columns++;
+				probe.field.coast((z + 0.5) * pixelsPerBlock, (x + 0.5) * pixelsPerBlock, inland);
+				double length = Math.hypot(inland[0], inland[1]), ux = inland[1] / length, uz = inland[0] / length;
+				// Walk out to sea to the foot of the face.
+				int fx = x, fz = z;
+				for (int step = 1; step <= 8; step++) {
+					fx = x - (int) Math.round(step * ux);
+					fz = z - (int) Math.round(step * uz);
+					if (surface.y(fx, fz) < WorldScale.STANDARD.seaLevel() + 1.5f) {
+						break;
+					}
+				}
+				// The last column before the foot carries the top of the face.
+				int tx = fx + (int) Math.round(ux), tz = fz + (int) Math.round(uz);
+				double drop = surface.y(tx, tz) - surface.y(fx, fz);
+				if (drop > tallest && !rivers.column(WorldScale.STANDARD, tx, tz).river
+					&& !rivers.column(WorldScale.STANDARD, fx, fz).river) {
+					tallest = drop;
+					best = new SeaCliff(new BlockPos(tx, (int) Math.ceil(surface.y(tx, tz)), tz),
+						new BlockPos(fx, (int) Math.ceil(surface.y(fx, fz)), fz), ux, uz);
+				}
+			}
+		}
+		LOGGER.info("{} of the columns sampled within 2 km of the spawn are on sea cliffs; the tallest drops {} blocks "
+			+ "at {}", columns, Math.round(tallest * 10) / 10.0, best == null ? null : best.top);
+		return best;
+	}
+
+	/**
+	 * Whether the face of a sea cliff is as sheer as {@link TerrainSurface} has it: the top column solid and its
+	 * neighbour at the foot open halfway up, where the density, interpolated across cells 4 blocks wide, would put a
+	 * slope.
+	 */
+	private static @Nullable String checkSeaCliff(ServerLevel level, TerrainSurface surface, SeaCliff cliff) {
+		int middle = (cliff.top.getY() + cliff.foot.getY()) / 2;
+		if (cliff.top.getY() - cliff.foot.getY() < 4) {
+			return null;
+		}
+		// The ground across the face, from the sea inland, in the world and as the surface has it.
+		List<String> profile = new ArrayList<>();
+		for (int step = -2; step <= 3; step++) {
+			int x = cliff.foot.getX() + (int) Math.round(step * cliff.inlandX);
+			int z = cliff.foot.getZ() + (int) Math.round(step * cliff.inlandZ);
+			profile.add(x + "," + z + ": " + level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z) + "/"
+				+ (int) Math.ceil(surface.y(x, z)) + (Float.isNaN(surface.cliff(x, z)) ? "" : " cliff"));
+		}
+		LOGGER.info("Across the sea cliff, the world's ground and the surface's: {}", profile);
+		BlockState top = level.getBlockState(cliff.top.atY(middle)), foot = level.getBlockState(cliff.foot.atY(middle));
+		LOGGER.info("Halfway up the sea cliff, at y = {}: {} behind its face, {} in front", middle, top, foot);
+		if (!top.isCollisionShapeFullBlock(level, cliff.top.atY(middle))) {
+			return "The sea cliff at " + cliff.top.atY(middle) + " is open: " + top;
+		}
+		if (foot.isCollisionShapeFullBlock(level, cliff.foot.atY(middle)) && !foot.is(BlockTags.LOGS)
+			&& !foot.is(BlockTags.LEAVES)) {
+			return "The foot of the sea cliff at " + cliff.foot.atY(middle) + " is solid: " + foot;
+		}
+		return null;
 	}
 
 	/** Finds the deepest lake within 2 km of the spawn, if any, and returns its water surface there. */

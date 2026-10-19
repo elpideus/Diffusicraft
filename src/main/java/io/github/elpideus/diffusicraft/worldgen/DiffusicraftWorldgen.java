@@ -5,6 +5,7 @@ import io.github.elpideus.diffusicraft.mixin.NoiseGeneratorSettingsAccessor;
 import io.github.elpideus.diffusicraft.worldgen.biome.ClimateBiomeSource;
 import io.github.elpideus.diffusicraft.worldgen.biome.HeightTemperature;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
+import io.github.elpideus.diffusicraft.worldgen.density.CoastFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.RiverFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SpawnSuitabilityFunction;
@@ -48,6 +49,7 @@ public final class DiffusicraftWorldgen {
 			SpawnSuitabilityFunction.CODEC);
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("hollows"), HollowsFunction.CODEC);
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("river"), RiverFunction.CODEC);
+		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("coast"), CoastFunction.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("strata"), StrataRule.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("river"), RiverRule.CODEC);
 		Registry.register(BuiltInRegistries.BIOME_SOURCE, Diffusicraft.id("climate"), ClimateBiomeSource.CODEC);

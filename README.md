@@ -6,7 +6,7 @@ elevation and climate data. The goal is a world that feels like Skyrim or The Wi
 geography, climate and geology.
 
 > **Status: early development.** The terrain pipeline, the GPU runtimes, the resource manager and the world
-> generator work, with geology, the Hollows, rivers and lakes, and real-world biomes. Coasts, larger lakes and more
+> generator work, with geology, the Hollows, rivers and lakes, coasts, and real-world biomes. Larger lakes and more
 > biome mods are next. See the [roadmap](docs/ROADMAP.md).
 
 ## What works today
@@ -15,10 +15,11 @@ geography, climate and geology.
   Grand (up to y = 2383) and Earth 1:1, whose mountains stand at their real height (up to y = 9087). Biomes follow the
   real climate: snow only where it is cold, deserts only where it is hot and dry. Vanilla caves, structures and biome
   mods keep working. See [WORLDGEN.md](docs/WORLDGEN.md).
-- **Rivers, rock and caverns.** Rivers drain the whole world from its rain and terrain, and fill the lakes on their
-  way. The rock shapes the slopes: hard beds stand out of them as ledges and cliffs. Underground, sedimentary beds,
-  fold belts and basement rock hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they
-  lie, down to the Grand Hollows over lava seas.
+- **Rivers, coasts, rock and caverns.** Rivers drain the whole world from its rain and terrain, and fill the lakes on
+  their way. Beaches follow the coastline, and sea cliffs rise where high land meets the sea. The rock shapes the
+  slopes: hard beds stand out of them as ledges and cliffs. Underground, sedimentary beds, fold belts and basement rock
+  hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they lie, down to the Grand Hollows
+  over lava seas.
 - **Real-world biomes.** Tundra, cloud forest, temperate rainforest, maquis, moorland, heath, salt flats, steppe and
   more, with their own trees, plants and soils.
 - **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m

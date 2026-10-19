@@ -295,8 +295,12 @@ public final class LodSampler {
 					if (corners != null) {
 						int dx = x - cellX * CELL, dz = z - cellZ * CELL;
 						int c = (dz / CELL) * cells + dx / CELL;
-						surfaceY = Mth.lerp2((dx % CELL) / (float) CELL, (dz % CELL) / (float) CELL, corners[c],
-							corners[c + 1], corners[c + cells], corners[c + cells + 1]);
+						// Except at the sea cliffs, which the chunks take block by block (diffusicraft:coast).
+						surfaceY = detailed.cliff(x, z);
+						if (Float.isNaN(surfaceY)) {
+							surfaceY = Mth.lerp2((dx % CELL) / (float) CELL, (dz % CELL) / (float) CELL, corners[c],
+								corners[c + 1], corners[c + cells], corners[c + cells + 1]);
+						}
 					} else {
 						surfaceY = scale.surfaceY(coarse ? field.coarseElevation(i, j) : field.elevation(i, j));
 					}

@@ -11,9 +11,9 @@ import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
  * and the biome source walks whole columns, so each thread keeps the column it last asked about ({@link #at}).
  *
  * <p>Columns in the valley of a river get the parameters of vanilla's river biomes, so rivers are rivers on the map
- * and freeze where it is cold. Along the coast the column reads the
- * {@link io.github.elpideus.diffusicraft.worldgen.TerrainSurface ground} itself, so the beaches follow the ground the
- * world has.
+ * and freeze where it is cold. Along the coast, where the sea cliffs reshape the ground, the column reads the
+ * {@link io.github.elpideus.diffusicraft.worldgen.TerrainSurface ground} itself: the foot of a cliff is a beach, its
+ * top is not.
  */
 public final class ClimateColumn {
 	/** Highest erosion at which vanilla still picks a river biome for weirdness zero, inland. */

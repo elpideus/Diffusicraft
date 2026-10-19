@@ -11,8 +11,8 @@ import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
  * <p>The ceiling is exact, not a guess. Above the terrain's surface the world's density only falls (caves, the fade
  * to air at the top), except where the rivers build up their banks and where structures adapt the terrain. The
  * terrain is interpolated between the corners of cells 4 blocks wide, so the surface between corners never rises
- * above the highest corner, and the corners of a chunk all lie within it or on its far edges. Rivers are not
- * interpolated, so their own columns count. Water fills the sea up to its level.
+ * above the highest corner, and the corners of a chunk all lie within it or on its far edges. Rivers and sea cliffs
+ * are not interpolated, so their own columns count. Water fills the sea up to its level.
  */
 public final class TerrainCeiling {
 	/** Width of the cells the terrain is interpolated over. */
@@ -25,7 +25,8 @@ public final class TerrainCeiling {
 
 	/**
 	 * The highest block the chunk whose lowest corner is block {@code (minX, minZ)} can hold, apart from structures:
-	 * the terrain at every corner of its cells, the 16 by 16 columns' rivers and the sea, plus {@link #MARGIN}.
+	 * the terrain at every corner of its cells, the 16 by 16 columns' rivers and cliffs and the sea, plus
+	 * {@link #MARGIN}.
 	 */
 	public static int ofChunk(TerrainField field, Rivers rivers, WorldScale scale, int seaLevel, int minX, int minZ) {
 		float highest = seaLevel;
@@ -34,9 +35,10 @@ public final class TerrainCeiling {
 				highest = Math.max(highest, surface(field, scale, x, z));
 			}
 		}
+		TerrainSurface surface = field.surface(scale);
 		for (int z = minZ; z < minZ + 16; z++) {
 			for (int x = minX; x < minX + 16; x++) {
-				highest = Math.max(highest, riverTop(rivers, scale, x, z));
+				highest = Math.max(highest, Math.max(riverTop(rivers, scale, x, z), cliffTop(surface, x, z)));
 			}
 		}
 		return (int) Math.ceil(highest) + MARGIN;
@@ -45,7 +47,7 @@ public final class TerrainCeiling {
 	/** The highest block column {@code (x, z)} can hold, as {@link #ofChunk} works it out for a whole chunk. */
 	public static int ofColumn(TerrainField field, Rivers rivers, WorldScale scale, int seaLevel, int x, int z) {
 		int cellX = Math.floorDiv(x, CELL) * CELL, cellZ = Math.floorDiv(z, CELL) * CELL;
-		float highest = Math.max(seaLevel, riverTop(rivers, scale, x, z));
+		float highest = Math.max(seaLevel, Math.max(riverTop(rivers, scale, x, z), cliffTop(field.surface(scale), x, z)));
 		for (int dz = 0; dz <= CELL; dz += CELL) {
 			for (int dx = 0; dx <= CELL; dx += CELL) {
 				highest = Math.max(highest, surface(field, scale, cellX + dx, cellZ + dz));
@@ -56,6 +58,11 @@ public final class TerrainCeiling {
 
 	private static float surface(TerrainField field, WorldScale scale, int x, int z) {
 		return field.surface(scale).y(x, z);
+	}
+
+	private static float cliffTop(TerrainSurface surface, int x, int z) {
+		float cliff = surface.cliff(x, z);
+		return Float.isNaN(cliff) ? Float.NEGATIVE_INFINITY : cliff;
 	}
 
 	private static float riverTop(Rivers rivers, WorldScale scale, int x, int z) {
