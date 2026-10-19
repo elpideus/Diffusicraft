@@ -15,9 +15,10 @@ geography, climate and geology.
   Grand (up to y = 2383) and Earth 1:1, whose mountains stand at their real height (up to y = 9087). Biomes follow the
   real climate: snow only where it is cold, deserts only where it is hot and dry. Vanilla caves, structures and biome
   mods keep working. See [WORLDGEN.md](docs/WORLDGEN.md).
-- **Rivers, rock and caverns.** Rivers drain the whole world from its rain and terrain. Underground, sedimentary beds,
-  fold belts and basement rock hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they
-  lie, down to the Grand Hollows over lava seas.
+- **Rivers, rock and caverns.** Rivers drain the whole world from its rain and terrain. The rock shapes the slopes:
+  hard beds stand out of them as ledges and cliffs. Underground, sedimentary beds, fold belts and basement rock hold
+  ores by rock and depth, above a magma layer. Caverns grow larger the deeper they lie, down to the Grand Hollows over
+  lava seas.
 - **Real-world biomes.** Tundra, cloud forest, temperate rainforest, maquis, moorland, heath, salt flats, steppe and
   more, with their own trees, plants and soils.
 - **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m

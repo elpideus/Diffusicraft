@@ -34,8 +34,9 @@ screen instead. A dedicated server downloads them at startup, and generation wai
 `WorldScale` holds the numbers.
 
 **Horizontally**, a block covers a fixed number of meters. The model's 30 m pixels are interpolated with Catmull-Rom
-splines, so the surface stays smooth at any scale. At Earth 1:1 [gullies](#gullies) cut the slopes more finely than
-the pixels.
+splines, so the surface stays smooth at any scale. Finer detail comes from the rock: in every world the hard beds of
+the sedimentary cover stand out of steep slopes as [ledges](#ledges), and at Earth 1:1 [gullies](#gullies) cut the
+slopes more finely than the pixels.
 
 **Vertically**, elevation maps linearly up to a knee, then eases towards a ceiling:
 
@@ -81,7 +82,7 @@ WorldPipeline (30 m pixels, per seed)
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate
    ▼
-TerrainSurface: the ground in blocks for one scale, with gullies at Earth 1:1
+TerrainSurface: the ground in blocks for one scale, with ledges, and gullies at Earth 1:1
    ▼
 density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability,
    │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model)
@@ -146,13 +147,41 @@ steeper ground, while gentle ground stays smooth under its soil. `Gullies` adds 
 Octaves narrower than 12 blocks are left out: the density is interpolated over cells 4 blocks wide and would turn
 them into zigzags. That keeps all three at Earth 1:1 and none in the other worlds, whose blocks are 5 and 15 m wide.
 
-`TerrainSurface` puts the gullies on the terrain, and everything that needs the ground reads it there: the density,
-the ceiling of each chunk, the rivers and lakes, the Hollows, the materials (so the sides of the gullies can bare the
-rock, see [The ground](#the-ground)) and the LODs whose columns are at most 4 blocks apart. The biomes and the climate
-keep the smooth elevation; gullies are too small to change them. The slope comes from the spline's own derivative, so
-gentle ground costs one sample. Steep ground costs about half a microsecond more: a third for the gullies, the rest for
-the rock and the climate. The rocks come from the geology seed, which `TerrainFields` gives each field next to the
-terrain seed, so the gullies follow the same rocks the world shows.
+`TerrainSurface` puts the gullies on the terrain, then the [ledges](#ledges), and everything that needs the ground
+reads it there: the density, the ceiling of each chunk, the rivers and lakes, the Hollows, the materials (so the sides
+of the gullies can bare the rock, see [The ground](#the-ground)) and the LODs whose columns are at most 4 blocks apart.
+The biomes and the climate keep the smooth elevation; gullies and ledges are too small to change them. The slope comes
+from the spline's own derivative, so gentle ground costs one sample. Steep ground costs about 0.2 µs more for the rock,
+the climate and the ledges, and 0.6 µs at Earth 1:1 with the gullies. The rocks come from the geology seed, which
+`TerrainFields` gives each field next to the terrain seed, so the gullies and the ledges follow the same rocks the
+world shows.
+
+### Ledges
+
+Where a slope cuts through the sedimentary cover, its hard beds stand out and the soft beds between them recede, as on
+the walls of the Grand Canyon: cliffs of sandstone and limestone, with gentler slopes and benches of shale, chalk, salt
+or coal between them. `Geology.ledge` moves the ground to make them, in every world:
+
+- **Which beds.** Thick beds of sandstone, red sandstone and limestone are hard; shale, chalk, rock salt and coal are
+  soft. A thin bed (1 or 2 blocks) goes with the beds around it: between two hard beds it is a parting or a coal seam in
+  their cliff, and next to a soft bed it recedes with it.
+- **Profile.** Each run of hard beds pairs with the run of soft beds above it. The top of the hard run stands as a
+  cliff three times as steep as the slope, up to 15 blocks tall; a thicker run keeps the slope's pace below that, as
+  under a cliff whose foot is buried in its own debris. The soft run brings the ground back to the slope's line by its
+  top, at most five times gentler than the slope, so a cliff stands out no further than the beds above it can recede.
+  The mean is taken off, so the ledges never raise or lower a hillside as a whole; they move the ground by at most 10
+  blocks.
+- **On the beds.** The beds wander up and down with the warp that tilts and folds them, and each block takes the bed at
+  its bottom. The ledges follow the blocks' beds, so a cliff is made of the rock it stands in. Where the beds step a
+  block, the ledges move across over a quarter of the step, so the ground has no seams.
+- **Where.** On slopes steeper than 0.15 blocks per block, in full from 0.5 (27°). Soil and plants creep down the
+  slope and round the ledges off: under a full [cover](#gullies) they keep 40% of their relief. Weaker ledges stand on
+  the same beds, because the profile is scaled along the beds rather than in height. The ledges fade out over 8
+  blocks at the base of the cover and over the deepslate, and in fold belts, whose beds tilt too steeply for them.
+
+The beds are 1 to 8 blocks thick in every world, so a cliff of 15 blocks is 15 m at Earth 1:1 and 150 m in the
+Standard world, as tall as the Grand Canyon's. The density's 4-block cells turn the narrowest cliffs into steep ramps,
+but those still rise through the same beds, and [Erosion](#the-ground) bares the rock on them.
 
 ### Biome parameters
 
@@ -358,8 +387,8 @@ cliffs show from afar too, except in the farthest LODs, which read the coarse ma
 
 The slopes are those the player sees, so the scale matters. The Standard world raises the land 1.5 times more than it
 widens it up to 1,000 m, and its steep flanks get the most cliffs; above that it squeezes the height, and its high
-ground is gentle. At Earth 1:1 the slopes are the real ones over 30 m, which are seldom steeper than 50°, and the
-sides of the [gullies](#gullies) only a little steeper: cliffs are rare there and keep to the highest ranges (see
+ground is gentle. At Earth 1:1 the slopes are the real ones over 30 m, which are seldom steeper than 50°: most of
+its cliffs are the [ledges](#ledges) and the sides of the [gullies](#gullies), and they keep to the mountains (see
 `ErosionSurveyTest` under [Tests](#tests)).
 
 `Geology` is a pure function of the geology seed, the scale and the column's terrain. It holds no Minecraft classes and
@@ -367,7 +396,7 @@ is tested on its own. From the top down:
 
 | Layer | Where | Rocks |
 |---|---|---|
-| Sedimentary cover | From the surface down to a depth set by the basin: up to about 2 km of rock under lowlands and shelves, but never more than about 210 blocks below the sea; a thin skin on rugged uplands | Beds 1–8 blocks thick that follow the height, not the surface, so valley walls cut through them. The basin decides the rocks: limestone, chalk, shale and sandstone where there was a sea; sandstone and shale on land; coal seams in swampy basins; red sandstone and rock salt where it is hot and dry |
+| Sedimentary cover | From the surface down to a depth set by the basin: up to about 2 km of rock under lowlands and shelves, but never more than about 210 blocks below the sea; a thin skin on rugged uplands | Beds 1–8 blocks thick that follow the height, not the surface, so valley walls cut through them and their hard beds stand out as [ledges](#ledges). The basin decides the rocks: limestone, chalk, shale and sandstone where there was a sea; sandstone and shale on land; coal seams in swampy basins; red sandstone and rock salt where it is hot and dry |
 | Fold belts | Rugged land over thick sediment | The beds fold steeply; deep shale turns to slate, then schist, and limestone to marble |
 | Basement | Below the cover, down to about y = 4 | Granite, gneiss, stone, schist or andesite with tuff beds, by region, with lenses of diorite, granite, andesite or marble |
 | Lower crust | From about y = 4 | Deepslate, then gabbro |
@@ -484,7 +513,7 @@ Other searches still read the full terrain and can take a while on new land:
 
 | Path | What |
 |---|---|
-| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `TerrainSurface` (the ground, with its gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `TerrainSurface` (the ground, with its ledges and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellLakes` (the lakes inside a tile), `CellFlows`, `RiverColumn` |
@@ -513,7 +542,9 @@ Other searches still read the full terrain and can take a while on new land:
 - `GeologyTest` checks the layer order, that lowlands are covered in sediment, that Earth 1:1 keeps the standard
   world's layers below the sea and its own scale above it, determinism, ore rarity and diamond depth, that the
   basement is harder than its cover and granite harder than schist, that the hardness never jumps, and the sampling
-  speed.
+  speed. For the ledges, it checks that the ground climbs steeply through hard beds and gently through soft ones,
+  with the cliffs in hard beds and the benches mostly on soft ones at full and at weak strength, that the ledges
+  average out, stay within 10 blocks and change smoothly, and that there are none in the basement or in fold belts.
 - `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
   tall worlds keep about as much basement under the land as the standard world, and draws a cross-section of each to
   `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs, in a folder per seed.
@@ -521,15 +552,16 @@ Other searches still read the full terrain and can take a while on new land:
   slopes are cut deeper but never past the deepest a gully can go for any rock and climate, that the ground changes
   about three times as much across a slope as down it, that cover rounds the ground off and hard rock is cut deeper
   and sharper, that bare soft rock has the finest rills, and that the ground is continuous in space, rock and cover,
-  and set by the seed. `TerrainFieldTest` checks
-  the spline's gradient and that only Earth 1:1 changes its ground.
+  and set by the seed. `TerrainFieldTest` checks the spline's gradient and that the ground keeps within a few blocks
+  of the terrain in every world.
 - `ErosionTest` checks that gentle ground keeps its soil, steep ground shows the rock in any direction, and scree
   lies at the foot of a cliff, whichever way it faces, and not on the flat beyond.
 - `ErosionSurveyTest` needs the models. At every scale it finds the tile near the origin whose ground rises the most in
-  blocks and sorts its land into soil, cliffs and scree. With seed 42 that tile is 93% soil, 2.6% cliffs and 4.4%
-  scree in the Standard world, 97% soil, 0.3% cliffs and 2.5% scree at Grand, and nearly all soil at Earth 1:1. The
-  highest tile near the origin, which the Standard world squeezes flat, is 3.8% cliffs and 5% scree at Grand and
-  1.2% cliffs and 2.3% scree at Earth 1:1.
+  blocks and sorts its land into soil, cliffs and scree. With seed 42 that tile is 87% soil, 8.3% cliffs and 4.8%
+  scree in the Standard world, 90% soil, 6% cliffs and 4.2% scree at Grand, and 93% soil, 4.3% cliffs and 2.5% scree
+  at Earth 1:1. The highest tile near the origin, which the Standard world squeezes flat, is 10.4% cliffs and 7.5%
+  scree at Grand and 6.5% cliffs and 4.4% scree at Earth 1:1. Before the ledges, the steepest tiles were 2.6% cliffs
+  in the Standard world, 0.3% at Grand and nearly none at Earth 1:1.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
   as part of them, determinism and the sampling speed.

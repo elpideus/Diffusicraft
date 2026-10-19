@@ -276,9 +276,9 @@ public class EarthWorldGameTest implements FabricClientGameTest {
 		});
 		LOGGER.info("Around the summit, {} of {} columns within a block of the LOD's ground; highest block y = {}",
 			counts[1], counts[0], counts[2]);
-		// Some 95% match: the LODs have no caves, which open some steep ground. A block missing from #blocks_motion
-		// once took it down to 85%, its heightmaps looking through the rock.
-		if (counts[0] == 0 || counts[1] < 0.9 * counts[0]) {
+		// Some 90% match: the LODs have no caves, which open some steep ground, and the ledges steepen the summits. A
+		// block missing from #blocks_motion once took 10% off, its heightmaps looking through the rock.
+		if (counts[0] == 0 || counts[1] < 0.88 * counts[0]) {
 			return "The chunks around the summit do not match the terrain: " + counts[1] + " of " + counts[0];
 		}
 		if (counts[2] < summitY - 2) {

@@ -116,7 +116,7 @@ class TerrainFieldTest {
 	}
 
 	@Test
-	void onlyEarthCutsGulliesIntoTheGround() {
+	void theGroundKeepsCloseToTheTerrain() {
 		TerrainField field = new TerrainField(1, new AnalyticSource());
 		for (WorldScale scale : WorldScale.values()) {
 			TerrainSurface surface = field.surface(scale);
@@ -128,11 +128,12 @@ class TerrainFieldTest {
 					largest = Math.max(largest, Math.abs(surface.y(x, z) - smooth));
 				}
 			}
+			System.out.printf("%s: the ground strays up to %.2f blocks from the terrain%n", scale, largest);
+			// Ledges at every scale, at most 10 blocks; gullies too at Earth 1:1, where the rolling hills are barely
+			// steep enough for them.
+			assertTrue(largest <= (scale == WorldScale.EARTH ? 18 : 10), scale + ": " + largest);
 			if (scale == WorldScale.EARTH) {
-				// The rolling hills are barely steep enough for gullies at 1:1.
-				assertTrue(largest > 0 && largest < 8, "gullies at Earth 1:1, up to " + largest);
-			} else {
-				assertEquals(0, largest, scale.name());
+				assertTrue(largest > 0, "gullies at Earth 1:1");
 			}
 		}
 	}

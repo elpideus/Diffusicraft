@@ -212,6 +212,136 @@ class GeologyTest {
 		}
 	}
 
+	private static final Set<Rock> HARD_BEDS = EnumSet.of(Rock.SANDSTONE, Rock.RED_SANDSTONE, Rock.LIMESTONE);
+	private static final Set<Rock> SOFT_BEDS = EnumSet.of(Rock.SHALE, Rock.CHALK, Rock.ROCK_SALT, Rock.COAL_SEAM);
+
+	@Test
+	void hardBedsStandOutOfSlopesAsLedges() {
+		// Slopes down through the cover of lowlands at Earth 1:1, sampled finely: the ground climbs steeply through the
+		// beds that show sandstone and limestone, and gently through those that show shale, chalk, salt and coal.
+		Geology geology = new Geology(SEED, -256, 1, 1);
+		Ledges full = ledges(geology, 1);
+		System.out.printf("Ledges: hard beds %.2f, soft beds %.2f times as steep as the slope; %.1f%% of the cliffs in"
+			+ " hard beds, %.1f%% of the benches on soft ones%n", full.hard, full.soft, 100 * full.hardCliffs,
+			100 * full.softBenches);
+		assertTrue(full.hard > 1.4, "hard beds stand steeper than the slope: " + full.hard);
+		assertTrue(full.soft < 0.6, "soft beds lie gentler than the slope: " + full.soft);
+		// Thin partings and coal seams sit in some cliffs, and thin sandstones recede with the shale around them.
+		assertTrue(full.hardCliffs > 0.95, "cliffs in hard beds: " + full.hardCliffs);
+		assertTrue(full.softBenches > 0.75, "benches on soft beds: " + full.softBenches);
+		// Weaker ledges, on a gentler or a greener slope, stand on the same beds.
+		Ledges weak = ledges(geology, 0.4);
+		System.out.printf("Weak ledges: %.1f%% of the cliffs in hard beds%n", 100 * weak.hardCliffs);
+		assertTrue(weak.hardCliffs > 0.95, "weak cliffs in hard beds: " + weak.hardCliffs);
+	}
+
+	/** How steep the ground climbs through hard and soft beds, and which beds its cliffs and benches are in. */
+	private record Ledges(double hard, double soft, double hardCliffs, double softBenches) {
+	}
+
+	private static Ledges ledges(Geology geology, double strength) {
+		// A cliff climbs at least 90% as steeply as the steepest the ledges get at this strength.
+		double cliff = 0.9 / (1 - strength * (1 - 1.0 / 3));
+		double hard = 0, soft = 0, cliffs = 0, hardCliffs = 0, benches = 0, softBenches = 0;
+		int hardCount = 0, softCount = 0;
+		for (int x = -6000; x < 6000; x += 373) {
+			for (int z = -6000; z < 6000; z += 367) {
+				Geology.Column c = lowland(geology, x, z);
+				Geology.Site site = geology.site(x, z, c.meanSurfaceY, c.meanElevation, c.relief);
+				double step = 0.05;
+				for (double y = c.sedimentBase + 10; y < 70; y += step) {
+					double ground = y + geology.ledge(site, y, strength);
+					double next = y + step + geology.ledge(site, y + step, strength);
+					double steepness = (next - ground) / step;
+					assertTrue(steepness > 0, "the ground climbs at " + x + ", " + y + ", " + z);
+					Rock rock = geology.rock(c, x, (int) Math.floor((ground + next) / 2), z);
+					if (steepness > cliff) {
+						cliffs++;
+						hardCliffs += HARD_BEDS.contains(rock) ? 1 : 0;
+					} else if (steepness < 0.5) {
+						benches++;
+						softBenches += SOFT_BEDS.contains(rock) ? 1 : 0;
+					}
+					if (HARD_BEDS.contains(rock)) {
+						hard += steepness;
+						hardCount++;
+					} else if (SOFT_BEDS.contains(rock)) {
+						soft += steepness;
+						softCount++;
+					}
+				}
+			}
+		}
+		return new Ledges(hard / hardCount, soft / softCount, hardCliffs / cliffs, softBenches / benches);
+	}
+
+	@Test
+	void ledgesAverageOutAndStayWithinBounds() {
+		Geology geology = new Geology(SEED, -256, 1, 1);
+		for (int x = -6000; x < 6000; x += 1201) {
+			for (int z = -6000; z < 6000; z += 1193) {
+				Geology.Column c = lowland(geology, x, z);
+				Geology.Site site = geology.site(x + 0.5, z + 0.5, c.meanSurfaceY, c.meanElevation, c.relief);
+				double sum = 0;
+				int count = 0;
+				for (double y = c.sedimentBase + 8; y < c.sedimentBase + 1008; y += 0.5) {
+					double ledge = geology.ledge(site, y, 1);
+					assertTrue(Math.abs(ledge) <= 10, "a ledge of " + ledge + " blocks");
+					sum += ledge;
+					count++;
+				}
+				assertEquals(0, sum / count, 0.5, "the ground keeps its height on average at " + x + ", " + z);
+			}
+		}
+	}
+
+	@Test
+	void ledgesChangeSmoothly() {
+		Geology geology = new Geology(SEED, -256, 1, 1);
+		for (int x = -6000; x < 6000; x += 1201) {
+			for (int z = -6000; z < 6000; z += 1193) {
+				Geology.Column c = lowland(geology, x, z);
+				Geology.Site site = geology.site(x, z, c.meanSurfaceY, c.meanElevation, c.relief);
+				// Through the contact with the basement and up the beds.
+				for (double y = c.sedimentBase - 10; y < c.sedimentBase + 200; y += 0.25) {
+					assertEquals(geology.ledge(site, y, 1), geology.ledge(site, y + 0.01, 1), 0.05, "up at " + y);
+				}
+				for (double t = 0; t < 64; t += 0.25) {
+					double y = c.sedimentBase + 40;
+					Geology.Site here = geology.site(x + t, z, c.meanSurfaceY, c.meanElevation, c.relief);
+					Geology.Site next = geology.site(x + t + 0.01, z, c.meanSurfaceY, c.meanElevation, c.relief);
+					assertEquals(geology.ledge(here, y, 1), geology.ledge(next, y, 1), 0.05, "along X at " + (x + t));
+				}
+			}
+		}
+	}
+
+	@Test
+	void noLedgesInTheBasementOrInFoldBelts() {
+		Geology geology = new Geology(SEED, -256, 1, 1);
+		Geology.Column c = new Geology.Column();
+		int folded = 0;
+		for (int x = -40000; x < 40000; x += 1009) {
+			for (int z = -40000; z < 40000; z += 997) {
+				c.surfaceY = c.meanSurfaceY = 1200;
+				c.meanElevation = 1140;
+				c.relief = 300;
+				geology.column(x, z, c);
+				Geology.Site site = geology.site(x, z, c.meanSurfaceY, c.meanElevation, c.relief);
+				for (double y = c.sedimentBase - 300; y < c.sedimentBase - 4; y += 3.7) {
+					assertEquals(0, geology.ledge(site, y, 1), "in the basement at " + x + ", " + y + ", " + z);
+				}
+				if (c.fold() >= 0.35f) {
+					folded++;
+					for (double y = c.sedimentBase; y < c.meanSurfaceY; y += 3.7) {
+						assertEquals(0, geology.ledge(site, y, 1), "in a fold belt at " + x + ", " + y + ", " + z);
+					}
+				}
+			}
+		}
+		assertTrue(folded > 0, "some fold belts");
+	}
+
 	@Test
 	void oresAreRareAndDiamondsDeep() {
 		Geology geology = new Geology(SEED, -64, 15, 10);

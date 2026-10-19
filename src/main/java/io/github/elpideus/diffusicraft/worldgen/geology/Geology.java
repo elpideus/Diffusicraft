@@ -33,6 +33,9 @@ import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.value3;
  * Ores come in bodies whose mineral depends on the rock around them (copper and gold in granite, lapis in marble,
  * emerald in mountain schist, diamonds deep down), so prospecting by rock pays off. See docs/WORLDGEN.md.
  *
+ * <p>The hard beds of the cover, sandstone and limestone, stand out of slopes as ledges, and the soft beds between them
+ * recede into benches: {@link #ledge}.
+ *
  * <p>Thicknesses are given in meters. Above the sea they follow the world's vertical scale, so mountains look the
  * same at every scale. Below the sea they never use fewer than {@link #UNDERGROUND_METERS} meters per block, so the
  * layers stay within reach in every world type.
@@ -61,6 +64,23 @@ public final class Geology {
 	private static final double CONTACT = 4;
 	/** Basement noise over which the hardness passes from one kind of basement to the next. */
 	private static final double BASEMENT_BLEND = 0.05;
+	/**
+	 * Thick beds whose roll is below this are hard: sandstone and limestone in every basin. The rolls of the soft rocks,
+	 * shale, chalk, rock salt and coal, lie above it. Thin beds go with the beds around them: see {@link #hardBeds}.
+	 */
+	private static final float HARD_SHARE = 0.6f;
+	/** How many times steeper than the slope around them the cliffs of hard beds stand. */
+	private static final double LEDGE_STEEPNESS = 3;
+	/** The tallest cliff a run of hard beds makes, in blocks; thicker runs keep the slope's own pace below it. */
+	private static final double MAX_CLIFF = 15;
+	/**
+	 * The most times gentler than the slope the soft beds above a cliff lie. A cliff stands out no further than they
+	 * can recede.
+	 */
+	private static final double MAX_BENCH = 5;
+	/** The fold at which ledges start to fade, and the fold at which steeply tilted beds no longer make any. */
+	private static final double LEDGE_FOLD = 0.15;
+	private static final double NO_LEDGE_FOLD = 0.35;
 	/**
 	 * The fewest meters a block stands for below the sea: the standard world's vertical scale. The underground is
 	 * sized for play, not for the real crust. Otherwise, in the tall worlds, a lowland basin's 1.7 km of sediment
@@ -157,6 +177,11 @@ public final class Geology {
 	private final short[] bedAt = new short[PERIOD];
 	private final float[] bedRoll;
 	private final boolean[] bedThin;
+	/**
+	 * {@link #ledge}'s profile: at the bottom of each block of the bed sequence, how much further along the slope's
+	 * smooth height has come than the ground. It is linear within a block.
+	 */
+	private final float[] ledgeOffset = new float[PERIOD];
 
 	/**
 	 * @param seed            the geology seed of the world
@@ -194,6 +219,87 @@ public final class Geology {
 		}
 		bedRoll = Arrays.copyOf(rolls, bed);
 		bedThin = Arrays.copyOf(thin, bed);
+		ledges();
+	}
+
+	/**
+	 * Builds the profile of {@link #ledge}. Picture a slope cut through the beds. The top of each run of hard beds
+	 * stands as a cliff {@link #LEDGE_STEEPNESS} times steeper than the slope, so the ground climbs above the slope's
+	 * line; the run of soft beds above it lies gentler and brings the ground back to the line by its top, so thin soft
+	 * beds over a thick hard run become benches. The cliffs are at most {@link #MAX_CLIFF} blocks tall: below that, a
+	 * thicker run climbs at the slope's pace, as under a cliff whose foot is buried in its own debris.
+	 *
+	 * <p>The profile is kept as the smooth height at which the ground reaches each block of the sequence, less the
+	 * block's own height, so that weaker ledges come from scaling it without moving them off the beds that make them.
+	 * Its mean is taken off, which keeps the ground at the slope's height on average at every strength.
+	 */
+	private void ledges() {
+		boolean[] hard = hardBeds();
+		double steeper = 1 - 1 / LEDGE_STEEPNESS;
+		double[] ratio = new double[PERIOD];
+		Arrays.fill(ratio, 1);
+		for (int y = 0; y < PERIOD; ) {
+			if (!hard[bedAt[y]]) {
+				y++;
+				continue;
+			}
+			int top = y;
+			while (top < PERIOD && hard[bedAt[top]]) {
+				top++;
+			}
+			int end = top;
+			while (end < PERIOD && !hard[bedAt[end]]) {
+				end++;
+			}
+			if (end == top) {
+				// The sequence ends in hard beds, with none above to bring the ground back.
+				break;
+			}
+			double lift = Math.min(Math.min(top - y, MAX_CLIFF) * steeper, (MAX_BENCH - 1) * (end - top));
+			double cliff = lift / steeper;
+			for (int i = y; i < end; i++) {
+				// Smooth height per block of the ground's height: less in the cliff, more in the soft run.
+				ratio[i] = i >= top ? 1 + lift / (end - top) : 1 - steeper * Math.clamp(cliff - (top - 1 - i), 0, 1);
+			}
+			y = end;
+		}
+		// Every pair of runs ends where it started, so the offset comes back to zero at the top of the sequence.
+		double[] offset = new double[PERIOD + 1];
+		double sum = 0;
+		for (int y = 0; y < PERIOD; y++) {
+			offset[y + 1] = offset[y] + ratio[y] - 1;
+			sum += offset[y] + (ratio[y] - 1) / 2;
+		}
+		double mean = sum / PERIOD;
+		for (int y = 0; y < PERIOD; y++) {
+			ledgeOffset[y] = (float) (offset[y] - mean);
+		}
+	}
+
+	/**
+	 * Which beds hold up ledges: see {@link #HARD_SHARE}. A thin bed goes with the thick beds around it: one between two
+	 * hard beds is a parting or a coal seam in their cliff, and one next to a soft bed recedes with it.
+	 */
+	private boolean[] hardBeds() {
+		int beds = bedRoll.length;
+		boolean[] hard = new boolean[beds];
+		for (int bed = 0; bed < beds; bed++) {
+			hard[bed] = !bedThin[bed] && bedRoll[bed] < HARD_SHARE;
+		}
+		for (int bed = 0; bed < beds; bed++) {
+			if (bedThin[bed]) {
+				int below = bed - 1;
+				while (below >= 0 && bedThin[below]) {
+					below--;
+				}
+				int above = bed + 1;
+				while (above < beds && bedThin[above]) {
+					above++;
+				}
+				hard[bed] = below >= 0 && above < beds && hard[below] && hard[above];
+			}
+		}
+		return hard;
 	}
 
 	/** Derives a column's geology from its terrain inputs. */
@@ -204,12 +310,7 @@ public final class Geology {
 		double basementNoise = basementNoise(sx, sz);
 		c.fold = fold(sx, sz, c.relief);
 		c.sedimentBase = sedimentBase(sx, sz, c.fold, c.meanSurfaceY, c.meanElevation, c.relief);
-
-		// Beds tilt gently across a region, and fold in fold belts.
-		double foldAmplitude = (25 + 450 * c.fold) / verticalMeters;
-		c.warp = (float) (foldAmplitude * fractal(seed + 5, sx / 380, sz / 380, 2)
-			+ 300 / verticalMeters * fractal(seed + 14, sx / 3000, sz / 3000, 1)
-			+ 1.5 * gradient(seed + 6, x / 70.0, z / 70.0));
+		c.warp = (float) warp(x, z, sx, sz, c.fold);
 
 		boolean arid = c.precipitation < 350 && c.temperature > 8;
 		if (arid && faciesNoise > -0.1) {
@@ -227,7 +328,7 @@ public final class Geology {
 			: basementNoise < BASEMENT_EDGES[3] ? Basement.SCHIST
 			: Basement.VOLCANIC;
 
-		c.deepslateTop = 4 + (int) Math.round(3.5 * gradient(seed + 7, x / 40.0, z / 40.0));
+		c.deepslateTop = (int) Math.round(deepslateTop(x, z));
 		c.magmaTop = magmaTop + (int) Math.round(Math.max(1, deepWarp / 2) * gradient(seed + 10, x / 24.0, z / 24.0));
 		c.peridotiteTop = Math.max(c.magmaTop + 2,
 			peridotiteTop + (int) Math.round(deepWarp * 0.7 * gradient(seed + 9, x / 50.0, z / 50.0)));
@@ -238,24 +339,115 @@ public final class Geology {
 	}
 
 	/**
-	 * How well the ground at height {@code y} of column {@code (x, z)} resists erosion, from 0 (flat beds of sandstone
-	 * and limestone between shale, chalk and salt) to 1 (granite). It is the bulk of the rock there, not the bed at
-	 * {@code y}: landforms are carved over many beds. It changes smoothly across the contacts between rocks, so the
-	 * shapes it gives the ground have no seams. The terrain inputs are those of {@link Column}.
+	 * The rock under a point of the ground, which shapes the slope there: see {@link #hardness} and {@link #ledge}.
+	 * The terrain inputs are those of {@link Column}. A site is cheap; make one per point.
 	 */
-	public double hardness(double x, double z, double y, float meanSurfaceY, float meanElevation, float relief) {
+	public Site site(double x, double z, float meanSurfaceY, float meanElevation, float relief) {
 		double sx = x / stretch;
 		double sz = z / stretch;
 		float fold = fold(sx, sz, relief);
-		float base = sedimentBase(sx, sz, fold, meanSurfaceY, meanElevation, relief);
-		double noise = basementNoise(sx, sz);
+		return new Site(x, z, sx, sz, fold, sedimentBase(sx, sz, fold, meanSurfaceY, meanElevation, relief),
+			deepslateTop(x, z));
+	}
+
+	/** What {@link #site} works out once for a point, for {@link #hardness} and {@link #ledge}. */
+	public static final class Site {
+		private final double x;
+		private final double z;
+		private final double sx;
+		private final double sz;
+		private final float fold;
+		private final float sedimentBase;
+		/** Where the beds start: at the sedimentary base, or above the deepslate where that lies higher. */
+		private final double bedsBase;
+
+		private Site(double x, double z, double sx, double sz, float fold, float sedimentBase, double deepslateTop) {
+			this.x = x;
+			this.z = z;
+			this.sx = sx;
+			this.sz = sz;
+			this.fold = fold;
+			this.sedimentBase = sedimentBase;
+			this.bedsBase = Math.max(sedimentBase, deepslateTop);
+		}
+	}
+
+	/** {@link #hardness(Site, double)} at a point given by its terrain inputs, those of {@link Column}. */
+	public double hardness(double x, double z, double y, float meanSurfaceY, float meanElevation, float relief) {
+		return hardness(site(x, z, meanSurfaceY, meanElevation, relief), y);
+	}
+
+	/**
+	 * How well the ground at height {@code y} of a site resists erosion, from 0 (flat beds of sandstone and limestone
+	 * between shale, chalk and salt) to 1 (granite). It is the bulk of the rock there, not the bed at {@code y}:
+	 * landforms are carved over many beds. It changes smoothly across the contacts between rocks, so the shapes it
+	 * gives the ground have no seams.
+	 */
+	public double hardness(Site site, double y) {
+		double noise = basementNoise(site.sx, site.sz);
 		double basement = BASEMENT_HARDNESS[0];
 		for (int i = 0; i < BASEMENT_EDGES.length; i++) {
 			basement += (BASEMENT_HARDNESS[i + 1] - BASEMENT_HARDNESS[i])
 				* smoothstep(BASEMENT_EDGES[i] - BASEMENT_BLEND, BASEMENT_EDGES[i] + BASEMENT_BLEND, noise);
 		}
-		double cover = SEDIMENT_HARDNESS + (FOLDED_HARDNESS - SEDIMENT_HARDNESS) * smoothstep(0.25, 0.6, fold);
-		return basement + (cover - basement) * smoothstep(base - CONTACT, base + CONTACT, y);
+		double cover = SEDIMENT_HARDNESS + (FOLDED_HARDNESS - SEDIMENT_HARDNESS) * smoothstep(0.25, 0.6, site.fold);
+		return basement + (cover - basement) * smoothstep(site.sedimentBase - CONTACT, site.sedimentBase + CONTACT, y);
+	}
+
+	/**
+	 * How far the beds of the sedimentary cover move the ground of a steep slope at smooth height {@code y} of a site,
+	 * in blocks: up in the hard beds, which stand out as ledges and cliffs, and back down in the soft beds above them,
+	 * which recede into gentler slopes and benches, as in the Grand Canyon. Over a run of beds it averages out, so the
+	 * slope keeps its height. It is zero in the basement and the deepslate, and fades in fold belts, whose beds tilt too
+	 * steeply to make ledges. It changes smoothly with the height and the site.
+	 *
+	 * @param strength how far the ledges stand out, from 0 to 1, by how steep and how bare the slope is; weaker ledges
+	 *                 stand on the same beds
+	 */
+	public double ledge(Site site, double y, double strength) {
+		double s = strength * smoothstep(site.bedsBase - CONTACT, site.bedsBase + CONTACT, y)
+			* (1 - smoothstep(LEDGE_FOLD, NO_LEDGE_FOLD, site.fold));
+		if (s == 0) {
+			return 0;
+		}
+		// The beds lie where rock() has them. A block takes the bed at its bottom, so the beds step a whole block
+		// where the warp passes a whole number; the ledges keep to the blocks' beds, and move across over the last
+		// quarter of each step so the ground has no seams.
+		double warp = (float) warp(site.x, site.z, site.sx, site.sz, site.fold);
+		double whole = Math.floor(warp);
+		double u = y + whole + smoothstep(0.75, 1, warp - whole);
+		// The ground is at the point w of the sequence whose smooth height, w + s * offset(w), is the slope's; that
+		// rises with w, linearly within each block, so find the block.
+		int b = (int) Math.floor(u);
+		double below = b + s * ledgeOffset(b) - u;
+		while (below > 0) {
+			b--;
+			below = b + s * ledgeOffset(b) - u;
+		}
+		double above = b + 1 + s * ledgeOffset(b + 1) - u;
+		while (above <= 0) {
+			b++;
+			below = above;
+			above = b + 1 + s * ledgeOffset(b + 1) - u;
+		}
+		return b - below / (above - below) - u;
+	}
+
+	/** The top of the deepslate at a point, before rounding to a block. */
+	private double deepslateTop(double x, double z) {
+		return 4 + 3.5 * gradient(seed + 7, x / 40.0, z / 40.0);
+	}
+
+	private double ledgeOffset(int y) {
+		return ledgeOffset[Math.floorMod(y, PERIOD)];
+	}
+
+	/** How far the beds are shifted up at a point: they tilt gently across a region, and fold in fold belts. */
+	private double warp(double x, double z, double sx, double sz, float fold) {
+		double foldAmplitude = (25 + 450 * fold) / verticalMeters;
+		return foldAmplitude * fractal(seed + 5, sx / 380, sz / 380, 2)
+			+ 300 / verticalMeters * fractal(seed + 14, sx / 3000, sz / 3000, 1)
+			+ 1.5 * gradient(seed + 6, x / 70.0, z / 70.0);
 	}
 
 	private double basementNoise(double sx, double sz) {
@@ -440,14 +632,15 @@ public final class Geology {
 	private Rock sediment(Column c, int y) {
 		int bed = bed(c, y);
 		float roll = bedRoll[bed];
+		// The hard rocks take the rolls below HARD_SHARE in every basin, so the ledges stand where they show.
 		Rock rock = switch (c.basin) {
-			case MARINE -> roll < 0.42f ? Rock.LIMESTONE : roll < 0.66f ? Rock.SHALE
-				: roll < 0.80f ? Rock.CHALK : Rock.SANDSTONE;
-			case CLASTIC -> roll < 0.48f ? Rock.SANDSTONE : roll < 0.82f ? Rock.SHALE
-				: roll < 0.92f ? Rock.LIMESTONE : Rock.RED_SANDSTONE;
-			case COAL -> bedThin[bed] && roll < 0.7f ? Rock.COAL_SEAM : roll < 0.48f ? Rock.SHALE
-				: roll < 0.85f ? Rock.SANDSTONE : Rock.LIMESTONE;
-			case EVAPORITE -> roll < 0.36f ? Rock.RED_SANDSTONE : roll < 0.58f ? Rock.LIMESTONE
+			case MARINE -> roll < 0.40f ? Rock.LIMESTONE : roll < HARD_SHARE ? Rock.SANDSTONE
+				: roll < 0.84f ? Rock.SHALE : Rock.CHALK;
+			case CLASTIC -> roll < 0.44f ? Rock.SANDSTONE : roll < 0.52f ? Rock.LIMESTONE
+				: roll < HARD_SHARE ? Rock.RED_SANDSTONE : Rock.SHALE;
+			case COAL -> bedThin[bed] && roll < 0.7f ? Rock.COAL_SEAM : roll < 0.42f ? Rock.SANDSTONE
+				: roll < HARD_SHARE ? Rock.LIMESTONE : Rock.SHALE;
+			case EVAPORITE -> roll < 0.36f ? Rock.RED_SANDSTONE : roll < HARD_SHARE ? Rock.LIMESTONE
 				: roll < 0.78f ? Rock.SHALE : Rock.ROCK_SALT;
 		};
 		if (c.fold > 0.25f) {

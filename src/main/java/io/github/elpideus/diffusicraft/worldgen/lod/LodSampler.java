@@ -48,16 +48,20 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>A grid wider than {@value #FULL_DETAIL_TILES} terrain tiles is sampled from the coarse map alone, inside
  * {@link CoarseClimate#call}: it costs no model inference beyond the coarse stage, but leaves out the rivers and
  * everything finer than a coarse pixel. Narrower grids read the full-resolution terrain, which runs the models over
- * every tile they touch. The gullies show only in grids whose columns are at most {@value #GULLY_STEP} blocks apart:
- * sampled further apart than that they would be noise.
+ * every tile they touch. The ledges and the gullies show only in grids whose columns are at most {@value #CELL}
+ * blocks apart: sampled further apart than that they would be noise. There the ground runs straight between the
+ * corners of the cells the chunks interpolate their density over, as it does in the chunks.
  *
  * <p>Thread-safe: each call to {@link #sample} works on its own state.
  */
 public final class LodSampler {
 	/** Grids wider than this many terrain tiles read the coarse map. */
 	static final int FULL_DETAIL_TILES = 4;
-	/** Widest step between columns at which the ground keeps its gullies: the cells the chunks interpolate over. */
-	static final int GULLY_STEP = 4;
+	/**
+	 * Width of the cells the chunks interpolate their density over, in blocks, and the widest step between columns at
+	 * which the ground keeps its ledges and gullies.
+	 */
+	static final int CELL = 4;
 	/** Blocks at the top of each column that the material rules decide one by one. */
 	private static final int SURFACE_DEPTH = 4;
 	/** Depth whose block stands for all the rock below the surface blocks. */
@@ -263,7 +267,23 @@ public final class LodSampler {
 		/** The ground, the rivers and the sea over the grid and its border. */
 		private void sampleHeights(boolean coarse) {
 			Rivers rivers = coarse ? null : Rivers.of(field);
-			TerrainSurface gullied = coarse || step > GULLY_STEP ? null : field.surface(scale);
+			TerrainSurface detailed = coarse || step > CELL ? null : field.surface(scale);
+			// The chunks take the ground at the corners of their cells and run straight between them, which turns the
+			// narrowest cliffs of the ledges and gullies into ramps. Do the same, or the steepest ground would stray.
+			int cellX = 0, cellZ = 0, cells = 0;
+			float[] corners = null;
+			if (detailed != null) {
+				cellX = Math.floorDiv(block(minX, -1), CELL);
+				cellZ = Math.floorDiv(block(minZ, -1), CELL);
+				cells = Math.floorDiv(block(minX, span - 2), CELL) + 2 - cellX;
+				int rows = Math.floorDiv(block(minZ, span - 2), CELL) + 2 - cellZ;
+				corners = new float[rows * cells];
+				for (int r = 0; r < rows; r++) {
+					for (int c = 0; c < cells; c++) {
+						corners[r * cells + c] = (float) detailed.y((cellX + c) * CELL, (cellZ + r) * CELL);
+					}
+				}
+			}
 			for (int b = 0; b < span; b++) {
 				int z = block(minZ, b - 1);
 				double i = scale.toPixel(z);
@@ -271,8 +291,15 @@ public final class LodSampler {
 					int x = block(minX, a - 1);
 					double j = scale.toPixel(x);
 					int k = b * span + a;
-					float surfaceY = gullied != null ? gullied.y(x, z)
-						: scale.surfaceY(coarse ? field.coarseElevation(i, j) : field.elevation(i, j));
+					float surfaceY;
+					if (corners != null) {
+						int dx = x - cellX * CELL, dz = z - cellZ * CELL;
+						int c = (dz / CELL) * cells + dx / CELL;
+						surfaceY = Mth.lerp2((dx % CELL) / (float) CELL, (dz % CELL) / (float) CELL, corners[c],
+							corners[c + 1], corners[c + cells], corners[c + cells + 1]);
+					} else {
+						surfaceY = scale.surfaceY(coarse ? field.coarseElevation(i, j) : field.elevation(i, j));
+					}
 					int top = Mth.ceil(surfaceY) - 1;
 					bed[k] = Integer.MIN_VALUE;
 					if (rivers != null) {
