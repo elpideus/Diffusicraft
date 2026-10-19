@@ -80,7 +80,7 @@ WorldPipeline (30 m pixels, per seed)
    │  PipelineSource: creates the pipeline on first use; caches windows under <world>/diffusicraft/
    ▼
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
-   │          mean elevation, relief and sea-level climate
+   │          mean elevation, relief and sea-level climate, and the distance to the coastline
    ▼
 TerrainSurface: the ground in blocks for one scale, with ledges, and gullies at Earth 1:1
    ▼
@@ -96,7 +96,7 @@ vanilla NoiseBasedChunkGenerator: caves, aquifers, ores, surface blocks, feature
 ### `TerrainField`
 
 `TerrainField` holds one seed's terrain. It reads the pipeline in tiles of 256 × 256 pixels (7.7 km), with a
-32-pixel margin. For each tile it keeps two things:
+32-pixel margin. For each tile it keeps three things:
 
 - **The padded elevation.** Columns sample it with a Catmull-Rom spline.
 - **A grid every 8 pixels (240 m).** It holds slowly varying values, sampled bilinearly:
@@ -105,10 +105,11 @@ vanilla NoiseBasedChunkGenerator: caves, aquifers, ores, surface blocks, feature
 
   The temperature at a column is then the sea-level temperature plus the lapse rate times the column's own
   elevation, so summits are cold even between grid points.
+- **The distance to the coastline**, where there is a coast within 360 m of the tile. See [Coasts](#coasts).
 
 Tiles are computed once, by the first thread that needs them; other threads wait for that result. The 96 most recently
-used tiles stay in memory, about 40 MB. The terrain seed is derived from the world seed, so worlds with the same seed
-match.
+used tiles stay in memory, about 40 MB, plus 134 KB for each tile with a coast: up to 13 MB more along the sea. The
+terrain seed is derived from the world seed, so worlds with the same seed match.
 
 ### Gullies
 
@@ -382,6 +383,14 @@ Everything is computed on demand, on any thread, and comes out the same.
   tiles that the rain would fill where a river runs in one of those tiles. Lakes are at most a block across, 15 km:
   a basin that reaches past a block's edge stays dry, and a river crosses it as it crosses any other ground.
 
+### Coasts
+
+The sea lies at y = 63 in every world, and the coastline is where the terrain's elevation crosses zero. `Coastline`
+traces it through each tile with marching squares, between the centres of the pixels, and keeps the distance from every
+pixel to it: positive on land, negative at sea, up to 12 pixels (360 m). `TerrainField.coast` reads that distance
+bilinearly, and its gradient, which points inland. Neighbouring tiles agree on it to the bit. Tracing a tile's coastline
+takes about 1 ms on one core for a straight coast and 14 ms for a tile full of islands, against seconds of inference.
+
 ### The ground
 
 The material rule `diffusicraft:<scale>` is vanilla's overworld rule with the underground replaced. Bedrock and the
@@ -531,7 +540,7 @@ Other searches still read the full terrain and can take a while on new land:
 
 | Path | What |
 |---|---|
-| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `TerrainSurface` (the ground, with its ledges and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `CellFlows`, `RiverColumn` |
@@ -597,6 +606,9 @@ Other searches still read the full terrain and can take a while on new land:
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
   cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the
   Lüneburg Heath, Bonneville and Uyuni, and tropical coasts.
+- `CoastlineTest` checks the distance to straight and round coasts, at sea and on land, that it is continuous across
+  tile borders with its gradient, that a coast just outside a tile counts and that saddles follow the mean of their
+  corners.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;

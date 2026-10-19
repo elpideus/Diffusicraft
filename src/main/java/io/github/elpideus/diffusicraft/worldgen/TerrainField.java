@@ -16,9 +16,9 @@ import java.util.concurrent.atomic.LongAdder;
  * <p>The source is read in tiles of {@value #TILE}² native pixels (30 m each) with a {@value #PAD}-pixel margin.
  * For every tile we keep the padded elevation, sampled with Catmull-Rom splines so the surface stays smooth at any
  * block scale, and a grid of slowly varying values every {@value #GRID} pixels, sampled bilinearly: the local mean
- * elevation and relief, and the climate reduced to sea level. Tiles are computed once, on the first thread that
- * needs them or ahead of time by {@link TerrainPrefetcher}, and kept in a small LRU cache. Everything here is
- * thread-safe and deterministic.
+ * elevation and relief, and the climate reduced to sea level. Tiles near the sea also keep the distance of each pixel
+ * to the coastline ({@link Coastline}). Tiles are computed once, on the first thread that needs them or ahead of time
+ * by {@link TerrainPrefetcher}, and kept in a small LRU cache. Everything here is thread-safe and deterministic.
  *
  * <p>Coordinates are native pixels: {@code i} grows with Minecraft Z and {@code j} with X, and the centre of pixel
  * {@code k} is at {@code k + 0.5}. {@link WorldScale#toPixel} converts block coordinates.
@@ -75,7 +75,15 @@ public final class TerrainField implements AutoCloseable {
 		public float precipitationSeasonality;
 		/** Smooth noise in [-1, 1] that picks vanilla's biome variants (sunflower plains, ice spikes and so on). */
 		public float variant;
+		/**
+		 * Distance to the coastline in meters, positive on land and negative at sea, up to {@link #COAST_REACH}. The
+		 * coarse map has no coastline: there it is the farthest distance, with the elevation's sign.
+		 */
+		public float coast;
 	}
+
+	/** Farthest distance to the coastline that {@link #coast} measures, in meters (360 m). */
+	public static final float COAST_REACH = (float) (Coastline.REACH * WorldScale.METERS_PER_PIXEL);
 
 	private final long seed;
 	private final long geologySeed;
@@ -171,6 +179,33 @@ public final class TerrainField implements AutoCloseable {
 		out.temperatureSeasonality = tile.grid(TEMPERATURE_SEASONALITY, a, b, wu, wv);
 		out.precipitation = Math.max(0f, tile.grid(PRECIPITATION, a, b, wu, wv));
 		out.precipitationSeasonality = tile.grid(PRECIPITATION_SEASONALITY, a, b, wu, wv);
+		out.coast = (float) (tile.coast(u, v) * WorldScale.METERS_PER_PIXEL);
+	}
+
+	/**
+	 * Distance from a native pixel coordinate to the coastline, where the elevation crosses zero, in pixels: positive
+	 * on land, negative at sea, and at most {@link Coastline#REACH} either way. It is interpolated bilinearly between
+	 * pixel centres, so it is continuous everywhere, across tiles too.
+	 */
+	public float coast(double i, double j) {
+		double u = i - 0.5, v = j - 0.5;
+		int iu = (int) Math.floor(u), iv = (int) Math.floor(v);
+		return tile(Math.floorDiv(iu, TILE), Math.floorDiv(iv, TILE)).coast(u, v);
+	}
+
+	/**
+	 * {@link #coast(double, double)} with its gradient, as differences over a pixel either way: along {@code i} in
+	 * {@code gradient[0]} and along {@code j} in {@code gradient[1]}. Unlike the slope of the bilinear distance, these
+	 * vary continuously. The gradient has unit length and points inland, except near the middle between two coasts,
+	 * where it shrinks, and far from any coast, where it is zero.
+	 */
+	public float coast(double i, double j, float[] gradient) {
+		double u = i - 0.5, v = j - 0.5;
+		int iu = (int) Math.floor(u), iv = (int) Math.floor(v);
+		FieldTile tile = tile(Math.floorDiv(iu, TILE), Math.floorDiv(iv, TILE));
+		gradient[0] = (tile.coast(u + 1, v) - tile.coast(u - 1, v)) * 0.5f;
+		gradient[1] = (tile.coast(u, v + 1) - tile.coast(u, v - 1)) * 0.5f;
+		return tile.coast(u, v);
 	}
 
 	/** Variant noise at a position in real meters (block × meters per block). */
@@ -201,6 +236,7 @@ public final class TerrainField implements AutoCloseable {
 		out.temperatureSeasonality = coarseChannel(TerrainSource.COARSE_TEMPERATURE_SEASONALITY, i, j);
 		out.precipitation = Math.max(0f, coarseChannel(TerrainSource.COARSE_PRECIPITATION, i, j));
 		out.precipitationSeasonality = coarseChannel(TerrainSource.COARSE_PRECIPITATION_SEASONALITY, i, j);
+		out.coast = elevation >= 0f ? COAST_REACH : -COAST_REACH;
 	}
 
 	/**
@@ -379,7 +415,7 @@ public final class TerrainField implements AutoCloseable {
 				grid[LAPSE_RATE * points + g] = lapse;
 			}
 		}
-		return new FieldTile(ti, tj, elevation, grid);
+		return new FieldTile(ti, tj, elevation, grid, Coastline.compute(elevation));
 	}
 
 	private void evictTiles() {
@@ -409,15 +445,39 @@ public final class TerrainField implements AutoCloseable {
 		final int j0;
 		final float[] elevation;
 		final float[] grid;
+		/** The signed distances of {@link Coastline}, or {@code null} far from the coast. */
+		final short[] coast;
+		/** The distance everywhere in the tile when {@link #coast} is {@code null}. */
+		final float farCoast;
 		volatile long lastUse;
 
-		FieldTile(int ti, int tj, float[] elevation, float[] grid) {
+		FieldTile(int ti, int tj, float[] elevation, float[] grid, short[] coast) {
 			this.ti = ti;
 			this.tj = tj;
 			this.i0 = ti * TILE - PAD;
 			this.j0 = tj * TILE - PAD;
 			this.elevation = elevation;
 			this.grid = grid;
+			this.coast = coast;
+			int first = Coastline.ORIGIN * SPAN + Coastline.ORIGIN;
+			this.farCoast = elevation[first] >= 0f ? Coastline.REACH : -Coastline.REACH;
+		}
+
+		/**
+		 * The distance to the coastline in pixels at {@code (u, v)}, pixel centres being whole, interpolated
+		 * bilinearly. It must lie within a pixel of this tile: {@code u} in {@code [ti * TILE - 1, ti * TILE + TILE + 1)}.
+		 */
+		float coast(double u, double v) {
+			if (coast == null) {
+				return farCoast;
+			}
+			double a = u - (ti * TILE - 1), b = v - (tj * TILE - 1);
+			int ia = (int) Math.floor(a), ib = (int) Math.floor(b);
+			float fa = (float) (a - ia), fb = (float) (b - ib);
+			int k = ia * Coastline.SIDE + ib;
+			short[] d = coast;
+			float top = lerp(d[k], d[k + 1], fb), bottom = lerp(d[k + Coastline.SIDE], d[k + Coastline.SIDE + 1], fb);
+			return lerp(top, bottom, fa) / Coastline.UNIT;
 		}
 
 		/** Catmull-Rom interpolation between pixel centres; {@code (iu, iv)} must lie in this tile. */
