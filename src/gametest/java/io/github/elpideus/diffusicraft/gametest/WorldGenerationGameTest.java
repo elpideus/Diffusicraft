@@ -72,6 +72,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -282,7 +283,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	/** Teleports the player, waits for the chunks and takes a screenshot. */
 	static void view(ClientGameTestContext context, TestSingleplayerContext world, BlockPos at, float yaw,
 							 float pitch, String name) {
-		world.getServer().runCommand(String.format("tp @a %d %d %d %.1f %.1f", at.getX(), at.getY(), at.getZ(), yaw, pitch));
+		world.getServer().runCommand(String.format(Locale.ROOT, "tp @a %d %d %d %.1f %.1f", at.getX(), at.getY(),
+			at.getZ(), yaw, pitch));
 		world.getConnection().waitForClientboundPackets();
 		long start = System.nanoTime();
 		try {
