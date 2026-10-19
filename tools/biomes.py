@@ -453,6 +453,16 @@ BIOMES = {
                  "minecraft:has_structure/trial_chambers", "minecraft:is_overworld",
                  "minecraft:spawns_cold_variant_frogs", "minecraft:stronghold_biased_to"],
     },
+    # Drowned glacial valleys: deep, still, cold water between steep walls, with kelp and seagrass along the sides.
+    # The cold ocean's fish and squid, wrecks and ruins, but no monuments: those keep to the open deep sea.
+    "fjord": {
+        "template": "cold_ocean", "temperature": 0.5, "downfall": 0.5,
+        "effects": {"water_color": "#2d6a8c"},
+        "vegetation": ["minecraft:glow_lichen", "minecraft:seagrass_cold", "minecraft:kelp_cold"],
+        "tags": ["c:is_cold/overworld", "minecraft:has_structure/ocean_ruin_cold",
+                 "minecraft:has_structure/trial_chambers", "minecraft:is_ocean", "minecraft:is_overworld",
+                 "minecraft:spawns_cold_variant_farm_animals"],
+    },
     # Dry lake beds: a crust of salt from one horizon to the other, and nothing growing.
     "salt_flat": {
         "template": "desert", "temperature": 0.7, "downfall": 0.0,

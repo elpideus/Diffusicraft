@@ -170,6 +170,24 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void drownedGlacialValleysAreFjords() {
+		// The Sognefjord: a valley the ice lowered 400 m, now 300 m under the sea.
+		BiomeClimate c = climate(7f, 5f, 2000f, 25f, -300f, 150f);
+		c.glaciation = 1f;
+		assertEquals(BiomeRefiner.FJORD, BiomeRefiner.refine("minecraft:cold_ocean", c));
+		assertEquals(BiomeRefiner.FJORD, BiomeRefiner.refine("minecraft:deep_ocean", c));
+		// Greenland's fjords freeze over.
+		assertNull(BiomeRefiner.refine("minecraft:frozen_ocean", c));
+		// The open sea beyond the mouth was sea before the ice.
+		c.elevation = -500f;
+		assertNull(BiomeRefiner.refine("minecraft:deep_cold_ocean", c));
+		// Where the ice barely reached the sea, the drowned strip is too thin to be a fjord.
+		c.elevation = -50f;
+		c.glaciation = 0.2f;
+		assertNull(BiomeRefiner.refine("minecraft:ocean", c));
+	}
+
+	@Test
 	void flatLandWithCoolWetSummersIsBog() {
 		// Finland's lowland mires, the West Siberian Plain and the Bog of Allen.
 		BiomeClimate finland = climate(3f, 8.5f, 600f, 25f, 100f, 3f);

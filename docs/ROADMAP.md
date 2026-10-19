@@ -39,7 +39,7 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
   woods keep to the shaded slopes. Biome mods that extend the overworld table get the same parameters; checked in
   game with Biomes O' Plenty and TerraBlender. See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
-  rainforest, Mediterranean maquis, moorland, heath, salt flats, bogs, cold desert and steppe, with their own trees
+  rainforest, Mediterranean maquis, moorland, heath, salt flats, bogs, cold desert, steppe and fjords, with their own trees
   (krummholz, giant spruces, olives, stone pines, cypresses, black spruces), plants and ground; the wetlands follow
   the climate, from mangroves to bogs. New plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their
   own under some biomes: peat, which burns, terra rossa, laterite and loess. Snow follows the
@@ -73,7 +73,8 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
   closed so they do not flood into canals. See [WORLDGEN.md](WORLDGEN.md#rivers).
 - **Coasts.** Beaches a real beach's width along the coastline, and sheer sea cliffs along stretches where high land
   meets the sea, in every world, with sea stacks and arches off them; all but the farthest LODs show them. At Earth
-  1:1 the sea floor deepens away from the shore along a beach's profile. See [WORLDGEN.md](WORLDGEN.md#coasts).
+  1:1 the sea floor deepens away from the shore along a beach's profile. On cold mountain coasts the glaciers' valleys
+  drown into fjords, with a biome of their own. See [WORLDGEN.md](WORLDGEN.md#coasts).
 - **Distant Horizons.** Its far terrain comes straight from the terrain, without generating chunks: surface blocks
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
   (biome mods' own trees included), and the coarse map alone for the far horizon. See
@@ -107,7 +108,9 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 ### Biomes
 
 - **Real sizes.** Biomes are as large as their real counterparts: a forest can be tens of kilometres across at 1:1.
-- **More real-world biomes.** Fjords and the other biomes the climate can tell apart.
+- **More real-world biomes.** The other biomes the climate can tell apart.
+- **Longer fjords.** Today's fjords end where their valleys climb past about 230 m. The longest real ones run 100 km
+  and more inland, over sills, between walls a kilometre high.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
 

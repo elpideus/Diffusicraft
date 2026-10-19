@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.biome;
 
+import io.github.elpideus.diffusicraft.worldgen.Glaciation;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -13,6 +14,8 @@ import java.util.Map;
  *
  * <p>The rules, first match wins:
  * <ul>
+ *   <li><b>Fjord</b>: the drowned valleys that {@link Glaciation} carves into cold mountain coasts, where vanilla
+ *       puts an ocean, cold or not. Frozen oceans stay frozen, as in Greenland's fjords.</li>
  *   <li>Wetlands, from vanilla's swamp band: <b>mangroves</b> on tropical coasts, <b>bogs</b> where the summers stay
  *       cooler than {@value #BOG_WARMEST} °C, tundra beyond the tree line, swamps elsewhere.</li>
  *   <li><b>Cloud forest</b>: tropical mountainsides (little seasonality) between 1000 and 3500 m, 10 to 20 °C, at
@@ -53,12 +56,13 @@ public final class BiomeRefiner {
 	public static final String HEATH = "diffusicraft:heath";
 	public static final String SALT_FLAT = "diffusicraft:salt_flat";
 	public static final String BOG = "diffusicraft:bog";
+	public static final String FJORD = "diffusicraft:fjord";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
-		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, BOG, SWAMP, MANGROVE_SWAMP);
+		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, BOG, FJORD, SWAMP, MANGROVE_SWAMP);
 
 	/** Warmest month below which snow lies all year round, °C. */
 	static final float ICE_WARMEST = 3f;
@@ -92,11 +96,18 @@ public final class BiomeRefiner {
 	 * it, in patches among the woods, as people cleared them.
 	 */
 	static final float HEATH_VARIANT = -0.3f;
+	/**
+	 * Glaciation below which a drowned valley is no fjord: the ice lowered it by less than
+	 * {@code Glaciation.DEPTH} times this, 120 m.
+	 */
+	static final float FJORD_GLACIATION = 0.3f;
 
 	/** What a vanilla biome is, as far as the rules care. */
 	enum Kind {
-		/** Oceans, shores, rivers, caves and mushroom islands: never refined. */
+		/** Shores, rivers, caves, mushroom islands and the frozen and warm oceans: never refined. */
 		FIXED,
+		/** The temperate and cold oceans, deep or not. */
+		SEA,
 		/** Bare or snowy summits. */
 		PEAK,
 		/** High mountain slopes with vegetation. */
@@ -113,7 +124,8 @@ public final class BiomeRefiner {
 	}
 
 	private static final Map<String, Kind> KINDS = Map.ofEntries(
-		fixed("ocean"), fixed("deep_ocean"), fixed("cold_ocean"), fixed("deep_cold_ocean"), fixed("frozen_ocean"),
+		kind("ocean", Kind.SEA), kind("deep_ocean", Kind.SEA), kind("cold_ocean", Kind.SEA),
+		kind("deep_cold_ocean", Kind.SEA), fixed("frozen_ocean"),
 		fixed("deep_frozen_ocean"), fixed("lukewarm_ocean"), fixed("deep_lukewarm_ocean"), fixed("warm_ocean"),
 		fixed("beach"), fixed("snowy_beach"), fixed("stony_shore"), fixed("river"), fixed("frozen_river"),
 		fixed("dripstone_caves"), fixed("lush_caves"), fixed("sulfur_caves"), fixed("deep_dark"),
@@ -154,6 +166,9 @@ public final class BiomeRefiner {
 		Kind kind = KINDS.get(biome);
 		if (kind == null || kind == Kind.FIXED) {
 			return null;
+		}
+		if (kind == Kind.SEA) {
+			return fjord(c) ? FJORD : null;
 		}
 		if (kind == Kind.WETLAND) {
 			String wetland = wetland(c);
@@ -219,6 +234,10 @@ public final class BiomeRefiner {
 			return TUNDRA;
 		}
 		return warmest < BOG_WARMEST ? BOG : SWAMP;
+	}
+
+	static boolean fjord(BiomeClimate c) {
+		return c.glaciation >= FJORD_GLACIATION && Glaciation.drowned(c.elevation, c.glaciation);
 	}
 
 	static boolean bog(BiomeClimate c, float aridity) {

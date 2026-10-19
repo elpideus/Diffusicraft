@@ -97,12 +97,14 @@ vanilla NoiseBasedChunkGenerator: caves, aquifers, ores, surface blocks, feature
 ### `TerrainField`
 
 `TerrainField` holds one seed's terrain. It reads the pipeline in tiles of 256 × 256 pixels (7.7 km), with a
-32-pixel margin. For each tile it keeps three things:
+32-pixel margin, through `Glaciation`, which drowns the valleys of cold mountain coasts into [fjords](#coasts). For
+each tile it keeps three things:
 
 - **The padded elevation.** Columns sample it with a Catmull-Rom spline.
 - **A grid every 8 pixels (240 m).** It holds slowly varying values, sampled bilinearly:
   - the mean elevation and relief (standard deviation) over a 1.4 km box, from summed-area tables;
-  - the climate reduced to sea level, plus its lapse rate.
+  - the climate reduced to sea level, plus its lapse rate;
+  - how strongly glaciers lowered the ground.
 
   The temperature at a column is then the sea-level temperature plus the lapse rate times the column's own
   elevation, so summits are cold even between grid points.
@@ -228,10 +230,11 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of eleven new biomes. The first rule that matches wins:
+swap it for one of twelve new biomes. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
+| **Fjord** | Water that was land before the glaciers lowered it, where they lowered it by at least 0.3 × 400 m (see [Coasts](#coasts)) | Oceans and cold oceans, deep or not |
 | *(wetlands)* | Vanilla's swamp band: mangroves on tropical coasts (coldest month at least 15 °C, below 10 m), bogs where the warmest month stays below 20 °C, tundra beyond the tree line, swamps elsewhere | Swamps and mangroves |
 | **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
 | *(vanilla snow and ice)* | Warmest month below 3 °C, or a year below −10 °C | Kept as vanilla picked them |
@@ -245,7 +248,7 @@ swap it for one of eleven new biomes. The first rule that matches wins:
 | **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts |
 | **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C | Plains, forests, taigas, savannas |
 
-Oceans, shores, rivers, caves and the mushroom fields are never touched, and neither is any biome a mod adds to the
+Frozen and warm oceans, shores, rivers, caves and the mushroom fields are never touched, and neither is any biome a mod adds to the
 table: only vanilla's own biomes are refined. `BiomeRefiner` is pure and unit-tested.
 
 **Snow line.** Vanilla cools every biome by 0.05 per 40 blocks above y = 80 (`Biome.getHeightAdjustedTemperature`),
@@ -286,6 +289,7 @@ the colours:
 | Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with bare peat and sphagnum (moss), peat below |
 | Heath | Plains | Heather and grass under scattered birches with bees, Scots pines and junipers | Grass with sandy coarse dirt and podzol |
 | Salt flat | Desert | Nothing | Salt crust over rock salt |
+| Fjord | Cold ocean | Kelp and seagrass in deep teal water; the cold ocean's fish and squid, wrecks and ruins, but no monuments, which keep to the open deep sea | The cold ocean's |
 | Bog | Swamp | Dark pools of peaty water with lily pads, cottongrass, moss carpets, heather, a few spindly black spruces, Scots pines and birches, berries, fireflies; frogs, and the swamp's slimes, witches and bogged | Sphagnum (moss) with bare peat and grass, peat all the way down |
 
 The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra
@@ -470,10 +474,28 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   the 5 blocks around them block by block, as it does cliffs, and leaves the opening empty: the sea fills it below its
   level, the air above. The smaller worlds keep stacks 3 to 5 blocks across and 2 blocks off the coast, and arches
   with an opening at least 3 blocks high.
+- **Fjords.** In the ice ages, glaciers flowing off cold mountain coasts cut their valleys far below the sea, which
+  flooded them when the ice melted: the fjords of Norway, Patagonia, Alaska and New Zealand. The model draws those
+  coasts smooth, so `Glaciation` wraps the terrain source and lowers the ground there by up to 400 m: fully from sea
+  level up to 100 m, fading out at 400 m up and 1200 m down. The lowering keeps every height in order, so it makes no
+  hollow for the rivers to fill. The coastline climbs to about the old 230 m contour, the valleys below it flood
+  several kilometres inland, the coastal lowland goes under, and the slopes above it steepen into walls. How strongly
+  the ice lowered a place, from 0 to 1, is the product of:
+  - mountains near the sea, from the coarse map: within a coarse pixel of one that rises 150 to 450 m above its 5th
+    percentile or the sea, and within 2 coarse pixels (15 km) of the sea, fading out at 4. It is interpolated between
+    the centres of the coarse pixels, so it is smooth;
+  - the cold: an annual mean at sea level below 8 °C, fading out at 12 °C.
+
+  Lowered ground is warmer by its lapse rate. The coarse map is lowered alike, so the rivers, the farthest LODs and the
+  coarse searches see the same coasts. Water that was land before the ice is the fjord biome (see
+  [Refined biomes](#refined-biomes)): `deepen` keeps heights in order, so that is the water no deeper than 400 m times
+  the glaciation. On seed 42 about 8% of the land on the coarse map is glaciated, and a cold mountain coast 30 km long
+  loses some 50 km² of valleys and lowland to the sea, with inlets 5 to 8 km long.
 - **Limits.** Distant Horizons' LODs show the cliffs, the sea floor and the stacks as the chunks do, except the
   farthest, which read the coarse map: it has no coastline, so no beaches, cliffs, profile or stacks there. The LODs
   hold one height per column, so arches show solid. The profile has no bars or troughs. Stacks have no notch at the
-  waterline, and no boulders lie around them.
+  waterline, and no boulders lie around them. Fjords end where their valley floors climb past about 230 m, so they
+  reach kilometres inland, not the 100 km and more of the longest real ones, and they have no sills.
 
 ### The ground
 
@@ -624,7 +646,7 @@ Other searches still read the full terrain and can take a while on new land:
 
 | Path | What |
 |---|---|
-| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
@@ -695,7 +717,7 @@ Other searches still read the full terrain and can take a while on new land:
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
   cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the
   Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay
-  Lowlands, and tropical coasts. On slopes, the tree line of the Alps is higher on the
+  Lowlands, tropical coasts and the Sognefjord. On slopes, the tree line of the Alps is higher on the
   sunny side, and the woods of the Rockies' foothills keep to the shaded side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
@@ -705,6 +727,9 @@ Other searches still read the full terrain and can take a while on new land:
   corners. `SeaCliffTest` builds straight coasts: some stretches of a high one get cliffs, a full cliff's foot is a
   shelf a block above the water, the cliff meets the ground at the end of its strip, a low coast gets none, and the
   density takes every cliff column block by block.
+- `GlaciationTest` checks that the lowering keeps heights in order and leaves high ground and the deep sea alone, that
+  a cold mountain coast drowns its valleys under the ridges while a mild one keeps them, that the coarse map is
+  lowered alike, and that overlapping samples agree to the bit.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;

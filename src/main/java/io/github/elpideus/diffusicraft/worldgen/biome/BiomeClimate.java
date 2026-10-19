@@ -22,6 +22,8 @@ public final class BiomeClimate {
 	public float relief;
 	/** The variant noise, in [-1, 1]: where in a climate's patchwork the column lies. */
 	public float variant;
+	/** How strongly glaciers lowered the ground, in [0, 1]; see {@link TerrainField.Column#glaciation}. */
+	public float glaciation;
 
 	public BiomeClimate set(TerrainField.Column column) {
 		temperature = column.temperature;
@@ -31,6 +33,7 @@ public final class BiomeClimate {
 		elevation = column.elevation;
 		relief = column.relief;
 		variant = column.variant;
+		glaciation = column.glaciation;
 		return this;
 	}
 
