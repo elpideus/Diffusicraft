@@ -999,3 +999,6 @@ Other searches still read the full terrain and can take a while on new land:
   with Tech Reborn (`-PdevMods=techreborn`), it checks that the geology places Tech Reborn's tin, lead, silver, uranium,
   rubies, sapphires and bauxite, and not its Nether sphalerite. It generates on the CPU unless `-Pdiffusicraft.device`
   names another device.
+- `TreesGameTest`, a client game test that needs no models, plants three of each of Diffusicraft's trees on a
+  superflat world, each in its own biome for the colours of its leaves, and saves a view of each. A tree that never
+  grows on open grass fails it.

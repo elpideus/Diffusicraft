@@ -90,6 +90,9 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   creates an Earth 1:1 world and goes to the highest ground within 123 km of the spawn. It checks that the chunks
   there, which are filled only up to their ground, hold all of it, saves two views of the summit and logs how long
   their chunks took. It needs the models.
+- [`TreesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TreesGameTest.java) plants three of
+  each of Diffusicraft's trees on a superflat world, in the biome each grows in, and saves a view of each
+  (`diffusicraft-world-tree-<name>.png`). It fails if a tree never grows on open grass. It needs no models.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods
@@ -110,7 +113,7 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   ```
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
 - **Some of them.** `-Pdiffusicraft.gametests=TallDimension,Earth` runs only the tests whose class names start with
-  one of those. The tall dimension alone takes under a minute.
+  one of those. The tall dimension and the trees each take under a minute.
 - **Not part of `build`.** Run them yourself after changing anything in `client/screen`, `worldgen` or the mixins.
 
 ## Project conventions

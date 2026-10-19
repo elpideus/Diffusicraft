@@ -11,7 +11,8 @@
 			"io.github.elpideus.diffusicraft.gametest.ResourceScreensGameTest",
 			"io.github.elpideus.diffusicraft.gametest.WorldGenerationGameTest",
 			"io.github.elpideus.diffusicraft.gametest.TallDimensionGameTest",
-			"io.github.elpideus.diffusicraft.gametest.EarthWorldGameTest"
+			"io.github.elpideus.diffusicraft.gametest.EarthWorldGameTest",
+			"io.github.elpideus.diffusicraft.gametest.TreesGameTest"
 		]
 	},
 	"depends": {
