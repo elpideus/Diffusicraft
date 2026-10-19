@@ -82,11 +82,11 @@ WorldPipeline (30 m pixels, per seed)
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate, and the distance to the coastline
    ▼
-TerrainSurface: the ground in blocks for one scale, with ledges, sea cliffs, and gullies at Earth 1:1
+TerrainSurface: the ground in blocks for one scale, with ledges, sea cliffs and stacks, and gullies at Earth 1:1
    ▼
 density functions: diffusicraft:surface, diffusicraft:climate, diffusicraft:spawn_suitability,
    │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model),
-   │                diffusicraft:coast (the sea cliffs, block by block)
+   │                diffusicraft:coast (the sea cliffs and stacks, block by block)
    ▼
 noise settings diffusicraft:<scale>: noise router, aquifers, material rule diffusicraft:<scale>
    ▼                                  (vanilla's surface rules + diffusicraft:strata, the Geology model,
@@ -298,7 +298,7 @@ The settings set `final_density` to vanilla's overworld density, with two change
   the mountains of Earth 1:1 solid up to the top of the world;
 - deeper than 25 blocks below the surface, the density is the minimum of vanilla's caves and
   [the Hollows](#the-hollows);
-- [the sea cliffs](#coasts) are set block by block: `diffusicraft:<scale>/coast_fill` and `coast_carve`;
+- [the sea cliffs and stacks](#coasts) are set block by block: `diffusicraft:<scale>/coast_fill` and `coast_carve`;
 - [the rivers](#rivers) come last: `diffusicraft:<scale>/river_fill` builds the ground up under them and
   `river_carve` cuts it down to their water, so their beds seal any cave below.
 
@@ -444,9 +444,21 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   lies at least that deep out to `COAST_REACH`, and at least 5 m deep beyond it. Only the Earth 1:1 world shows it,
   5 blocks deep 360 blocks out; at the other scales the profile stays within the block of water the shallowest sea
   already has.
-- **Limits.** Distant Horizons' LODs show the cliffs and the sea floor as the chunks do, except the farthest, which
-  read the coarse map: it has no coastline, so no beaches, cliffs or profile there. The profile has no bars or
-  troughs. There are no sea stacks or arches.
+- **Sea stacks and arches.** The sea cuts cliffs back and leaves the harder parts standing offshore. `TerrainSurface`
+  puts stacks off the cliffs: columns 6 to 25 m in radius, with sheer sides and a gently domed top, from half as high
+  as the cliff behind them to as high. A stack stands past at least 20 m of open water and at most 150 m beyond that.
+  The places for them lie on a jittered grid 150 m apart; each can hold a stack where it falls in that band, off a
+  cliff at least half whole, on a stretch of coast that noise 5 km across favours. Hashes alone keep places from
+  touching, before the terrain is read, so most places cost a few hashes. One stack in five is an arch: two to three
+  times longer along the coast than wide, with an opening through it across the coast, rounded at the top, from the sea
+  floor up to 40–60% of its height above the sea, under a roof at least 2 blocks thick. The density takes stacks and
+  the 5 blocks around them block by block, as it does cliffs, and leaves the opening empty: the sea fills it below its
+  level, the air above. The smaller worlds keep stacks 3 to 5 blocks across and 2 blocks off the coast, and arches
+  with an opening at least 3 blocks high.
+- **Limits.** Distant Horizons' LODs show the cliffs, the sea floor and the stacks as the chunks do, except the
+  farthest, which read the coarse map: it has no coastline, so no beaches, cliffs, profile or stacks there. The LODs
+  hold one height per column, so arches show solid. The profile has no bars or troughs. Stacks have no notch at the
+  waterline, and no boulders lie around them.
 
 ### The ground
 
@@ -597,7 +609,7 @@ Other searches still read the full terrain and can take a while on new land:
 
 | Path | What |
 |---|---|
-| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `TerrainField`, `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `SpawnSuitabilityFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |

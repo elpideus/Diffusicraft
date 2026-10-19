@@ -16,7 +16,7 @@ geography, climate and geology.
   real climate: snow only where it is cold, deserts only where it is hot and dry. Vanilla caves, structures and biome
   mods keep working. See [WORLDGEN.md](docs/WORLDGEN.md).
 - **Rivers, coasts, rock and caverns.** Rivers drain the whole world from its rain and terrain, and fill the lakes on
-  their way, up to great lakes 60 km across. Beaches follow the coastline, and sea cliffs rise where high land meets the sea. The rock shapes the
+  their way, up to great lakes 60 km across. Beaches follow the coastline, and sea cliffs rise where high land meets the sea, with stacks and arches off them. The rock shapes the
   slopes: hard beds stand out of them as ledges and cliffs. Underground, sedimentary beds, fold belts and basement rock
   hold ores by rock and depth, above a magma layer. Caverns grow larger the deeper they lie, down to the Grand Hollows
   over lava seas.

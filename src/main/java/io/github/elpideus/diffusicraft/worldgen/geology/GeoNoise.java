@@ -36,17 +36,18 @@ public final class GeoNoise {
 		return z ^ (z >>> 31);
 	}
 
-	static long hash(long seed, int x, int y, int z) {
+	/** A seeded hash of a point of an integer lattice. */
+	public static long hash(long seed, int x, int y, int z) {
 		return mix(seed ^ mix(x * 0x9E3779B97F4A7C15L ^ y * 0xC2B2AE3D27D4EB4FL ^ z * 0x165667B19E3779F9L));
 	}
 
 	/** Uniform in [0, 1) from the top 53 bits of a hash. */
-	static double unit(long hash) {
+	public static double unit(long hash) {
 		return (hash >>> 11) * 0x1.0p-53;
 	}
 
 	/** A second independent value from the same hash. */
-	static double unit2(long hash) {
+	public static double unit2(long hash) {
 		return unit(mix(hash + 0x9E3779B97F4A7C15L));
 	}
 

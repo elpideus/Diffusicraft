@@ -71,7 +71,8 @@ turns them into blocks. The pieces planned add the details: finer terrain, soils
   as the climate is wet enough. Shallow seas hold water, and coastal lowland keeps its cave entrances and ravines
   closed so they do not flood into canals. See [WORLDGEN.md](WORLDGEN.md#rivers).
 - **Coasts.** Beaches a real beach's width along the coastline, and sheer sea cliffs along stretches where high land
-  meets the sea, in every world. See [WORLDGEN.md](WORLDGEN.md#coasts).
+  meets the sea, in every world, with sea stacks and arches off them; all but the farthest LODs show them. At Earth
+  1:1 the sea floor deepens away from the shore along a beach's profile. See [WORLDGEN.md](WORLDGEN.md#coasts).
 - **Distant Horizons.** Its far terrain comes straight from the terrain, without generating chunks: surface blocks
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
   (biome mods' own trees included), and the coarse map alone for the far horizon. See
@@ -101,8 +102,6 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 - **Rain lakes near rivers.** Lakes across tiles where a river runs in one of the tiles, and the fine basins larger
   than a block outside the lakes of the coarse map, which stay dry for now; and depressions of more than 16 tiles,
   like those of the Caspian or the Great Lakes, which are breached.
-- **Shores.** A surf zone where the sea floor deepens away from the beach, sea stacks and arches off the cliffs, and
-  cliffs in the farther LODs.
 
 ### Biomes
 

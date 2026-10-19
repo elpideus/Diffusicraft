@@ -170,19 +170,129 @@ class SeaCliffTest {
 		}
 	}
 
+	/** Blocks out to sea from the coastline that stacks can reach at a scale, and a little more. */
+	private static int stackReach(WorldScale scale) {
+		return (int) Math.ceil(12 / scale.pixelsPerBlock()) + 2;
+	}
+
+	@Test
+	void stacksStandOffSomeCliffsPastOpenWater() {
+		for (WorldScale scale : WorldScale.values()) {
+			TerrainSurface surface = surface(HIGH, scale);
+			int sea = scale.seaLevel(), x1 = coast(scale) - 1, x0 = x1 - stackReach(scale);
+			float cliffTop = scale.surfaceY(90f);
+			int length = (int) (100_000 / scale.metersPerBlock()), stacks = 0, columns = 0;
+			// The stacks of the Earth 1:1 world are at least 9 blocks wide.
+			int step = scale == WorldScale.EARTH ? 3 : 1;
+			boolean previous = false;
+			for (int z = 0; z < length; z++) {
+				boolean row = false;
+				// Walking out to sea from the coastline: water first, then the stacks.
+				boolean water = false;
+				for (int x = x1; x >= x0; x -= step) {
+					float y = surface.y(x, z);
+					if (y <= sea) {
+						water = true;
+						continue;
+					}
+					assertTrue(water, scale + ": a stack joined to the land at " + x + ", " + z);
+					assertTrue(y <= cliffTop + 0.5f, scale + ": a stack above the cliff at " + x + ", " + z + ": " + y);
+					// The density takes the stack and the sea around it block by block.
+					for (int d = -4; d <= 4 && (x + z) % 5 == 0; d++) {
+						assertEquals(surface.y(x + d, z), surface.cliff(x + d, z), 0f, scale + " " + (x + d) + ", " + z);
+						assertEquals(surface.y(x, z + d), surface.cliff(x, z + d), 0f, scale + " " + x + ", " + (z + d));
+					}
+					row = true;
+					columns++;
+				}
+				if (row && !previous) {
+					stacks++;
+				}
+				previous = row;
+			}
+			double perKm = stacks / (length * scale.metersPerBlock() / 1000);
+			System.out.println(scale + ": " + stacks + " stacks, " + columns + " columns, " + perKm + " per km");
+			assertTrue(perKm > 0.2 && perKm < 4, scale + ": " + stacks + " stacks along 100 km of cliffs");
+		}
+	}
+
+	@Test
+	void aLowCoastHasNoStacks() {
+		for (WorldScale scale : WorldScale.values()) {
+			TerrainSurface surface = surface(LOW, scale);
+			int x1 = coast(scale) - 1, x0 = x1 - stackReach(scale);
+			for (int z = 0; z < 20_000 / scale.metersPerBlock(); z++) {
+				for (int x = x0; x <= x1; x++) {
+					assertTrue(surface.y(x, z) < scale.seaLevel(), scale + " " + x + ", " + z);
+				}
+			}
+		}
+	}
+
+	@Test
+	void theSeaFlowsThroughTheArches() {
+		for (WorldScale scale : WorldScale.values()) {
+			TerrainSurface surface = surface(HIGH, scale);
+			int sea = scale.seaLevel(), x1 = coast(scale) - 1, x0 = x1 - stackReach(scale);
+			int length = (int) (100_000 / scale.metersPerBlock()), openings = 0;
+			float highest = 0;
+			float[] hole = new float[2];
+			for (int z = 0; z < length; z++) {
+				boolean open = false;
+				for (int x = x1; x >= x0; x--) {
+					float y = surface.cliff(x, z, hole);
+					if (Float.isNaN(hole[1])) {
+						continue;
+					}
+					assertTrue(hole[0] < sea, scale + ": the opening's floor lies under the sea: " + hole[0]);
+					assertTrue(y - hole[1] >= 2f - 1e-3f, scale + ": the roof over an opening: " + (y - hole[1]));
+					highest = Math.max(highest, hole[1] - sea);
+					open = true;
+				}
+				if (open) {
+					// The coast runs along z: across an arch, every column of it is open.
+					int closed = 0, opened = 0;
+					for (int x = x1; x >= x0 - 1; x--) {
+						float y = x >= x0 ? surface.cliff(x, z, hole) : sea;
+						if (y > sea) {
+							if (Float.isNaN(hole[1])) {
+								closed++;
+							} else {
+								opened++;
+							}
+						} else {
+							assertFalse(closed > 0 && opened > 0, scale + ": a closed column across an arch at z " + z);
+							closed = opened = 0;
+						}
+					}
+					openings++;
+				}
+			}
+			System.out.println(scale + ": " + openings + " rows through arches, highest " + highest);
+			assertTrue(openings > 0 && highest >= 3, scale + ": " + openings + " rows, highest " + highest);
+		}
+	}
+
 	@Test
 	void theDensityTakesTheCliffAndTheSeaBesideItBlockByBlock() {
 		WorldScale scale = WorldScale.EARTH;
 		TerrainSurface surface = surface(HIGH, scale);
 		int x0 = coast(scale), zone = (int) TerrainSurface.cliffZone(scale);
-		int beside = 0;
+		int beside = 0, stacks = 0, outside = 0;
 		for (int z = 0; z < 40_000; z += 131) {
 			float[] y = profile(surface, scale, z);
 			boolean cliff = rise(y, face(y)) >= 25f;
 			for (int x = x0 - 20; x < x0 + zone + 20; x++) {
 				float column = surface.cliff(x, z);
-				if (x < x0 - TerrainSurface.CLIFF_MARGIN || x > x0 + zone) {
-					assertTrue(Float.isNaN(column), "outside the strip and its margin: " + x + ", " + z);
+				if (x < x0 - TerrainSurface.CLIFF_MARGIN) {
+					outside++;
+				}
+				if (x > x0 + zone) {
+					assertTrue(Float.isNaN(column), "inland of the strip: " + x + ", " + z);
+				} else if (x < x0 - TerrainSurface.CLIFF_MARGIN && !Float.isNaN(column)) {
+					// Out to sea, only around the stacks.
+					assertEquals(surface.y(x, z), column, 0f);
+					stacks++;
 				} else if (!Float.isNaN(column)) {
 					assertEquals(surface.y(x, z), column, 0f);
 				} else if (x >= x0 && x < x0 + zone / 2) {
@@ -194,5 +304,6 @@ class SeaCliffTest {
 			}
 		}
 		assertTrue(beside > 10, "the sea beside a cliff: " + beside);
+		assertTrue(stacks < 0.1 * outside, "around the stacks: " + stacks + " of " + outside);
 	}
 }
