@@ -274,15 +274,16 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of twelve new biomes. The first rule that matches wins:
+swap it for one of fourteen new biomes. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
 | **Fjord** | Water that was land before the glaciers lowered it, where they lowered it by at least 0.3 × 400 m (see [Coasts](#coasts)) | Oceans and cold oceans, deep or not |
-| *(wetlands)* | Vanilla's swamp band: mangroves on tropical coasts (coldest month at least 15 °C, below 10 m), bogs where the warmest month stays below 20 °C, tundra beyond the tree line, swamps elsewhere | Swamps and mangroves |
+| *(wetlands)* | Vanilla's swamp band: mangroves on tropical coasts (coldest month at least 15 °C, below 10 m), páramo on tropical mountains, bogs where the warmest month stays below 20 °C, tundra beyond the tree line, swamps elsewhere | Swamps and mangroves |
 | **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
 | *(vanilla snow and ice)* | Warmest month below 3 °C, or a year below −10 °C | Kept as vanilla picked them |
 | **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief: the dry beds of old lakes, up on the cold Altiplano too | Plains, forests, taigas, savannas, deserts |
+| **Páramo**, **puna** | Tropical mountains (little seasonality) from 2500 m where the year averages below 10 °C. Every month is a growing season there, so the tree line follows the year rather than the summer, and the cloud forest gives way to them. Páramo with at least three times the rain of the aridity threshold, as in the northern Andes or on Mount Kenya; puna where it is drier, as on the Altiplano or Mauna Kea | Any land, peaks included |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
 | **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
 | **Bog** | The flattest land (less than 6 m of relief) below 1500 m, with cool summers (warmest month below 20 °C) and at least twice the rain of the aridity threshold, as in Finland, the West Siberian Plain and the Hudson Bay Lowlands. Vanilla puts swamps only on low ground; bogs grow on flat land at any height below the mountains | Plains, forests, taigas, savannas |
@@ -337,12 +338,17 @@ the colours:
 | Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with bare peat and sphagnum (moss), peat below |
 | Heath | Plains | Heather and grass under scattered birches with bees, Scots pines and junipers | Grass with sandy coarse dirt and podzol |
 | Salt flat | Desert | Nothing | Salt crust over rock salt |
+| Páramo | Meadow | Frailejones, the odd queñua, tussock grass, gentians, groundsels and lupins, moss cushions, dark pools, boulders; fog (192 blocks) under a grey sky | Grass with cushion bogs (moss) and coarse dirt over peat, rock where it is steep |
+| Puna | Meadow | Golden ichu grass, tola scrub, yareta cushions among boulders, a rare queñua; herds of llamas, under a deep blue sky. Its villages are the desert's, whose sandstone looks like adobe | Grass with gravel and coarse dirt, rock where it is steep |
 | Fjord | Cold ocean | Kelp and seagrass in deep teal water; the cold ocean's fish and squid, wrecks and ruins, but no monuments, which keep to the open deep sea | The cold ocean's |
 | Bog | Swamp | Dark pools of peaty water with lily pads, cottongrass, moss carpets, heather, a few spindly black spruces, Scots pines and birches, berries, fireflies; frogs, and the swamp's slimes, witches and bogged | Sphagnum (moss) with bare peat and grass, peat all the way down |
 
-The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra
-and the bogs. The bog's pools are vanilla's `waterlogged_vegetation_patch`, the lush caves' clay pools: it sinks a
-patch of peat into the ground and fills its top with water wherever the water is held on every side.
+The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra and
+the bogs. The frailejones of the páramo are pale oak: silver-green rosettes on trunks one to three blocks tall. The
+queñuas (Polylepis), which grow higher than any other tree, are gnarled mangrove wood for their red bark. The yareta of
+the puna is a cushion plant so dense that it looks like a green boulder: here it is one, of moss. The bog's pools are
+vanilla's `waterlogged_vegetation_patch`, the lush caves' clay pools: it sinks a patch of peat into the ground and fills
+its top with water wherever the water is held on every side.
 
 Their ground is the material rule `diffusicraft:biome_surface`, which runs ahead of vanilla's overworld surface rule
 and leaves every other biome to it. They join vanilla's structure tags (villages, outposts, ruins) and the `c:`
@@ -678,8 +684,8 @@ by a few blocks over some 30. Semi-arid land, from 0.5 to 1.1 times the threshol
 calcrete (calcite) under the subsoil, where the rain stops sinking in. The depths are in blocks, the same in every
 world type. Sand and gravel never hang over open space: there they stay sandstone and rock.
 
-Some biomes lay a soil of their own on top, to vanilla's depth: peat under the moors, the tundra and the bogs, whose
-pools it lines too, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the
+Some biomes lay a soil of their own on top, to vanilla's depth: peat under the moors, the tundra, the páramo and the
+bogs, whose pools it lines too, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the
 savannas and the cloud forest. Peat and terra rossa also lie bare on top in patches. The profile goes on under them.
 Vanilla's plain dirt stays only as topsoil: below it lies the subsoil. Only the column's top run of ground gets a
 profile, so the floors of caves and the ground under arches and rivers keep what the biome gives them. Soils count as
@@ -945,10 +951,10 @@ Other searches still read the full terrain and can take a while on new land:
 - `RiverMapTest` needs the models. It surveys the rivers of a real world and draws maps of them and their lakes to
   `build/river-map`, to look at them without starting the game.
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes'
-  cloud forest, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the
-  Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay
-  Lowlands, tropical coasts and the Sognefjord. On slopes, the tree line of the Alps is higher on the
-  sunny side, and the woods of the Rockies' foothills keep to the shaded side.
+  cloud forest, Ecuador's páramo, the Altiplano and Mauna Kea, the Pacific Northwest, the Mediterranean, the Gobi
+  and the steppe, Dartmoor and the Pennines, the Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West
+  Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands, tropical coasts and the Sognefjord. On slopes, the tree
+  line of the Alps is higher on the sunny side, and the woods of the Rockies' foothills keep to the shaded side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

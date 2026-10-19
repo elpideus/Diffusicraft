@@ -25,8 +25,8 @@ geography, climate and geology.
   add them: zinc and lead in limestone, tin in granite, platinum in gabbro, bauxite under the tropics. Caverns grow
   larger the deeper they lie, down to the Grand Hollows over lava seas, each a cave biome of its own: glowworm grottoes,
   selenite caverns, mushroom forests, lush and dripstone caves, with lakes in their floors under wet land.
-- **Real-world biomes.** Tundra, cloud forest, temperate rainforest, maquis, moorland, heath, bogs, fjords, salt
-  flats, steppe and more, with their own trees, plants and soils.
+- **Real-world biomes.** Tundra, cloud forest, páramo, puna, temperate rainforest, maquis, moorland, heath, bogs,
+  fjords, salt flats, steppe and more, with their own trees, plants and soils.
 - **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m
   per pixel. It is thread-safe for parallel chunk generation and cached in memory and on disk.
 - **CPU, NVIDIA and AMD.**

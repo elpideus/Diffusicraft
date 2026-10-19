@@ -67,6 +67,8 @@ final class BiomeColors {
 		Map.entry("diffusicraft:moorland", 0x7a5a78),
 		Map.entry("diffusicraft:heath", 0xa07aa0),
 		Map.entry("diffusicraft:salt_flat", 0xf0eee6),
+		Map.entry("diffusicraft:paramo", 0x6a8a62),
+		Map.entry("diffusicraft:puna", 0xb89c5c),
 		Map.entry("diffusicraft:bog", 0x7a5c2e),
 		Map.entry("diffusicraft:fjord", 0x2d6a8c)
 	);

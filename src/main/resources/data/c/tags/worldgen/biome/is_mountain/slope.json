@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "diffusicraft:alpine_tundra"
+    "diffusicraft:alpine_tundra",
+    "diffusicraft:paramo"
   ]
 }

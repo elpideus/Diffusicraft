@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "diffusicraft:cold_desert"
+    "diffusicraft:cold_desert",
+    "diffusicraft:puna"
   ]
 }

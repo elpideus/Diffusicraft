@@ -206,6 +206,15 @@ FEATURES = {
     "maquis_shrub": tree("oak_log", straight(1, 0, 0), "oak_leaves",
                          {"type": "minecraft:bush_foliage_placer", "height": 2, "offset": 1, "radius": 2},
                          two_layers(0, 0, 0)),
+    # Frailejones: woolly, silver-green rosettes held up on trunks clad in their own dead leaves, a few feet tall.
+    "frailejon": tree("pale_oak_log", straight(1, 2, 0), "pale_oak_leaves",
+                      {"type": "minecraft:blob_foliage_placer", "height": 1, "offset": 0, "radius": 2},
+                      two_layers(0, 0, 0)),
+    # Polylepis, the queñua: gnarled little trees with red, peeling bark, which grow higher than any other.
+    "polylepis": tree("mangrove_log", {"type": "minecraft:bending_trunk_placer", "base_height": 3, "height_rand_a": 1,
+                                       "height_rand_b": 0, "bend_length": uniform(1, 2), "min_height_for_leaves": 2},
+                      "mangrove_leaves", {"type": "minecraft:random_spread_foliage_placer", "radius": 2, "offset": 0,
+                                          "foliage_height": 2, "leaf_placement_attempts": 40}, two_layers()),
     # Black spruce: thin and spindly, starved on the peat.
     "bog_spruce": tree("spruce_log", straight(4, 2, 1), "spruce_leaves",
                        {"type": "minecraft:spruce_foliage_placer", "radius": 1, "offset": uniform(0, 1),
@@ -225,7 +234,15 @@ FEATURES = {
     "heath_grass": simple([("short_grass", 5), ("fern", 1), ("bush", 1)]),
     # Cottongrass and sedges over the sphagnum.
     "bog_ground_cover": simple([(ours("cottongrass"), 4), ("short_grass", 3), ("moss_carpet", 2), ("fern", 1)]),
+    # Tussock grass of the páramo, green and straw-coloured.
+    "paramo_grass": simple([("short_grass", 4), ("short_dry_grass", 2), ("tall_grass", 1), ("fern", 1)]),
+    # Gentians, yellow groundsels and blue lupins between the tussocks.
+    "paramo_flowers": simple([(ours("gentian"), 3), ("dandelion", 3), ("cornflower", 2), ("oxeye_daisy", 1)]),
+    # Ichu: golden bunchgrass from one horizon to the other.
+    "puna_grass": simple([("short_dry_grass", 4), ("tall_dry_grass", 3), ("short_grass", 1)]),
     "boulder": boulder("stone", ["sand", "gravel", "coarse_dirt"]),
+    # Yareta: cushions so dense and hard that they look like green boulders. They grow a centimetre a year.
+    "yareta": boulder("moss_block", ["gravel", "coarse_dirt", "stone"]),
     "limestone_boulder": boulder(ours("limestone")),
     # The granite tors of the moors.
     "granite_boulder": boulder("granite"),
@@ -272,11 +289,15 @@ PLACED = {
     "cypress_checked": checked(ours("cypress"), "spruce_sapling"),
     "maquis_shrub_checked": checked(ours("maquis_shrub"), "oak_sapling"),
     "bog_spruce_checked": checked(ours("bog_spruce"), "spruce_sapling"),
+    "frailejon_checked": checked(ours("frailejon"), "pale_oak_sapling"),
+    "polylepis_checked": checked(ours("polylepis"), "oak_sapling"),
     "boulders": scattered(ours("boulder"), chance=4),
     "boulders_rare": scattered(ours("boulder"), chance=12),
     "limestone_boulders": scattered(ours("limestone_boulder"), chance=5),
     "granite_tors": scattered(ours("granite_boulder"), chance=5),
     "bog_pools": scattered(ours("bog_pool"), count=3),
+    "paramo_pools": scattered(ours("bog_pool"), chance=3),
+    "yaretas": scattered(ours("yareta"), chance=3),
     "trees_tundra": trees(ours("tundra_shrub"), {0: 3, 1: 2, 2: 1}, "birch_sapling"),
     "trees_alpine_tundra": trees(ours("krummholz"), {0: 4, 1: 2, 2: 1}, "spruce_sapling"),
     "trees_temperate_rainforest": trees(ours("trees_temperate_rainforest"), {12: 9, 14: 1}, "spruce_sapling"),
@@ -286,6 +307,8 @@ PLACED = {
     "trees_moorland": trees(ours("trees_moorland"), {0: 14, 1: 1}, "birch_sapling"),
     "trees_heath": trees(ours("trees_heath"), {0: 4, 1: 2, 2: 1}, "birch_sapling"),
     "trees_bog": trees(ours("trees_bog"), {0: 6, 1: 3, 2: 1}, "spruce_sapling"),
+    "trees_paramo": trees(ours("trees_paramo"), {0: 2, 1: 3, 2: 3, 4: 2}, "oak_sapling"),
+    "trees_puna": trees(ours("polylepis"), {0: 16, 1: 1}, "oak_sapling"),
     "patch_tundra_grass": patch(ours("tundra_ground_cover"), 24, count=3),
     "tundra_moss": scattered(ours("tundra_moss_patch"), chance=2),
     "rainforest_moss": scattered("minecraft:moss_patch", count=1),
@@ -303,6 +326,9 @@ PLACED = {
     "patch_heath_grass": patch(ours("heath_grass"), 32, count=2),
     "patch_bog_ground_cover": patch(ours("bog_ground_cover"), 32, count=4),
     "patch_heather_bog": patch(ours("heather"), 32, count=1),
+    "patch_paramo_grass": patch(ours("paramo_grass"), 48, count=5),
+    "patch_paramo_flowers": patch(ours("paramo_flowers"), 32, spread=6, chance=2),
+    "patch_puna_grass": patch(ours("puna_grass"), 48, count=6),
     "glowworm_silk_ceilings": hollow(ours("glowworm_silk"), "ceiling", 48),
     "grotto_pools": hollow(ours("grotto_pool"), "floor", 2),
     "selenite_beams_floor": hollow(ours("selenite_beam"), "floor", 2),
@@ -347,6 +373,9 @@ FEATURES["trees_heath"] = {"type": "minecraft:random_selector", "default": "mine
 FEATURES["trees_bog"] = {"type": "minecraft:random_selector", "default": ours("bog_spruce_checked"),
                          "features": [{"chance": 0.25, "feature": "minecraft:pine_checked"},
                                       {"chance": 0.2, "feature": "minecraft:birch_checked"}]}
+# Frailejones, and here and there a queñua.
+FEATURES["trees_paramo"] = {"type": "minecraft:random_selector", "default": ours("frailejon_checked"),
+                            "features": [{"chance": 0.05, "feature": ours("polylepis_checked")}]}
 FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
@@ -493,6 +522,38 @@ BIOMES = {
                  "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_plains",
                  "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
     },
+    # Tropical alpine grassland, wet: tussock grass, cushions of moss and dark pools under the clouds, and the
+    # frailejones standing over them like people. The northern Andes; the afro-alpine moors of Mount Kenya, with their
+    # giant groundsels, look much the same.
+    "paramo": {
+        "template": "meadow", "temperature": 0.3, "downfall": 0.9, "fog": 192.0,
+        "effects": {"grass_color": "#a0a362", "foliage_color": "#7f8c4f", "dry_foliage_color": "#9a7d4c"},
+        "attributes": {"minecraft:visual/fog_color": "#c4cacd", "minecraft:visual/sky_color": "#a2b4c4"},
+        "creatures": [spawn("rabbit", 6, 2, 3), spawn("llama", 3, 2, 4), spawn("sheep", 3, 2, 4),
+                      spawn("fox", 2, 1, 2)],
+        "local": ["paramo_pools", "boulders"],
+        "vegetation": ["minecraft:glow_lichen", "trees_paramo", "patch_paramo_grass", "patch_paramo_flowers",
+                       "tundra_moss"],
+        "tags": ["c:is_wet/overworld", "c:is_cold/overworld", "c:is_mountain/slope", "c:is_sparse_vegetation/overworld",
+                 "c:is_rare", "minecraft:has_structure/mineshaft", "minecraft:has_structure/trial_chambers",
+                 "minecraft:is_mountain", "minecraft:is_overworld", "minecraft:spawns_cold_variant_farm_animals",
+                 "minecraft:stronghold_biased_to"],
+    },
+    # Tropical alpine grassland, dry: golden ichu under a deep blue sky, cushions of yareta among the stones, tola
+    # scrub, rare groves of queñua, and herds of llamas. The Altiplano, from Peru to the north of Chile and Argentina.
+    "puna": {
+        "template": "meadow", "temperature": 0.3, "downfall": 0.2,
+        "effects": {"grass_color": "#b4a55e", "foliage_color": "#8f9150", "dry_foliage_color": "#a68a52"},
+        "attributes": {"minecraft:visual/sky_color": "#6e9bff"},
+        "creatures": [spawn("llama", 10, 2, 6), spawn("rabbit", 6, 2, 3), spawn("sheep", 2, 2, 4),
+                      spawn("fox", 2, 1, 2)],
+        "local": ["yaretas", "boulders"],
+        "vegetation": ["minecraft:glow_lichen", "trees_puna", "patch_puna_grass", "patch_sagebrush"],
+        "tags": ["c:is_dry/overworld", "c:is_cold/overworld", "c:is_plateau", "c:is_sparse_vegetation/overworld",
+                 "minecraft:has_structure/mineshaft", "minecraft:has_structure/trial_chambers",
+                 "minecraft:has_structure/village_desert", "minecraft:is_mountain", "minecraft:is_overworld",
+                 "minecraft:spawns_cold_variant_farm_animals", "minecraft:stronghold_biased_to"],
+    },
     # Raised bogs of the cool, wet lowlands: sphagnum and peat around dark pools, cottongrass, heather on the
     # hummocks, and a few spindly trees. The swamp's monsters: slimes, witches and the bogged.
     "bog": {
@@ -597,6 +658,14 @@ SURFACE_RULE = sequence(
         when(biome_is("alpine_tundra"), sequence(
             when(STEEP, block("stone")), when(noise(0.25), block("gravel")), when(noise(hi=-0.4), block("stone")),
             block("grass_block"))),
+        # Black, wet soil under the tussocks, and cushion bogs of moss.
+        when(biome_is("paramo"), sequence(
+            when(STEEP, block("stone")), when(noise(0.3), block("moss_block")),
+            when(noise(hi=-0.5), block("coarse_dirt")), block("grass_block"))),
+        # Stony ground between the bunchgrass.
+        when(biome_is("puna"), sequence(
+            when(STEEP, block("stone")), when(noise(0.3), block("gravel")), when(noise(hi=-0.45), block("coarse_dirt")),
+            block("grass_block"))),
         # Gravel plains and sand, as in the Gobi.
         when(biome_is("cold_desert"), sequence(
             when(noise(0.2), block("gravel")), when(noise(hi=-0.35), block("coarse_dirt")),
@@ -624,14 +693,14 @@ SURFACE_RULE = sequence(
     ))),
     when("minecraft:under_floor", sequence(
         when(biome_is("cold_desert"), block("sandstone")),
-        when(biome_is("alpine_tundra"), when(STEEP, block("stone"))),
+        when(biome_is("alpine_tundra", "paramo", "puna"), when(STEEP, block("stone"))),
         when(biome_is("maquis"), when(STEEP, block(ours("limestone")))),
         when(biome_is("salt_flat"), block(ours("rock_salt"))),
         when(biome_is("moorland"), when(STEEP, block("stone"))),
         # Peat all the way down to the rock.
         when(biome_is("bog"), block(ours("peat"))),
         when(SUBSOIL, sequence(
-            when(biome_is("moorland", "tundra"), block(ours("peat"))),
+            when(biome_is("moorland", "tundra", "paramo"), block(ours("peat"))),
             when(biome_is("maquis"), block(ours("terra_rossa"))),
             when(biome_is("steppe"), block(ours("loess"))),
             when(biome_is(*TROPICAL), block(ours("laterite"))))),

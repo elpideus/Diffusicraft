@@ -16,14 +16,20 @@ import java.util.Map;
  * <ul>
  *   <li><b>Fjord</b>: the drowned valleys that {@link Glaciation} carves into cold mountain coasts, where vanilla
  *       puts an ocean, cold or not. Frozen oceans stay frozen, as in Greenland's fjords.</li>
- *   <li>Wetlands, from vanilla's swamp band: <b>mangroves</b> on tropical coasts, <b>bogs</b> where the summers stay
- *       cooler than {@value #BOG_WARMEST} °C, tundra beyond the tree line, swamps elsewhere.</li>
+ *   <li>Wetlands, from vanilla's swamp band: <b>mangroves</b> on tropical coasts, páramo on tropical mountains,
+ *       <b>bogs</b> where the summers stay cooler than {@value #BOG_WARMEST} °C, tundra beyond the tree line, swamps
+ *       elsewhere.</li>
  *   <li><b>Cloud forest</b>: tropical mountainsides (little seasonality) between 1000 and 3500 m, 10 to 20 °C, at
  *       least 1500 mm of rain.</li>
  *   <li>Snow and ice are vanilla's where the warmest month stays below {@value #ICE_WARMEST} °C or the year averages
  *       below {@value #POLAR_TEMPERATURE} °C, so the ground is white most of the year.</li>
  *   <li><b>Salt flat</b>: the flattest desert floors, with less than {@value #SALT_FLAT_RELIEF} m of relief, up on
  *       the cold Altiplano too.</li>
+ *   <li><b>Páramo</b> and <b>puna</b>: tropical mountains from {@value #TROPICAL_ALPINE_ELEVATION} m where the year
+ *       averages below {@value #TROPICAL_TREE_LINE} °C. Every month is a growing season there, so the tree line follows
+ *       the year rather than the summer, and the cloud forest below gives way to them. Wet ones, with at least
+ *       {@value #PARAMO_ARIDITY} times the rain they need, are páramo, as in the northern Andes or on Mount Kenya; dry
+ *       ones puna, as on the Altiplano or Mauna Kea.</li>
  *   <li><b>Tundra</b> and <b>alpine tundra</b>: beyond the tree line, where the warmest month stays below
  *       {@value #TREE_LINE} °C; alpine on mountains. This is what moves the snow line above the tree line.</li>
  *   <li>Bare summits stay bare.</li>
@@ -55,6 +61,8 @@ public final class BiomeRefiner {
 	public static final String MOORLAND = "diffusicraft:moorland";
 	public static final String HEATH = "diffusicraft:heath";
 	public static final String SALT_FLAT = "diffusicraft:salt_flat";
+	public static final String PARAMO = "diffusicraft:paramo";
+	public static final String PUNA = "diffusicraft:puna";
 	public static final String BOG = "diffusicraft:bog";
 	public static final String FJORD = "diffusicraft:fjord";
 	public static final String SWAMP = "minecraft:swamp";
@@ -62,7 +70,7 @@ public final class BiomeRefiner {
 
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
-		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, BOG, FJORD, SWAMP, MANGROVE_SWAMP);
+		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, BOG, FJORD, SWAMP, MANGROVE_SWAMP);
 
 	/** Warmest month below which snow lies all year round, °C. */
 	static final float ICE_WARMEST = 3f;
@@ -70,6 +78,14 @@ public final class BiomeRefiner {
 	static final float POLAR_TEMPERATURE = -10f;
 	/** The tree line: no forest grows where the warmest month stays below this, °C. */
 	static final float TREE_LINE = 10f;
+	/** Seasonality below which a climate is tropical, °C: the months differ less than the days and nights. */
+	static final float TROPICAL_SEASONALITY = 2.5f;
+	/** Tropical mountains are alpine from this elevation, in meters, where they are cold enough. */
+	static final float TROPICAL_ALPINE_ELEVATION = 2500f;
+	/** The tropical tree line: no forest grows where the year averages below this, °C. */
+	static final float TROPICAL_TREE_LINE = 10f;
+	/** Precipitation over the aridity threshold above which tropical alpine land is páramo rather than puna. */
+	static final float PARAMO_ARIDITY = 3f;
 	/** Land this rugged, in meters of relief, or this high, in meters, is mountainous. */
 	static final float MOUNTAIN_RELIEF = 90f;
 	static final float MOUNTAIN_ELEVATION = 1500f;
@@ -188,6 +204,9 @@ public final class BiomeRefiner {
 		}
 		boolean mountain = kind == Kind.PEAK || kind == Kind.SLOPE || kind == Kind.HILLS
 			|| c.relief >= MOUNTAIN_RELIEF || c.elevation >= MOUNTAIN_ELEVATION;
+		if (tropicalAlpine(c)) {
+			return aridity >= PARAMO_ARIDITY ? PARAMO : PUNA;
+		}
 		if (warmest < TREE_LINE) {
 			return mountain ? ALPINE_TUNDRA : TUNDRA;
 		}
@@ -229,6 +248,10 @@ public final class BiomeRefiner {
 		if (c.coldestMonth() >= MANGROVE_COLDEST && c.elevation < MANGROVE_ELEVATION) {
 			return MANGROVE_SWAMP;
 		}
+		if (tropicalAlpine(c)) {
+			// The páramo is a land of bogs and lakes.
+			return PARAMO;
+		}
 		float warmest = c.warmestMonth();
 		if (warmest < TREE_LINE) {
 			return TUNDRA;
@@ -246,8 +269,13 @@ public final class BiomeRefiner {
 	}
 
 	static boolean cloudForest(BiomeClimate c) {
-		return c.seasonality < 2.5f && c.elevation >= 1000f && c.elevation <= 3500f
+		return c.seasonality < TROPICAL_SEASONALITY && c.elevation >= 1000f && c.elevation <= 3500f
 			&& c.temperature >= 10f && c.temperature <= 20f && c.precipitation >= 1500f;
+	}
+
+	static boolean tropicalAlpine(BiomeClimate c) {
+		return c.seasonality < TROPICAL_SEASONALITY && c.elevation >= TROPICAL_ALPINE_ELEVATION
+			&& c.temperature < TROPICAL_TREE_LINE;
 	}
 
 	static boolean temperateRainforest(BiomeClimate c) {

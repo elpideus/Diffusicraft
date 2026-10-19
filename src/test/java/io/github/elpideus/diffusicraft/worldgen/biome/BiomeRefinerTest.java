@@ -80,6 +80,26 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void tropicalMountainsAboveTheTreeLineAreParamoOrPuna() {
+		// 4000 m in Ecuador: 6 °C in every month and 1400 mm of rain.
+		BiomeClimate paramo = climate(6f, 0.5f, 1400f, 40f, 4000f, 300f);
+		assertEquals(BiomeRefiner.PARAMO, BiomeRefiner.refine("minecraft:meadow", paramo));
+		assertEquals(BiomeRefiner.PARAMO, BiomeRefiner.refine("minecraft:jagged_peaks", paramo));
+		assertEquals(BiomeRefiner.PARAMO, BiomeRefiner.refine("minecraft:swamp", paramo));
+		// The Altiplano by Lake Titicaca, 3800 m: 700 mm, nearly all in the summer. Its summers pass 10 °C.
+		BiomeClimate altiplano = climate(8.5f, 1.8f, 700f, 90f, 3800f, 40f);
+		assertEquals(BiomeRefiner.PUNA, BiomeRefiner.refine("minecraft:plains", altiplano));
+		assertEquals(BiomeRefiner.PUNA, BiomeRefiner.refine("minecraft:savanna", altiplano));
+		// Mauna Kea's summit, above the clouds.
+		assertEquals(BiomeRefiner.PUNA, BiomeRefiner.refine("minecraft:desert", climate(4f, 1.5f, 350f, 50f, 3700f, 200f)));
+		// The cloud forest below the páramo, and the glaciers above it, stay.
+		assertEquals(BiomeRefiner.CLOUD_FOREST, BiomeRefiner.refine("minecraft:jungle", climate(12f, 0.5f, 2000f, 40f, 3000f, 300f)));
+		assertNull(BiomeRefiner.refine("minecraft:frozen_peaks", climate(-4f, 0.5f, 900f, 40f, 5800f, 400f)));
+		// Low ground with seasons as mild is subantarctic tundra, as on Kerguelen.
+		assertEquals(BiomeRefiner.TUNDRA, BiomeRefiner.refine("minecraft:plains", climate(4.5f, 1.9f, 800f, 20f, 50f, 30f)));
+	}
+
+	@Test
 	void oceanicRainyCoastIsTemperateRainforest() {
 		// The Olympic Peninsula.
 		BiomeClimate c = climate(10f, 4.5f, 3000f, 60f, 100f, 60f);
