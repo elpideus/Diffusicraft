@@ -81,7 +81,9 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   inference and saves maps of them (`diffusicraft-lod-near.png`, `diffusicraft-lod-far.png`). It needs the models, and
   skips itself without them. It generates on the CPU, so the GPU stays free; add `-Pdiffusicraft.device=CUDA` to use the
   GPU. Each view waits until the chunks the server sends are rendered: Fabric's own wait expects a square of chunks, but
-  the server sends a circle, so above a render distance of 6 it never returns.
+  the server sends a circle, so above a render distance of 6 it never returns. Its world's seed is chosen for a coastal
+  spawn with rivers, cliffs and Grand Hollows near it; `-Pdiffusicraft.seed=<seed>` picks another, to see the biomes of
+  other climates.
 - [`TallDimensionGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TallDimensionGameTest.java)
   plays in a 32,736-block dimension: blocks, light and heightmaps at both ends, the network in both directions, a
   column full of blocks, and saving. Then it plays the same on a dedicated server over a real connection. It logs

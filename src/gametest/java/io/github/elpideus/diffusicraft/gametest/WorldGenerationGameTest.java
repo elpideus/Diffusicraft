@@ -4,6 +4,7 @@ import io.github.elpideus.diffusicraft.block.DiffusicraftBlocks;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
+import io.github.elpideus.diffusicraft.terrain.geography.Geography;
 import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
@@ -84,7 +85,8 @@ import java.util.stream.IntStream;
  * Creates a Diffusicraft world with the default settings and checks that the overworld really uses Diffusicraft.
  * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
  * the generator without building chunks, in-game views from above the spawn, over the largest river nearby, of the
- * tallest sea cliff nearby and of each of Diffusicraft's biomes on the map, and views inside the nearest Grand Hollow,
+ * tallest sea cliff nearby and of each of Diffusicraft's biomes within 24 km or along the meridian towards the
+ * equator, and views inside the nearest Grand Hollow,
  * inside the tallest Grand Hollow of each of their biomes, over the nearest lake in a Grand Hollow and over the nearest
  * lava sea of a Deep Grand Hollow. It also checks that each Grand Hollow biome grows what it should, that the lake
  * holds its water, and the levels of detail Distant Horizons draws against the
@@ -95,7 +97,11 @@ import java.util.stream.IntStream;
  */
 public class WorldGenerationGameTest implements FabricClientGameTest {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Diffusicraft world test");
-	private static final String SEED = "20261029";
+	/**
+	 * The world's seed: a coastal spawn with rivers, cliffs and Grand Hollows near it. {@code -Pdiffusicraft.seed=...}
+	 * picks another, to see the biomes of other climates.
+	 */
+	private static final String SEED = System.getProperty("diffusicraft.seed", "20261029");
 	/** Map size in pixels, and blocks per pixel. */
 	private static final int MAP_SIZE = 256;
 	private static final int MAP_STRIDE = 8;
@@ -117,6 +123,11 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	/** Spacing of the LOD columns whose tree crowns are counted by biome, which spans several biomes. */
 	private static final int LOD_CANOPY_STEP = 16;
 	private static final int LOD_FAR_STEP = 256;
+	/**
+	 * Blocks to each side of the meridian through the spawn that the search for the biomes of other latitudes covers:
+	 * about 500 km, wide enough to cross a tropical mountain range.
+	 */
+	private static final int MERIDIAN_STRIP = 32768;
 	/** How far the share of the LOD's columns under a tree crown may be from the chunks'. */
 	private static final double LOD_CROWN_TOLERANCE = 0.2;
 
@@ -134,7 +145,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		context.runOnClient(mc -> mc.options.renderDistance().set(RENDER_DISTANCE));
 		OnnxModel.Device device = OnnxModel.Device.valueOf(System.getProperty("diffusicraft.device", "CPU"));
 		Resources.get().updateConfig(config -> config.device = device);
-		LOGGER.info("Generating on {}", device);
+		LOGGER.info("Generating on {}, seed {}", device, SEED);
 
 		// A fresh Create World screen selects Diffusicraft.
 		context.runOnClient(mc -> CreateWorldScreen.openFresh(mc, () -> mc.gui.setScreen(new TitleScreen())));
@@ -280,7 +291,10 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		return preset == null ? "custom" : preset.unwrapKey().map(k -> k.identifier().toString()).orElse("unregistered");
 	}
 
-	/** Teleports the player, waits for the chunks and takes a screenshot. */
+	/**
+	 * Teleports the player, waits for the chunks and takes a screenshot at noon: a test that runs for an hour sees the
+	 * days go by, and the views would otherwise fall at night.
+	 */
 	static void view(ClientGameTestContext context, TestSingleplayerContext world, BlockPos at, float yaw,
 							 float pitch, String name) {
 		world.getServer().runCommand(String.format(Locale.ROOT, "tp @a %d %d %d %.1f %.1f", at.getX(), at.getY(),
@@ -296,6 +310,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			LOGGER.warn("Chunks for {} not all rendered after {} s ({}); taking the screenshot anyway", name,
 				(System.nanoTime() - start) / 1_000_000_000L, context.computeOnClient(WorldGenerationGameTest::pendingWork));
 		}
+		world.getServer().runCommand("time set noon");
 		context.waitTicks(20);
 		Path file = context.takeScreenshot("diffusicraft-world-" + name);
 		LOGGER.info("Screenshot: {}", file.toAbsolutePath());
@@ -1007,29 +1022,23 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	}
 
 	/**
-	 * Adds the Diffusicraft biomes missing from the map: the nearest spot within 24 km on the coarse map, confirmed on
-	 * the full terrain within 512 blocks of it. Biomes the climate of this seed has nowhere near are left out.
+	 * Adds the Diffusicraft biomes missing from the map: the nearest spot on the coarse map within 24 km, or along the
+	 * meridian through the spawn towards the equator, 50° of latitude, in a strip {@value #MERIDIAN_STRIP} blocks to
+	 * each side, where the tropical biomes are. Each is confirmed on the full terrain within 512 blocks of it. Biomes
+	 * the climate of this seed has nowhere near are left out.
 	 */
 	private static void findFarBiomes(Probe probe, Map<String, BlockPos> found) {
 		long start = System.nanoTime();
-		int reach = 24 * 1024, step = 256;
+		int reach = 24 * 1024;
+		int meridian = (int) (50 * Geography.KM_PER_DEGREE * 1000 / WorldScale.STANDARD.metersPerBlock());
 		Map<String, BlockPos> coarse = new TreeMap<>();
 		Map<String, Long> distance = new TreeMap<>();
 		CoarseClimate.call(() -> {
 			BiomeResolver resolver = probe.biomes.createResolver(
 				probe.state.createClimateSampler(SamplerContext.EMPTY_UNCACHED));
-			for (int dx = -reach; dx <= reach; dx += step) {
-				for (int dz = -reach; dz <= reach; dz += step) {
-					int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
-					String b = biomeAt(resolver, x, 160, z);
-					long d = (long) dx * dx + (long) dz * dz;
-					if (BiomeRefiner.TARGETS.contains(b) && b.startsWith("diffusicraft:") && !found.containsKey(b)
-						&& d < distance.getOrDefault(b, Long.MAX_VALUE)) {
-						distance.put(b, d);
-						coarse.put(b, new BlockPos(x, 0, z));
-					}
-				}
-			}
+			searchCoarse(probe, resolver, found, -reach, reach, 256, -reach, reach, 256, coarse, distance);
+			searchCoarse(probe, resolver, found, -MERIDIAN_STRIP, MERIDIAN_STRIP, 1024, reach, meridian, 512, coarse,
+				distance);
 			return null;
 		});
 		BiomeResolver resolver = probe.biomes.createResolver(probe.state.createClimateSampler(SamplerContext.EMPTY_UNCACHED));
@@ -1056,8 +1065,29 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				LOGGER.info("{} is on the coarse map at {} but not on the full terrain around it", entry.getKey(), at);
 			}
 		}
-		LOGGER.info("Diffusicraft biomes within 24 km, found in {} s: {}", (System.nanoTime() - start) / 1_000_000_000L,
-			found);
+		LOGGER.info("Diffusicraft biomes within 24 km or along the meridian, found in {} s: {}",
+			(System.nanoTime() - start) / 1_000_000_000L, found);
+	}
+
+	/**
+	 * Puts into {@code coarse} the nearest spot to the spawn, in {@code [dx0, dx1] × [dz0, dz1]} around it every
+	 * {@code xStep} and {@code zStep} blocks, of each Diffusicraft biome not in {@code found}, unless {@code distance}
+	 * holds a nearer one.
+	 */
+	private static void searchCoarse(Probe probe, BiomeResolver resolver, Map<String, BlockPos> found, int dx0, int dx1,
+		int xStep, int dz0, int dz1, int zStep, Map<String, BlockPos> coarse, Map<String, Long> distance) {
+		for (int dz = dz0; dz <= dz1; dz += zStep) {
+			for (int dx = dx0; dx <= dx1; dx += xStep) {
+				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
+				String b = biomeAt(resolver, x, 160, z);
+				long d = (long) dx * dx + (long) dz * dz;
+				if (BiomeRefiner.TARGETS.contains(b) && b.startsWith("diffusicraft:") && !found.containsKey(b)
+					&& d < distance.getOrDefault(b, Long.MAX_VALUE)) {
+					distance.put(b, d);
+					coarse.put(b, new BlockPos(x, 0, z));
+				}
+			}
+		}
 	}
 
 	/**
