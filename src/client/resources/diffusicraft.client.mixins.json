@@ -12,7 +12,10 @@
 		"sodium.AbstractSectionVisitorMixin",
 		"sodium.DeferredTaskListMixin",
 		"sodium.TaskCollectingTreeMixin",
+		"voxy.ActiveSectionTrackerMixin",
+		"voxy.VoxyInstanceMixin",
 		"voxy.VoxyRenderSystemMixin",
+		"voxy.WorldEngineMixin",
 		"voxy.WorldUpdaterMixin"
 	],
 	"injectors": {

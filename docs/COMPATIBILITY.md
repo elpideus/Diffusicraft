@@ -8,8 +8,8 @@ for each mod, and what is still open.
 | Mod | Status | What Diffusicraft does |
 |---|---|---|
 | [Distant Horizons](#distant-horizons) 3.3.4 | Integrated | Draws the far terrain straight from the terrain, without chunks |
-| [Voxy](#voxy) 0.2.20-beta | Works, checked in game | Keeps it within the heights it can hold; it builds its far terrain from chunks |
-| Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Distant Horizons uses Diffusicraft's generator; a feed into Voxy is planned |
+| [Voxy](#voxy) 0.2.20-beta | Works, checked in game | Keeps it within the heights it can hold; draws its far terrain straight from the terrain in singleplayer (not yet checked in game) |
+| Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Both mods' far terrain comes from Diffusicraft's terrain instead, Voxy's in singleplayer |
 | [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's; their trees show in the LODs |
 | Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
 | C2ME 0.4.2-alpha.0.106+26.3 | Works, checked in game | Nothing: the terrain pipeline is thread-safe. The client game test passes with it (`-PdevMods=c2me-fabric`), LODs, rivers and lakes included, in well under half the time |
@@ -100,7 +100,32 @@ it; the integration loads only when Distant Horizons is installed.
 
 Voxy draws terrain far beyond the render distance, as Distant Horizons does, from levels of detail it builds out of
 the chunks the client loads and out of the worlds its importers read. It has no API for a world generator to supply
-them, so in a Diffusicraft world it builds them from chunks for now.
+them; Diffusicraft fills them in from the terrain itself.
+
+**Far terrain.** Voxy keeps its world in sections of 32 × 32 × 32 voxels at five levels of detail, a voxel being 1 to
+16 blocks on a side, and reads each from its store when it first needs it, to draw it or to write a chunk into it.
+Where the store has never held a section, Voxy would leave it empty. In a Diffusicraft world, in singleplayer,
+`client.compat.voxy.VoxyTerrain` fills it from the terrain instead, through `worldgen.lod.LodGrid`, which cuts
+voxels out of the same columns Distant Horizons gets (`LodSampler`): surface blocks from the material rules, rivers,
+sea, ice, snow and tree crowns. A voxel shows the highest block in it that is neither air nor water, else water, else
+air, as Voxy's coarser levels keep its finer ones; the sky lights the air, and water darkens one level per block
+below its surface. Ground above y = 4095 sinks into the rock under it and stands flat there, as it does for
+Distant Horizons.
+
+- The sections filled are not saved. Voxy saves a section once the chunks it loads change it, filled blocks and
+  all, and the chunks replace the filled blocks where they lie: trees, buildings and whatever players built show as
+  they are.
+- Voxy finds what to draw by walking down from its coarsest sections through the children each says hold blocks. A
+  filled section claims the children under its blocks and one voxel round them, since the finer columns of a child
+  can stand a little higher or wider. When a child turns out empty, its parents are put right as it is filled. A
+  child that holds blocks its parent did not claim, a spike thinner than the parent's voxels, is not drawn until the
+  chunks there are loaded.
+- Three mixins, applied only when Voxy is installed, do this: `VoxyInstanceMixin` tells Diffusicraft which level
+  each of Voxy's worlds holds as Voxy opens it, `WorldEngineMixin` keeps the terrain with it, and
+  `ActiveSectionTrackerMixin` fills each section the store misses.
+- On a server, Voxy's far terrain is still built from the chunks the client sees: the client has no terrain of its
+  own to fill it from. Turn [`voxyLods`](CONFIG.md#voxylods) off to have the same in singleplayer.
+- Not yet checked in game; the voxel rule has unit tests (`LodGridTest`).
 
 **Heights.** Voxy packs the height of its sections into 8 bits, so it holds y = −4096 to 4095. Grand fits. In a taller
 level, Earth 1:1 or a dimension of up to 32,736 blocks (see [HEIGHT.md](HEIGHT.md)), its renderer walked the sections
@@ -118,7 +143,8 @@ In Earth 1:1, ground above y = 4095 shows cut flat in Voxy's far terrain; the ch
 
 **Licensing.** Voxy is All Rights Reserved. It is a dev mod outside the pack (`localRuntime`, named in `-PdevMods`),
 never a dependency and never bundled. Diffusicraft compiles its mixins against its own declarations of the few Voxy
-members they use, in the `voxyStubs` source set, never against Voxy; those declarations are not shipped.
+members they use, in the `voxyStubs` source set, never against Voxy; those declarations are not shipped. Each has
+been checked against Voxy 0.2.20-beta's classes: names, types and constants.
 
 ## Sodium
 

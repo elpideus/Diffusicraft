@@ -52,9 +52,11 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     (`getExclusiveMaxBuildHeight()`, `getMaxNonEmptyHeight`, `getSolidHeightMapValue` and
     `getLightBlockingHeightMapValue`). Check them on every Distant Horizons update.
   - Voxy (`client/mixin/voxy`, applied only when it is installed): the `new RenderDistanceTracker` in
-    `VoxyRenderSystem.<init>` and `WorldUpdater.insertUpdate`. Voxy is All Rights Reserved, so Diffusicraft compiles
-    against its own declarations of the Voxy members it uses (`src/voxyStubs`), never against Voxy. Check both on
-    every Voxy update.
+    `VoxyRenderSystem.<init>`, `WorldUpdater.insertUpdate`, the call to `SectionLoader.load` in
+    `ActiveSectionTracker.acquire(long, boolean)`, the private `VoxyInstance.createWorld`, the interface added to
+    `WorldEngine`, and every member declared in `src/voxyStubs`. Voxy is All Rights Reserved, so Diffusicraft compiles
+    against its own declarations of the Voxy members it uses, never against Voxy. Check them all on every Voxy
+    update.
   - Sodium (`client/mixin/sodium`, applied only when it is installed): the `-128` inlined once in
     `TaskCollectingTree.addPendingSection` and in `DeferredTaskList.dequeueNextSectionPos`, `getPendingTaskLists`
     returning the `DeferredTaskList`, and `AbstractSectionVisitor.baseOffsetY`. Check them on every Sodium update.

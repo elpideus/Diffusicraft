@@ -52,6 +52,11 @@ public final class DiffusicraftConfig {
 	 */
 	public boolean distantHorizonsLods = true;
 	/**
+	 * Draw Voxy's far terrain in Diffusicraft worlds straight from the terrain where Voxy has not seen the chunks, in
+	 * singleplayer. Off: Voxy shows only the chunks it has loaded. Read when Voxy opens a world.
+	 */
+	public boolean voxyLods = true;
+	/**
 	 * Section rows above and below the camera that the client keeps render data for. 0 uses the render distance, which
 	 * is as far as vanilla draws vertically; smaller values save memory in tall dimensions. Read at startup.
 	 */

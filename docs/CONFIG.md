@@ -16,6 +16,7 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "storagePath": "",
   "rocmNativePath": "",
   "distantHorizonsLods": true,
+  "voxyLods": true,
   "verticalRenderDistance": 0,
   "generateAhead": true
 }
@@ -111,6 +112,12 @@ is used. Read at startup. See [RUNTIMES.md](RUNTIMES.md#amd-rocm).
 With Distant Horizons installed, Diffusicraft draws its far terrain in Diffusicraft worlds straight from the terrain,
 without generating chunks. Set it to `false` to let Distant Horizons generate chunks for its LODs instead, or to let
 another LOD generator take over. Read at startup. See [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
+
+### `voxyLods`
+
+With Voxy installed, Diffusicraft fills Voxy's far terrain in Diffusicraft worlds straight from the terrain where
+Voxy has not seen the chunks, in singleplayer. Set it to `false` to have Voxy show only the chunks it has loaded, as
+it does on a server. Read when Voxy opens a world. See [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
 
 ### `verticalRenderDistance`
 

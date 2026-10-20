@@ -176,7 +176,8 @@ Diffusicraft counts them from below the camera instead (see [COMPATIBILITY.md](C
 - **Voxy** packs the height of its sections into 8 bits, so it holds y = −4096 to 4095. Taller levels used to stop
   the game as soon as Voxy started in them; Diffusicraft now keeps Voxy's renderer and its store within those
   heights, and leaves out of it the sections beyond (see [COMPATIBILITY.md](COMPATIBILITY.md#voxy)). In Earth 1:1,
-  ground above y = 4095 shows cut flat in Voxy's far terrain; the chunks themselves are whole.
+  ground above y = 4095 shows cut flat in Voxy's far terrain; the chunks themselves are whole. The far terrain
+  Diffusicraft fills Voxy with sinks there, as it does for Distant Horizons.
 - **Sodium** built no section above y = 14,335 or below y = −2048, so the tallest dimensions showed nothing at
   their top or bottom. Diffusicraft lets it build sections at every height (see
   [COMPATIBILITY.md](COMPATIBILITY.md#sodium)); the tall-dimension game test runs with it.
@@ -329,6 +330,7 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `dh.ChunkWrapperMixin` (Distant Horizons) | `ChunkWrapper.getExclusiveMaxBuildHeight()`, `getMaxNonEmptyHeight`, `getSolidHeightMapValue`, `getLightBlockingHeightMapValue` | Distant Horizons building LODs from these four; check it on every Distant Horizons update too |
 | `voxy.VoxyRenderSystemMixin` (client, Voxy) | `VoxyRenderSystem.<init>` | its `new RenderDistanceTracker(…, minSection, maxSection, …)` taking the range of Voxy's top-level sections, at index 1 and 2; check it on every Voxy update too |
 | `voxy.WorldUpdaterMixin` (client, Voxy) | `WorldUpdater.insertUpdate(WorldEngine, VoxelizedSection)` | every chunk section Voxy keeps passing through it; the `y` field of `VoxelizedSection` in chunk sections |
+| `voxy.ActiveSectionTrackerMixin` (client, Voxy) | the call to `SectionLoader.load` in `ActiveSectionTracker.acquire(long, boolean)` | every section Voxy reads coming through it once; status 1 meaning the store never held it, after which Voxy fills it with air; the members declared in `src/voxyStubs` (not about height: the far terrain, see [COMPATIBILITY.md](COMPATIBILITY.md#voxy)) |
 | `sodium.TaskCollectingTreeMixin` (client, Sodium) | `TaskCollectingTree.addPendingSection`, `getPendingTaskLists` | `SECTION_Y_MIN` (−128) inlined once in `addPendingSection`; `getPendingTaskLists` returning the `DeferredTaskList` its tasks go to; check it on every Sodium update too |
 | `sodium.DeferredTaskListMixin` (client, Sodium) | `DeferredTaskList.dequeueNextSectionPos` | `SECTION_Y_MIN` (−128) inlined once, to unpack the height |
 | `sodium.AbstractSectionVisitorMixin` (client, Sodium) | `AbstractSectionVisitor` | the `baseOffsetY` field, the lowest section of the search, which `TaskCollectingTree` inherits |
