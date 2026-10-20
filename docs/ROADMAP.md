@@ -53,6 +53,12 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   salt crust. Soils of their own under some biomes: peat, which burns, terra rossa, laterite and loess. Snow follows
   the climate rather than a fixed height, above a real tree line, and the Grand Hollows are free of sculk. See
   [WORLDGEN.md](WORLDGEN.md#refined-biomes).
+- **Real biome sizes.** Biomes come in patches as large as their real counterparts. At Earth 1:1 the main forests
+  and taigas average 10 to 20 km across, a few hundred square kilometres at most, and steppe or maquis can cover a
+  whole plain. Sun and shade are measured over a whole valley side, vanilla's variants are picked by noise with a
+  12 km wavelength, summer rain counts as Köppen counts it, so continental plains are steppe, and meadows keep to the
+  subalpine belt instead of lining every valley side. Pale gardens, from vanilla's plateau row, still come in belts a
+  few kilometres long on the upper slopes. See [WORLDGEN.md](WORLDGEN.md#biome-parameters).
 - **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
   and a magma layer above the bedrock. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See
   [WORLDGEN.md](WORLDGEN.md#the-ground).
@@ -129,7 +135,6 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Biomes
 
-- **Real sizes.** Biomes are as large as their real counterparts: a forest can be tens of kilometres across at 1:1.
 - **More real-world biomes.** The other biomes the climate can tell apart.
 - **Longer fjords.** Today's fjords reach about 20 km inland and end where their valleys climb over a step the coarse
   map does not see. The longest real ones run 100 km and more inland, over sills, between walls a kilometre high.
