@@ -633,12 +633,15 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
     same coasts cold.
 
   The first two are interpolated between the centres of the coarse pixels, with the valley floor and the cut, so they
-  are smooth. Lowered ground is warmer by its lapse rate. The coarse map is lowered alike, so the rivers, the farthest
-  LODs and the coarse searches see the same coasts. Water that was land before the ice is the fjord biome (see [Refined
-  biomes](#refined-biomes)): the lowering keeps heights in order, so that is the water no deeper than the ice lowered
-  ground at sea level, where it lowered it by at least 120 m. On two cold coasts of seed 42, each 92 km square, the ice
-  drowned 486 and 118 km² of land, as deep as 450 m. Half the drowned water lies within a kilometre of the old coast,
-  and the longest arms run 20 and 7 km from it by water.
+  are smooth. Lowered ground is warmer by its lapse rate. The coarse map lowers each pixel's mean and valley floor by
+  the mean of what the samples do at 4 × 4 points across it, so a valley the ice cut through a strip of the pixel sinks
+  the pixel's floor as far as the samples' (within 30–40 m on average in the tests, where the pixel's centre alone was
+  off by 400–500 m in broad and branching valleys), and the rivers, the farthest LODs and the coarse searches see the
+  same coasts. Water that was land before the ice is the fjord biome (see [Refined biomes](#refined-biomes)): the
+  lowering keeps heights in order, so that is the water no deeper than the ice lowered ground at sea level, where it
+  lowered it by at least 120 m. On two cold coasts of seed 42, each 92 km square, the ice drowned 486 and 118 km² of
+  land, as deep as 450 m. Half the drowned water lies within a kilometre of the old coast, and the longest arms run 20
+  and 7 km from it by water.
 - **Long fjords.** Those valleys drown only as far as the coarse map's floors reach under the trough, some 20 km
   inland. The longest real fjords, which the great outlet glaciers cut along a coast's main valleys, run 100 km and
   more inland, over a shallow sill at the mouth and a basin up to 1,300 m deep behind it, between walls a kilometre
@@ -1127,7 +1130,8 @@ Other searches still read the full terrain and can take a while on new land:
   the trough climbs inland and spares valleys too high above it, that a cold mountain coast drowns its valleys under the
   ridges while a mild one keeps them, that gentle valleys drown six tiles inland but not beyond the ice's reach, that
   the flat floor of a broad valley drowns while a plain beside the mountains keeps its ground, that the coarse map is
-  lowered alike, and that overlapping samples agree to the bit.
+  lowered alike, its valley floors within 45 m of the samples' 5th percentile on average, and that overlapping samples
+  agree to the bit.
 - `GeographyTest` checks, on a table of heights shaped like the real one, that a seed always maps the same world,
   that land takes about its real share, that the origin is the kind of place asked for (a coast by the open sea on a
   continent, land far inland, a lone island, land over a Hollow or a high mountain) and that seeds draw the kinds by

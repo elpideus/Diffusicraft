@@ -34,8 +34,11 @@ import java.util.List;
  * {@value #SEA_REACH} (61 and 84 km in the game), so the fjords end where their troughs no longer reach under the sea.
  * Those come from the source's coarse map ({@link #ice}). And it must be cold: the annual mean at sea level below
  * {@value #COLD} °C, fading out at {@value #MILD} °C. The coarse map reduces its temperatures to sea level as the fine
- * samples do ({@link #seaLevel}), so both find the same coasts cold. The fine samples and the coarse map are deepened
- * alike. Lowered ground is warmer by the local lapse rate.
+ * samples do ({@link #seaLevel}), so both find the same coasts cold. The fine samples interpolate how glaciated they
+ * are, the valley floor and how mountainous the land is between the centres of the coarse pixels; the coarse map
+ * lowers each pixel's mean and 5th percentile by the mean of what the samples do at {@value #POINTS} ×
+ * {@value #POINTS} points across it, so a valley cut through a strip of the pixel sinks its floor as far as the
+ * samples' and the rivers find the same coasts. Lowered ground is warmer by the local lapse rate.
  *
  * <p>That drowns the valleys as far as the coarse map's valley floors lie under the trough, some 20 km inland. The
  * longest fjords, which the great outlet glaciers cut a hundred kilometres and more inland, are the {@link Fjords}:
@@ -76,6 +79,11 @@ public final class Glaciation implements TerrainSource {
 	static final float SEA_NEAR = 8f;
 	/** Coarse pixels from the sea beyond which the ice does not reach. */
 	static final int SEA_REACH = 11;
+	/**
+	 * The coarse map is deepened as the fine samples are at this many points across each coarse pixel, and as many
+	 * down it.
+	 */
+	static final int POINTS = 4;
 	/** The plane of {@link #coarseWithIceCut} that holds the cut, after the coarse channels. */
 	static final int COARSE_ICE_CUT = COARSE_CHANNELS;
 
@@ -263,37 +271,36 @@ public final class Glaciation implements TerrainSource {
 
 	private float[] coarse(int ci0, int cj0, int ci1, int cj1, boolean withIceCut) {
 		int m = SEA_REACH, h = ci1 - ci0, w = cj1 - cj0, plane = h * w;
-		int outerWidth = w + 2 * m, outerPlane = (h + 2 * m) * outerWidth;
-		float[] map = source.coarse(ci0 - m, cj0 - m, ci1 + m, cj1 + m);
+		// The ice and the climate reach one pixel further, for the samples interpolate them between pixel centres.
+		int iceWidth = w + 2, icePlane = (h + 2) * iceWidth;
+		int outerWidth = w + 2 * m + 2, outerPlane = (h + 2 * m + 2) * outerWidth;
+		float[] map = source.coarse(ci0 - m - 1, cj0 - m - 1, ci1 + m + 1, cj1 + m + 1);
 		float[] out = new float[(withIceCut ? COARSE_CHANNELS + 1 : COARSE_CHANNELS) * plane];
 		for (int ch = 0; ch < COARSE_CHANNELS; ch++) {
 			for (int r = 0; r < h; r++) {
-				System.arraycopy(map, ch * outerPlane + (r + m) * outerWidth + m, out, ch * plane + r * w, w);
+				System.arraycopy(map, ch * outerPlane + (r + m + 1) * outerWidth + m + 1, out, ch * plane + r * w, w);
 			}
 		}
-		float[] ice = ice(map, h, w);
+		float[] ice = ice(map, h + 2, w + 2);
 		float[] climate = null;
 		for (int px = 0; ice != null && px < plane; px++) {
-			if (ice[px] <= 0f) {
+			int k = (px / w + 1) * iceWidth + px % w + 1;
+			if (!reached(ice, k, iceWidth)) {
 				continue;
 			}
 			if (climate == null) {
-				climate = seaLevel(map, h, w, m);
+				climate = seaLevel(map, h + 2, w + 2, m);
 			}
 			float mean = out[COARSE_ELEVATION * plane + px];
-			float cut = ice[px] * cold(climate[px]);
-			if (cut <= 0f) {
-				continue;
-			}
-			float floor = ice[plane + px];
-			float deepened = deepen(mean, floor, cut, ice[2 * plane + px]);
+			float deepened = deepenPixel(ice, climate, k, iceWidth, icePlane, mean);
 			out[COARSE_ELEVATION * plane + px] = deepened;
-			out[COARSE_LOW_ELEVATION * plane + px] = deepen(out[COARSE_LOW_ELEVATION * plane + px], floor, cut,
-				ice[2 * plane + px]);
+			out[COARSE_LOW_ELEVATION * plane + px] = deepenPixel(ice, climate, k, iceWidth, icePlane,
+				out[COARSE_LOW_ELEVATION * plane + px]);
 			// The lapse rate is negative: lowered ground is warmer.
-			out[COARSE_TEMPERATURE * plane + px] += climate[plane + px] * (Math.max(0f, deepened) - Math.max(0f, mean));
+			out[COARSE_TEMPERATURE * plane + px] +=
+				climate[icePlane + k] * (Math.max(0f, deepened) - Math.max(0f, mean));
 			if (withIceCut) {
-				out[COARSE_ICE_CUT * plane + px] = cut;
+				out[COARSE_ICE_CUT * plane + px] = Math.max(0f, ice[k] * cold(climate[k]));
 			}
 		}
 
@@ -318,17 +325,56 @@ public final class Glaciation implements TerrainSource {
 				continue;
 			}
 			if (climate == null) {
-				climate = seaLevel(map, h, w, m);
+				climate = seaLevel(map, h + 2, w + 2, m);
 			}
 			float lowered = mean - FJORD_COVER * Math.max(0f, mean - floor);
 			out[COARSE_ELEVATION * plane + px] = lowered;
 			out[COARSE_LOW_ELEVATION * plane + px] = Math.min(out[COARSE_LOW_ELEVATION * plane + px], floor);
-			out[COARSE_TEMPERATURE * plane + px] += climate[plane + px] * (Math.max(0f, lowered) - Math.max(0f, mean));
+			out[COARSE_TEMPERATURE * plane + px] += climate[icePlane + (px / w + 1) * iceWidth + px % w + 1]
+				* (Math.max(0f, lowered) - Math.max(0f, mean));
 			if (withIceCut) {
 				out[COARSE_ICE_CUT * plane + px] = Math.max(out[COARSE_ICE_CUT * plane + px], Fjords.cut(floor));
 			}
 		}
 		return out;
+	}
+
+	/** Whether the ice reaches the pixel at {@code k} of a window {@code width} wide or one of its eight neighbours. */
+	private static boolean reached(float[] ice, int k, int width) {
+		for (int a = -1; a <= 1; a++) {
+			for (int b = -1; b <= 1; b++) {
+				if (ice[k + a * width + b] > 0f) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Ground at {@code elevation} in the coarse pixel at {@code k} of a window {@code width} wide and {@code plane} in
+	 * all, after the ice: the mean of what the fine samples make of ground that high ({@link #valleys}) at
+	 * {@value #POINTS} × {@value #POINTS} points spread evenly over the pixel, where they interpolate the
+	 * {@link #ice} and the {@link #seaLevel} climate of the window between the centres of its pixels. The pixel must
+	 * not lie on the window's sides.
+	 */
+	private static float deepenPixel(float[] ice, float[] climate, int k, int width, int plane, float elevation) {
+		float sum = 0f;
+		for (int u = 0; u < POINTS; u++) {
+			float y = (u + 0.5f) / POINTS - 0.5f;
+			int up = y < 0f ? 1 : 0;
+			for (int v = 0; v < POINTS; v++) {
+				float x = (v + 0.5f) / POINTS - 0.5f;
+				int left = x < 0f ? 1 : 0;
+				int q = k - up * width - left;
+				float down = y + up, across = x + left;
+				float reach = bilinear(ice, q, width, across, down);
+				float cut = reach > 0f ? reach * cold(bilinear(climate, q, width, across, down)) : 0f;
+				sum += deepen(elevation, bilinear(ice, plane + q, width, across, down), cut,
+					bilinear(ice, 2 * plane + q, width, across, down));
+			}
+		}
+		return sum / (POINTS * POINTS);
 	}
 
 	@Override

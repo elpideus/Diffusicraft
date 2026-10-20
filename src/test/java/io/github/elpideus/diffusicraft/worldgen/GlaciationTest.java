@@ -222,10 +222,22 @@ class GlaciationTest {
 		field.column(-100, 50, column);
 		assertEquals(Glaciation.deepen(-200f, 0f, column.iceCut, 1f), column.elevation, 1f);
 		assertFalse(Glaciation.drowned(column.elevation, column.iceCut));
-		// So is the coarse map's.
+		// So is the coarse map's, as deep as the samples over its pixel on average.
 		field.coarseColumn(-128, 128, column);
-		assertEquals(Glaciation.deepen(-200f, 0f, Glaciation.DEPTH, 1f), column.elevation, 1f);
-		assertEquals(Glaciation.DEPTH, column.iceCut, 1e-3f);
+		float coarse = column.elevation, cut = column.iceCut;
+		double sum = 0;
+		int samples = 0;
+		for (int i = 4 - TerrainField.TILE; i < 0; i += 8) {
+			for (int j = 4; j < TerrainField.TILE; j += 8) {
+				field.column(i, j, column);
+				sum += column.elevation;
+				samples++;
+			}
+		}
+		assertEquals(sum / samples, coarse, 5f);
+		assertTrue(coarse < -400f, coarse + " m");
+		assertEquals(Glaciation.DEPTH, cut, 1e-3f);
+		assertFalse(Glaciation.drowned(coarse, cut));
 		// Valleys climbing this steeply leave the trough behind within a few tiles: 2.5 km up, they are dry.
 		field.column(5 * TerrainField.TILE, 0, column);
 		assertEquals(coast.elevation(5 * TerrainField.TILE, 0), column.elevation, 5f);
@@ -320,6 +332,37 @@ class GlaciationTest {
 			most = Math.max(most, gentle[Glaciation.COARSE_ICE_CUT * plane + px]);
 		}
 		assertTrue(most > 100f, "cut " + most + " m");
+	}
+
+	@Test
+	void theCoarseValleyFloorsSinkAsTheSamplesDo() {
+		// The coarse low is the floor of the valleys, about the lowest twentieth of the samples. Where the ice cuts
+		// a valley in a narrow strip of the pixel, the pixel's centre alone would sink it all or none of it.
+		int tile = TerrainField.TILE, plane = 6 * 5;
+		for (CoastSource coast : new CoastSource[]{new CoastSource(5f), CoastSource.broadValley(5f, 2f),
+			CoastSource.branchingValleys(5f, 1f)}) {
+			Glaciation glaciation = new Glaciation(coast);
+			float[] before = coast.coarse(0, -2, 6, 3), after = glaciation.coarse(0, -2, 6, 3);
+			double off = 0;
+			int cut = 0;
+			for (int r = 0; r < 6; r++) {
+				for (int c = 0; c < 5; c++) {
+					int k = TerrainSource.COARSE_LOW_ELEVATION * plane + r * 5 + c;
+					if (after[k] == before[k]) {
+						continue;
+					}
+					float[] fine = glaciation.sample(r * tile, (c - 2) * tile, (r + 1) * tile, (c - 1) * tile)
+						.elevation().clone();
+					Arrays.sort(fine);
+					float floor = fine[fine.length / 20];
+					assertEquals(floor, after[k], 200f, "the valley floor of coarse pixel (" + r + ", " + (c - 2) + ")");
+					off += Math.abs(after[k] - floor);
+					cut++;
+				}
+			}
+			assertTrue(cut >= 10, "the ice cuts valleys into " + cut + " coarse pixels");
+			assertTrue(off / cut < 45.0, "the coarse valley floors lie " + off / cut + " m from the samples' on average");
+		}
 	}
 
 	@Test
