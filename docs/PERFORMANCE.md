@@ -18,7 +18,8 @@ the next two reuse it, which is the steady state while a player explores.
 
 CUDA is about 6× faster than a fast desktop CPU. Both numbers are **pessimistic**: they were measured while a game
 was running. The CPU run had the lowest priority (`nice 19`), and the GPU was about 90% busy rendering. Loading the
-CUDA runtime (preloading 15 vendor libraries) took 254 ms.
+CUDA runtime (preloading 15 vendor libraries) took 254 ms. The table predates the
+[half-precision decoder](#half-precision-decoder), which makes each further region on CUDA 1.2× faster.
 
 **What this means in game.** At the 1:1 scale, one region is 15 km across. An elytra with rockets needs several minutes to
 cross it. Even on the CPU, terrain is ready long before the player gets there, because it is
@@ -37,6 +38,7 @@ Options:
 - `-Pdiffusicraft.device=CPU` (or `ROCM`);
 - `-Pdiffusicraft.benchSize=256`;
 - `-Pdiffusicraft.gpuMemoryLimitMb=4096`;
+- `-Pdiffusicraft.halfPrecision=false`, to run the decoder in fp32 on CUDA;
 - `-Pdiffusicraft.providerOptions=prefer_nhwc=1,...`, to try execution provider options before making them defaults;
 - `-Pdiffusicraft.benchReference=/path/to/file`. The first run saves the regions' elevations there; later runs print
   how far theirs are from them. Save a reference with the settings you trust, then check a change against it.
@@ -71,10 +73,44 @@ arrays. Speed has to come from the model runs themselves.
   - cuDNN's exhaustive convolution search runs once per window shape (the shapes never change).
   - TF32 tensor cores are used on Ampere and newer.
   - Copies use the default stream.
+  - The decoder runs in [half precision](#half-precision-decoder).
 - **Sharing the GPU.** The CUDA arena is capped at 60% of video memory by default (`gpuMemoryLimitMb`). Rendering,
   Distant Horizons and shader packs keep the rest, and inference never starves the renderer of memory.
 - **Fast startup.** The status shown in the UI is computed off the render thread from file metadata. Model files are
   hashed once, then trusted through `.verified` markers.
+
+## Half-precision decoder
+
+On CUDA, the decoder runs in half precision (fp16). The first time the models load on CUDA, `HalfPrecision` makes an
+fp16 copy of the decoder next to it, `decoder_model.fp16.onnx` (56 MB), in under a second:
+
+1. ONNX Runtime folds the constant parts of the graph, on the CPU and in fp32. The networks normalise their weights
+   on every run; once folded, the weights are normalised once, at full precision. Folding alone changes nothing:
+   the output is identical to the bit, and the folded weights take half the space.
+2. The folded model's float tensors and ops become fp16. Reductions, powers, square roots and the sines and cosines
+   of the noise embedding stay in fp32 between casts, and so do the inputs and outputs. ONNX Runtime's Java API cannot
+   edit graphs and the game ships no protobuf library, so `Protobuf` reads and writes the model's fields itself.
+
+A sidecar file records the conversion's version and the source file it was made from. If either changes, the copy
+is made again. If anything fails, the decoder runs in fp32 as before. Measured on an idle RTX 3060, against fp32 on
+the same card:
+
+| | fp32 | fp16 decoder |
+|---|---|---|
+| Each further region | 1.57 s | 1.30 s |
+| Decoder run (2 windows) | 133 ms | 93 ms |
+| Elevation difference, RMS | | 0.05 m |
+| Largest difference | | 0.36 m |
+
+The CPU and CUDA already differ by 0.1 to 0.4 m RMS (up to 1.0 m), because CUDA multiplies with TF32 tensor cores.
+The fp16 decoder stays well within that. It can be turned off with [`halfPrecision`](CONFIG.md#halfprecision).
+
+The other two networks stay in fp32:
+
+- **The base model** moves the terrain by 200 to 390 m RMS in fp16: the land itself changes, not just its detail.
+  Running only its convolutions and matrix products in fp16, with everything else in fp32, keeps it within 2 m, but
+  saves only 8% of its time. The casts cost almost as much as the half-precision maths saves.
+- **The coarse model** takes 3% of the time and moves the terrain by 2 to 4 m in fp16.
 
 ## Generating ahead
 
@@ -134,12 +170,19 @@ Options: `-Pdiffusicraft.flightTiles=3`, `-Pdiffusicraft.flightSpeed=33` and `-P
 
 ## Next steps
 
-Ordered by expected gain:
+The [half-precision decoder](#half-precision-decoder) is done; the base model stays in fp32, as explained there.
+What is left, and why it waits:
 
-1. **FP16 / TensorRT.** Half-precision weights or the TensorRT provider would roughly double CUDA throughput on RTX
-   cards. The output must first be checked against the FP32 reference, because the coarse stage is sensitive to
-   precision.
-2. **I/O binding and CUDA graphs.** Keep intermediate tensors on the GPU between the two latent steps and the
-   decoder, and replay fixed-shape runs as graphs to cut launch overhead.
-3. **Fewer, larger requests.** Each `sample` call pads its rectangle by the window overlap. Requests of 256 × 256 or
-   more amortise that padding; the world generator should batch chunk requests by region.
+- **TensorRT.** ONNX Runtime's GPU package contains the TensorRT provider, but the provider needs TensorRT 10's own
+  libraries. They are a 3.5 GB download on Linux and 1.8 GB on Windows, nearly doubling what an NVIDIA player
+  downloads, and TensorRT spends minutes building an engine for every window shape the first time.
+- **I/O binding and CUDA graphs.** Keeping tensors on the GPU between runs, and replaying fixed-shape runs as graphs,
+  needs ONNX Runtime's I/O binding and device tensors. Its Java API (1.31) has neither, so this would take JNI code of
+  our own.
+
+Already done or tried:
+
+- **Larger requests.** `TerrainField` asks the pipeline for tiles of 256 × 256 pixels with a 32-pixel margin, never
+  for single chunks, and windows shared by neighbouring tiles are computed once and cached by `WindowedTensor`.
+- **Other CUDA options.** NHWC convolutions (`prefer_nhwc`) run at the same speed and move the terrain by 0.4 m;
+  tunable ops change nothing.

@@ -24,7 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <pre>
  * ./gradlew test -PwithModels --tests '*WorldPipelineBenchmarkTest' [-Pdiffusicraft.device=CPU|CUDA|ROCM] \
  *     [-Pdiffusicraft.modelDir=/path/to/models] [-Ponnxruntime.native.path=/path/to/natives] \
- *     [-Pdiffusicraft.providerOptions=key=value,key=value] [-Pdiffusicraft.benchReference=/path/to/file]
+ *     [-Pdiffusicraft.halfPrecision=false] [-Pdiffusicraft.providerOptions=key=value,key=value] \
+ *     [-Pdiffusicraft.benchReference=/path/to/file]
  * </pre>
  * {@code providerOptions} override the execution provider's defaults, to try a setting before making it one.
  * {@code benchReference} saves the regions' elevations to the file, or, when it exists, prints how far this run's
@@ -40,6 +41,7 @@ class WorldPipelineBenchmarkTest {
 		resources.updateConfig(config -> {
 			config.device = device;
 			config.gpuMemoryLimitMb = Integer.getInteger("diffusicraft.gpuMemoryLimitMb", 0);
+			config.halfPrecision = Boolean.parseBoolean(System.getProperty("diffusicraft.halfPrecision", "true"));
 		});
 
 		String dir = System.getProperty("diffusicraft.modelDir");
@@ -56,7 +58,7 @@ class WorldPipelineBenchmarkTest {
 		}
 		if (!providerOptions.isEmpty()) {
 			settings = new OnnxModel.Settings(settings.device(), settings.deviceId(), settings.intraOpThreads(),
-				settings.gpuMemoryLimit(), providerOptions, settings.permits());
+				settings.gpuMemoryLimit(), providerOptions, settings.halfPrecision(), settings.permits());
 			System.out.println("provider options: " + providerOptions);
 		}
 		String reference = System.getProperty("diffusicraft.benchReference", "");

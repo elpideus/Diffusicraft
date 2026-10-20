@@ -10,6 +10,7 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "gpuIndex": 0,
   "gpuMemoryLimitMb": 0,
   "cpuThreads": 0,
+  "halfPrecision": true,
   "showSetupScreen": true,
   "useSystemLibraries": true,
   "storagePath": "",
@@ -59,6 +60,14 @@ It applies to CUDA. The MIGraphX provider takes no cap.
 
 Threads per inference run on the CPU. `0` uses every physical core. Lower it to keep cores free for the game while
 terrain generates.
+
+### `halfPrecision`
+
+Run the decoder, the last of the three networks, in half precision on NVIDIA GPUs. It makes terrain about 1.2×
+faster on CUDA and moves it by a few centimetres, less than the CPU and the GPU already differ. The first load on
+CUDA makes a half-precision copy of the decoder next to the models, which takes about a second. Turn it off to run
+every network in full precision. Read when the models load. See
+[PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 
 ### `showSetupScreen`
 

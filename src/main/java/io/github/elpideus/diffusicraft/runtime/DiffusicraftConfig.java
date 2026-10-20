@@ -31,6 +31,11 @@ public final class DiffusicraftConfig {
 	public int gpuMemoryLimitMb = 0;
 	/** CPU threads per inference run; 0 lets ONNX Runtime use every physical core. */
 	public int cpuThreads = 0;
+	/**
+	 * Run the decoder in half precision on NVIDIA GPUs: faster, and the terrain moves by a few centimetres. Read when
+	 * the models load.
+	 */
+	public boolean halfPrecision = true;
 	/** Show the resource screen at launch while something recommended is missing. */
 	public boolean showSetupScreen = true;
 	/** Use CUDA/cuDNN libraries found on the system instead of downloading them. */

@@ -27,7 +27,7 @@ Loom's split source sets keep client-only code out of the server.
 |---|---|
 | `src/main/java/.../diffusicraft` | Entrypoints: `Diffusicraft` (common), `DiffusicraftPreLaunch`, mixin plugin |
 | `.../runtime` | Everything downloaded or native: `Resources` (facade), `DiffusicraftConfig`, `RuntimeManifest`, `RuntimeInstaller`, `Downloader`, `RemoteZip`, `SystemLibraries`, `NativeRuntime`, `Hardware`, `Platform`, `Job` |
-| `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, ... |
+| `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, `HalfPrecision` (the fp16 decoder copy, with `Protobuf`), ... |
 | `.../terrain/geography` | The map the coarse model is conditioned on: `Geography` (continents, plates, hotspots, climate) and where the world spawn lies (`SpawnKind`). See [WORLDGEN.md](WORLDGEN.md#the-geography) |
 | `.../terrain/diffusion/tensor` | `WindowedTensor` (lazy, concurrent, cached tiling) and its stores |
 | `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `TerrainSurface`, `TerrainPrefetcher`, `ClimateMapping`, `TerrainFields`, `density/` (density function types). See [WORLDGEN.md](WORLDGEN.md) |
@@ -131,6 +131,8 @@ Each stage is a `WindowedTensor`: an unbounded 2D tensor made of overlapping, we
 
 - **Loading.** `ModelBundle` loads the three sessions once, straight from the model files, so the 2 GB base model is
   never copied onto the Java heap. Every world shares them; pipelines differ only by seed.
+- **Half precision.** On CUDA, the decoder runs from an fp16 copy that `HalfPrecision` makes once, next to the
+  downloaded file. See [PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 - **One run at a time.** A shared `Semaphore` allows one inference run at a time, because a run already fills every
   CPU core or the whole GPU. Running more at once would only add contention.
 - **Leaving room for the game.** On CUDA, the memory arena is capped at 60% of video memory by default and grows only

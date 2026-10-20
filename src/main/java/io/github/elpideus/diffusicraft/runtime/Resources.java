@@ -440,7 +440,8 @@ public final class Resources {
 		} else if (c.gpuMemoryLimitMb == 0) {
 			limit = autoGpuMemoryLimit(c.gpuIndex);
 		}
-		return new OnnxModel.Settings(c.device, c.gpuIndex, c.cpuThreads, limit, Map.of(), new Semaphore(1, true));
+		return new OnnxModel.Settings(c.device, c.gpuIndex, c.cpuThreads, limit, Map.of(), c.halfPrecision,
+			new Semaphore(1, true));
 	}
 
 	/**

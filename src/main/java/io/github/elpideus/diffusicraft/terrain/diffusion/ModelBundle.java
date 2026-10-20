@@ -1,14 +1,18 @@
 package io.github.elpideus.diffusicraft.terrain.diffusion;
 
 import ai.onnxruntime.OrtException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * The three Terrain Diffusion networks plus their configuration, loaded from one {@link ModelAssets} directory.
  * Shared by every world (pipelines differ only by seed); close it when the game shuts down.
  */
 public final class ModelBundle implements AutoCloseable {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ModelBundle.class);
 	public static final String COARSE = "coarse_model.onnx";
 	public static final String BASE = "base_model.onnx";
 	public static final String DECODER = "decoder_model.onnx";
@@ -38,7 +42,7 @@ public final class ModelBundle implements AutoCloseable {
 		try {
 			coarse = OnnxModel.load(assets.path(COARSE), "coarse", settings);
 			base = OnnxModel.load(assets.path(BASE), "base", settings);
-			OnnxModel decoder = OnnxModel.load(assets.path(DECODER), "decoder", settings);
+			OnnxModel decoder = loadDecoder(assets.path(DECODER), settings);
 			return new ModelBundle(assets.manifest().revision(), config, quantiles, coarse, base, decoder);
 		} catch (OrtException | RuntimeException e) {
 			if (coarse != null) {
@@ -49,6 +53,23 @@ public final class ModelBundle implements AutoCloseable {
 			}
 			throw e;
 		}
+	}
+
+	/**
+	 * The decoder in half precision when it will run on CUDA, else as downloaded. Any failure on the way falls back
+	 * to the downloaded model.
+	 */
+	private static OnnxModel loadDecoder(Path file, OnnxModel.Settings settings) throws OrtException {
+		if (settings.halfPrecision() && OnnxModel.preferredProvider(settings).equals("CUDA")) {
+			try {
+				OnnxModel decoder = OnnxModel.loadOn(HalfPrecision.ensure(file), "decoder", settings, "CUDA");
+				LOGGER.info("Running the decoder in half precision");
+				return decoder;
+			} catch (IOException | OrtException | RuntimeException e) {
+				LOGGER.warn("Could not run the decoder in half precision, using full precision: {}", e.toString());
+			}
+		}
+		return OnnxModel.load(file, "decoder", settings);
 	}
 
 	/** Model revision; part of every persistent cache key. */

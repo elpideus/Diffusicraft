@@ -120,6 +120,8 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   the air above it is never computed. See [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground).
 - **Generating ahead.** Terrain is computed in the background where the players are heading, so chunks rarely
   wait for inference. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
+- **Half-precision decoder.** On NVIDIA GPUs the decoder runs in fp16, which makes terrain 1.2× faster and moves it
+  by 5 cm RMS. See [PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 
 ## Next
 
@@ -162,4 +164,5 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Performance
 
-See [PERFORMANCE.md](PERFORMANCE.md#next-steps): FP16/TensorRT, I/O binding, larger requests.
+See [PERFORMANCE.md](PERFORMANCE.md#next-steps). TensorRT waits for a smaller download, and I/O binding for ONNX
+Runtime's Java API to offer it.

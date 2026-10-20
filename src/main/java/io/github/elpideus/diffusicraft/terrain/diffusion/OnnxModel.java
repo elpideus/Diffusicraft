@@ -61,16 +61,17 @@ public final class OnnxModel implements AutoCloseable {
 	 * @param intraOpThreads   CPU threads per run, or 0 for ONNX Runtime's default (physical cores)
 	 * @param gpuMemoryLimit   cap on the GPU memory arena in bytes, or 0 for no cap; leaves room for the game and shaders
 	 * @param providerOptions  extra provider options that override the defaults (e.g. {@code use_tf32})
+	 * @param halfPrecision    run the decoder in fp16 on CUDA; see {@link HalfPrecision}
 	 * @param permits          shared limit on concurrent runs across all models
 	 */
 	public record Settings(Device device, int deviceId, int intraOpThreads, long gpuMemoryLimit,
-						   Map<String, String> providerOptions, Semaphore permits) {
+						   Map<String, String> providerOptions, boolean halfPrecision, Semaphore permits) {
 		public Settings {
 			providerOptions = Map.copyOf(providerOptions);
 		}
 
 		public static Settings defaults() {
-			return new Settings(Device.AUTO, 0, 0, 0, Map.of(), new Semaphore(1, true));
+			return new Settings(Device.AUTO, 0, 0, 0, Map.of(), true, new Semaphore(1, true));
 		}
 	}
 
@@ -100,27 +101,46 @@ public final class OnnxModel implements AutoCloseable {
 	}
 
 	public static OnnxModel load(Path file, String name, Settings settings) throws OrtException {
-		long start = System.nanoTime();
-		OrtEnvironment env = environment();
+		environment();
 		EnumSet<OrtProvider> available = OrtEnvironment.getAvailableProviders();
-		List<String> candidates = candidates(settings.device(), available);
 		OrtException lastFailure = null;
-		for (String candidate : candidates) {
-			try (OrtSession.SessionOptions options = new OrtSession.SessionOptions()) {
-				options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-				if (settings.intraOpThreads() > 0) {
-					options.setIntraOpNumThreads(settings.intraOpThreads());
-				}
-				addProvider(options, candidate, settings);
-				OrtSession session = env.createSession(file.toAbsolutePath().toString(), options);
-				LOGGER.info("Loaded model '{}' on {} in {} ms", name, candidate, (System.nanoTime() - start) / 1_000_000);
-				return new OnnxModel(name, session, candidate, settings.permits());
-			} catch (OrtException | RuntimeException | LinkageError e) {
-				LOGGER.warn("Could not load model '{}' with {}: {}", name, candidate, e.toString());
-				lastFailure = e instanceof OrtException ort ? ort : new OrtException(e.toString());
+		for (String candidate : candidates(settings.device(), available)) {
+			try {
+				return open(file, name, settings, candidate);
+			} catch (OrtException e) {
+				lastFailure = e;
 			}
 		}
 		throw lastFailure != null ? lastFailure : new OrtException("No execution provider could load '" + name + "' (available: " + available + ")");
+	}
+
+	/** Loads {@code file} on {@code provider} only, with no fallback: for copies that only that provider runs well. */
+	static OnnxModel loadOn(Path file, String name, Settings settings, String provider) throws OrtException {
+		environment();
+		return open(file, name, settings, provider);
+	}
+
+	/** The provider {@link #load} tries first for these settings. */
+	static String preferredProvider(Settings settings) {
+		environment();
+		return candidates(settings.device(), OrtEnvironment.getAvailableProviders()).getFirst();
+	}
+
+	private static OnnxModel open(Path file, String name, Settings settings, String provider) throws OrtException {
+		long start = System.nanoTime();
+		try (OrtSession.SessionOptions options = new OrtSession.SessionOptions()) {
+			options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+			if (settings.intraOpThreads() > 0) {
+				options.setIntraOpNumThreads(settings.intraOpThreads());
+			}
+			addProvider(options, provider, settings);
+			OrtSession session = environment().createSession(file.toAbsolutePath().toString(), options);
+			LOGGER.info("Loaded model '{}' on {} in {} ms", name, provider, (System.nanoTime() - start) / 1_000_000);
+			return new OnnxModel(name, session, provider, settings.permits());
+		} catch (OrtException | RuntimeException | LinkageError e) {
+			LOGGER.warn("Could not load model '{}' with {}: {}", name, provider, e.toString());
+			throw e instanceof OrtException ort ? ort : new OrtException(e.toString());
+		}
 	}
 
 	/** Provider names to try, in order; always ends with the CPU. */
