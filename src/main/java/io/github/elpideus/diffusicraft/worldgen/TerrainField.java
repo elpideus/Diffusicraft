@@ -135,7 +135,7 @@ public final class TerrainField implements AutoCloseable {
 	private TerrainField(long seed, long geologySeed, TerrainSource source, int maxTiles) {
 		this.seed = seed;
 		this.geologySeed = geologySeed;
-		this.source = new Glaciation(source);
+		this.source = new Glaciation(source, seed);
 		this.maxTiles = maxTiles;
 		this.variantNoise = new FastNoiseLite((int) (seed ^ (seed >>> 32)) ^ 0x5eed_b10e);
 		variantNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);

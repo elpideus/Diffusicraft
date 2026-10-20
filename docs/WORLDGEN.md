@@ -625,15 +625,47 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   ground at sea level, where it lowered it by at least 120 m. On two cold coasts of seed 42, each 92 km square, the ice
   drowned 486 and 118 km² of land, as deep as 450 m. Half the drowned water lies within a kilometre of the old coast,
   and the longest arms run 20 and 7 km from it by water.
+- **Long fjords.** Those valleys drown only as far as the coarse map's floors reach under the trough, some 20 km
+  inland. The longest real fjords, which the great outlet glaciers cut along a coast's main valleys, run 100 km and
+  more inland, over a shallow sill at the mouth and a basin up to 1,300 m deep behind it, between walls a kilometre
+  high. `Fjords` traces such troughs on the coarse map and `Glaciation` cuts them, each as a whole, so their water
+  always reaches the sea:
+  - A mouth is a coastal coarse pixel, fully cold, mountainous itself or straight inland, whose valley floor, give or
+    take 400 m of noise, is the lowest within 7 coarse pixels (54 km): mouths lie at least that far apart.
+  - From there the fjord walks inland to the neighbouring pixel with the lowest floor, with a cost for turning. Each
+    step takes it farther from the mouth and, within 8 pixels of the sea, from the sea, so it heads inland rather than
+    along the coast. How far its ice reached is drawn for each mouth, from 3 to 16 coarse pixels (23 to 123 km) in a
+    straight line, most of them short. The walk ends where no neighbour is still mountainous or 400 m high, cold, away
+    from the sea and with its floor under 2,500 m.
+  - The path, from two pixels out at sea through the walk to a pixel and a half past the head, is jittered, smoothed
+    and made to meander.
+  - The trough's floor lies 100 m under the sea at the sill, sinks within 11 km to the basin, 200 m deep and 35 m
+    deeper per coarse pixel of the fjord's length, at most 1,200 m, and rises over the last third to 40 m under the sea
+    at the head. Beyond it the valley climbs 400 m per coarse pixel. The floor is 2.4 km wide at the mouth and 800 m at
+    the head. Between sill and head, the width varies by up to 45% and the depth by up to 20%, into narrows and
+    basins. The walls rise from the floor in a U, 750 m within a kilometre of it and ever steeper. Ground sinks into the
+    trough where it is lower, with a crease smoothed over 40 m. Side valleys are not cut: they hang above the trough,
+    as real ones do.
+  - The ice cut there is the depth of the trough's floor and 40 m more, on its walls too, so the fjord biome follows
+    the water to the head. In the coarse map, the pixels a fjord crosses keep 80% of their height above its floor and
+    their 5th percentile sinks to it, so the rivers, the farthest LODs and the coarse searches see it.
+
+  Fjords are traced in blocks of 16 coarse pixels, each from the coarse map around it, so neighbouring blocks agree to
+  the bit. The trough is worked out every 4 pixels, on a lattice fixed in the world, and interpolated: about 1 ms per
+  tile it reaches. Within 400 coarse pixels of the origin of seed 42, a square of 6,100 km, there are 280 fjords: half
+  are longer than 49 km, a tenth longer than 127 km, and the longest runs 197 km; 42 are longer than 100 km. On two
+  cold coasts of seed 42, 138 and 123 km square, the fjords and valleys drowned 730 and 1,011 km² of land joined to the
+  sea. Half of that water lies more than 60 and 10 km from the old coast by water, and the farthest 177 and 54 km.
 - **Limits.** Distant Horizons' LODs show the cliffs, the sea floor and the stacks as the chunks do, except the
   farthest, which read the coarse map: it has no coastline, so no beaches, cliffs, profile or stacks there. The LODs
   hold one height per column, so arches show solid. The profile has no bars or troughs. Stacks have no notch at the
-  waterline, and no boulders lie around them. Fjords have no sills: their troughs are deepest at the mouth, where real
-  ones are shallowest, and climb steadily inland. They reach about 20 km inland, not the 100 km and more of the longest
-  real ones: the floor the ice cut down from is the coarse map's, so the water ends where a valley climbs over a step or
-  a saddle between coarse pixels. The trough beyond it holds a lake at sea level that counts as fjord, 11% and 5% of the
-  drowned water on those two coasts, where a real lake behind a sill stands above the sea: cutting high valleys deeper
-  would make the arms longer, but would drown more of them behind their steps.
+  waterline, and no boulders lie around them. The drowned valleys have no sills: their troughs are deepest at the
+  mouth, where real ones are shallowest, and climb steadily inland; only the long fjords have sills. Those valleys end
+  where they climb over a step or a saddle between coarse pixels, and the trough beyond holds a lake at sea level that
+  counts as fjord, 11% and 5% of the drowned water on the first two coasts above and 21% and 6% on the others, where a
+  real lake behind a sill stands above the sea. The long fjords follow the coarse map's valleys, 7.7 km to a pixel,
+  not the fine terrain's: they cut straight through the spurs and saddles between, and each is a single trough,
+  without the side arms of real fjord systems like the Sognefjord's.
 
 ### The ground
 
@@ -944,7 +976,7 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
-| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |

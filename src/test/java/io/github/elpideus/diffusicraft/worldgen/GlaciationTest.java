@@ -19,7 +19,7 @@ class GlaciationTest {
 	 * floor fills the coarse pixels at {@code 0 <= j < TILE} between walls rising to 800 m. The coarse pixels are a
 	 * tile wide, as in the game.
 	 */
-	private static final class CoastSource implements TerrainSource {
+	static final class CoastSource implements TerrainSource {
 		private final float seaTemperature;
 		private final float rise;
 		private final float plain;

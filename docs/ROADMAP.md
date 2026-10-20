@@ -104,7 +104,8 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 - **Coasts.** Beaches a real beach's width along the coastline, and sheer sea cliffs along stretches where high land
   meets the sea, in every world, with sea stacks and arches off them; all but the farthest LODs show them. At Earth
   1:1 the sea floor deepens away from the shore along a beach's profile. On cold mountain coasts the glaciers' valleys
-  drown into fjords, with a biome of their own. See [WORLDGEN.md](WORLDGEN.md#coasts).
+  drown into fjords, with a biome of their own, and the longest run 100 km and more inland, over a sill into basins
+  up to 1,200 m deep. See [WORLDGEN.md](WORLDGEN.md#coasts).
 - **Distant Horizons.** Its far terrain comes straight from the terrain, without generating chunks: surface blocks
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
   (biome mods' own trees included), and the coarse map alone for the far horizon. See
@@ -139,6 +140,9 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
   tile would read the terrain of 5 × 5 tiles rather than 3 × 3, which a new world and a fast flight wait for. Also the
   fine basins larger than a block outside the lakes of the coarse map, which stay dry for now; and depressions of more
   than 16 tiles, like those of the Caspian or the Great Lakes, which are breached.
+- **Fjord arms and lakes.** The long fjords are single troughs along the coarse map's valleys; real fjord systems
+  branch into arms that follow the fine valleys. And the valleys that drown behind a step hold lakes at sea level,
+  where real ones, like Mjøsa or Hornindalsvatnet, stand above the sea though their floors lie below it.
 
 ### Biomes
 
@@ -146,11 +150,6 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
   class now. What is left needs more than the yearly figures: the prairie and the pampas, which fires and grazers keep
   from the forest their climate would grow; the thorn scrub of the driest savannas; and whether the rain of a climate
   between the Mediterranean and the monsoon falls in summer or in winter, which the data has no month for.
-- **Longer fjords.** Today's fjords reach about 20 km inland and end where their valleys climb over a step the coarse
-  map does not see. The longest real ones run 100 km and more inland, over sills, between walls a kilometre high.
-  Cutting deeper only drowns more troughs behind those steps at sea level: they would need lakes above the sea, like
-  Mjøsa's or Hornindalsvatnet's, whose floors lie below it, or a cut that follows the trunk valleys of the rivers to
-  the sea.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
 

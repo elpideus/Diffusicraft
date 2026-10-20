@@ -4,6 +4,9 @@ import io.github.elpideus.diffusicraft.terrain.diffusion.TerrainSample;
 import io.github.elpideus.diffusicraft.terrain.geography.SpawnKind;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Glacial overdeepening. In the ice ages, glaciers flowing off cold mountain coasts cut their valleys far below the
  * sea, which flooded them when the ice melted: the fjords of Norway, Patagonia, Alaska and New Zealand. The model draws
@@ -31,6 +34,12 @@ import org.jspecify.annotations.Nullable;
  * Those come from the source's coarse map ({@link #ice}). And it must be cold: the annual mean at sea level below
  * {@value #COLD} °C, fading out at {@value #MILD} °C. The fine samples and the coarse map are deepened alike. Lowered
  * ground is warmer by the local lapse rate.
+ *
+ * <p>That drowns the valleys as far as the coarse map's valley floors lie under the trough, some 20 km inland. The
+ * longest fjords, which the great outlet glaciers cut a hundred kilometres and more inland, are the {@link Fjords}:
+ * troughs traced along the main valleys, each cut as a whole, so their water always reaches the sea. The fine samples
+ * sink into them where they lie lower. In the coarse map, the pixels they cross keep {@code 1 −}
+ * {@value #FJORD_COVER} of their height above the trough's floor, and their 5th percentile sinks to it.
  */
 public final class Glaciation implements TerrainSource {
 	/** How far under the sea the ice cut the valley floors at the coast, in meters. */
@@ -72,10 +81,23 @@ public final class Glaciation implements TerrainSource {
 	/** One neighbour on each of the four axes through a coarse pixel, as (row, column) steps. */
 	private static final int[][] AXES = {{0, 1}, {1, 0}, {1, 1}, {1, -1}};
 
+	/**
+	 * The share of a coarse pixel that a fjord's trough covers, by which it lowers the pixel's mean towards the
+	 * trough's floor on the coarse map.
+	 */
+	static final float FJORD_COVER = 0.2f;
+
 	private final TerrainSource source;
+	private final Fjords fjords;
+
+	/** The source's terrain after the ice, whose fjords depend on {@code seed} as well as on the terrain. */
+	public Glaciation(TerrainSource source, long seed) {
+		this.source = source;
+		this.fjords = new Fjords(source, seed);
+	}
 
 	public Glaciation(TerrainSource source) {
-		this.source = source;
+		this(source, 0L);
 	}
 
 	/**
@@ -133,13 +155,28 @@ public final class Glaciation implements TerrainSource {
 		int width = cj1 - cj0, coarsePlane = (ci1 - ci0) * width;
 		float[] ice = ice(source.coarse(ci0 - SEA_REACH, cj0 - SEA_REACH, ci1 + SEA_REACH, cj1 + SEA_REACH),
 			ci1 - ci0, width);
-		if (ice == null) {
+		List<Fjords.Trunk> trunks = fjords.near((double) i0 / scale, (double) j0 / scale, (double) i1 / scale,
+			(double) j1 / scale);
+		if (ice == null && trunks.isEmpty()) {
 			return sample;
 		}
 
-		int h = i1 - i0, w = j1 - j0, plane = h * w;
+		int h = i1 - i0, w = j1 - j0;
 		float[] elevation = sample.elevation().clone();
 		float[] climate = sample.climate().clone();
+		if (ice != null) {
+			valleys(ice, i0, j0, h, w, ci0, cj0, coarsePlane, width, scale, elevation, climate, iceCut);
+		}
+		if (!trunks.isEmpty()) {
+			fjords(trunks, i0, j0, h, w, scale, elevation, climate, iceCut);
+		}
+		return new TerrainSample(i0, j0, h, w, elevation, climate);
+	}
+
+	/** Lowers the valleys of a window of the fine terrain where the coarse map's {@link #ice} reaches them. */
+	private static void valleys(float[] ice, int i0, int j0, int h, int w, int ci0, int cj0, int coarsePlane,
+								int width, int scale, float[] elevation, float[] climate, float @Nullable [] iceCut) {
+		int plane = h * w;
 		int[] columns = new int[w];
 		float[] across = new float[w];
 		for (int c = 0; c < w; c++) {
@@ -176,7 +213,31 @@ public final class Glaciation implements TerrainSource {
 				}
 			}
 		}
-		return new TerrainSample(i0, j0, h, w, elevation, climate);
+	}
+
+	/** Sinks a window of the fine terrain into the troughs of {@code trunks} where they lie below it. */
+	private static void fjords(List<Fjords.Trunk> trunks, int i0, int j0, int h, int w, int scale, float[] elevation,
+							   float[] climate, float @Nullable [] iceCut) {
+		int plane = h * w;
+		float[] trough = new float[plane], floorAt = new float[plane];
+		Arrays.fill(trough, Float.POSITIVE_INFINITY);
+		Fjords.carve(trunks, scale, i0, j0, h, w, trough, floorAt);
+		for (int px = 0; px < plane; px++) {
+			float e = elevation[px];
+			if (trough[px] >= e + Fjords.SMOOTH) {
+				continue;
+			}
+			float carved = Fjords.smoothMin(e, trough[px]);
+			elevation[px] = carved;
+			// The lapse rate is negative: lowered ground is warmer.
+			climate[TerrainSample.TEMPERATURE * plane + px] += climate[TerrainSample.LAPSE_RATE * plane + px]
+				* (Math.max(0f, carved) - Math.max(0f, e));
+			if (iceCut != null) {
+				// The whole trough was land, down to its floor: a fjord. The walls carry the floor's cut too, so it
+				// holds where the cut is interpolated between them.
+				iceCut[px] = Math.max(iceCut[px], Fjords.cut(floorAt[px]));
+			}
+		}
 	}
 
 	@Override
@@ -208,10 +269,7 @@ public final class Glaciation implements TerrainSource {
 			}
 		}
 		float[] ice = ice(map, h, w);
-		if (ice == null) {
-			return out;
-		}
-		for (int px = 0; px < plane; px++) {
+		for (int px = 0; ice != null && px < plane; px++) {
 			if (ice[px] <= 0f) {
 				continue;
 			}
@@ -230,6 +288,35 @@ public final class Glaciation implements TerrainSource {
 				temperature + STANDARD_LAPSE * (Math.max(0f, mean) - Math.max(0f, deepened));
 			if (withIceCut) {
 				out[COARSE_ICE_CUT * plane + px] = cut;
+			}
+		}
+
+		// The fjords: the lowest floor of a trough in each coarse pixel it crosses.
+		List<Fjords.Trunk> trunks = fjords.near(ci0, cj0, ci1, cj1);
+		if (trunks.isEmpty()) {
+			return out;
+		}
+		float[] deepest = new float[plane];
+		Arrays.fill(deepest, Float.POSITIVE_INFINITY);
+		for (Fjords.Trunk trunk : trunks) {
+			for (int k = 0; k < trunk.rows().length; k++) {
+				int r = (int) Math.floor(trunk.rows()[k]) - ci0, c = (int) Math.floor(trunk.columns()[k]) - cj0;
+				if (r >= 0 && r < h && c >= 0 && c < w) {
+					deepest[r * w + c] = Math.min(deepest[r * w + c], trunk.floor()[k]);
+				}
+			}
+		}
+		for (int px = 0; px < plane; px++) {
+			float floor = deepest[px], mean = out[COARSE_ELEVATION * plane + px];
+			if (floor == Float.POSITIVE_INFINITY || mean < 0f) {
+				continue;
+			}
+			float lowered = mean - FJORD_COVER * Math.max(0f, mean - floor);
+			out[COARSE_ELEVATION * plane + px] = lowered;
+			out[COARSE_LOW_ELEVATION * plane + px] = Math.min(out[COARSE_LOW_ELEVATION * plane + px], floor);
+			out[COARSE_TEMPERATURE * plane + px] += STANDARD_LAPSE * (Math.max(0f, mean) - Math.max(0f, lowered));
+			if (withIceCut) {
+				out[COARSE_ICE_CUT * plane + px] = Math.max(out[COARSE_ICE_CUT * plane + px], Fjords.cut(floor));
 			}
 		}
 		return out;
