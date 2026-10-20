@@ -250,10 +250,11 @@ Some adjustments move biomes away from vanilla's defaults:
 - **Sun and shade.** The climate is the one the ground feels on its slope (`ClimateMapping.expose`). A slope that
   faces the sun is warmer, and the sun dries out its ground; one that faces away stays cool and moist. The world lies
   in the northern hemisphere, so the sunny slopes face south. The effect grows with the sine of the slope times the
-  cosine of the angle between the way it faces and the south. At most, for a cliff facing straight south or north,
-  it adds or takes off 3 °C and 40% of the rain; a 30° slope gets half that. The slope is the hillside's
-  (`TerrainField.slope`, over 120 m), not every bump's, and the coarse map has none. It feeds both vanilla's table and
-  the [refiner](#refined-biomes) below. Some effects:
+  cosine of the angle between the way it faces and the south. At most, for a cliff facing straight south or north, it
+  adds or takes off 3 °C and 40% of the rain; a 30° slope gets half that. The slope is the hillside's
+  (`TerrainField.slope`, over 960 m), not every gully's, so the warm and cool sides follow the valleys in belts
+  kilometres long; measured over 120 m, a third of the dark forest came in patches under a square kilometre. The
+  coarse map has none. It feeds both vanilla's table and the [refiner](#refined-biomes) below. Some effects:
   - the tree line and the snow climb a few hundred meters higher on the sunny side of a mountain;
   - in dry climates the woods keep to the shaded slopes and grass or steppe takes the sunny ones, as in the foothills
     of the Rockies;
