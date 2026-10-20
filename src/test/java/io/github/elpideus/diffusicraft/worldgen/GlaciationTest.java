@@ -15,17 +15,29 @@ class GlaciationTest {
 	/**
 	 * A mountain coast along {@code i = 0}: the sea 200 m deep to the north, and land rising inland {@code rise} m per
 	 * pixel, cut by valleys every 200 pixels across, at {@code j = 0}, between ridges 800 m high. West of {@code j = 0}
-	 * the land may be a plain {@code plain} m high instead. The coarse pixels are a tile wide, as in the game.
+	 * the land may be a plain {@code plain} m high instead. Or the land holds one broad valley instead, whose flat
+	 * floor fills the coarse pixels at {@code 0 <= j < TILE} between walls rising to 800 m. The coarse pixels are a
+	 * tile wide, as in the game.
 	 */
 	private static final class CoastSource implements TerrainSource {
 		private final float seaTemperature;
 		private final float rise;
 		private final float plain;
+		private final boolean broad;
 
-		CoastSource(float seaTemperature, float rise, float plain) {
+		private CoastSource(float seaTemperature, float rise, float plain, boolean broad) {
 			this.seaTemperature = seaTemperature;
 			this.rise = rise;
 			this.plain = plain;
+			this.broad = broad;
+		}
+
+		CoastSource(float seaTemperature, float rise, float plain) {
+			this(seaTemperature, rise, plain, false);
+		}
+
+		static CoastSource broadValley(float seaTemperature, float rise) {
+			return new CoastSource(seaTemperature, rise, Float.NaN, true);
 		}
 
 		CoastSource(float seaTemperature, float rise) {
@@ -39,6 +51,10 @@ class GlaciationTest {
 		float elevation(double i, double j) {
 			if (i < 0) {
 				return -200f;
+			}
+			if (broad) {
+				double beyond = Math.max(0, Math.max(-j, j - TerrainField.TILE));
+				return (float) (rise * i + Math.min(800, 8 * beyond));
 			}
 			return j < 0 && !Float.isNaN(plain) ? plain
 				: (float) (rise * i + 400 * (1 - Math.cos(2 * Math.PI * j / 200)));
@@ -188,6 +204,17 @@ class GlaciationTest {
 		field.column(i, 0, column);
 		assertEquals(coast.elevation(i, 0), column.elevation, 5f);
 		assertEquals(0f, column.iceCut);
+	}
+
+	@Test
+	void broadValleysDrownToo() {
+		TerrainField field = new TerrainField(1, CoastSource.broadValley(5f, 0.05f));
+		TerrainField.Column column = new TerrainField.Column();
+		// The coarse pixel is flat, but the walls on both sides make its floor a glacier's. As on plains, the ice cut
+		// only the lowest ground: the floor, all but level.
+		int i = 2 * TerrainField.TILE + TerrainField.TILE / 2;
+		field.column(i, TerrainField.TILE / 2, column);
+		assertTrue(Glaciation.drowned(column.elevation, column.iceCut), column.elevation + " m, cut " + column.iceCut);
 	}
 
 	@Test

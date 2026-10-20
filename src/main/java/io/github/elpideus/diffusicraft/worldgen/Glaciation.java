@@ -12,17 +12,17 @@ import org.jspecify.annotations.Nullable;
  * <p>The ice cut the floors of the valleys down to a trough whose floor lies {@value #DEPTH} m under the sea at the
  * coast and climbs to sea level {@value #LENGTH} coarse pixels inland (92 km in the game). The valley floor is the
  * coarse map's 5th percentile of the elevation, or sea level if that is lower; it counts only as far as the coarse
- * pixel is mountainous, since the lowest ground of a plateau or a broad valley is no glacier's floor. Ground at
- * elevation {@code e} sinks to {@link #deepen e − cut × w(e)}, where the cut is how far the ice lowered the valley
- * floor: from the floor down to the trough, up to {@value #FULL_CUT} m and fading out by {@value #MAX_CUT} m, so high
- * valleys keep their floors ({@link #cut}), times how glaciated the place is. In the mountains the weight {@code w} is
- * 1 up to {@value #FLOOR} m above the valley floor and fades to nothing {@value #SHOULDER} m above it, so the ice
- * follows the valleys of the full terrain, side valleys too, and leaves the ridges between them. On plains, where the
- * ice spread out rather than cutting in, it fades from 1 at the floor to nothing {@value #PLAIN_SHOULDER} m above it,
- * and in between as far as the coarse pixel is mountainous: the coastal lowland and the plains at the foot of the
- * mountains keep their ground. Below the sea it fades out at {@value #SEA_FADE} times the cut down. The map keeps every
- * height's order, so a valley floor that was land stays above one that was sea, and the fjord biome can tell which
- * water was land before ({@link #drowned}).
+ * pixel is mountainous or lies in a broad valley, whose sides rise on two opposite neighbours, since the lowest ground
+ * of a plateau is no glacier's floor. Ground at elevation {@code e} sinks to {@link #deepen e − cut × w(e)}, where the
+ * cut is how far the ice lowered the valley floor: from the floor down to the trough, up to {@value #FULL_CUT} m and
+ * fading out by {@value #MAX_CUT} m, so high valleys keep their floors ({@link #cut}), times how glaciated the place
+ * is. In the mountains the weight {@code w} is 1 up to {@value #FLOOR} m above the valley floor and fades to nothing
+ * {@value #SHOULDER} m above it, so the ice follows the valleys of the full terrain, side valleys too, and leaves the
+ * ridges between them. On plains, where the ice spread out rather than cutting in, it fades from 1 at the floor to
+ * nothing {@value #PLAIN_SHOULDER} m above it, and in between as far as the coarse pixel is mountainous: the coastal
+ * lowland and the plains at the foot of the mountains keep their ground. Below the sea it fades out at
+ * {@value #SEA_FADE} times the cut down. The map keeps every height's order, so a valley floor that was land stays
+ * above one that was sea, and the fjord biome can tell which water was land before ({@link #drowned}).
  *
  * <p>How glaciated a place is, in [0, 1], is the product of three things. The land must be mountainous, within a
  * coarse pixel of one that rises {@value #RUGGED_LOW} to {@value #RUGGED_HIGH} m above its lowest ground or the sea.
@@ -37,13 +37,13 @@ public final class Glaciation implements TerrainSource {
 	public static final float DEPTH = 400f;
 	/** Coarse pixels inland over which the floor of the trough climbs from {@link #DEPTH} under the sea to sea level. */
 	static final float LENGTH = 12f;
-	/** The ice cut valley floors down to the trough by up to this much, in meters: walls a kilometre high. */
-	static final float FULL_CUT = 1000f;
+	/** The ice cut valley floors down to the trough by up to this much, in meters: walls most of a kilometre high. */
+	static final float FULL_CUT = 700f;
 	/**
 	 * Valley floors this far above the trough or more, in meters, were not cut at all: high valleys far from any
 	 * fjord. Between {@link #FULL_CUT} and this, the cut fades out.
 	 */
-	static final float MAX_CUT = 1400f;
+	static final float MAX_CUT = 1000f;
 	/** Ground up to this height above the valley floor is lowered by the full cut, in meters. */
 	static final float FLOOR = 100f;
 	/** Ground this high above the valley floor is left alone, in meters: the shoulders above the glacier. */
@@ -68,6 +68,9 @@ public final class Glaciation implements TerrainSource {
 	static final float STANDARD_LAPSE = 0.0065f;
 	/** The plane of {@link #coarseWithIceCut} that holds the cut, after the coarse channels. */
 	static final int COARSE_ICE_CUT = COARSE_CHANNELS;
+
+	/** One neighbour on each of the four axes through a coarse pixel, as (row, column) steps. */
+	private static final int[][] AXES = {{0, 1}, {1, 0}, {1, 1}, {1, -1}};
 
 	private final TerrainSource source;
 
@@ -245,8 +248,9 @@ public final class Glaciation implements TerrainSource {
 	/**
 	 * Where the ice reaches each pixel of an {@code height × width} window of the coarse map, before the cold. Three
 	 * planes, row-major: how far it would lower the valley floor (how mountainous the coast is, times how near the
-	 * sea, times {@link #cut}); the valley floor itself, which counts only as far as the pixel is mountainous, since
-	 * the lowest ground of plateaus and broad valleys is no glacier's floor; and how mountainous the pixel itself is.
+	 * sea, times {@link #cut}); the valley floor itself, which counts only as far as the pixel is mountainous or lies
+	 * in a broad valley, its two neighbours on some axis rising {@value #RUGGED_LOW} to {@value #RUGGED_HIGH} m above
+	 * its floor, since the lowest ground of a plateau is no glacier's floor; and how mountainous the pixel itself is.
 	 * {@code map} is the source's coarse map of the window with a margin of {@value #SEA_REACH} pixels all round.
 	 * {@code null} if the ice reaches none of them.
 	 */
@@ -264,7 +268,15 @@ public final class Glaciation implements TerrainSource {
 			for (int c = 0; c < width; c++) {
 				int centre = (r + m) * outerWidth + c + m, px = r * width + c;
 				float own = smoothstep(RUGGED_LOW, RUGGED_HIGH, rugged[centre]);
-				float floor = own * Math.max(0f, map[COARSE_LOW_ELEVATION * outerPlane + centre]);
+				float low = Math.max(0f, map[COARSE_LOW_ELEVATION * outerPlane + centre]);
+				// A broad valley: the ground on two opposite sides rises above its floor.
+				float sides = Float.NEGATIVE_INFINITY;
+				for (int[] axis : AXES) {
+					int a = axis[0] * outerWidth + axis[1];
+					sides = Math.max(sides, Math.min(map[COARSE_ELEVATION * outerPlane + centre + a],
+						map[COARSE_ELEVATION * outerPlane + centre - a]));
+				}
+				float floor = Math.max(own, smoothstep(RUGGED_LOW, RUGGED_HIGH, sides - low)) * low;
 				ice[plane + px] = floor;
 				ice[2 * plane + px] = own;
 				float most = Float.NEGATIVE_INFINITY;
