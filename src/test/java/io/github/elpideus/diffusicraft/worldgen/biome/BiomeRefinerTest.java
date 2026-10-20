@@ -256,6 +256,28 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void siberianWintersGrowLarchTaiga() {
+		// Yakutsk: a year of -9 °C, January near -37 °C, July near 20 °C, 240 mm of rain. Vanilla's frozen band.
+		BiomeClimate yakutsk = climate(-8.8f, 20f, 240f, 55f, 100f, 30f);
+		assertEquals(BiomeRefiner.LARCH_TAIGA, BiomeRefiner.refine("minecraft:snowy_plains", yakutsk));
+		assertEquals(BiomeRefiner.LARCH_TAIGA, BiomeRefiner.refine("minecraft:snowy_taiga", yakutsk));
+		assertEquals(BiomeRefiner.LARCH_TAIGA, BiomeRefiner.refine("minecraft:ice_spikes", yakutsk));
+		// The Greater Khingan: a year of -4.5 °C and a January of -28 °C, in vanilla's cold band.
+		assertEquals(BiomeRefiner.LARCH_TAIGA,
+			BiomeRefiner.refine("minecraft:taiga", climate(-4.5f, 17f, 450f, 70f, 600f, 60f)));
+		// Its slopes stay vanilla's.
+		assertNull(BiomeRefiner.refine("minecraft:grove", yakutsk));
+		// Milder winters keep the spruce: the snowy taiga of Labrador, and the taiga around Arkhangelsk.
+		assertNull(BiomeRefiner.refine("minecraft:snowy_taiga", climate(-5.5f, 12f, 800f, 25f, 400f, 40f)));
+		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(1.5f, 10.5f, 600f, 30f, 20f, 20f)));
+		// Too dry for a forest, and Verkhoyansk, too cold all year: vanilla's snow.
+		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-8f, 20f, 100f, 55f, 100f, 30f)));
+		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-14.5f, 22f, 180f, 55f, 140f, 30f)));
+		// The mires of the frozen lowlands stay bogs.
+		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:taiga", climate(-4f, 16f, 450f, 70f, 50f, 2f)));
+	}
+
+	@Test
 	void flatLandWithCoolWetSummersIsBog() {
 		// Finland's lowland mires, the West Siberian Plain and the Bog of Allen.
 		BiomeClimate finland = climate(3f, 8.5f, 600f, 25f, 100f, 3f);

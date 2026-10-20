@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:larch_checked",
+  "features": [
+    {
+      "chance": 0.25,
+      "feature": "diffusicraft:stunted_larch_checked"
+    },
+    {
+      "chance": 0.12,
+      "feature": "minecraft:birch_checked"
+    },
+    {
+      "chance": 0.08,
+      "feature": "minecraft:pine_checked"
+    },
+    {
+      "chance": 0.02,
+      "feature": "minecraft:fallen_spruce_tree"
+    }
+  ]
+}

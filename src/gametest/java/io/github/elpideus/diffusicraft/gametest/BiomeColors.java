@@ -72,7 +72,8 @@ final class BiomeColors {
 		Map.entry("diffusicraft:monsoon_forest", 0x7f8a26),
 		Map.entry("diffusicraft:laurel_forest", 0x2f6f3a),
 		Map.entry("diffusicraft:bog", 0x7a5c2e),
-		Map.entry("diffusicraft:fjord", 0x2d6a8c)
+		Map.entry("diffusicraft:fjord", 0x2d6a8c),
+		Map.entry("diffusicraft:larch_taiga", 0x9ab040)
 	);
 
 	private BiomeColors() {

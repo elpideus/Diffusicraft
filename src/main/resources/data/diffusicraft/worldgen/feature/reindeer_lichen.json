@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:simple_block",
+  "to_place": {
+    "type": "minecraft:weighted",
+    "entries": [
+      {
+        "data": "minecraft:pale_moss_carpet",
+        "weight": 1
+      }
+    ]
+  }
+}

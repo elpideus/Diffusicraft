@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:simple_block",
+  "to_place": {
+    "type": "minecraft:weighted",
+    "entries": [
+      {
+        "data": "minecraft:short_grass",
+        "weight": 4
+      },
+      {
+        "data": "minecraft:bush",
+        "weight": 2
+      },
+      {
+        "data": "minecraft:fern",
+        "weight": 1
+      }
+    ]
+  }
+}

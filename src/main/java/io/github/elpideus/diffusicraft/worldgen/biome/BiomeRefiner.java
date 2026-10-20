@@ -51,6 +51,11 @@ import java.util.Set;
  *   <li><b>Bog</b>: the flattest land with cool summers and at least twice the rain it needs, as in Finland, the
  *       West Siberian Plain or the Hudson Bay Lowlands, but not in the dry summers of a Mediterranean climate.
  *       Vanilla only puts swamps on low ground; bogs grow on flat land at any height below the mountains.</li>
+ *   <li><b>Larch taiga</b>: where the coldest month falls below {@value #LARCH_COLDEST} °C, as in eastern Siberia.
+ *       The ground stays frozen all year a metre down, and on the thin layer that thaws in summer the evergreen
+ *       spruces give way to larches, which shed their needles for the winter. Vanilla puts its snowy plains and taigas
+ *       (and ice spikes) there in the frozen band, below -5 °C, and its forests and taigas above it. Ground too dry
+ *       for a forest keeps vanilla's pick.</li>
  *   <li><b>Temperate rainforest</b>: mild oceanic climates (4 to 14 °C, coldest month above -3 °C) with at least
  *       1600 mm of rain.</li>
  *   <li><b>Maquis</b>: Mediterranean scrub, 12 to 21 °C with mild winters, 250 to 1000 mm of strongly seasonal
@@ -80,6 +85,7 @@ public final class BiomeRefiner {
 	public static final String LAUREL_FOREST = "diffusicraft:laurel_forest";
 	public static final String BOG = "diffusicraft:bog";
 	public static final String FJORD = "diffusicraft:fjord";
+	public static final String LARCH_TAIGA = "diffusicraft:larch_taiga";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 	public static final String FOREST = "minecraft:forest";
@@ -89,7 +95,7 @@ public final class BiomeRefiner {
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA);
+		FJORD, LARCH_TAIGA, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -142,6 +148,11 @@ public final class BiomeRefiner {
 	 * it, in patches among the woods, as people cleared them.
 	 */
 	static final float HEATH_VARIANT = -0.3f;
+	/**
+	 * Coldest month below which the ground is frozen all year round under a thin layer that thaws in summer, °C: the
+	 * taiga there is larch.
+	 */
+	static final float LARCH_COLDEST = -25f;
 	/** Meters the ice must have lowered ground at sea level for a drowned valley to be a fjord, not a thin strip. */
 	static final float FJORD_CUT = 120f;
 
@@ -247,8 +258,11 @@ public final class BiomeRefiner {
 		if (kind == Kind.JUNGLE && c.coldestMonth() < TROPICAL_COLDEST) {
 			return LAUREL_FOREST;
 		}
-		if (kind == Kind.PEAK || kind == Kind.JUNGLE || kind == Kind.BADLANDS || kind == Kind.SNOWY) {
+		if (kind == Kind.PEAK || kind == Kind.JUNGLE || kind == Kind.BADLANDS) {
 			return null;
+		}
+		if (kind == Kind.SNOWY) {
+			return larchTaiga(c, aridity) ? LARCH_TAIGA : null;
 		}
 		boolean meadow = biome.equals("minecraft:meadow");
 		if ((kind == Kind.LAND || kind == Kind.HILLS || meadow) && moorland(c)) {
@@ -256,6 +270,9 @@ public final class BiomeRefiner {
 		}
 		if (kind == Kind.LAND && bog(c, aridity)) {
 			return BOG;
+		}
+		if (kind == Kind.LAND && larchTaiga(c, aridity)) {
+			return LARCH_TAIGA;
 		}
 		boolean vegetated = kind != Kind.DESERT;
 		if (vegetated && temperateRainforest(c)) {
@@ -318,6 +335,14 @@ public final class BiomeRefiner {
 	static boolean bog(BiomeClimate c, float aridity) {
 		return c.relief < BOG_RELIEF && c.elevation < MOUNTAIN_ELEVATION && c.warmestMonth() < BOG_WARMEST
 			&& aridity >= BOG_ARIDITY && !maquis(c);
+	}
+
+	/**
+	 * The summers are warm enough for trees wherever this is asked, and the year above the polar cold, which keeps
+	 * vanilla's snow.
+	 */
+	static boolean larchTaiga(BiomeClimate c, float aridity) {
+		return c.coldestMonth() < LARCH_COLDEST && aridity >= 1f;
 	}
 
 	static boolean cloudForest(BiomeClimate c) {

@@ -234,6 +234,15 @@ FEATURES = {
     "bog_spruce": tree("spruce_log", straight(4, 2, 1), "spruce_leaves",
                        {"type": "minecraft:spruce_foliage_placer", "radius": 1, "offset": uniform(0, 1),
                         "trunk_height": uniform(1, 2)}, two_layers(2, 0, 1)),
+    # Larches: tall, straight trunks under narrow, open cones of soft, light green needles, which they shed for the
+    # winter. Their wood is spruce; their needles are oak leaves, which take the biome's light green.
+    "larch": tree("spruce_log", straight(9, 3, 2), "oak_leaves",
+                  {"type": "minecraft:spruce_foliage_placer", "radius": 2, "offset": uniform(0, 1),
+                   "trunk_height": uniform(4, 6)}, two_layers(2, 0, 2)),
+    # Young larches, and old ones stunted where the frozen ground leaves them a hand's depth of soil.
+    "stunted_larch": tree("spruce_log", straight(4, 2, 0), "oak_leaves",
+                          {"type": "minecraft:spruce_foliage_placer", "radius": 1, "offset": uniform(0, 1),
+                           "trunk_height": uniform(1, 2)}, two_layers(1, 0, 1)),
     "tundra_ground_cover": simple([("short_grass", 4), (ours("cottongrass"), 2), ("fern", 1)]),
     "tundra_moss_vegetation": simple([("moss_carpet", 3), ("short_grass", 2)]),
     "alpine_grass": simple([("short_grass", 6), ("fern", 1)]),
@@ -249,6 +258,10 @@ FEATURES = {
     "heath_grass": simple([("short_grass", 5), ("fern", 1), ("bush", 1)]),
     # Cottongrass and sedges over the sphagnum.
     "bog_ground_cover": simple([(ours("cottongrass"), 4), ("short_grass", 3), ("moss_carpet", 2), ("fern", 1)]),
+    # Grass, Labrador tea and a few ferns under the larches.
+    "larch_ground_cover": simple([("short_grass", 4), ("bush", 2), ("fern", 1)]),
+    # Reindeer lichen, pale grey-green, in mats between the trees.
+    "reindeer_lichen": simple([("pale_moss_carpet", 1)]),
     "monsoon_grass": simple([("short_grass", 3), ("short_dry_grass", 2), ("fern", 1)]),
     "laurel_ground_cover": simple([("fern", 3), ("short_grass", 3), ("bush", 1)]),
     # Camellias and rhododendrons.
@@ -272,6 +285,11 @@ FEATURES["tundra_moss_patch"] = {
     "replaceable": "#minecraft:moss_replaceable", "surface": "floor", "vegetation_chance": 0.6,
     "vegetation_feature": placed(ours("tundra_moss_vegetation"), []), "vertical_range": 5,
     "xz_radius": uniform(2, 5)}
+FEATURES["lichen_patch"] = {
+    "type": "minecraft:vegetation_patch", "depth": 1, "extra_bottom_block_chance": 0.0,
+    "extra_edge_column_chance": 0.5, "ground_state": {"id": "minecraft:pale_moss_block"},
+    "replaceable": "#minecraft:moss_replaceable", "surface": "floor", "vegetation_chance": 0.5,
+    "vegetation_feature": placed(ours("reindeer_lichen"), []), "vertical_range": 5, "xz_radius": uniform(2, 4)}
 # Pools of dark water sunk into the peat, as on a raised bog. The patch turns the ground into peat, then fills the top
 # of it with water wherever the water would be held on every side.
 FEATURES["bog_pool"] = {
@@ -308,6 +326,8 @@ PLACED = {
     "cypress_checked": checked(ours("cypress"), "spruce_sapling"),
     "maquis_shrub_checked": checked(ours("maquis_shrub"), "oak_sapling"),
     "bog_spruce_checked": checked(ours("bog_spruce"), "spruce_sapling"),
+    "larch_checked": checked(ours("larch"), "spruce_sapling"),
+    "stunted_larch_checked": checked(ours("stunted_larch"), "spruce_sapling"),
     "teak_checked": checked(ours("teak"), "jungle_sapling"),
     "laurel_checked": checked(ours("laurel"), "oak_sapling"),
     "live_oak_checked": checked(ours("live_oak"), "dark_oak_sapling"),
@@ -330,6 +350,7 @@ PLACED = {
     "trees_moorland": trees(ours("trees_moorland"), {0: 14, 1: 1}, "birch_sapling"),
     "trees_heath": trees(ours("trees_heath"), {0: 4, 1: 2, 2: 1}, "birch_sapling"),
     "trees_bog": trees(ours("trees_bog"), {0: 6, 1: 3, 2: 1}, "spruce_sapling"),
+    "trees_larch_taiga": trees(ours("trees_larch_taiga"), {3: 2, 5: 4, 7: 3, 9: 1}, "spruce_sapling"),
     "trees_monsoon_forest": trees(ours("trees_monsoon_forest"), {4: 3, 6: 4, 8: 2}, "jungle_sapling"),
     "trees_laurel_forest": trees(ours("trees_laurel_forest"), {8: 9, 10: 1}, "oak_sapling"),
     "trees_paramo": trees(ours("trees_paramo"), {0: 2, 1: 3, 2: 3, 4: 2}, "oak_sapling"),
@@ -351,6 +372,10 @@ PLACED = {
     "patch_heath_grass": patch(ours("heath_grass"), 32, count=2),
     "patch_bog_ground_cover": patch(ours("bog_ground_cover"), 32, count=4),
     "patch_heather_bog": patch(ours("heather"), 32, count=1),
+    "patch_larch_ground_cover": patch(ours("larch_ground_cover"), 32, count=3),
+    # Lingonberries, as sweet berries.
+    "patch_lingonberries": patch("minecraft:berry_bush", 32, spread=6, chance=3),
+    "lichen": scattered(ours("lichen_patch"), count=1),
     "patch_monsoon_grass": patch(ours("monsoon_grass"), 32, count=4),
     # The dry season's fallen leaves.
     "patch_monsoon_leaf_litter": patch("minecraft:leaf_litter", 48, count=3),
@@ -404,6 +429,12 @@ FEATURES["trees_heath"] = {"type": "minecraft:random_selector", "default": "mine
 FEATURES["trees_bog"] = {"type": "minecraft:random_selector", "default": ours("bog_spruce_checked"),
                          "features": [{"chance": 0.25, "feature": "minecraft:pine_checked"},
                                       {"chance": 0.2, "feature": "minecraft:birch_checked"}]}
+# Larches, young and stunted, with birches and Scots pines where the ground thaws deeper, and fallen trunks.
+FEATURES["trees_larch_taiga"] = {"type": "minecraft:random_selector", "default": ours("larch_checked"),
+                                 "features": [{"chance": 0.25, "feature": ours("stunted_larch_checked")},
+                                              {"chance": 0.12, "feature": "minecraft:birch_checked"},
+                                              {"chance": 0.08, "feature": "minecraft:pine_checked"},
+                                              {"chance": 0.02, "feature": "minecraft:fallen_spruce_tree"}]}
 # Teak and sal, thorny acacias where it is driest, and jungle bushes under them.
 FEATURES["trees_monsoon_forest"] = {"type": "minecraft:random_selector", "default": ours("teak_checked"),
                                     "features": [{"chance": 0.2, "feature": "minecraft:acacia_checked"},
@@ -650,6 +681,24 @@ BIOMES = {
                  "minecraft:has_structure/trial_chambers", "minecraft:is_overworld",
                  "minecraft:spawns_cold_variant_frogs", "minecraft:stronghold_biased_to"],
     },
+    # The larch forests of eastern Siberia, where the winters fall below -25 °C and the ground stays frozen a metre
+    # down: open stands of larches, light green in summer, over grass, Labrador tea, lingonberries and reindeer lichen.
+    # Yakutian horses, reindeer as sheep and cattle, foxes and wolves.
+    "larch_taiga": {
+        "template": "taiga", "temperature": 0.25, "downfall": 0.4,
+        "effects": {"grass_color": "#86a85a", "foliage_color": "#9fc95b", "dry_foliage_color": "#a08a4a"},
+        "creatures": [spawn("rabbit", 8, 2, 3), spawn("fox", 6, 2, 4), spawn("wolf", 6, 2, 4), spawn("horse", 4, 2, 5),
+                      spawn("sheep", 6, 4), spawn("cow", 4, 4)],
+        "vegetation": ["minecraft:glow_lichen", "trees_larch_taiga", "patch_larch_ground_cover", "lichen",
+                       "tundra_moss", "patch_lingonberries", "minecraft:brown_mushroom_taiga",
+                       "minecraft:red_mushroom_taiga", "minecraft:patch_firefly_bush_near_water"],
+        "tags": ["c:is_cold/overworld", "c:is_forest", "c:is_tree/coniferous", "c:primary_wood_type/spruce",
+                 "minecraft:has_structure/abandoned_camp_taiga", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/pillager_outpost", "minecraft:has_structure/ruined_portal_standard",
+                 "minecraft:has_structure/trail_ruins", "minecraft:has_structure/trial_chambers",
+                 "minecraft:has_structure/village_taiga", "minecraft:is_overworld", "minecraft:is_taiga",
+                 "minecraft:spawns_cold_variant_farm_animals", "minecraft:stronghold_biased_to"],
+    },
     # Drowned glacial valleys: deep, still, cold water between steep walls, with kelp and seagrass along the sides.
     # The cold ocean's fish and squid, wrecks and ruins, but no monuments: those keep to the open deep sea.
     "fjord": {
@@ -760,6 +809,9 @@ SURFACE_RULE = sequence(
             when("minecraft:on_ceiling", block("sandstone")), block("sand"))),
         when(biome_is("tundra"), sequence(
             when(noise(0.4), block("coarse_dirt")), when(noise(hi=-0.45), block("podzol")), block("grass_block"))),
+        # Needle litter, and ground churned bare by the frost.
+        when(biome_is("larch_taiga"), sequence(
+            when(noise(0.3), block("podzol")), when(noise(hi=-0.55), block("coarse_dirt")), block("grass_block"))),
         when(biome_is("steppe"), sequence(when(noise(0.55), block("coarse_dirt")), block("grass_block"))),
         # Limestone breaking through thin terra rossa.
         when(biome_is("maquis"), sequence(

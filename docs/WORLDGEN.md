@@ -291,7 +291,7 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of sixteen new biomes. The first rule that matches wins:
+swap it for one of seventeen new biomes. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
@@ -307,6 +307,7 @@ swap it for one of sixteen new biomes. The first rule that matches wins:
 | **Laurel forest** | Jungle where the coldest month falls below 15 °C, so frost can come. Vanilla's jungles start at a yearly mean of 15 °C, which takes in the humid subtropics, as around Shanghai or Atlanta | Jungles |
 | **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
 | **Bog** | The flattest land (less than 6 m of relief) below 1500 m, with cool summers (warmest month below 20 °C) and at least twice the rain of the aridity threshold, as in Finland, the West Siberian Plain and the Hudson Bay Lowlands. Not where maquis grows: peat needs ground wet all summer, and a Mediterranean summer is dry. Vanilla puts swamps only on low ground; bogs grow on flat land at any height below the mountains | Plains, forests, taigas, savannas |
+| **Larch taiga** | Coldest month below −25 °C, with at least the rain of the aridity threshold, as in eastern Siberia and the Greater Khingan. The ground stays frozen all year a metre down, and on the layer that thaws in summer larches, which shed their needles for the winter, take over from the evergreen spruces. Vanilla puts snowy plains, snowy taigas and ice spikes there below a yearly −5 °C, and taigas above it. Milder winters keep vanilla's spruce, drier ground its snowy plains, and a year below −10 °C its snow | Snowy plains, snowy taigas, ice spikes, plains, forests, taigas, savannas |
 | **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
 | **Maquis** | 12–21 °C, coldest month at least 2 °C, 250–1000 mm of strongly seasonal rain, below 1200 m | The same, deserts and meadows too, but no other slopes |
 | **Heath** | Oceanic lowland below 300 m: 6–12 °C, coldest month above −4 °C, 550–1100 mm of rain. Only where the variant noise is below −0.3, so it comes in patches among the woods | Plains, forests, taigas, savannas |
@@ -363,6 +364,7 @@ the colours:
 | Fjord | Cold ocean | Kelp and seagrass in deep teal water; the cold ocean's fish and squid, wrecks and ruins, but no monuments, which keep to the open deep sea | The cold ocean's |
 | Monsoon forest | Jungle | Teak and sal, acacias, jungle bushes, bamboo, dry grass, drifts of fallen leaves, warm flowers; junglefowl (chickens), wild boar (pigs), parrots and ocelots | Grass with red laterite and coarse dirt showing, laterite below |
 | Laurel forest | Forest | Laurels with dense, glossy crowns, live oaks hung with moss, azalea trees and bushes (camellias and rhododendrons), bamboo, ferns, fallen leaves, fireflies; wild boar (pigs), foxes, rabbits, armadillos and, rarely, pandas | Grass with leaf mould (podzol) and coarse dirt, red laterite below |
+| Larch taiga | Taiga | Open stands of larches, light green, with young and stunted ones, birches and Scots pines where the ground thaws deeper, grass, Labrador tea (bushes), lingonberries (sweet berries), mats of reindeer lichen and moss, mushrooms; Yakutian horses, reindeer (sheep), cattle, foxes, wolves and rabbits | Grass with needle litter (podzol) and frost-churned coarse dirt |
 | Bog | Swamp | Dark pools of peaty water with lily pads, cottongrass, moss carpets, heather, a few spindly black spruces, Scots pines and birches, berries, fireflies; frogs, and the swamp's slimes, witches and bogged | Sphagnum (moss) with bare peat and grass, peat all the way down |
 
 The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra and
@@ -372,7 +374,8 @@ trunks. The yareta of the puna is a cushion plant so dense that it looks like a 
 The teak stands on a tall, clear trunk under a round crown, and the laurels under dense domes. The live oaks of the
 laurel forest are dark oak wood under oak leaves, hung with pale hanging moss for Spanish moss. The bog's pools are
 vanilla's `waterlogged_vegetation_patch`, the lush caves' clay pools: it sinks a patch of peat into the ground and fills
-its top with water wherever the water is held on every side.
+its top with water wherever the water is held on every side. The larches are spruce wood under oak leaves, which take
+the biome's light green, in narrow, open cones; their reindeer lichen is pale moss.
 
 Their ground is the material rule `diffusicraft:biome_surface`, which runs ahead of vanilla's overworld surface rule
 and leaves every other biome to it. They join vanilla's structure tags (villages, outposts, ruins) and the `c:`
@@ -994,8 +997,8 @@ Other searches still read the full terrain and can take a while on new land:
   forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, Shanghai, Atlanta and
   Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the Lüneburg
   Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands,
-  tropical coasts and the Sognefjord. On slopes, the tree line of the Alps is higher on the sunny side, and the woods of
-  the Rockies' foothills keep to the shaded side.
+  Yakutsk, Verkhoyansk and the Greater Khingan, tropical coasts and the Sognefjord. On slopes, the tree line of the Alps
+  is higher on the sunny side, and the woods of the Rockies' foothills keep to the shaded side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.
