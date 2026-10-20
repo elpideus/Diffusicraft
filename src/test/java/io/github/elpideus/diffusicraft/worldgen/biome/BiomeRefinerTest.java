@@ -196,6 +196,16 @@ class BiomeRefinerTest {
 		assertEquals(BiomeRefiner.MAQUIS, BiomeRefiner.refine("minecraft:plains", c));
 		// The same temperatures with rain all year round are not Mediterranean.
 		assertNull(BiomeRefiner.refine("minecraft:plains", climate(15f, 6f, 900f, 15f, 100f, 60f)));
+		// Los Angeles, whose coldest month is near 14 °C.
+		assertEquals(BiomeRefiner.MAQUIS,
+			BiomeRefiner.refine("minecraft:plains", climate(18.6f, 2.8f, 380f, 95f, 100f, 30f)));
+		// Frost-free Lilongwe, at 1050 m, gets its rain in summer: miombo woods and savanna.
+		BiomeClimate lilongwe = climate(19.8f, 2.6f, 860f, 115f, 1050f, 30f);
+		assertNull(BiomeRefiner.refine("minecraft:savanna", lilongwe));
+		assertEquals(BiomeRefiner.SAVANNA, BiomeRefiner.refine("minecraft:plains", lilongwe));
+		assertEquals(BiomeRefiner.MONSOON_FOREST, BiomeRefiner.refine("minecraft:forest", lilongwe));
+		assertNotEquals(BiomeRefiner.MAQUIS,
+			BiomeRefiner.refine("minecraft:desert", climate(19.8f, 2.6f, 300f, 115f, 1050f, 30f)));
 	}
 
 	@Test

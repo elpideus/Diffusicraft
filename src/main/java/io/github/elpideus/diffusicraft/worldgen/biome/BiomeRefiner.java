@@ -67,7 +67,8 @@ import java.util.Set;
  *   <li><b>Temperate rainforest</b>: mild oceanic climates (4 to 14 °C, coldest month above -3 °C) with at least
  *       1600 mm of rain.</li>
  *   <li><b>Maquis</b>: Mediterranean scrub, 12 to 21 °C with mild winters, 250 to 1000 mm of strongly seasonal
- *       rain.</li>
+ *       rain. Where frost never comes, the rain comes with the summer instead, as on the uplands of Malawi, which
+ *       grow savanna and dry woods.</li>
  *   <li><b>Heath</b>: patches of oceanic lowland, 6 to 12 °C with 550 to 1100 mm of rain, as on the Lüneburg
  *       Heath or in Jutland.</li>
  *   <li><b>Forest-tundra</b>: from the tree line to where the warmest month reaches {@value #FOREST_TUNDRA_WARMEST}
@@ -604,8 +605,13 @@ public final class BiomeRefiner {
 			&& c.seasonality < 7f;
 	}
 
+	/**
+	 * Whether the climate is Mediterranean. Strongly seasonal rain falls in summer where the coldest month passes
+	 * {@value #TROPICAL_COLDEST} °C, with the monsoon, as the aridity threshold ({@link BiomeClimate#aridity}) has it.
+	 */
 	static boolean maquis(BiomeClimate c) {
-		return c.temperature >= 12f && c.temperature <= 21f && c.coldestMonth() >= 2f
+		float coldest = c.coldestMonth();
+		return c.temperature >= 12f && c.temperature <= 21f && coldest >= 2f && coldest < TROPICAL_COLDEST
 			&& c.precipitation >= 250f && c.precipitation <= 1000f && c.precipitationSeasonality >= 40f;
 	}
 }

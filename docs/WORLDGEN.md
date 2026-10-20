@@ -324,7 +324,7 @@ swap it for one of twenty-four new biomes, or for another of vanilla's. The firs
 | **Bog** | The flattest land (less than 6 m of relief) below 1500 m, with cool summers (warmest month below 20 °C) and at least twice the rain of the aridity threshold, as in Finland, the West Siberian Plain and the Hudson Bay Lowlands. Not where maquis grows: peat needs ground wet all summer, and a Mediterranean summer is dry. Vanilla puts swamps only on low ground; bogs grow on flat land at any height below the mountains | Plains, forests, taigas, savannas |
 | **Larch taiga** | Coldest month below −25 °C, with at least the rain of the aridity threshold, as in eastern Siberia and the Greater Khingan. The ground stays frozen all year a metre down, and on the layer that thaws in summer larches, which shed their needles for the winter, take over from the evergreen spruces. Vanilla puts snowy plains, snowy taigas and ice spikes there below a yearly −5 °C, and taigas above it. Larches grow in the coldest winters of all, as at Verkhoyansk and Oymyakon, wherever the summers pass 10 °C. Milder winters keep vanilla's spruce, or its forest-tundra where the summers stay cool. Ground too dry for them is steppe or cold desert (see below) | Snowy plains, snowy taigas, ice spikes, plains, forests, taigas, savannas |
 | **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
-| **Maquis** | 12–21 °C, coldest month at least 2 °C, 250–1000 mm of strongly seasonal rain, below 1200 m | The same, deserts and meadows too, but no other slopes |
+| **Maquis** | 12–21 °C, coldest month 2–15 °C, 250–1000 mm of strongly seasonal rain, below 1200 m. Where frost never comes, the rain comes with the summer instead, as the aridity threshold has it, and grows savanna and dry woods, as on the uplands of Malawi; before, maquis took a quarter of seed 42's hot deserts, most of them frost-free | The same, deserts and meadows too, but no other slopes |
 | **Heath** | Oceanic lowland below 300 m: 6–12 °C, coldest month above −4 °C, 550–1100 mm of rain. Only where the variant noise is below −0.3, so it comes in patches among the woods | Plains, forests, taigas, savannas |
 | **Forest-tundra** | From the tree line to where the warmest month reaches 13 °C, the northern edge of the closed forest, with at least the rain of the aridity threshold. The taiga thins out there over a hundred kilometres or more into clumps of stunted black spruce and crooked birch on lichen and moss, as along Hudson Bay, in northern Quebec and Labrador, on the Kola Peninsula and in Iceland. Vanilla puts its taigas, forests and snowy plains there. On a mountainside it is the belt of scattered, wind-bent trees just below the tree line | Snowy plains, snowy taigas, ice spikes, plains, forests, taigas, savannas |
 | **Forest-steppe**, **steppe** | Humid by the year's rain (aridity at least 1), but not by the summer's: the warmest month reaches 17 °C, the year averages −2 to 18 °C, and less rain falls than the threshold at the warmest month's temperature (see [Summer moisture](#summer-moisture)). Groves of birch and oak among the meadow-steppe, as from Ukraine to the Altai, in Manchuria and in the aspen parkland of the Canadian prairies; with less than 0.7 of that rain, steppe, as around Astana and Orenburg | Plains, forests, taigas, savannas; on humid mountainsides, meadows (see the montane forest) |
@@ -1031,20 +1031,20 @@ Other searches still read the full terrain and can take a while on new land:
   `build/river-map`, to look at them without starting the game.
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes' cloud
   forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, the Cerrado around
-  Brasília and Darwin, Shanghai, Atlanta and Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the
-  wormwood steppe of Kazakhstan, the Mojave, the Sonoran Desert, the Karoo, Mesopotamia, Kufra's sand sea against the
-  Tanezrouft and the hamada above Cairo, Dartmoor and the Pennines, the Lüneburg Heath, Bonneville and Uyuni, Finland's
-  mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands, Yakutsk, Verkhoyansk, Oymyakon and the
-  Greater Khingan against the Chuya steppe, southern Finland, Moscow, Stockholm, Ottawa and Manchuria's hills against
-  Copenhagen, Berlin, Kirov, the Vosges and the Black Forest, the taiga of Kirov and Fort Smith, Astana, Orenburg and
-  Volgograd, Kharkiv, Omsk, Edmonton, Budapest and Harbin against Fairbanks, the Greenland ice sheet, Utqiaġvik and the
-  South Shetlands, tropical coasts and the Sognefjord, and Kuujjuarapik, Nain, Murmansk, Ungava, Akureyri and Iceland's
-  other coasts against Rovaniemi, and Santa Fe, the hills above Cedar City and of Anatolia against the valley below
-  Cedar City, Mongolia's hills and the Sahel's, and the sagebrush of Elko and the valley below Cedar City and
-  Patagonia's shrub steppe at Comodoro Rivadavia against the grass of Río Gallegos, Denver and Scottsbluff. On slopes,
-  the tree line of the Alps is higher on the sunny side, with forest-tundra just below it, and the woods of the Rockies'
-  foothills keep to the shaded side, where it is cool enough for mixed forest; flat ground there is open forest-steppe,
-  and junipers grow on the sunny side.
+  Brasília and Darwin, Shanghai, Atlanta and Hong Kong, the Pacific Northwest, the Mediterranean and Los Angeles against
+  Lilongwe, the Gobi and the wormwood steppe of Kazakhstan, the Mojave, the Sonoran Desert, the Karoo, Mesopotamia,
+  Kufra's sand sea against the Tanezrouft and the hamada above Cairo, Dartmoor and the Pennines, the Lüneburg Heath,
+  Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands, Yakutsk,
+  Verkhoyansk, Oymyakon and the Greater Khingan against the Chuya steppe, southern Finland, Moscow, Stockholm, Ottawa
+  and Manchuria's hills against Copenhagen, Berlin, Kirov, the Vosges and the Black Forest, the taiga of Kirov and Fort
+  Smith, Astana, Orenburg and Volgograd, Kharkiv, Omsk, Edmonton, Budapest and Harbin against Fairbanks, the Greenland
+  ice sheet, Utqiaġvik and the South Shetlands, tropical coasts and the Sognefjord, and Kuujjuarapik, Nain, Murmansk,
+  Ungava, Akureyri and Iceland's other coasts against Rovaniemi, and Santa Fe, the hills above Cedar City and of
+  Anatolia against the valley below Cedar City, Mongolia's hills and the Sahel's, and the sagebrush of Elko and the
+  valley below Cedar City and Patagonia's shrub steppe at Comodoro Rivadavia against the grass of Río Gallegos, Denver
+  and Scottsbluff. On slopes, the tree line of the Alps is higher on the sunny side, with forest-tundra just below it,
+  and the woods of the Rockies' foothills keep to the shaded side, where it is cool enough for mixed forest; flat ground
+  there is open forest-steppe, and junipers grow on the sunny side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.
