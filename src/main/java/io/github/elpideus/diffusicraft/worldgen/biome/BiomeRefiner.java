@@ -87,6 +87,10 @@ import java.util.Set;
  *       and forest at 5 °C, through the middle of it. Milder winters favour the beech, and the forest is broadleaf, as
  *       in Denmark. On a humid mountainside the mixed forest also takes the meadow's place, as the beech and fir of the
  *       Vosges do.</li>
+ *   <li><b>Taiga</b> for vanilla's forest of oaks and birches where the year averages less than
+ *       {@value #MIXED_COOLEST} °C. Vanilla keeps that forest down to -5 °C wherever the rain is moderate, but only
+ *       spruces, pines, firs, larches and birches stand those winters: the boreal forest, as around Kirov and Fort
+ *       Smith.</li>
  *   <li><b>Cold desert</b>: deserts cooler than {@value #COLD_DESERT_TEMPERATURE} °C.</li>
  *   <li><b>Desert scrub</b>: the other deserts but the driest, which get less than {@value #SCRUB_ARIDITY} of the
  *       rain they would need to be steppe. Only those, as in the heart of the Sahara, are bare; in the others shrubs
@@ -411,6 +415,9 @@ public final class BiomeRefiner {
 		}
 		if (MIXED_WOODS.contains(biome) && aridity >= 1f && mixedForest(c)) {
 			return MIXED_FOREST;
+		}
+		if (biome.equals(FOREST) && aridity >= 1f && c.temperature < MIXED_COOLEST) {
+			return TAIGA;
 		}
 		if (kind == Kind.LAND || kind == Kind.DESERT) {
 			if (aridity < 0.5f && c.temperature < COLD_DESERT_TEMPERATURE) {

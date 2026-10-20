@@ -327,6 +327,19 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void winterTooColdForOaksMakesVanillasForestTaiga() {
+		// Vanilla's forest of oaks and birches around Kirov, and at Fort Smith on the Slave River: boreal forest.
+		assertEquals(BiomeRefiner.TAIGA,
+			BiomeRefiner.refine("minecraft:forest", climate(2.6f, 10f, 640f, 25f, 160f, 30f)));
+		assertEquals(BiomeRefiner.TAIGA,
+			BiomeRefiner.refine("minecraft:forest", climate(-2.4f, 13.9f, 350f, 50f, 200f, 30f)));
+		// Its birch forest stays, and so does its forest in the mixed forest's milder climate.
+		assertNull(BiomeRefiner.refine("minecraft:birch_forest", climate(2.6f, 10f, 640f, 25f, 160f, 30f)));
+		assertEquals(BiomeRefiner.MIXED_FOREST,
+			BiomeRefiner.refine("minecraft:forest", climate(5.8f, 9f, 710f, 30f, 150f, 30f)));
+	}
+
+	@Test
 	void coolWetUplandsAreMoorland() {
 		// Dartmoor at 450 m, and the Pennines.
 		BiomeClimate dartmoor = climate(8f, 4f, 1800f, 30f, 450f, 40f);

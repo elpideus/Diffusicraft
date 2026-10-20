@@ -328,6 +328,7 @@ swap it for one of twenty-four new biomes, or for another of vanilla's. The firs
 | **Forest-tundra** | From the tree line to where the warmest month reaches 13 °C, the northern edge of the closed forest, with at least the rain of the aridity threshold. The taiga thins out there over a hundred kilometres or more into clumps of stunted black spruce and crooked birch on lichen and moss, as along Hudson Bay, in northern Quebec and Labrador, on the Kola Peninsula and in Iceland. Vanilla puts its taigas, forests and snowy plains there. On a mountainside it is the belt of scattered, wind-bent trees just below the tree line | Snowy plains, snowy taigas, ice spikes, plains, forests, taigas, savannas |
 | **Forest-steppe**, **steppe** | Humid by the year's rain (aridity at least 1), but not by the summer's: the warmest month reaches 17 °C, the year averages −2 to 18 °C, and less rain falls than the threshold at the warmest month's temperature (see [Summer moisture](#summer-moisture)). Groves of birch and oak among the meadow-steppe, as from Ukraine to the Altai, in Manchuria and in the aspen parkland of the Canadian prairies; with less than 0.7 of that rain, steppe, as around Astana and Orenburg | Plains, forests, taigas, savannas; on humid mountainsides, meadows (see the montane forest) |
 | **Mixed forest** | 3.5–9 °C, warmest month at least 16 °C, coldest month below −1 °C, with at least the rain of the aridity threshold, as in southern Finland and Sweden, around Moscow, by the Great Lakes and in Manchuria. Oaks and birches grow among the spruces and pines there. Vanilla draws its line between taiga and forest at 5 °C, through the middle of that belt, and grows one or the other on either side of it. The oak needs a summer warm enough to ripen its acorns; milder winters favour the beech, and the forest is broadleaf, as in Denmark and around Berlin, which vanilla's forest already is | Forests, birch forests and taigas; on humid mountainsides, meadows (see the montane forest) |
+| *(taiga)* | Below 3.5 °C, with at least the rain of the aridity threshold. Vanilla grows its forest of oaks and birches down to −5 °C wherever the rain is moderate, and its taiga only where it is wetter, but only spruces, pines, firs, larches and birches stand those winters: the boreal forest, as around Kirov and at Fort Smith. Before, vanilla's forest made a sixth of the boreal land of seed 42 | Forests |
 | **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts |
 | **Desert scrub** | Desert from 12 °C with at least 0.15 of the rain of the aridity threshold, as in the Mojave, the Sonoran Desert and the Karoo, where shrubs grow over stony ground. Only drier deserts are hyperarid, getting less than a twentieth of the water the sun could take back, as in the heart of the Sahara; they are bare: stony desert, or vanilla's sand | Deserts |
 | **Stony desert** | Hyperarid desert (below 0.15 of the rain of the aridity threshold, from 12 °C) that rises 20 m or more above the low ground around, the 5th percentile of the ground within 7.7 km. The wind sweeps the sand off the higher ground and leaves gravel plains and bare rock, the reg and hamada that make most of the Sahara, as in the Tanezrouft and on the Hamada du Draa. The sand gathers below, in the ergs, and stays vanilla's desert. Of the driest deserts, 49% are stony, 44% sand and 3% salt flats | Deserts |
@@ -1033,15 +1034,15 @@ Other searches still read the full terrain and can take a while on new land:
   Sonoran Desert, the Karoo, Mesopotamia, Kufra's sand sea against the Tanezrouft and the hamada above Cairo, Dartmoor
   and the Pennines, the Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of
   Allen, the Hudson Bay Lowlands, Yakutsk, Verkhoyansk, Oymyakon and the Greater Khingan, southern Finland, Moscow,
-  Stockholm, Ottawa and Manchuria's hills against Copenhagen, Berlin, Kirov, the Vosges and the Black Forest, Astana,
-  Orenburg and Volgograd, Kharkiv, Omsk, Edmonton, Budapest and Harbin against Fairbanks, the Greenland ice sheet,
-  Utqiaġvik and the South Shetlands, tropical coasts and the Sognefjord, and Kuujjuarapik, Nain, Murmansk, Ungava,
-  Akureyri and Iceland's other coasts against Rovaniemi, and Santa Fe, the hills above Cedar City and of Anatolia
-  against the valley below Cedar City, Mongolia's hills and the Sahel's, and the sagebrush of Elko and the valley below
-  Cedar City and Patagonia's shrub steppe at Comodoro Rivadavia against the grass of Río Gallegos, Denver and
-  Scottsbluff. On slopes, the tree line of the Alps is higher on the sunny side, with forest-tundra just below it, and
-  the woods of the Rockies' foothills keep to the shaded side, where it is cool enough for mixed forest; flat ground
-  there is open forest-steppe, and junipers grow on the sunny side.
+  Stockholm, Ottawa and Manchuria's hills against Copenhagen, Berlin, Kirov, the Vosges and the Black Forest, the taiga
+  of Kirov and Fort Smith, Astana, Orenburg and Volgograd, Kharkiv, Omsk, Edmonton, Budapest and Harbin against
+  Fairbanks, the Greenland ice sheet, Utqiaġvik and the South Shetlands, tropical coasts and the Sognefjord, and
+  Kuujjuarapik, Nain, Murmansk, Ungava, Akureyri and Iceland's other coasts against Rovaniemi, and Santa Fe, the hills
+  above Cedar City and of Anatolia against the valley below Cedar City, Mongolia's hills and the Sahel's, and the
+  sagebrush of Elko and the valley below Cedar City and Patagonia's shrub steppe at Comodoro Rivadavia against the grass
+  of Río Gallegos, Denver and Scottsbluff. On slopes, the tree line of the Alps is higher on the sunny side, with
+  forest-tundra just below it, and the woods of the Rockies' foothills keep to the shaded side, where it is cool enough
+  for mixed forest; flat ground there is open forest-steppe, and junipers grow on the sunny side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.
