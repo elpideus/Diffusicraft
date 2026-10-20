@@ -191,6 +191,25 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void hotDesertsGrowScrubButTheDriestAreBareSand() {
+		// The Mojave at Las Vegas, the Sonoran Desert at Phoenix, the Nama Karoo at Upington and the desert of
+		// Mesopotamia at Baghdad.
+		assertEquals(BiomeRefiner.DESERT_SCRUB, BiomeRefiner.refine("minecraft:desert",
+			climate(20.3f, 8.5f, 106f, 53f, 620f, 40f)));
+		assertEquals(BiomeRefiner.DESERT_SCRUB, BiomeRefiner.refine("minecraft:desert",
+			climate(24f, 7.6f, 204f, 54f, 340f, 40f)));
+		assertEquals(BiomeRefiner.DESERT_SCRUB, BiomeRefiner.refine("minecraft:desert",
+			climate(20.5f, 5.7f, 190f, 70f, 830f, 30f)));
+		assertEquals(BiomeRefiner.DESERT_SCRUB, BiomeRefiner.refine("minecraft:desert",
+			climate(23f, 8.8f, 150f, 90f, 40f, 20f)));
+		// The hyperarid Sahara at Cairo and the Libyan Desert's sand sea at Kufra.
+		assertNull(BiomeRefiner.refine("minecraft:desert", climate(22f, 5f, 25f, 100f, 50f, 30f)));
+		assertNull(BiomeRefiner.refine("minecraft:desert", climate(23f, 6.4f, 2f, 150f, 380f, 30f)));
+		// Badlands stay badlands.
+		assertNull(BiomeRefiner.refine("minecraft:badlands", climate(24f, 7.6f, 204f, 54f, 900f, 60f)));
+	}
+
+	@Test
 	void coolWetUplandsAreMoorland() {
 		// Dartmoor at 450 m, and the Pennines.
 		BiomeClimate dartmoor = climate(8f, 4f, 1800f, 30f, 450f, 40f);

@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:desert_shrub_checked",
+  "features": [
+    {
+      "chance": 0.12,
+      "feature": "diffusicraft:mesquite_checked"
+    }
+  ]
+}

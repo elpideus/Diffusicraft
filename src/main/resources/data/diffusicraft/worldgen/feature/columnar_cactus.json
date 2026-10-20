@@ -1,0 +1,42 @@
+{
+  "type": "minecraft:block_column",
+  "direction": "up",
+  "prioritize_tip": false,
+  "allowed_placement": {
+    "type": "minecraft:matching_block_tag",
+    "tag": "minecraft:air"
+  },
+  "layers": [
+    {
+      "height": {
+        "type": "minecraft:uniform",
+        "min_inclusive": 4,
+        "max_inclusive": 6
+      },
+      "provider": {
+        "id": "minecraft:cactus",
+        "properties": {
+          "age": "0"
+        }
+      }
+    },
+    {
+      "height": {
+        "type": "minecraft:weighted_list",
+        "distribution": [
+          {
+            "data": 0,
+            "weight": 2
+          },
+          {
+            "data": 1,
+            "weight": 1
+          }
+        ]
+      },
+      "provider": {
+        "id": "minecraft:cactus_flower"
+      }
+    }
+  ]
+}

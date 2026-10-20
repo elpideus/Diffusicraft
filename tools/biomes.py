@@ -110,8 +110,9 @@ def trees(feature, counts, sapling):
                             {"type": "minecraft:biome"}])
 
 
-def patch(feature, tries, spread=7, chance=None, count=None, on=None, heightmap="MOTION_BLOCKING"):
-    """Vanilla's patch: `count` centers per chunk, or one in `chance` chunks, each trying `tries` spots around it."""
+def patch(feature, tries, spread=7, chance=None, count=None, on=None, heightmap="MOTION_BLOCKING", survive=None):
+    """Vanilla's patch: `count` centers per chunk, or one in `chance` chunks, each trying `tries` spots around it.
+    `on` lists the blocks the spot must stand on; `survive` names a block that must be able to stand there."""
     placement = []
     if chance:
         placement.append({"type": "minecraft:rarity_filter", "chance": chance})
@@ -122,6 +123,9 @@ def patch(feature, tries, spread=7, chance=None, count=None, on=None, heightmap=
     if on:
         free = {"type": "minecraft:all_of", "predicates": [free, {
             "type": "minecraft:matching_blocks", "blocks": [mc(b) for b in on], "offset": [0, -1, 0]}]}
+    if survive:
+        free = {"type": "minecraft:all_of", "predicates": [free, {"type": "minecraft:would_survive",
+                                                                  "state": mc(survive)}]}
     placement += [{"type": "minecraft:in_square"}, {"type": "minecraft:heightmap", "heightmap": heightmap},
                   {"type": "minecraft:biome"}, {"type": "minecraft:count", "count": tries},
                   {"type": "minecraft:offset", "x": trapezoid, "z": trapezoid,
@@ -243,6 +247,15 @@ FEATURES = {
     "stunted_larch": tree("spruce_log", straight(4, 2, 0), "oak_leaves",
                           {"type": "minecraft:spruce_foliage_placer", "radius": 1, "offset": uniform(0, 1),
                            "trunk_height": uniform(1, 2)}, two_layers(1, 0, 1)),
+    # Creosote bush and saltbush: low mounds a few strides apart, each holding its own patch of ground. A radius of 1
+    # would leave the stem's top bare half the time, since the placer drops a lone centre leaf at random.
+    "desert_shrub": tree("acacia_log", straight(1, 0, 0), "acacia_leaves",
+                         {"type": "minecraft:bush_foliage_placer", "height": 1, "offset": 0, "radius": 2},
+                         two_layers(0, 0, 0)),
+    # Mesquite, palo verde and the thorn trees of the Old World's deserts: low and spreading, with thin, flat crowns.
+    "mesquite": tree("acacia_log", {"type": "minecraft:forking_trunk_placer", "base_height": 2, "height_rand_a": 1,
+                                    "height_rand_b": 1}, "acacia_leaves",
+                     {"type": "minecraft:acacia_foliage_placer", "radius": 2, "offset": 0}, two_layers(1, 0, 2)),
     "tundra_ground_cover": simple([("short_grass", 4), (ours("cottongrass"), 2), ("fern", 1)]),
     "tundra_moss_vegetation": simple([("moss_carpet", 3), ("short_grass", 2)]),
     "alpine_grass": simple([("short_grass", 6), ("fern", 1)]),
@@ -272,6 +285,9 @@ FEATURES = {
     "paramo_flowers": simple([(ours("gentian"), 3), ("dandelion", 3), ("cornflower", 2), ("oxeye_daisy", 1)]),
     # Ichu: golden bunchgrass from one horizon to the other.
     "puna_grass": simple([("short_dry_grass", 4), ("tall_dry_grass", 3), ("short_grass", 1)]),
+    "scrub_grass": simple([("short_dry_grass", 5), ("tall_dry_grass", 2), ("short_grass", 1)]),
+    # Desert marigolds and sand verbena, after the rain.
+    "desert_flowers": simple([("dandelion", 3), ("allium", 1)]),
     "boulder": boulder("stone", ["sand", "gravel", "coarse_dirt"]),
     # Yareta: cushions so dense and hard that they look like green boulders. They grow a centimetre a year.
     "yareta": boulder("moss_block", ["gravel", "coarse_dirt", "stone"]),
@@ -315,6 +331,14 @@ FEATURES["grotto_pool"] = {
     "replaceable": "#minecraft:lush_ground_replaceable", "surface": "floor", "vegetation_chance": 0.0,
     "vegetation_feature": placed("minecraft:glow_lichen", []), "vertical_range": 4, "xz_radius": uniform(3, 7)}
 FEATURES["selenite_beam"] = {"type": f"{NS}:selenite_beam"}
+# Columnar cacti, saguaros and cardones: twice a man's height, and in flower now and then.
+FEATURES["columnar_cactus"] = {
+    "type": "minecraft:block_column", "direction": "up", "prioritize_tip": False,
+    "allowed_placement": {"type": "minecraft:matching_block_tag", "tag": "minecraft:air"},
+    "layers": [
+        {"height": uniform(4, 6), "provider": {"id": "minecraft:cactus", "properties": {"age": "0"}}},
+        {"height": {"type": "minecraft:weighted_list", "distribution": [
+            {"data": 0, "weight": 2}, {"data": 1, "weight": 1}]}, "provider": {"id": "minecraft:cactus_flower"}}]}
 
 # Placed features, in the order they run within a step.
 PLACED = {
@@ -334,6 +358,8 @@ PLACED = {
     "azalea_tree_checked": checked("minecraft:azalea_tree", "azalea"),
     "frailejon_checked": checked(ours("frailejon"), "pale_oak_sapling"),
     "polylepis_checked": checked(ours("polylepis"), "oak_sapling"),
+    "desert_shrub_checked": checked(ours("desert_shrub"), "acacia_sapling"),
+    "mesquite_checked": checked(ours("mesquite"), "acacia_sapling"),
     "boulders": scattered(ours("boulder"), chance=4),
     "boulders_rare": scattered(ours("boulder"), chance=12),
     "limestone_boulders": scattered(ours("limestone_boulder"), chance=5),
@@ -355,6 +381,7 @@ PLACED = {
     "trees_laurel_forest": trees(ours("trees_laurel_forest"), {8: 9, 10: 1}, "oak_sapling"),
     "trees_paramo": trees(ours("trees_paramo"), {0: 2, 1: 3, 2: 3, 4: 2}, "oak_sapling"),
     "trees_puna": trees(ours("polylepis"), {0: 16, 1: 1}, "oak_sapling"),
+    "trees_desert_scrub": trees(ours("trees_desert_scrub"), {1: 2, 2: 3, 3: 3, 4: 1}, "acacia_sapling"),
     "patch_tundra_grass": patch(ours("tundra_ground_cover"), 24, count=3),
     "tundra_moss": scattered(ours("tundra_moss_patch"), chance=2),
     "rainforest_moss": scattered("minecraft:moss_patch", count=1),
@@ -385,6 +412,11 @@ PLACED = {
     "patch_paramo_grass": patch(ours("paramo_grass"), 48, count=5),
     "patch_paramo_flowers": patch(ours("paramo_flowers"), 32, spread=6, chance=2),
     "patch_puna_grass": patch(ours("puna_grass"), 48, count=6),
+    "patch_desert_bush": patch("minecraft:bush", 16, spread=6, count=1),
+    "patch_scrub_grass": patch(ours("scrub_grass"), 32, count=2),
+    "patch_desert_flowers": patch(ours("desert_flowers"), 32, spread=6, chance=6),
+    # Cacti grow only on the sand.
+    "columnar_cacti": patch(ours("columnar_cactus"), 3, spread=6, chance=3, survive="cactus"),
     "glowworm_silk_ceilings": hollow(ours("glowworm_silk"), "ceiling", 48),
     "grotto_pools": hollow(ours("grotto_pool"), "floor", 2),
     "selenite_beams_floor": hollow(ours("selenite_beam"), "floor", 2),
@@ -449,6 +481,9 @@ FEATURES["trees_laurel_forest"] = {"type": "minecraft:random_selector", "default
 # Frailejones, and here and there a queñua.
 FEATURES["trees_paramo"] = {"type": "minecraft:random_selector", "default": ours("frailejon_checked"),
                             "features": [{"chance": 0.05, "feature": ours("polylepis_checked")}]}
+# Creosote bush and saltbush, and mesquite here and there.
+FEATURES["trees_desert_scrub"] = {"type": "minecraft:random_selector", "default": ours("desert_shrub_checked"),
+                                  "features": [{"chance": 0.12, "feature": ours("mesquite_checked")}]}
 FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
@@ -554,6 +589,25 @@ BIOMES = {
                  "minecraft:has_structure/pillager_outpost", "minecraft:has_structure/ruined_portal_desert",
                  "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_desert",
                  "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
+    },
+    # Hot desert shrubland: creosote bush and saltbush a few strides apart over stony ground and gravel, cacti on the
+    # sand, mesquite here and there. Most of the world's deserts look like this, from the Mojave and the Sonoran Desert
+    # to the Karoo and the edges of the Sahara; only the driest are bare sand. Armadillos, as in the Chihuahuan Desert.
+    "desert_scrub": {
+        "template": "desert", "temperature": 2.0, "downfall": 0.1,
+        "effects": {"grass_color": "#b5aa68", "foliage_color": "#8f9a50", "dry_foliage_color": "#a8865a"},
+        "creatures": [spawn("rabbit", 12, 2, 3), spawn("armadillo", 6, 1, 2), spawn("camel", 1, 1)],
+        "local": ["boulders"],
+        "vegetation": ["minecraft:glow_lichen", "trees_desert_scrub", "patch_desert_bush", "patch_scrub_grass",
+                       "patch_desert_flowers", "columnar_cacti", "minecraft:patch_dry_grass_desert",
+                       "minecraft:patch_dead_bush_2", "minecraft:patch_cactus_desert"],
+        "tags": ["c:is_desert", "c:is_dry/overworld", "c:is_hot/overworld", "c:is_sparse_vegetation/overworld",
+                 "minecraft:has_structure/desert_pyramid", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/pillager_outpost", "minecraft:has_structure/ruined_portal_desert",
+                 "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_desert",
+                 "minecraft:is_overworld", "minecraft:spawns_gold_rabbits",
+                 "minecraft:spawns_warm_variant_farm_animals", "minecraft:spawns_warm_variant_frogs",
+                 "minecraft:stronghold_biased_to"],
     },
     "steppe": {
         "template": "plains", "temperature": 0.65, "downfall": 0.25,
@@ -808,6 +862,10 @@ SURFACE_RULE = sequence(
         when(biome_is("cold_desert"), sequence(
             when(noise(0.2), block("gravel")), when(noise(hi=-0.35), block("coarse_dirt")),
             when("minecraft:on_ceiling", block("sandstone")), block("sand"))),
+        # Stony ground and gravel pavement between the shrubs, and sand where the wind heaps it up.
+        when(biome_is("desert_scrub"), sequence(
+            when("minecraft:on_ceiling", block("coarse_dirt")), when(noise(0.2), block("sand")),
+            when(noise(hi=-0.45), block("gravel")), block("coarse_dirt"))),
         when(biome_is("tundra"), sequence(
             when(noise(0.4), block("coarse_dirt")), when(noise(hi=-0.45), block("podzol")), block("grass_block"))),
         # Needle litter, and ground churned bare by the frost.
@@ -833,7 +891,7 @@ SURFACE_RULE = sequence(
             when(noise(0.4), block(ours("peat"))), when(noise(hi=0.05), block("moss_block")), block("grass_block"))),
     ))),
     when("minecraft:under_floor", sequence(
-        when(biome_is("cold_desert"), block("sandstone")),
+        when(biome_is("cold_desert", "desert_scrub"), block("sandstone")),
         when(biome_is("alpine_tundra", "paramo", "puna"), when(STEEP, block("stone"))),
         when(biome_is("maquis"), when(STEEP, block(ours("limestone")))),
         when(biome_is("salt_flat"), block(ours("rock_salt"))),

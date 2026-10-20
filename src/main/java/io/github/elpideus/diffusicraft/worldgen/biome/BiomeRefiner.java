@@ -66,6 +66,9 @@ import java.util.Set;
  *   <li><b>Heath</b>: patches of oceanic lowland, 6 to 12 °C with 550 to 1100 mm of rain, as on the Lüneburg
  *       Heath or in Jutland.</li>
  *   <li><b>Cold desert</b>: deserts cooler than {@value #COLD_DESERT_TEMPERATURE} °C.</li>
+ *   <li><b>Desert scrub</b>: the other deserts but the driest, which get less than {@value #SCRUB_ARIDITY} of the
+ *       rain they would need to be steppe. Only those, as in the heart of the Sahara, are bare sand; in the others
+ *       shrubs grow over gravel and stony ground, as in the Mojave, the Sonoran Desert and the Karoo.</li>
  *   <li><b>Steppe</b>: semi-arid grassland cooler than 18 °C.</li>
  * </ul>
  *
@@ -78,6 +81,7 @@ public final class BiomeRefiner {
 	public static final String TEMPERATE_RAINFOREST = "diffusicraft:temperate_rainforest";
 	public static final String MAQUIS = "diffusicraft:maquis";
 	public static final String COLD_DESERT = "diffusicraft:cold_desert";
+	public static final String DESERT_SCRUB = "diffusicraft:desert_scrub";
 	public static final String STEPPE = "diffusicraft:steppe";
 	public static final String MOORLAND = "diffusicraft:moorland";
 	public static final String HEATH = "diffusicraft:heath";
@@ -100,7 +104,8 @@ public final class BiomeRefiner {
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, LARCH_TAIGA, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
+		FJORD, LARCH_TAIGA, DESERT_SCRUB, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS,
+		SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -132,6 +137,11 @@ public final class BiomeRefiner {
 	static final float MOUNTAIN_ELEVATION = 1500f;
 	/** Deserts cooler than this are cold deserts, °C. */
 	static final float COLD_DESERT_TEMPERATURE = 12f;
+	/**
+	 * Precipitation over the aridity threshold below which a desert is hyperarid, bare sand and rock: about a
+	 * twentieth of the water the sun could take back.
+	 */
+	static final float SCRUB_ARIDITY = 0.15f;
 	/** Coldest month above which a swamp at sea level is a mangrove, °C. */
 	static final float MANGROVE_COLDEST = 15f;
 	/** Mangroves grow on tidal flats: no higher than this, in meters. */
@@ -297,6 +307,9 @@ public final class BiomeRefiner {
 		if (kind == Kind.LAND || kind == Kind.DESERT) {
 			if (aridity < 0.5f && c.temperature < COLD_DESERT_TEMPERATURE) {
 				return COLD_DESERT;
+			}
+			if (kind == Kind.DESERT && aridity >= SCRUB_ARIDITY) {
+				return DESERT_SCRUB;
 			}
 			if (kind == Kind.LAND && aridity < 1f && c.temperature < 18f) {
 				return STEPPE;
