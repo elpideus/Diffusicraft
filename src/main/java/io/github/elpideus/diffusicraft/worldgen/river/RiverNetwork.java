@@ -151,6 +151,12 @@ final class RiverNetwork {
 		});
 	}
 
+	/** Whether the water of a lake has been found. */
+	boolean hasGreatLake(Lake lake) {
+		CompletableFuture<GreatLake> future = greatLakes.get(lake.id());
+		return future != null && future.isDone();
+	}
+
 	/** The lakes with a cell in tile {@code (ti, tj)} or around it, which can reach into its padding. */
 	List<GreatLake> greatLakesAround(int ti, int tj) {
 		List<GreatLake> out = new ArrayList<>(0);

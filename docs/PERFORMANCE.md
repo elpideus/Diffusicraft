@@ -131,7 +131,8 @@ generation asks for them:
   tiles takes about 27 ms on one core, and there is one block per tile. Where the rain would fill one of its basins, the
   block draws the rivers of the tiles the water reaches, some 12 ms a tile with rivers, to tell whether one drains it;
   that adds 2 to 4 ms a tile on average. A tile in or next to a lake of the coarse map also waits for all the lake's
-  tiles, up to 16, which the prefetcher computes right after the lake's first tile in the plan.
+  tiles, up to 16, which the prefetcher computes right after the lake's first tile in the plan, then the lake's water
+  from them.
 - **In the background.** One thread at the lowest priority computes the planned tiles one at a time, and switches to
   a newer plan as soon as one arrives. Model runs take turns, so a tile that chunk generation needs right away takes
   up to twice as long while the prefetcher works. Planning the earliest tiles first keeps that rare.

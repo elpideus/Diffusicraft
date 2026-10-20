@@ -256,7 +256,7 @@ class GreatLakeTest {
 	}
 
 	@Test
-	void thePrefetcherComputesEveryTileOfALakeInItsPlan() throws Exception {
+	void thePrefetcherComputesEveryTileOfALakeInItsPlanAndItsWater() throws Exception {
 		TerrainField field = field();
 		int[] cells = Rivers.of(field).lakeTiles(6, 0);
 		assertTrue(cells.length > 0, "the bowl holds a lake");
@@ -286,6 +286,11 @@ class GreatLakeTest {
 				}
 				assertTrue(field.hasTile(cells[c], cells[c + 1]), "lake tile " + cells[c] + ", " + cells[c + 1]);
 			}
+			Rivers rivers = Rivers.of(field);
+			while (!rivers.hasGreatLake(cells[at], cells[at + 1]) && System.nanoTime() < deadline) {
+				Thread.sleep(10);
+			}
+			assertTrue(rivers.hasGreatLake(cells[at], cells[at + 1]), "the lake's water");
 		}
 	}
 

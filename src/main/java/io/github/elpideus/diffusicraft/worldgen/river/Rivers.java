@@ -296,6 +296,24 @@ public final class Rivers {
 		return lake == null ? new int[0] : lake.cells().clone();
 	}
 
+	/**
+	 * Finds the water of the lake of the coarse map on tile {@code (ti, tj)}, if there is one, from the terrain of all
+	 * its {@link #lakeTiles}. The prefetcher calls it once it has computed them, so the lake never waits for those of
+	 * them the tile cache has evicted since, and chunk generation finds the water ready.
+	 */
+	public void prefetchLake(int ti, int tj) {
+		RiverNetwork.Lake lake = network == null ? null : network.lakeAt(ti, tj);
+		if (lake != null) {
+			network.greatLake(lake);
+		}
+	}
+
+	/** Whether the water of the lake of the coarse map on tile {@code (ti, tj)} has been found; false without one. */
+	boolean hasGreatLake(int ti, int tj) {
+		RiverNetwork.Lake lake = network == null ? null : network.lakeAt(ti, tj);
+		return lake != null && network.hasGreatLake(lake);
+	}
+
 	/** The lakes of tile {@code (ti, tj)}. */
 	CellLakes lakes(int ti, int tj) {
 		return network == null ? CellLakes.EMPTY : cell(ti, tj, chunks.get()).lakes;
