@@ -65,6 +65,13 @@ import java.util.Set;
  *       rain.</li>
  *   <li><b>Heath</b>: patches of oceanic lowland, 6 to 12 °C with 550 to 1100 mm of rain, as on the Lüneburg
  *       Heath or in Jutland.</li>
+ *   <li><b>Mixed forest</b>: vanilla's forests and taigas where the year averages {@value #MIXED_COOLEST} to
+ *       {@value #MIXED_WARMEST} °C, the warmest month reaches {@value #OAK_SUMMER} °C and the coldest falls below
+ *       {@value #MIXED_COLDEST} °C. Oaks, limes and birches grow among the spruces and pines there, as in southern
+ *       Finland and Sweden, around Moscow, by the Great Lakes and in Manchuria. Vanilla draws its line between taiga
+ *       and forest at 5 °C, through the middle of it. Milder winters favour the beech, and the forest is broadleaf, as
+ *       in Denmark. On a humid mountainside the mixed forest also takes the meadow's place, as the beech and fir of the
+ *       Vosges do.</li>
  *   <li><b>Cold desert</b>: deserts cooler than {@value #COLD_DESERT_TEMPERATURE} °C.</li>
  *   <li><b>Desert scrub</b>: the other deserts but the driest, which get less than {@value #SCRUB_ARIDITY} of the
  *       rain they would need to be steppe. Only those, as in the heart of the Sahara, are bare sand; in the others
@@ -93,6 +100,7 @@ public final class BiomeRefiner {
 	public static final String BOG = "diffusicraft:bog";
 	public static final String FJORD = "diffusicraft:fjord";
 	public static final String LARCH_TAIGA = "diffusicraft:larch_taiga";
+	public static final String MIXED_FOREST = "diffusicraft:mixed_forest";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 	public static final String FOREST = "minecraft:forest";
@@ -104,8 +112,8 @@ public final class BiomeRefiner {
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, LARCH_TAIGA, DESERT_SCRUB, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS,
-		SNOWY_SLOPES);
+		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA,
+		SNOWY_PLAINS, SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -168,6 +176,14 @@ public final class BiomeRefiner {
 	 * taiga there is larch.
 	 */
 	static final float LARCH_COLDEST = -25f;
+	/** Annual mean from which oaks and limes join the spruces and pines of the taiga, °C. */
+	static final float MIXED_COOLEST = 3.5f;
+	/** Annual mean from which the broadleaf trees crowd out the conifers, °C. */
+	static final float MIXED_WARMEST = 9f;
+	/** The oak's northern limit: its acorns ripen only where the warmest month reaches this, °C. */
+	static final float OAK_SUMMER = 16f;
+	/** Coldest month the mixed forest falls below, °C: milder winters favour the beech. */
+	static final float MIXED_COLDEST = -1f;
 	/** Meters the ice must have lowered ground at sea level for a drowned valley to be a fjord, not a thin strip. */
 	static final float FJORD_CUT = 120f;
 
@@ -215,6 +231,10 @@ public final class BiomeRefiner {
 		kind("dark_forest", Kind.LAND), kind("pale_garden", Kind.LAND), kind("dappled_forest", Kind.LAND),
 		kind("taiga", Kind.LAND), kind("old_growth_pine_taiga", Kind.LAND),
 		kind("old_growth_spruce_taiga", Kind.LAND), kind("savanna", Kind.LAND), kind("savanna_plateau", Kind.LAND));
+
+	/** Vanilla's lowland woods that the mixed forest replaces. Its old-growth, dark and flower forests stay. */
+	private static final Set<String> MIXED_WOODS = Set.of("minecraft:forest", "minecraft:birch_forest",
+		"minecraft:taiga");
 
 	/** Vanilla's open land, as opposed to its woods. */
 	private static final Set<String> OPEN_LAND = Set.of("minecraft:plains", "minecraft:sunflower_plains",
@@ -304,6 +324,9 @@ public final class BiomeRefiner {
 		if (kind == Kind.LAND && heath(c)) {
 			return HEATH;
 		}
+		if (MIXED_WOODS.contains(biome) && aridity >= 1f && mixedForest(c)) {
+			return MIXED_FOREST;
+		}
 		if (kind == Kind.LAND || kind == Kind.DESERT) {
 			if (aridity < 0.5f && c.temperature < COLD_DESERT_TEMPERATURE) {
 				return COLD_DESERT;
@@ -321,8 +344,12 @@ public final class BiomeRefiner {
 	/**
 	 * The woods of vanilla's lowland row in the band and humidity where its plateau row has a meadow: forest, and where
 	 * there is twice the rain the ground needs (vanilla's wetter half), birch forest, or taiga in the band below 5 °C.
+	 * In the mixed forest's climate, mixed forest.
 	 */
 	private static String montaneForest(BiomeClimate c, float aridity) {
+		if (mixedForest(c)) {
+			return MIXED_FOREST;
+		}
 		if (aridity < 2f) {
 			return FOREST;
 		}
@@ -371,6 +398,12 @@ public final class BiomeRefiner {
 	/** The summers are warm enough for trees wherever this is asked. */
 	static boolean larchTaiga(BiomeClimate c, float aridity) {
 		return c.coldestMonth() < LARCH_COLDEST && aridity >= 1f;
+	}
+
+	/** Whether the temperatures are the mixed forest's. Its callers check that the ground is humid enough for woods. */
+	static boolean mixedForest(BiomeClimate c) {
+		return c.temperature >= MIXED_COOLEST && c.temperature < MIXED_WARMEST && c.warmestMonth() >= OAK_SUMMER
+			&& c.coldestMonth() < MIXED_COLDEST;
 	}
 
 	static boolean cloudForest(BiomeClimate c) {

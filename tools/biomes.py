@@ -288,6 +288,8 @@ FEATURES = {
     "scrub_grass": simple([("short_dry_grass", 5), ("tall_dry_grass", 2), ("short_grass", 1)]),
     # Desert marigolds and sand verbena, after the rain.
     "desert_flowers": simple([("dandelion", 3), ("allium", 1)]),
+    # Lilies of the valley and wood anemones, which flower in the spring before the trees come into leaf.
+    "woodland_flowers": simple([("lily_of_the_valley", 3), ("azure_bluet", 2)]),
     "boulder": boulder("stone", ["sand", "gravel", "coarse_dirt"]),
     # Yareta: cushions so dense and hard that they look like green boulders. They grow a centimetre a year.
     "yareta": boulder("moss_block", ["gravel", "coarse_dirt", "stone"]),
@@ -382,6 +384,7 @@ PLACED = {
     "trees_paramo": trees(ours("trees_paramo"), {0: 2, 1: 3, 2: 3, 4: 2}, "oak_sapling"),
     "trees_puna": trees(ours("polylepis"), {0: 16, 1: 1}, "oak_sapling"),
     "trees_desert_scrub": trees(ours("trees_desert_scrub"), {1: 2, 2: 3, 3: 3, 4: 1}, "acacia_sapling"),
+    "trees_mixed_forest": trees(ours("trees_mixed_forest"), {10: 9, 11: 1}, "spruce_sapling"),
     "patch_tundra_grass": patch(ours("tundra_ground_cover"), 24, count=3),
     "tundra_moss": scattered(ours("tundra_moss_patch"), chance=2),
     "rainforest_moss": scattered("minecraft:moss_patch", count=1),
@@ -417,6 +420,7 @@ PLACED = {
     "patch_desert_flowers": patch(ours("desert_flowers"), 32, spread=6, chance=6),
     # Cacti grow only on the sand.
     "columnar_cacti": patch(ours("columnar_cactus"), 3, spread=6, chance=3, survive="cactus"),
+    "patch_woodland_flowers": patch(ours("woodland_flowers"), 32, spread=6, chance=3),
     "glowworm_silk_ceilings": hollow(ours("glowworm_silk"), "ceiling", 48),
     "grotto_pools": hollow(ours("grotto_pool"), "floor", 2),
     "selenite_beams_floor": hollow(ours("selenite_beam"), "floor", 2),
@@ -484,6 +488,15 @@ FEATURES["trees_paramo"] = {"type": "minecraft:random_selector", "default": ours
 # Creosote bush and saltbush, and mesquite here and there.
 FEATURES["trees_desert_scrub"] = {"type": "minecraft:random_selector", "default": ours("desert_shrub_checked"),
                                   "features": [{"chance": 0.12, "feature": ours("mesquite_checked")}]}
+# Norway spruce and Scots pine, with birches and aspens, and oaks, limes and maples, which drop their leaves on the
+# needles: the conifers and the broadleaves each make up about half of the trees. Now and then a fallen trunk.
+FEATURES["trees_mixed_forest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
+                                  "features": [{"chance": 0.3, "feature": "minecraft:birch_leaf_litter"},
+                                               {"chance": 0.2, "feature": "minecraft:pine_checked"},
+                                               {"chance": 0.25, "feature": "minecraft:oak_leaf_litter"},
+                                               {"chance": 0.05, "feature": "minecraft:fancy_oak_leaf_litter"},
+                                               {"chance": 0.02, "feature": "minecraft:fallen_spruce_tree"},
+                                               {"chance": 0.02, "feature": "minecraft:fallen_birch_tree"}]}
 FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
@@ -753,6 +766,23 @@ BIOMES = {
                  "minecraft:has_structure/village_taiga", "minecraft:is_overworld", "minecraft:is_taiga",
                  "minecraft:spawns_cold_variant_farm_animals", "minecraft:stronghold_biased_to"],
     },
+    # The hemiboreal forest between the taiga and the broadleaf woods: southern Finland and Sweden, the Baltic, the
+    # forests around Moscow, the Great Lakes and New England, Manchuria and Hokkaido. Ferns, bilberries and lilies of
+    # the valley under the trees, and mushrooms in the moss. The taiga's wolves, foxes and rabbits.
+    "mixed_forest": {
+        "template": "taiga", "temperature": 0.45, "downfall": 0.8,
+        "effects": {"grass_color": "#74ad5a", "foliage_color": "#5fa046", "dry_foliage_color": "#a2804a"},
+        "vegetation": ["minecraft:glow_lichen", "minecraft:patch_large_fern", "trees_mixed_forest",
+                       "minecraft:patch_grass_taiga_2", "patch_woodland_flowers", "minecraft:brown_mushroom_taiga",
+                       "minecraft:red_mushroom_taiga", "minecraft:patch_firefly_bush_near_water",
+                       "minecraft:patch_berry_common"],
+        "tags": ["c:is_temperate/overworld", "c:is_forest", "c:is_tree/coniferous", "c:is_tree/deciduous",
+                 "minecraft:has_structure/abandoned_camp_taiga", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/pillager_outpost", "minecraft:has_structure/ruined_portal_standard",
+                 "minecraft:has_structure/trail_ruins", "minecraft:has_structure/trial_chambers",
+                 "minecraft:has_structure/village_taiga", "minecraft:is_forest", "minecraft:is_overworld",
+                 "minecraft:stronghold_biased_to"],
+    },
     # Drowned glacial valleys: deep, still, cold water between steep walls, with kelp and seagrass along the sides.
     # The cold ocean's fish and squid, wrecks and ruins, but no monuments: those keep to the open deep sea.
     "fjord": {
@@ -871,6 +901,8 @@ SURFACE_RULE = sequence(
         # Needle litter, and ground churned bare by the frost.
         when(biome_is("larch_taiga"), sequence(
             when(noise(0.3), block("podzol")), when(noise(hi=-0.55), block("coarse_dirt")), block("grass_block"))),
+        # Needles under the spruces and pines, grass under the broadleaves.
+        when(biome_is("mixed_forest"), sequence(when(noise(0.35), block("podzol")), block("grass_block"))),
         when(biome_is("steppe"), sequence(when(noise(0.55), block("coarse_dirt")), block("grass_block"))),
         # Limestone breaking through thin terra rossa.
         when(biome_is("maquis"), sequence(

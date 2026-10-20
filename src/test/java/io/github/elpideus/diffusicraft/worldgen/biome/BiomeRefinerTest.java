@@ -93,15 +93,18 @@ class BiomeRefinerTest {
 
 	@Test
 	void meadowsKeepToTheSubalpineBeltAndDryGround() {
-		// 1000 m in the Vosges, 7 °C, July 16 °C and 1200 mm: beech and fir, not meadow.
-		assertEquals(BiomeRefiner.BIRCH_FOREST,
+		// 1000 m in the Vosges, 7 °C, July 16 °C and 1200 mm: the mixed forest of beech and fir, not meadow.
+		assertEquals(BiomeRefiner.MIXED_FOREST,
 			BiomeRefiner.refine("minecraft:meadow", climate(7f, 6.5f, 1200f, 25f, 1000f, 200f)));
+		// 1100 m in the Black Forest's south, 9.5 °C on its sunny side and wetter: beech.
+		assertEquals(BiomeRefiner.BIRCH_FOREST,
+			BiomeRefiner.refine("minecraft:meadow", climate(9.5f, 6.5f, 1500f, 25f, 1100f, 200f)));
 		// 1300 m in the Tatras, 3 °C, July 15.5 °C: spruce.
 		assertEquals(BiomeRefiner.TAIGA,
 			BiomeRefiner.refine("minecraft:meadow", climate(3f, 9f, 900f, 40f, 1300f, 250f)));
 		// Just humid enough: a plain forest.
 		assertEquals(BiomeRefiner.FOREST,
-			BiomeRefiner.refine("minecraft:meadow", climate(8f, 7f, 450f, 30f, 900f, 150f)));
+			BiomeRefiner.refine("minecraft:meadow", climate(10f, 7f, 500f, 30f, 900f, 150f)));
 		// The high plains of central Anatolia, 380 mm at 11 °C, are too dry for a closed forest.
 		assertNull(BiomeRefiner.refine("minecraft:meadow", climate(11f, 8f, 380f, 45f, 1100f, 120f)));
 	}
@@ -210,6 +213,30 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void hemiborealClimatesGrowMixedForest() {
+		// Helsinki, Moscow, Stockholm, Ottawa and Harbin: on either side of vanilla's line between taiga and forest.
+		assertEquals(BiomeRefiner.MIXED_FOREST,
+			BiomeRefiner.refine("minecraft:taiga", climate(6f, 7.7f, 680f, 25f, 20f, 20f)));
+		assertEquals(BiomeRefiner.MIXED_FOREST,
+			BiomeRefiner.refine("minecraft:taiga", climate(5.8f, 9f, 710f, 30f, 150f, 30f)));
+		assertEquals(BiomeRefiner.MIXED_FOREST,
+			BiomeRefiner.refine("minecraft:birch_forest", climate(7.4f, 6.7f, 540f, 30f, 30f, 30f)));
+		assertEquals(BiomeRefiner.MIXED_FOREST,
+			BiomeRefiner.refine("minecraft:forest", climate(6.6f, 11f, 920f, 12f, 80f, 40f)));
+		assertEquals(BiomeRefiner.MIXED_FOREST,
+			BiomeRefiner.refine("minecraft:taiga", climate(4.8f, 14.5f, 530f, 110f, 150f, 40f)));
+		// Vanilla's variants and open land stay.
+		assertNull(BiomeRefiner.refine("minecraft:old_growth_spruce_taiga", climate(6f, 7.7f, 680f, 25f, 20f, 20f)));
+		assertNull(BiomeRefiner.refine("minecraft:plains", climate(6f, 7.7f, 680f, 25f, 20f, 20f)));
+		// The beeches of Copenhagen, where the winters stay mild, and the broadleaf forest around Berlin.
+		assertNull(BiomeRefiner.refine("minecraft:forest", climate(8.8f, 5.8f, 600f, 20f, 10f, 20f)));
+		assertNull(BiomeRefiner.refine("minecraft:forest", climate(10f, 6.9f, 580f, 20f, 40f, 20f)));
+		// Summers too cool for the oak, as in Iceland, and the southern taiga around Kirov.
+		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(5f, 4.3f, 870f, 20f, 30f, 40f)));
+		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(2.6f, 10f, 640f, 25f, 160f, 30f)));
+	}
+
+	@Test
 	void coolWetUplandsAreMoorland() {
 		// Dartmoor at 450 m, and the Pennines.
 		BiomeClimate dartmoor = climate(8f, 4f, 1800f, 30f, 450f, 40f);
@@ -254,9 +281,11 @@ class BiomeRefinerTest {
 
 	@Test
 	void inADryClimateTheWoodsKeepToTheShadedSlopes() {
-		// The foothills of the Rockies: pines on the slopes facing north, grass on those facing south.
+		// The foothills of the Rockies: firs, pines and aspens on the slopes facing north, which are cool enough for the
+		// mixed forest, and grass on those facing south.
 		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(0, 10f, 9f, 450f, 30f, 1800f, 200f)));
-		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 450f, 30f, 1800f, 200f)));
+		assertEquals(BiomeRefiner.MIXED_FOREST,
+			BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 450f, 30f, 1800f, 200f)));
 		assertEquals(BiomeRefiner.STEPPE,
 			BiomeRefiner.refine("minecraft:forest", onSlope(1, 10f, 9f, 450f, 30f, 1800f, 200f)));
 		// The plains below them get less rain, most of it in summer: steppe even on the shaded side, as around Denver.

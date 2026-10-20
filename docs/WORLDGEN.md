@@ -291,7 +291,7 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of eighteen new biomes, or for another of vanilla's. The first rule that matches wins:
+swap it for one of nineteen new biomes, or for another of vanilla's. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
@@ -302,7 +302,7 @@ swap it for one of eighteen new biomes, or for another of vanilla's. The first r
 | **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief: the dry beds of old lakes, up on the cold Altiplano too | Plains, forests, taigas, savannas, deserts |
 | **Páramo**, **puna** | Tropical mountains (little seasonality) from 2500 m where the year averages below 10 °C. Every month is a growing season there, so the tree line follows the year rather than the summer, and the cloud forest gives way to them. Páramo with at least three times the rain of the aridity threshold, as in the northern Andes or on Mount Kenya; puna where it is drier, as on the Altiplano or Mauna Kea | Any land, peaks included |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
-| *(montane forest)* | Humid mountainsides (aridity at least 1) below the subalpine belt, where the warmest month passes 14 °C, some 600 m below the tree line. Vanilla's plateau row puts meadows there between the woods of its lowland row, in strips along every valley side; they become those woods: forest, and with at least twice the rain of the aridity threshold birch forest, or taiga below 5 °C. Meadows stay in the subalpine belt and on drier ground | Meadows |
+| *(montane forest)* | Humid mountainsides (aridity at least 1) below the subalpine belt, where the warmest month passes 14 °C, some 600 m below the tree line. Vanilla's plateau row puts meadows there between the woods of its lowland row, in strips along every valley side; they become those woods: mixed forest in its climate; elsewhere forest, and with at least twice the rain of the aridity threshold birch forest, or taiga below 5 °C. Meadows stay in the subalpine belt and on drier ground | Meadows |
 | **Monsoon forest** | Frost-free lowland (coldest month at least 15 °C) with at least the rain of the aridity threshold. Vanilla only has temperate woods for it between its savannas and its jungles; jungles count too where the rain is strongly seasonal (BIO15 at least 80 %) and below 2000 mm, as in India and Thailand. Wetter jungles stay, as in the Amazon | Forests and taigas, jungles |
 | **Laurel forest** | Jungle where the coldest month falls below 15 °C, so frost can come. Vanilla's jungles start at a yearly mean of 15 °C, which takes in the humid subtropics, as around Shanghai or Atlanta | Jungles |
 | **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
@@ -311,6 +311,7 @@ swap it for one of eighteen new biomes, or for another of vanilla's. The first r
 | **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
 | **Maquis** | 12–21 °C, coldest month at least 2 °C, 250–1000 mm of strongly seasonal rain, below 1200 m | The same, deserts and meadows too, but no other slopes |
 | **Heath** | Oceanic lowland below 300 m: 6–12 °C, coldest month above −4 °C, 550–1100 mm of rain. Only where the variant noise is below −0.3, so it comes in patches among the woods | Plains, forests, taigas, savannas |
+| **Mixed forest** | 3.5–9 °C, warmest month at least 16 °C, coldest month below −1 °C, with at least the rain of the aridity threshold, as in southern Finland and Sweden, around Moscow, by the Great Lakes and in Manchuria. Oaks and birches grow among the spruces and pines there. Vanilla draws its line between taiga and forest at 5 °C, through the middle of that belt, and grows one or the other on either side of it. The oak needs a summer warm enough to ripen its acorns; milder winters favour the beech, and the forest is broadleaf, as in Denmark and around Berlin, which vanilla's forest already is | Forests, birch forests and taigas; on humid mountainsides, meadows (see the montane forest) |
 | **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts |
 | **Desert scrub** | Desert from 12 °C with at least 0.15 of the rain of the aridity threshold, as in the Mojave, the Sonoran Desert and the Karoo, where shrubs grow over stony ground. Only drier deserts are hyperarid, getting less than a twentieth of the water the sun could take back, as in the heart of the Sahara; they stay vanilla's bare sand | Deserts |
 | **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C | Plains, forests, taigas, savannas |
@@ -367,6 +368,7 @@ the colours:
 | Monsoon forest | Jungle | Teak and sal, acacias, jungle bushes, bamboo, dry grass, drifts of fallen leaves, warm flowers; junglefowl (chickens), wild boar (pigs), parrots and ocelots | Grass with red laterite and coarse dirt showing, laterite below |
 | Laurel forest | Forest | Laurels with dense, glossy crowns, live oaks hung with moss, azalea trees and bushes (camellias and rhododendrons), bamboo, ferns, fallen leaves, fireflies; wild boar (pigs), foxes, rabbits, armadillos and, rarely, pandas | Grass with leaf mould (podzol) and coarse dirt, red laterite below |
 | Larch taiga | Taiga | Open stands of larches, light green, with young and stunted ones, birches and Scots pines where the ground thaws deeper, grass, Labrador tea (bushes), lingonberries (sweet berries), mats of reindeer lichen and moss, mushrooms; Yakutian horses, reindeer (sheep), cattle, foxes, wolves and rabbits | Grass with needle litter (podzol) and frost-churned coarse dirt |
+| Mixed forest | Taiga | Norway spruces and Scots pines, with birches, oaks and the odd big oak, which drop their leaves on the needles; now and then a fallen trunk, large ferns, grass, lilies of the valley and azure bluets (wood anemones), sweet berries, mushrooms, fireflies by the water; the taiga's animals | Grass with needle litter (podzol) under the conifers |
 | Bog | Swamp | Dark pools of peaty water with lily pads, cottongrass, moss carpets, heather, a few spindly black spruces, Scots pines and birches, berries, fireflies; frogs, and the swamp's slimes, witches and bogged | Sphagnum (moss) with bare peat and grass, peat all the way down |
 
 The alpine tundra flowers with edelweiss and gentians, the maquis with lavender, and cottongrass grows on the tundra and
@@ -1000,9 +1002,10 @@ Other searches still read the full terrain and can take a while on new land:
   Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, the Mojave, the Sonoran Desert, the
   Karoo, Mesopotamia, Cairo and the Libyan Desert, Dartmoor and the Pennines, the Lüneburg Heath, Bonneville and Uyuni,
   Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands, Yakutsk, Verkhoyansk, Oymyakon
-  and the Greater Khingan, the Greenland ice sheet, Utqiaġvik and the South Shetlands, tropical coasts and the
-  Sognefjord. On slopes, the tree line of the Alps is higher on the sunny side, and the woods of the Rockies' foothills
-  keep to the shaded side.
+  and the Greater Khingan, southern Finland, Moscow, Stockholm, Ottawa and Harbin against Copenhagen, Berlin, Iceland
+  and Kirov, the Vosges and the Black Forest, the Greenland ice sheet, Utqiaġvik and the South Shetlands, tropical
+  coasts and the Sognefjord. On slopes, the tree line of the Alps is higher on the sunny side, and the woods of the
+  Rockies' foothills keep to the shaded side, where it is cool enough for mixed forest.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

@@ -47,7 +47,7 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   game with Biomes O' Plenty and TerraBlender. See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
   rainforest, Mediterranean maquis, moorland, heath, salt flats, bogs, Siberian larch taiga, cold desert, desert scrub,
-  steppe, fjords, monsoon and laurel forests, and the páramo and puna of tropical mountains, with their own trees
+  steppe, fjords, monsoon, laurel and mixed forests, and the páramo and puna of tropical mountains, with their own trees
   (krummholz, giant spruces, olives, stone pines, cypresses, black spruces, larches, mesquites, teak, live oaks,
   frailejones, queñuas), plants and ground; the wetlands follow the climate, from mangroves to bogs. New plants:
   heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their own under some biomes: peat,

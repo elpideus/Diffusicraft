@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "diffusicraft:larch_taiga"
+    "diffusicraft:larch_taiga",
+    "diffusicraft:mixed_forest"
   ]
 }
