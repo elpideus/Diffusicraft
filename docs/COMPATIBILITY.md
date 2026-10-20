@@ -107,14 +107,17 @@ them; Diffusicraft fills them in from the terrain itself.
 Where the store has never held a section, Voxy would leave it empty. In a Diffusicraft world, in singleplayer,
 `client.compat.voxy.VoxyTerrain` fills it from the terrain instead, through `worldgen.lod.LodGrid`, which cuts
 voxels out of the same columns Distant Horizons gets (`LodSampler`): surface blocks from the material rules, rivers,
-sea, ice, snow and tree crowns. A voxel shows the highest block in it that is neither air nor water, else water, else
-air, as Voxy's coarser levels keep its finer ones; the sky lights the air, and water darkens one level per block
-below its surface. Ground above y = 4095 sinks into the rock under it and stands flat there, as it does for
-Distant Horizons.
+sea, ice, snow and tree crowns. A voxel shows the highest block in it that is not air, as it looks from above, so
+water over the ground in the same voxel hides it; the sky lights the air, and water darkens one level per block below
+its surface. Ground above y = 4095 sinks into the rock under it and stands flat there, as it does for Distant
+Horizons.
 
 - The sections filled are not saved. Voxy saves a section once the chunks it loads change it, filled blocks and
   all, and the chunks replace the filled blocks where they lie: trees, buildings and whatever players built show as
   they are.
+- Where the chunks have been loaded, Voxy builds its coarser levels from them itself, keeping the most opaque of
+  every eight voxels. A sea shallower than a voxel then shows from afar as dry ground at sea level, as it does in Voxy
+  without Diffusicraft; everywhere else it shows as sea.
 - Voxy finds what to draw by walking down from its coarsest sections through the children each says hold blocks. A
   filled section claims the children under its blocks and one voxel round them, since the finer columns of a child
   can stand a little higher or wider. When a child turns out empty, its parents are put right as it is filled. A

@@ -30,12 +30,21 @@ class LodGridTest {
 	}
 
 	@Test
-	void groundShowsThroughShallowWaterAndWaterDarkensWithDepth() {
+	void waterHidesTheGroundUnderItAndDarkensWithDepth() {
 		int[][] v = voxels(new int[]{-64, 40, 41}, new int[]{40, 41, 50}, new byte[]{OPAQUE, OPAQUE, WATER}, 50,
 			36, 4, 5);
-		// The sand shares its voxel with water above it, and shows; the water's top block takes 14, as in the world.
-		assertArrayEquals(new int[]{0, 1, 2, 2, -1}, v[0]);
-		assertArrayEquals(new int[]{0, 0, 12, 14, 15}, v[1]);
+		// The sand shares its voxel with water above it, and is hidden; the water's top block takes 14, as in the world.
+		assertArrayEquals(new int[]{0, 2, 2, 2, -1}, v[0]);
+		assertArrayEquals(new int[]{0, 8, 12, 14, 15}, v[1]);
+	}
+
+	@Test
+	void aCoarseVoxelOfShallowSeaIsSea() {
+		// Sand two blocks under the sea, in a voxel of 16 blocks: the sea, not dry sand at sea level.
+		int[][] v = voxels(new int[]{-64, 60, 61}, new int[]{60, 61, 63}, new byte[]{OPAQUE, OPAQUE, WATER}, 63,
+			48, 16, 2);
+		assertArrayEquals(new int[]{2, -1}, v[0]);
+		assertArrayEquals(new int[]{14, 15}, v[1]);
 	}
 
 	@Test

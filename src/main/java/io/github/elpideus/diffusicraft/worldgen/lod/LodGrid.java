@@ -12,10 +12,12 @@ import java.util.Arrays;
  * A square grid of {@link LodSampler}'s columns, kept so that a stack of voxel sections can be cut from it. Voxy draws
  * its far terrain from these (see {@code client.compat.voxy}).
  *
- * <p>A voxel is a cube of blocks, {@code size} on a side, and shows what Voxy's own coarser levels keep of the blocks
- * in it: the highest block that is neither air nor water, else water, else air. The sky lights the air at full
- * strength. Water loses one level of light for each block between it and its surface, as it does in the world. Blocks
- * that let light through, such as leaves and ice, take one level less than the open sky, and the others none.
+ * <p>A voxel is a cube of blocks, {@code size} on a side, and shows the highest block in it that is not air, as it
+ * looks from above: water over the ground in the same voxel hides it. Voxy's own coarser levels keep the most opaque
+ * block instead, which at 16 blocks a voxel turns every sea shallower than that into dry ground standing at sea level.
+ * The sky lights the air at full strength. Water loses one level of light for each block between it and its surface,
+ * as it does in the world. Blocks that let light through, such as leaves and ice, take one level less than the open
+ * sky, and the others none.
  *
  * <p>A column that reaches above the consumer's ceiling sinks by the difference into the rock under it, so it keeps
  * its snow and soils and stands flat at that height, as it does for Distant Horizons.
@@ -142,27 +144,20 @@ public final class LodGrid {
 			while (run >= from && bottoms[run] >= high) {
 				run--;
 			}
-			int water = -1;
-			int shown = -1;
-			for (int r = run; r >= from && tops[r] > low; r--) {
-				if (kinds[r] == OPAQUE || kinds[r] == CLEAR) {
-					shown = r;
-					break;
-				}
-				if (kinds[r] == WATER && water < 0) {
-					water = r;
-				}
+			int shown = run;
+			while (shown >= from && tops[shown] > low && kinds[shown] == AIR) {
+				shown--;
 			}
-			if (shown >= 0) {
-				runs[voxel] = shown;
-				sky[voxel] = (byte) (kinds[shown] == CLEAR ? FULL_SKY - 1 : 0);
-			} else if (water >= 0) {
-				runs[voxel] = water;
-				int highestWater = Math.min(high, tops[water]) - 1;
-				sky[voxel] = (byte) Math.max(0, FULL_SKY - (surface - highestWater));
-			} else {
+			if (shown < from || tops[shown] <= low) {
 				runs[voxel] = -1;
 				sky[voxel] = FULL_SKY;
+			} else if (kinds[shown] == WATER) {
+				runs[voxel] = shown;
+				int highestWater = Math.min(high, tops[shown]) - 1;
+				sky[voxel] = (byte) Math.max(0, FULL_SKY - (surface - highestWater));
+			} else {
+				runs[voxel] = shown;
+				sky[voxel] = (byte) (kinds[shown] == CLEAR ? FULL_SKY - 1 : 0);
 			}
 		}
 	}
