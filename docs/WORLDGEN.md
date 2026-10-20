@@ -568,7 +568,11 @@ place.
   as it crosses any other ground. Where a basin that stays dry for one of these reasons lies in a valley the ice
   drowned, its floor below the sea, the sea's water stays in it at sea level, as a fjord. A depression of the coarse map
   larger than 16 cells, or wider than 8 cells (60 km), is breached rather than filled, so the largest lakes of the real
-  world stay dry. The hollows of a great lake's tiles that do not hold water at its level stay dry, and so do those
+  world stay dry. Filling such a depression only as far as a lake of 16 cells, and cutting its way out through the rest,
+  was tried and dropped: in the mountains of seed 42 the way out ran as a canyon through the rim and the ranges past it,
+  rivers beside the lake ran up to 300 m above the ground, and where the lake's level met the spill of a lake beside it
+  the two drained into each other, a loop the discharge never leaves. In three other windows of 12 by 12 tiles it
+  changed nothing. The hollows of a great lake's tiles that do not hold water at its level stay dry, and so do those
   whose water spills past the padding of its tiles. The coarse map cannot tell a fjord open to the sea from a valley the
   ice drowned behind a step: a cell whose 5th percentile lies below the sea ends its rivers either way, so where its
   tile has no sea, only such a trough, the river ends in the trough's lake, which has no way out. Three of the 144 cells

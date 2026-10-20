@@ -138,11 +138,13 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 - **Lakes larger than a block.** The fine basins larger than a block outside the lakes of the coarse map, which stay dry
   for now, and the depressions of more than 16 tiles, like those of the Caspian or the Great Lakes, which are breached.
-  Where such a basin lies in a valley the ice drowned behind a step, it keeps the sea's level instead of a lake above
-  it. Also the basins across tiles that a river crosses inside a tile rather than across a side, which stay dry: the
-  river's level there depends on the lakes of the blocks around, which would take the terrain of 5 × 5 tiles rather than
-  3 × 3. And a way out for the lakes of valleys the ice drowned behind a step in cells whose 5th percentile lies below
-  the sea, which end their rivers as fjords do: the coarse map cannot tell the two apart.
+  Filling them only as far as a lake of 16 tiles, with a cut through the rest, was tried and dropped
+  ([WORLDGEN.md](WORLDGEN.md#rivers)). Where such a basin lies in a valley the ice drowned behind a step, it keeps the
+  sea's level instead of a lake above it. Also the basins across tiles that a river crosses inside a tile rather than
+  across a side, which stay dry: the river's level there depends on the lakes of the blocks around, which would take the
+  terrain of 5 × 5 tiles rather than 3 × 3. And a way out for the lakes of valleys the ice drowned behind a step in
+  cells whose 5th percentile lies below the sea, which end their rivers as fjords do: the coarse map cannot tell the two
+  apart.
 
 ### Biomes
 
