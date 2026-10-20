@@ -3,6 +3,7 @@ package io.github.elpideus.diffusicraft.worldgen.river;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 
 import java.util.Arrays;
+import java.util.function.IntFunction;
 
 /**
  * The lakes of one block of two by two tiles that reach past the sides of a single tile, which the {@link CellBasins}
@@ -19,11 +20,12 @@ import java.util.Arrays;
  * <p>Such a lake is fed by a river when a river crosses one of the block's inner sides through it, near the node
  * where it crosses ({@link CellRivers#node}): it fills to that river's level, and at most to {@link CellRivers#DROP}
  * below its spill, where the river flows on out of it. The rivers of its tiles see it as the surface of its water, as
- * they see the tile's own lakes. Any other basin is filled by the rain, as in {@link CellLakes}, but only where no
- * river runs in the tiles its water reaches: the rivers of each tile are its own, and the block cannot tell whether
- * one of them would pass beside the lake, lower than its water, and drain it. A river keeps {@link CellRivers#LO}
- * pixels inside its tile, farther than it and its banks reach, except where it crosses into the next tile, which then
- * carries it too, so the dry shores of a basin may reach a tile with rivers.
+ * they see the tile's own lakes, though only for their level. Any other basin is filled by the rain, as in
+ * {@link CellLakes}, unless a river passes within reach of its water, lower than it, and would drain it. The block
+ * draws the rivers of its tiles to tell: their paths follow each tile alone ({@link CellBasins#surface}), so the
+ * block needs neither its own lakes nor those of the other blocks to draw them. A river that crosses such a basin
+ * away from the nodes, inside one tile, leaves it dry: the river cannot feed it, as its level depends on the lakes of
+ * the other blocks.
  *
  * <p>A lake larger than a block stays dry, unless it lies in a depression of the coarse map ({@link GreatLake}).
  */
@@ -83,27 +85,19 @@ final class BlockLakes {
 	}
 
 	/**
-	 * Finds the lakes of a block with no drowned valley, as
-	 * {@link #build(float[][], long[][], CellFlows[], CellLakes.Climate, int, int)} does.
-	 */
-	static BlockLakes build(float[][] tiles, CellFlows[] flows, CellLakes.Climate climate, int bi, int bj) {
-		return build(tiles, new long[4][], flows, climate, bi, bj);
-	}
-
-	/**
 	 * Finds the lakes of block {@code (bi, bj)} from the padded elevation of its tiles, their drowned valleys (see
 	 * TerrainField#paddedDrowned; null where a tile has none) and the rivers crossing them, in the order
-	 * {@code (bi, bj)}, {@code (bi, bj + 1)}, {@code (bi + 1, bj)}, {@code (bi + 1, bj + 1)}.
+	 * {@code (bi, bj)}, {@code (bi, bj + 1)}, {@code (bi + 1, bj)}, {@code (bi + 1, bj + 1)}. {@code rivers} draws the
+	 * rivers of a tile from its index in that order, as {@link CellRivers#build} does over the tile's basins with no
+	 * lakes of the blocks around; it is asked only for tiles with rivers whose paths the block needs.
 	 */
-	static BlockLakes build(float[][] tiles, long[][] drowned, CellFlows[] flows, CellLakes.Climate climate, int bi,
-							int bj) {
+	static BlockLakes build(float[][] tiles, long[][] drowned, CellFlows[] flows, IntFunction<CellRivers> rivers,
+							CellLakes.Climate climate, int bi, int bj) {
 		float[] e = window(tiles);
 		float[] fill = CellBasins.fill(e, window(drowned), WINDOW);
 		float[] crossing = crossings(tiles, flows);
-		boolean[] flowing = new boolean[4];
-		for (int t = 0; t < 4; t++) {
-			flowing[t] = !flows[t].isEmpty();
-		}
+		CellRivers[] drawn = new CellRivers[4];
+		CellRivers.Hit hit = new CellRivers.Hit();
 		Painter painter = new Painter();
 		int[] label = new int[WINDOW * WINDOW];
 		int[] pixels = new int[WINDOW * WINDOW];
@@ -163,25 +157,7 @@ final class BlockLakes {
 			} else {
 				int li = low / WINDOW - PAD, lj = low % WINDOW - PAD;
 				water = CellLakes.rain(floor, spill, climate.wetness(bi * TILE + li, bj * TILE + lj));
-				// The tiles that see the water, where a river of their own could drain it.
-				boolean[] reaches = new boolean[4];
-				for (int n = 0; n < size; n++) {
-					int k = pixels[n];
-					if (!(e[k] < water)) {
-						continue;
-					}
-					int i = k / WINDOW - PAD, j = k % WINDOW - PAD;
-					for (int t = 0; t < 4; t++) {
-						int ti = (t >> 1) * TILE, tj = (t & 1) * TILE;
-						reaches[t] |= i >= ti - CellLakes.MARGIN && i < ti + TILE + CellLakes.MARGIN
-							&& j >= tj - CellLakes.MARGIN && j < tj + TILE + CellLakes.MARGIN;
-					}
-				}
-				boolean dry = true;
-				for (int t = 0; t < 4; t++) {
-					dry &= !(reaches[t] && flowing[t]);
-				}
-				if (!dry) {
+				if (nearRiver(pixels, size, e, water, flows, rivers, drawn, hit)) {
 					continue;
 				}
 			}
@@ -201,6 +177,34 @@ final class BlockLakes {
 			lakes++;
 		}
 		return lakes == 0 ? EMPTY : painter.runs(lakes);
+	}
+
+	/**
+	 * Whether a river of the block's tiles passes within reach of the water of a basin, its {@code size}
+	 * {@code pixels} in the window below {@code water}, as {@link CellLakes} has it for the lakes of a tile. The basin
+	 * lies inside the block, and a river of a tile around the block keeps farther from it than it reaches, except
+	 * where it crosses into a tile of the block, which draws it too. {@code drawn} keeps the rivers drawn so far.
+	 */
+	private static boolean nearRiver(int[] pixels, int size, float[] e, float water, CellFlows[] flows,
+									 IntFunction<CellRivers> rivers, CellRivers[] drawn, CellRivers.Hit hit) {
+		for (int n = 0; n < size; n++) {
+			int k = pixels[n];
+			if (!(e[k] < water)) {
+				continue;
+			}
+			int i = k / WINDOW - PAD, j = k % WINDOW - PAD;
+			int t = (i < TILE ? 0 : 2) + (j < TILE ? 0 : 1);
+			if (flows[t].isEmpty()) {
+				continue;
+			}
+			if (drawn[t] == null) {
+				drawn[t] = rivers.apply(t);
+			}
+			if (drawn[t].nearest(i - (t >> 1) * TILE + 0.5, j - (t & 1) * TILE + 0.5, CellLakes.WIDEST, hit)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

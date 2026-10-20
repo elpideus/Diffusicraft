@@ -20,7 +20,9 @@ import java.util.List;
  *
  * <p>Rivers see a basin that can hold a lake ({@link CellBasins}) as the surface of its water, not its floor: they
  * cross it at the height of its lowest point, less the depth of their channel, and leave it over that point. The
- * {@link CellLakes} fill it to their level.
+ * {@link CellLakes} fill it to their level. They see a lake of the blocks around that a river feeds
+ * ({@link BlockLakes}) the same way, but only for their level: their paths follow the tile alone, so that a block can
+ * draw the rivers of its tiles, which decide its lakes, without the lakes of the other blocks.
  *
  * <p>Paths stay in the interior band, {@value #LO} pixels from the sides, and nothing reaches farther than
  * {@value #REACH} pixels from a river, so every column of the tile is decided by this tile alone.
@@ -260,7 +262,10 @@ final class CellRivers {
 			return h(LO + k / BAND, LO + k % BAND);
 		}
 
-		/** The ground the river sees at tile-local pixel {@code (i, j)}: the surface of a lake, or the terrain. */
+		/**
+		 * The ground the river sees at tile-local pixel {@code (i, j)}, which sets its level: the surface of a lake, or
+		 * the terrain.
+		 */
 		float g(int i, int j) {
 			return basins.ground((i + PAD) * SPAN + j + PAD);
 		}
@@ -269,9 +274,21 @@ final class CellRivers {
 			return g(LO + k / BAND, LO + k % BAND);
 		}
 
+		/**
+		 * The ground the river's path follows at tile-local pixel {@code (i, j)}: as {@link #g}, but over the lakes of
+		 * the tile alone, so that the path needs nothing else.
+		 */
+		float s(int i, int j) {
+			return basins.surface((i + PAD) * SPAN + j + PAD);
+		}
+
+		float s(int k) {
+			return s(LO + k / BAND, LO + k % BAND);
+		}
+
 		/** Height difference between pixel (i, j) and {@code e}, with the sea counted as level with the coast. */
 		private float drop(int i, int j, float e) {
-			return Math.abs(Math.max(0f, g(i, j)) - e);
+			return Math.abs(Math.max(0f, s(i, j)) - e);
 		}
 
 		CellRivers build() {
@@ -282,7 +299,7 @@ final class CellRivers {
 			}
 			float min = Float.POSITIVE_INFINITY, max = Float.NEGATIVE_INFINITY;
 			for (int k = 0; k < cost.length; k++) {
-				float e = Math.max(0f, g(k));
+				float e = Math.max(0f, s(k));
 				min = Math.min(min, e);
 				max = Math.max(max, e);
 			}
@@ -290,7 +307,7 @@ final class CellRivers {
 			long noiseSeed = seed ^ MEANDER_SALT;
 			for (int k = 0; k < cost.length; k++) {
 				int i = LO + k / BAND, j = LO + k % BAND;
-				float e = Math.max(0f, g(i, j));
+				float e = Math.max(0f, s(i, j));
 				cost[k] = 1f + scale * (e - min);
 				float slope = Math.max(Math.max(drop(i - 1, j, e), drop(i + 1, j, e)),
 					Math.max(drop(i, j - 1, e), drop(i, j + 1, e)));
@@ -525,8 +542,8 @@ final class CellRivers {
 			int n = 0;
 			int[] sea = new int[BAND * BAND];
 			for (int k = 0; k < sea.length; k++) {
-				// Not a valley the ice drowned behind a step, which holds a lake above the sea.
-				if (g(k) < 0f) {
+				// Not a valley the ice drowned behind a step, which may hold a lake above the sea.
+				if (basins.sea((LO + k / BAND + PAD) * SPAN + LO + k % BAND + PAD)) {
 					sea[n++] = k;
 				}
 			}

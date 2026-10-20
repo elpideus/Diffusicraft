@@ -31,6 +31,8 @@ final class CellLakes {
 	/** Ratio of precipitation to evaporation below which a basin holds no water, and above which it fills up. */
 	static final float DRY = 0.6f;
 	static final float WET = 1.0f;
+	/** The widest a river gets, whatever it carries: a river this near a lake's water drains it. */
+	static final CellRivers.Width WIDEST = discharge -> Rivers.MAX_HALF_WIDTH;
 
 	/**
 	 * The lakes' pixels as runs along each row, which take far less memory than a level per pixel: the runs of
@@ -121,7 +123,6 @@ final class CellLakes {
 						   int ti, int tj, float[] level, boolean[] fed) {
 		int lakes = 0;
 		CellRivers.Hit hit = new CellRivers.Hit();
-		CellRivers.Width widest = discharge -> Rivers.MAX_HALF_WIDTH;
 		for (int b = 1; b <= basins.count(); b++) {
 			if (!basins.holdsLake(b)) {
 				continue;
@@ -149,7 +150,7 @@ final class CellLakes {
 			}
 			// Water no higher than the sea is the sea's.
 			if (water - tile[lowest] < CellBasins.MIN_DEPTH || !(water > 0f)
-				|| Float.isNaN(river) && nearRiver(basins, first, end, tile, water, rivers, widest, hit)) {
+				|| Float.isNaN(river) && nearRiver(basins, first, end, tile, water, rivers, hit)) {
 				continue;
 			}
 			if (level == null) {
@@ -232,13 +233,13 @@ final class CellLakes {
 
 	/** Whether a river or its banks reach any pixel of the basin that lies under {@code water}. */
 	private static boolean nearRiver(CellBasins basins, int first, int end, float[] tile, float water,
-									  CellRivers rivers, CellRivers.Width widest, CellRivers.Hit hit) {
+									  CellRivers rivers, CellRivers.Hit hit) {
 		if (rivers.isEmpty()) {
 			return false;
 		}
 		for (int n = first; n < end; n++) {
 			int k = basins.pixel(n);
-			if (tile[k] < water && rivers.nearest(k / SPAN - PAD + 0.5, k % SPAN - PAD + 0.5, widest, hit)) {
+			if (tile[k] < water && rivers.nearest(k / SPAN - PAD + 0.5, k % SPAN - PAD + 0.5, WIDEST, hit)) {
 				return true;
 			}
 		}

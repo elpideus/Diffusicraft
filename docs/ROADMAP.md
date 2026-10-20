@@ -136,12 +136,12 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Terrain detail
 
-- **Rain lakes near rivers.** Lakes across tiles where a river runs in one of the tiles their water reaches, at most
-  0.5% of the land: telling whether the river passes beside one takes the rivers of the tiles around, so the lakes of a
-  tile would read the terrain of 5 × 5 tiles rather than 3 × 3, which a new world and a fast flight wait for. Also the
-  fine basins larger than a block outside the lakes of the coarse map, which stay dry for now; and depressions of more
-  than 16 tiles, like those of the Caspian or the Great Lakes, which are breached. Where such a basin lies in a valley
-  the ice drowned behind a step, it keeps the sea's level instead of a lake above it.
+- **Lakes larger than a block.** The fine basins larger than a block outside the lakes of the coarse map, which stay
+  dry for now, and the depressions of more than 16 tiles, like those of the Caspian or the Great Lakes, which are
+  breached. Where such a basin lies in a valley the ice drowned behind a step, it keeps the sea's level instead of a lake
+  above it. Also the basins across tiles that a river crosses inside a tile rather than across a side, which stay dry:
+  the river's level there depends on the lakes of the blocks around, which would take the terrain of 5 × 5 tiles rather
+  than 3 × 3.
 
 ### Biomes
 

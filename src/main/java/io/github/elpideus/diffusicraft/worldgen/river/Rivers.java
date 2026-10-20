@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public final class Rivers {
 	private static final Map<TerrainField, Rivers> ALL = new ConcurrentHashMap<>();
-	/** Cells whose rivers, and blocks whose lakes, are kept in memory. */
+	/** Cells whose rivers, blocks whose lakes, and tiles whose river paths are kept in memory, each. */
 	private static final int MAX_CELLS = 256;
 	/** Widest a river gets, half-width in pixels (240 m). */
 	static final float MAX_HALF_WIDTH = 8f;
@@ -49,6 +49,7 @@ public final class Rivers {
 	private final RiverNetwork network;
 	private final Map<Long, CompletableFuture<Cell>> cells = new ConcurrentHashMap<>();
 	private final Map<Long, CompletableFuture<Block>> blocks = new ConcurrentHashMap<>();
+	private final Map<Long, CompletableFuture<Paths>> paths = new ConcurrentHashMap<>();
 	private final AtomicLong clock = new AtomicLong();
 	private final ThreadLocal<ChunkColumns> chunks = ThreadLocal.withInitial(ChunkColumns::new);
 
@@ -358,13 +359,31 @@ public final class Rivers {
 				drowned[t] = field.paddedDrowned(bi + (t >> 1), bj + (t & 1));
 				flows[t] = network.flows(bi + (t >> 1), bj + (t & 1));
 			}
-			return new Block(BlockLakes.build(tiles, drowned, flows, climate(), bi, bj));
+			return new Block(BlockLakes.build(tiles, drowned, flows, t -> paths(bi + (t >> 1), bj + (t & 1)),
+				climate(), bi, bj));
 		});
 		block.lastUse = clock.incrementAndGet();
 		if (blocks.size() > MAX_CELLS) {
 			evict(blocks);
 		}
 		return block.lakes;
+	}
+
+	/**
+	 * The rivers of tile {@code (ti, tj)} drawn without the lakes of the blocks around, which run where the tile's own
+	 * rivers do, at levels that may differ: the blocks need them to tell which of their basins a river drains.
+	 */
+	private CellRivers paths(int ti, int tj) {
+		Paths drawn = RiverNetwork.once(paths, RiverNetwork.key(ti, tj), () -> {
+			float[] tile = field.paddedTile(ti, tj);
+			return new Paths(CellRivers.build(tile, CellBasins.of(tile, field.paddedDrowned(ti, tj), null),
+				network.flows(ti, tj), field.seed(), ti, tj, null));
+		});
+		drawn.lastUse = clock.incrementAndGet();
+		if (paths.size() > MAX_CELLS) {
+			evict(paths);
+		}
+		return drawn.rivers;
 	}
 
 	private static float[] nan(int length) {
@@ -461,6 +480,14 @@ public final class Rivers {
 
 		Block(BlockLakes lakes) {
 			this.lakes = lakes;
+		}
+	}
+
+	private static final class Paths extends Used {
+		final CellRivers rivers;
+
+		Paths(CellRivers rivers) {
+			this.rivers = rivers;
 		}
 	}
 

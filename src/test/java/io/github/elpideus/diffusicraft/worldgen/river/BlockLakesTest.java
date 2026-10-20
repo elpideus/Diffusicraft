@@ -4,6 +4,7 @@ import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.function.IntFunction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,6 +17,7 @@ class BlockLakesTest {
 	private static final CellLakes.Climate WET = (i, j) -> 2f;
 	/** A climate that fills a basin half way up. */
 	private static final CellLakes.Climate HALF = (i, j) -> 0.8f;
+	private static final long SEED = 1L;
 
 	/** Elevation at a pixel of the world. */
 	interface Terrain {
@@ -71,7 +73,9 @@ class BlockLakesTest {
 			masks[t] = paddedDrowned(drowned, bi + (t >> 1), bj + (t & 1));
 			crossings[t] = flows.of(bi + (t >> 1), bj + (t & 1));
 		}
-		return BlockLakes.build(tiles, masks, crossings, climate, bi, bj);
+		IntFunction<CellRivers> rivers = t -> CellRivers.build(tiles[t], CellBasins.of(tiles[t], masks[t], null),
+			crossings[t], SEED, bi + (t >> 1), bj + (t & 1), null);
+		return BlockLakes.build(tiles, masks, crossings, rivers, climate, bi, bj);
 	}
 
 	private static BlockLakes block(Terrain terrain, Flows flows, int bi, int bj) {
@@ -208,7 +212,7 @@ class BlockLakesTest {
 		assertEquals(100f, lakes.level(128, 128), 0f);
 	}
 
-	/** A river that leaves tile (0, 0) east at {@code level} and enters (0, 1). */
+	/** A river that leaves tile (0, 0) east at {@code level} and runs on east across (0, 1). */
 	private static Flows riverEast(float level) {
 		return (ti, tj) -> {
 			if (ti != 0 || tj != 0 && tj != 1) {
@@ -219,6 +223,7 @@ class BlockLakesTest {
 				flows.addOut(3, level, 10f);
 			} else {
 				flows.addIn(2, 3, level, 10f);
+				flows.addOut(3, 50f, 10f);
 			}
 			return flows;
 		};
@@ -246,43 +251,66 @@ class BlockLakesTest {
 	}
 
 	@Test
-	void aRiverElsewhereInItsTilesKeepsTheRainOut() {
-		Terrain terrain = bowl(128, TILE, 20f, 10f);
-		Flows north = (ti, tj) -> {
-			if (ti != 0 || tj != 1) {
-				return CellFlows.NONE;
+	void aTileDrawsItsRiversAlongTheSamePathsOverTheLakesOfTheBlocksAround() {
+		// The river fills the bowl across the side and runs on over it into tile (0, 1), whose rivers the blocks draw
+		// without the bowl's water.
+		Terrain terrain = bowl(128, TILE, 50f, 10f);
+		Flows flows = riverEast(120f);
+		float[] raise = new float[SPAN * SPAN];
+		assertEquals(100f - CellRivers.DROP, lakes(terrain, flows, 0, 1, raise).level(128, 40), 0f);
+		float[] tile = paddedTile(terrain, 0, 1);
+		CellRivers over = CellRivers.build(tile, CellBasins.of(tile, raise), flows.of(0, 1), SEED, 0, 1, null);
+		CellRivers alone = CellRivers.build(tile, CellBasins.of(tile), flows.of(0, 1), SEED, 0, 1, null);
+		CellRivers.Hit a = new CellRivers.Hit(), b = new CellRivers.Hit();
+		boolean higher = false;
+		for (int i = 0; i < TILE; i++) {
+			for (int j = 0; j < TILE; j++) {
+				boolean near = over.nearest(i + 0.5, j + 0.5, CellLakes.WIDEST, a);
+				assertEquals(near, alone.nearest(i + 0.5, j + 0.5, CellLakes.WIDEST, b), "river at " + i + ", " + j);
+				if (near) {
+					assertEquals(a.distance, b.distance, 0f);
+					higher |= a.level > b.level;
+				}
 			}
-			CellFlows flows = new CellFlows();
-			flows.addOut(0, 50f, 10f);
-			return flows;
-		};
-		assertTrue(lakes(terrain, north, 0, 0, new float[SPAN * SPAN]).isEmpty());
-		Flows far = (ti, tj) -> {
-			if (ti != 1 || tj != 1) {
-				return CellFlows.NONE;
-			}
-			CellFlows flows = new CellFlows();
-			flows.addOut(0, 50f, 10f);
-			return flows;
-		};
-		assertFalse(lakes(terrain, far, 0, 0, new float[SPAN * SPAN]).isEmpty(), "a tile the lake does not reach");
+		}
+		assertTrue(higher, "over the water, the river runs higher");
+	}
+
+	/**
+	 * A plateau at 100 m with a bowl 10 m deep and 30 pixels across the side between tiles (0, 0) and (0, 1), and a
+	 * valley 5 m deep down tile (0, 1) at tile-local column {@code column}, which carries the river of {@link #DOWN}.
+	 */
+	private static Terrain bowlBesideAValley(int column) {
+		Terrain bowl = bowl(128, TILE + 10, 30f, 10f);
+		return (i, j) -> Math.abs(j - TILE - column) <= 1 ? 95f : bowl.at(i, j);
+	}
+
+	/** A river down tile (0, 1), from its north side to its south side. */
+	private static final Flows DOWN = (ti, tj) -> {
+		if (ti != 0 || tj != 1) {
+			return CellFlows.NONE;
+		}
+		CellFlows flows = new CellFlows();
+		flows.addIn(0, 1, 90f, 10f);
+		flows.addOut(1, 85f, 10f);
+		return flows;
+	};
+
+	@Test
+	void aRiverWithinReachOfTheWaterKeepsTheRainOut() {
+		// The full bowl reaches column 39 of tile (0, 1), within reach of the river; the plateau keeps it apart.
+		assertTrue(lakes(bowlBesideAValley(60), DOWN, 0, 0, new float[SPAN * SPAN]).isEmpty());
+		CellLakes west = lakes(bowlBesideAValley(150), DOWN, 0, 0, new float[SPAN * SPAN]);
+		assertEquals(100f, west.level(128, TILE - 1), 0f, "a river elsewhere in the tile leaves the rain");
+		assertFalse(west.runFed(west.run(128, TILE - 1)));
 	}
 
 	@Test
-	void aRiverOnlyTheShoreReachesLeavesTheRain() {
-		// A bowl across the east side of tile (0, 0), whose water, half way up, stays inside it, and a river in the
-		// tile east of it, which only the bowl's dry shore reaches.
-		Terrain terrain = bowl(128, TILE - 26, 30f, 10f);
-		Flows east = (ti, tj) -> {
-			if (ti != 0 || tj != 1) {
-				return CellFlows.NONE;
-			}
-			CellFlows flows = new CellFlows();
-			flows.addOut(0, 50f, 10f);
-			return flows;
-		};
-		CellLakes west = lakes(terrain, east, HALF, 0, 0, new float[SPAN * SPAN]);
-		assertEquals(95f, west.level(128, TILE - 26), 0f);
-		assertAgree(west, 0, 0, lakes(terrain, east, HALF, 0, 1, new float[SPAN * SPAN]), 0, 1);
+	void aRiverWithinReachOfOnlyTheShoreLeavesTheRain() {
+		// Half full, the bowl reaches column 31 of tile (0, 1), out of the river's reach; its shore does not.
+		Terrain terrain = bowlBesideAValley(60);
+		CellLakes west = lakes(terrain, DOWN, HALF, 0, 0, new float[SPAN * SPAN]);
+		assertEquals(95f, west.level(128, TILE - 1), 0f);
+		assertAgree(west, 0, 0, lakes(terrain, DOWN, HALF, 0, 1, new float[SPAN * SPAN]), 0, 1);
 	}
 }

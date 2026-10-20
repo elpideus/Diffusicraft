@@ -16,7 +16,7 @@ import java.util.Arrays;
  * sills of Norway's fjords. Rivers run over the surface of such a basin rather than its floor ({@link #ground}): they
  * fill it and flow on out over its lowest point. The {@link CellLakes} then follow from the rivers and the climate.
  * Basins that reach past the sides of the tile belong to the {@link BlockLakes}, and the rivers see the surface of
- * those that a river feeds too.
+ * those that a river feeds too, though only for their level: their paths follow the tile alone ({@link #surface}).
  *
  * <p>Pixels are numbered as in the padded tile, row by row over {@link TerrainField#SPAN} columns.
  */
@@ -171,9 +171,25 @@ final class CellBasins {
 	 * or of a lake of the blocks around that a river feeds, and the terrain everywhere else.
 	 */
 	float ground(int k) {
-		int b = label[k];
-		float ground = b != 0 && holds[b - 1] ? fill[k] : tile[k];
+		float ground = surface(k);
 		return raise != null && raise[k] > ground ? raise[k] : ground;
+	}
+
+	/**
+	 * The ground at pixel {@code k} as the tile alone has it: as {@link #ground}, but without the lakes of the blocks
+	 * around. The paths of the rivers follow it, so that they need nothing but the tile.
+	 */
+	float surface(int k) {
+		int b = label[k];
+		return b != 0 && holds[b - 1] ? fill[k] : tile[k];
+	}
+
+	/**
+	 * Whether pixel {@code k} lies in the sea: water from it would run out into the sea without rising above it. A
+	 * valley the ice drowned behind a step does not, nor a lake of the blocks around.
+	 */
+	boolean sea(int k) {
+		return fill[k] < 0f;
 	}
 
 	/**

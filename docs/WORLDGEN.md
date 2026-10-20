@@ -485,11 +485,15 @@ place.
   first region of a world takes some 8 s on the CPU, most of it the coarse stage over the 1,200 km around it, and
   each further one about 2 s.
 - **Paths.** `CellRivers` draws the rivers inside a tile. A river crosses a side of the tile at that side's lowest
-  point, running straight across, so the tiles on both sides agree without looking at each other. Inside, it follows
-  the cheapest path, where low ground is cheap, and tributaries merge into a tree. On level ground the cost carries
-  noise, so rivers meander instead of following the pixel grid; on steep ground they stay in their valleys. Paths are
-  smoothed, and the water level only ever goes down along them. A basin that can hold a lake counts as the surface of
-  its water rather than its floor, so a river crosses it at the height of its lowest point and leaves over that point.
+  point, running straight across, so the tiles on both sides agree without looking at each other. Inside, it follows the
+  cheapest path, where low ground is cheap, and tributaries merge into a tree. On level ground the cost carries noise,
+  so rivers meander instead of following the pixel grid; on steep ground they stay in their valleys. Paths are smoothed,
+  and the water level only ever goes down along them. A basin that can hold a lake counts as the surface of its water
+  rather than its floor, so a river crosses it at the height of its lowest point and leaves over that point. The paths
+  follow the tile alone: the lakes of the blocks around and the great lakes (see below), which a river crosses in the
+  same way, set only the river's level, and under their water the path follows the floor. The blocks can then draw the
+  rivers of their tiles without one another's lakes. A river bound for the sea runs on to water that drains into it,
+  past the valleys the ice drowned behind a step.
 - **Width and depth.** About 4√Q meters wide for a discharge of Q m³/s, like real rivers. Streams are widened three
   times at the standard scale and one and a half times at the grand scale so they stay visible, and nothing gets
   wider than 480 m. The depth grows with the width, up to 4, 6 and 10 blocks at the three scales, and shelves towards
@@ -515,17 +519,18 @@ place.
   the lakes behind the steps of drowned valleys stand above the sea though their floors lie far below it, as Mjøsa and
   Hornindalsvatnet do behind the sills the ice left. A lake whose water would stand no higher than the sea is the sea's,
   and does not show.
-- **Lakes across tiles.** `BlockLakes` takes the basins that reach past the side of a tile. A block is two by two
-  tiles; blocks overlap by a tile, so every tile lies in four of them, and every side and corner lies inside one. One
-  priority flood over a block's four padded tiles finds its basins; it keeps those that stay 4 pixels inside the block
-  but not inside a single tile, which the tile already fills. A river that crosses an inner side of the block through
-  such a basin, near the point where it crosses, fills it to its own level, at most 1.5 m below the spill, and the
-  rivers of the tiles around run over the lake's surface. The rain fills the others as it fills a tile's basins, but
-  only where no river runs in any of the tiles its water reaches: the block does not draw the rivers of its tiles, and
-  cannot tell whether one would pass beside the lake, below its water, and drain it. A tile takes the lakes of its four
-  blocks; where they overlap, the highest water wins. They are all real hollows of the terrain, so lakes that touch meet
-  at one level, and the tiles on both sides of a side, which share the blocks that reach it, agree on the water there.
-  A tile and its rivers therefore read the eight tiles around it.
+- **Lakes across tiles.** `BlockLakes` takes the basins that reach past the side of a tile. A block is two by two tiles;
+  blocks overlap by a tile, so every tile lies in four of them, and every side and corner lies inside one. One priority
+  flood over a block's four padded tiles finds its basins; it keeps those that stay 4 pixels inside the block but not
+  inside a single tile, which the tile already fills. A river that crosses an inner side of the block through such a
+  basin, near the point where it crosses, fills it to its own level, at most 1.5 m below the spill, and the rivers of
+  the tiles around run over the lake's surface. The rain fills the others as it fills a tile's basins, unless a river
+  passes within reach of the water: the block draws the rivers of its tiles to tell, as their paths need nothing but the
+  tile. A river that crosses such a basin inside a tile, away from those crossing points, leaves it dry, as its level
+  depends on the lakes of other blocks. A tile takes the lakes of its four blocks; where they overlap, the highest water
+  wins. They are all real hollows of the terrain, so lakes that touch meet at one level, and the tiles on both sides of
+  a side, which share the blocks that reach it, agree on the water there. A tile and its rivers therefore read the eight
+  tiles around it.
 - **Great lakes.** `GreatLake` puts the water of a lake of the coarse map on the fine terrain. One priority flood over
   the padded tiles of all its cells, the water escaping into the sea, but not into the valleys the ice drowned, and past
   the edge of their padding, finds the hollows the terrain holds. The water stands at one level for the whole lake,
@@ -545,16 +550,16 @@ place.
   wide, keeps its ground but is solid from below the water up, so no cave entrance drains the lake. Where the shore
   still lies below the water, it rises into a bank as the rivers' banks do.
 - **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like an
-  embankment. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a lake across tiles
-  that the rain would fill where a river runs in one of the tiles its water reaches, even out of the river's reach: some
-  0.5% of the land at most, where lakes cover 4 to 8% of it. Telling whether the river passes beside such a lake would
-  take the rivers of its tiles, and so the terrain of the 24 tiles around a tile rather than 8, which a new world and a
-  fast flight would wait for ([Generating ahead](PERFORMANCE.md#generating-ahead)). A basin that reaches past a block's
-  edge, 15 km, stays dry unless it lies in a lake of the coarse map, and a river crosses it as it crosses any other
-  ground. Where a basin that stays dry for one of these reasons lies in a valley the ice drowned, its floor below the
-  sea, the sea's water stays in it at sea level, as a fjord. A depression of the coarse map larger than 16 cells, or wider than 8 cells (60 km), is breached
-  rather than filled, so the largest lakes of the real world stay dry. The hollows of a great lake's tiles that do not
-  hold water at its level stay dry, and so do those whose water spills past the padding of its tiles.
+  embankment. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a basin across
+  tiles that a river crosses inside one of them rather than across a side: the river's level there depends on the lakes
+  of the other blocks, and so on the terrain of the 24 tiles around a tile rather than 8, which a new world and a fast
+  flight would wait for ([Generating ahead](PERFORMANCE.md#generating-ahead)). Lakes cover 4 to 8% of the land. A basin
+  that reaches past a block's edge, 15 km, stays dry unless it lies in a lake of the coarse map, and a river crosses it
+  as it crosses any other ground. Where a basin that stays dry for one of these reasons lies in a valley the ice
+  drowned, its floor below the sea, the sea's water stays in it at sea level, as a fjord. A depression of the coarse map
+  larger than 16 cells, or wider than 8 cells (60 km), is breached rather than filled, so the largest lakes of the real
+  world stay dry. The hollows of a great lake's tiles that do not hold water at its level stay dry, and so do those
+  whose water spills past the padding of its tiles.
 
 ### Coasts
 
@@ -689,10 +694,10 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   they climb over a step or a saddle between coarse pixels. The trough beyond is a basin like any other, which a river
   or the rain fills above the sea (see [Rivers](#rivers)), as the ice left Mjøsa and Hornindalsvatnet behind their
   sills. On the coasts of 138 and 123 km square above, 126 and 18 km² of drowned ground are cut off from the sea,
-  besides what drains past the edges of the squares, and lakes stand above 30 and 12 km² of it, up to 228 m above the
-  sea over ground down to 378 m below it. The rest keeps the sea's level and counts as fjord: basins wider than a tile
-  that the rain would fill but for a river in one of their tiles (65 and 5 km², see the limits of [Rivers](#rivers)),
-  and on the first coast 31 km² in basins wider than a block. Under the lakes above the sea the ground still takes the
+  besides what drains past the edges of the squares, and lakes stand above 35 and 17 km² of it, up to 232 m above the
+  sea over ground down to 378 m below it. The rest keeps the sea's level and counts as fjord, all of it on the first
+  coast: 61 km² in basins wider than a tile that a river passes or crosses inside a tile (see the limits of
+  [Rivers](#rivers)), and 31 km² in basins wider than a block. Under the lakes above the sea the ground still takes the
   shape of a coast at sea level, its shelves, cliffs and stacks under the water. The long fjords follow the coarse map's
   valleys, 7.7 km to a pixel, not the fine terrain's: they cut straight through the spurs and saddles between. Arms
   branch only off the trunks, never off each other, so a fjord system is a trunk and its side valleys, without the
