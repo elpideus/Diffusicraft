@@ -20,6 +20,8 @@ public final class BiomeClimate {
 	public float elevation;
 	/** How rugged the land around is, in meters; see {@link TerrainField.Column#relief}. */
 	public float relief;
+	/** Meters above the low ground around; see {@link TerrainField.Column#aboveLow}. */
+	public float aboveLow;
 	/** The variant noise, in [-1, 1]: where in a climate's patchwork the column lies. */
 	public float variant;
 	/** How far glaciers lowered ground at sea level, in meters; see {@link TerrainField.Column#iceCut}. */
@@ -32,6 +34,7 @@ public final class BiomeClimate {
 		precipitationSeasonality = column.precipitationSeasonality;
 		elevation = column.elevation;
 		relief = column.relief;
+		aboveLow = column.aboveLow;
 		variant = column.variant;
 		iceCut = column.iceCut;
 		return this;

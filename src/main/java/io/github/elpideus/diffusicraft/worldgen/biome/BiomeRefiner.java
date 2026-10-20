@@ -26,8 +26,9 @@ import java.util.Set;
  *       {@value #POLAR_TEMPERATURE} °C and the summers are too cool for trees, so the ground is white most of the
  *       year. Vanilla's frozen band has snowy taigas there, and taigas where it is wettest: they become snowy plains,
  *       and its slopes and hills snowy slopes. Its other snowy biomes and its peaks stay.</li>
- *   <li><b>Salt flat</b>: the flattest desert floors, with less than {@value #SALT_FLAT_RELIEF} m of relief, up on
- *       the cold Altiplano too.</li>
+ *   <li><b>Salt flat</b>: the floors of desert basins, with less than {@value #SALT_FLAT_RELIEF} m of relief and
+ *       lower than all but a twentieth of the land around ({@link BiomeClimate#aboveLow} below zero), up on the cold
+ *       Altiplano too. The rare rains gather there and dry to salt; flat ground higher up stays sand or gravel.</li>
  *   <li><b>Páramo</b> and <b>puna</b>: tropical mountains from {@value #TROPICAL_ALPINE_ELEVATION} m where the year
  *       averages below {@value #TROPICAL_TREE_LINE} °C. Every month is a growing season there, so the tree line follows
  *       the year rather than the summer, and the cloud forest below gives way to them. Wet ones, with at least
@@ -179,7 +180,7 @@ public final class BiomeRefiner {
 	static final float MANGROVE_COLDEST = 15f;
 	/** Mangroves grow on tidal flats: no higher than this, in meters. */
 	static final float MANGROVE_ELEVATION = 10f;
-	/** Desert floors flatter than this, in meters of relief, are salt flats: the dry beds of old lakes. */
+	/** Desert basin floors flatter than this, in meters of relief, are salt flats: the dry beds of old lakes. */
 	static final float SALT_FLAT_RELIEF = 4f;
 	/** Moors begin at this elevation, in meters. */
 	static final float MOOR_ELEVATION = 300f;
@@ -526,7 +527,7 @@ public final class BiomeRefiner {
 	}
 
 	static boolean saltFlat(BiomeClimate c, float aridity) {
-		return aridity < 0.5f && c.relief < SALT_FLAT_RELIEF && c.elevation > 2f;
+		return aridity < 0.5f && c.relief < SALT_FLAT_RELIEF && c.aboveLow < 0f && c.elevation > 2f;
 	}
 
 	static boolean moorland(BiomeClimate c) {

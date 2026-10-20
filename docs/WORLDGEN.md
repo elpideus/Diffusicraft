@@ -148,7 +148,9 @@ each tile it keeps three things:
 - **A grid every 8 pixels (240 m).** It holds slowly varying values, sampled bilinearly:
   - the mean elevation and relief (standard deviation) over a 1.4 km box, from summed-area tables;
   - the climate reduced to sea level, plus its lapse rate;
-  - how strongly glaciers lowered the ground.
+  - how strongly glaciers lowered the ground;
+  - the coarse map's 5th percentile of the elevation. A column's height above it (`aboveLow`) tells a basin's floor,
+    below zero, from the flat ground above it.
 
   The temperature at a column is then the sea-level temperature plus the lapse rate times the column's own
   elevation, so summits are cold even between grid points.
@@ -311,7 +313,7 @@ swap it for one of twenty-two new biomes, or for another of vanilla's. The first
 | *(wetlands)* | Vanilla's swamp band: mangroves on tropical coasts (coldest month at least 15 °C, below 10 m), páramo on tropical mountains, bogs where the warmest month stays below 20 °C and the summers are not dry, tundra beyond the tree line, swamps elsewhere | Swamps and mangroves |
 | **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
 | *(snow and ice)* | Warmest month below 3 °C, or a year below −10 °C with summers too cool for trees (warmest month below 10 °C), where the ground is white most of the year. Vanilla's snowy plains, ice spikes, snowy slopes and peaks stay; its frozen band has snowy taigas there too, and taigas where it is wettest, which become snowy plains, and its other land does the same, its slopes and hills snowy slopes | Any land but deserts, badlands and jungles |
-| **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief: the dry beds of old lakes, up on the cold Altiplano too | Plains, forests, taigas, savannas, deserts |
+| **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief on a basin's floor, below the 5th percentile of the ground within 7.7 km: the dry beds of old lakes, up on the cold Altiplano too. About 3% of the driest deserts, where flat ground anywhere made 57% | Plains, forests, taigas, savannas, deserts |
 | **Páramo**, **puna** | Tropical mountains (little seasonality) from 2500 m where the year averages below 10 °C. Every month is a growing season there, so the tree line follows the year rather than the summer, and the cloud forest gives way to them. Páramo with at least three times the rain of the aridity threshold, as in the northern Andes or on Mount Kenya; puna where it is drier, as on the Altiplano or Mauna Kea | Any land, peaks included |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
 | *(montane forest)* | Humid mountainsides (aridity at least 1) below the subalpine belt, where the warmest month passes 14 °C, some 600 m below the tree line. Vanilla's plateau row puts meadows there between the woods of its lowland row, in strips along every valley side; they become those woods: forest-steppe where the summers are too dry for closed woods (the meadow stays in the steppe's climate), mixed forest in its climate; elsewhere forest, and with at least twice the rain of the aridity threshold birch forest, or taiga below 5 °C. Semi-arid mountainsides get juniper woodland (see below). Meadows stay in the subalpine belt and on ground drier still | Meadows |
@@ -915,6 +917,7 @@ describe each column from the coarse map alone (`TerrainField.coarseColumn`):
 
 - the elevation is the coarse pixel's mean;
 - the relief is estimated from how far the pixel's 5th percentile lies below that mean;
+- the height above the low ground is that gap, so the coarse map has no salt flats;
 - the climate is the coarse climate.
 
 The result is deterministic, but it can differ from the biomes that are finally generated in the details. Strongholds

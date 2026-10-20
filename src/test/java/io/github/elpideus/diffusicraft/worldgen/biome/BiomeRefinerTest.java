@@ -6,6 +6,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Real places, roughly, and what the refiner makes of vanilla's picks there. */
@@ -320,12 +321,21 @@ class BiomeRefinerTest {
 	}
 
 	@Test
-	void flattestDesertFloorsAreSaltFlats() {
-		// Bonneville, and the Salar de Uyuni at 3650 m.
-		assertEquals(BiomeRefiner.SALT_FLAT, BiomeRefiner.refine("minecraft:desert", climate(11f, 9f, 150f, 30f, 1290f, 1f)));
-		assertEquals(BiomeRefiner.SALT_FLAT, BiomeRefiner.refine("minecraft:plains", climate(5f, 3f, 100f, 90f, 3650f, 0.5f)));
+	void flatBasinFloorsAreSaltFlats() {
+		// Bonneville, and the Salar de Uyuni at 3650 m: the lowest ground around.
+		BiomeClimate bonneville = climate(11f, 9f, 150f, 30f, 1290f, 1f);
+		bonneville.aboveLow = -3f;
+		assertEquals(BiomeRefiner.SALT_FLAT, BiomeRefiner.refine("minecraft:desert", bonneville));
+		BiomeClimate uyuni = climate(5f, 3f, 100f, 90f, 3650f, 0.5f);
+		uyuni.aboveLow = -1f;
+		assertEquals(BiomeRefiner.SALT_FLAT, BiomeRefiner.refine("minecraft:plains", uyuni));
+		// As flat, but higher than the basin's floor: the water runs off it.
+		bonneville.aboveLow = 15f;
+		assertNotEquals(BiomeRefiner.SALT_FLAT, BiomeRefiner.refine("minecraft:desert", bonneville));
 		// Dunes and rocky desert stay desert.
-		assertNull(BiomeRefiner.refine("minecraft:desert", climate(25f, 7f, 50f, 100f, 300f, 25f)));
+		BiomeClimate dunes = climate(25f, 7f, 50f, 100f, 300f, 25f);
+		dunes.aboveLow = -3f;
+		assertNull(BiomeRefiner.refine("minecraft:desert", dunes));
 	}
 
 	@Test

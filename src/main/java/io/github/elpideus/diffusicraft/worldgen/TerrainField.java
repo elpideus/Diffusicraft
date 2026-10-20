@@ -60,7 +60,9 @@ public final class TerrainField implements AutoCloseable {
 	static final int PRECIPITATION_SEASONALITY = 5;
 	static final int LAPSE_RATE = 6;
 	static final int ICE_CUT = 7;
-	static final int CHANNELS = 8;
+	/** The coarse map's 5th percentile of the elevation, for {@link Column#aboveLow}. */
+	static final int LOW = 8;
+	static final int CHANNELS = 9;
 
 	private static final int DEFAULT_MAX_TILES = 96;
 	private static final int MAX_COARSE_BLOCKS = 64;
@@ -73,6 +75,11 @@ public final class TerrainField implements AutoCloseable {
 		public float meanElevation;
 		/** Root-mean-square deviation from that mean, in meters: how rugged the land is. */
 		public float relief;
+		/**
+		 * Meters above the low ground around: the elevation less the 5th percentile of the elevation over the coarse
+		 * pixel (7.7 km), interpolated. Below zero in the lowest twentieth of the land around: a basin's floor.
+		 */
+		public float aboveLow;
 		/** Annual mean temperature at this elevation, °C. */
 		public float temperature;
 		/** Temperature seasonality (WorldClim BIO4: monthly standard deviation × 100). */
@@ -203,6 +210,7 @@ public final class TerrainField implements AutoCloseable {
 		float wu = (float) (gu - a), wv = (float) (gv - b);
 		out.meanElevation = tile.grid(MEAN, a, b, wu, wv);
 		out.relief = tile.grid(RELIEF, a, b, wu, wv);
+		out.aboveLow = elevation - tile.grid(LOW, a, b, wu, wv);
 		out.temperature = tile.grid(SEA_TEMPERATURE, a, b, wu, wv)
 			+ tile.grid(LAPSE_RATE, a, b, wu, wv) * Math.max(0f, elevation);
 		out.temperatureSeasonality = tile.grid(TEMPERATURE_SEASONALITY, a, b, wu, wv);
@@ -262,6 +270,7 @@ public final class TerrainField implements AutoCloseable {
 		out.elevation = elevation;
 		out.meanElevation = elevation;
 		out.relief = COARSE_RELIEF * Math.max(0f, elevation - low);
+		out.aboveLow = elevation - low;
 		out.temperature = coarseChannel(TerrainSource.COARSE_TEMPERATURE, i, j);
 		out.temperatureSeasonality = coarseChannel(TerrainSource.COARSE_TEMPERATURE_SEASONALITY, i, j);
 		out.precipitation = Math.max(0f, coarseChannel(TerrainSource.COARSE_PRECIPITATION, i, j));
@@ -454,6 +463,8 @@ public final class TerrainField implements AutoCloseable {
 				grid[PRECIPITATION_SEASONALITY * points + g] = climate[TerrainSample.PRECIPITATION_SEASONALITY * plane + px];
 				grid[LAPSE_RATE * points + g] = lapse;
 				grid[ICE_CUT * points + g] = iceCut[px];
+				grid[LOW * points + g] = coarseChannel(TerrainSource.COARSE_LOW_ELEVATION, ti * TILE + a * GRID + 0.5,
+					tj * TILE + b * GRID + 0.5);
 			}
 		}
 		return new FieldTile(ti, tj, elevation, grid, Coastline.compute(elevation));
