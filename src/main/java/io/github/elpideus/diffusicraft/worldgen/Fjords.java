@@ -44,6 +44,16 @@ import static io.github.elpideus.diffusicraft.worldgen.TerrainSource.COARSE_TEMP
  * {@value #ROUGHNESS} m, into pointed spurs and rounded coves, but never over the floor, so the water runs through to
  * the head. Ground above the trough sinks to it, with a smooth crease where they meet.
  *
+ * <p>Arms branch off the trunk up its side valleys, where the glaciers that fed the great one cut troughs of their
+ * own. Each point of the trunk between the mouth and the head may grow one, by a chance of {@value #ARM_CHANCE}, at
+ * least {@value #ARM_SPACING} steps after the last, up to {@value #MAX_ARMS} arms. An arm's first step leaves the trunk
+ * at 37° to 90° from its way inland, never back towards the sea. From there it walks like the trunk, to the lowest
+ * neighbour farther from where it branched, never beside the trunk, an earlier arm or the sea, while its valley floor
+ * climbs at most {@value #ARM_RISE} m per step above the trunk's. Its reach is drawn like the trunk's, up to half the
+ * trunk's steps and {@value #ARM_REACH} coarse pixels; a walk shorter than {@value #ARM_MIN_STEPS} steps is no arm.
+ * Its trough starts on the trunk's floor, {@value #ARM_WIDTH} m wide on either side, and sinks or rises from there to
+ * a basin as deep as its own length makes it, behind a sill or a step, before it rises to its head like the trunk.
+ *
  * <p>Fjords are traced in blocks of {@value #BLOCK} coarse pixels, each from a coarse map with a margin large enough
  * that every fjord depends only on the map around its mouth: neighbouring blocks agree to the bit.
  */
@@ -112,14 +122,33 @@ final class Fjords {
 	static final double ROUGHNESS_WAVELENGTH = 3000.0;
 	/** Octaves of the walls' roughness, each half the wavelength of the one before. */
 	static final int ROUGHNESS_OCTAVES = 4;
+	/** How far an arm reaches at most, in coarse pixels from where it branches off the trunk in a straight line. */
+	static final int ARM_REACH = 6;
+	/** The fewest steps that make an arm. */
+	static final int ARM_MIN_STEPS = 2;
+	/** The most arms a fjord has; under 8, so that {@link Trough#id} tells them apart. */
+	static final int MAX_ARMS = 6;
+	/** Steps along the trunk between the points where two of its arms branch, at least. */
+	static final int ARM_SPACING = 2;
+	/** The chance that a point of the trunk tries to grow an arm. */
+	static final float ARM_CHANCE = 0.5f;
+	/**
+	 * Meters per step by which an arm's valley floor may climb above the trunk's where it branches: arms follow
+	 * the side valleys about as low as the trunk, which the ice filled too.
+	 */
+	static final float ARM_RISE = 300f;
+	/** The cosine of the narrowest angle between an arm's first step and the trunk: 37°. */
+	static final float ARM_ALONG = 0.8f;
+	/** Half the width of an arm's floor where it branches, in meters. */
+	static final float ARM_WIDTH = 700f;
 	/** Points of the smoothed path per coarse step. */
 	static final int SAMPLES = 16;
 	/** Side of the blocks of coarse pixels whose fjords are traced together, in coarse pixels. */
 	static final int BLOCK = 16;
 	/** A block holds every fjord whose mouth lies this many coarse pixels around it, or less. */
-	static final int MOUTH_RANGE = REACH + 4;
+	static final int MOUTH_RANGE = REACH + ARM_REACH + 4;
 	/** The margin of coarse map around a block that its fjords are traced from. */
-	static final int MARGIN = MOUTH_RANGE + REACH + INLAND + 4;
+	static final int MARGIN = MOUTH_RANGE + REACH + Math.max(INLAND, ARM_REACH + 1) + 4;
 	/** Native pixels between the points at which the troughs are worked out; they are interpolated in between. */
 	static final int CARVE_STEP = 4;
 	/** Coarse pixels around a fjord's path within which its trough can lower the ground. */
@@ -135,16 +164,24 @@ final class Fjords {
 
 	private static final int MAX_BLOCKS = 64;
 	private static final int[][] FOUR = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-	private static final int SALT_MOUTH = 1, SALT_ROW = 2, SALT_COLUMN = 3, SALT_REACH = 4;
+	private static final int SALT_MOUTH = 1, SALT_ROW = 2, SALT_COLUMN = 3, SALT_REACH = 4, SALT_ARM = 5;
+	private static final int SALT_ARM_REACH = 6;
 	private static final long ROUGHNESS_SALT = 0x6a61676765644cL;
 
 	/**
-	 * One fjord's smoothed path, in coarse pixel units (pixel {@code ci} spans {@code [ci, ci + 1)}), with the floor of
-	 * its trough in meters and half the floor's width in meters at each point. {@code mouth} is the index of the mouth's
-	 * point and {@code head} that of the head's.
+	 * One trough of a fjord, its trunk or one of its arms: the smoothed path, in coarse pixel units (pixel {@code ci}
+	 * spans {@code [ci, ci + 1)}), with the floor of the trough in meters and half the floor's width in meters at each
+	 * point. {@code key} names the fjord by its mouth's coarse pixel, {@code row << 32 | column}; {@code arm} is 0 for
+	 * the trunk and counts the arms from 1. {@code mouth} is the index of the mouth's point, or of the point where the
+	 * arm branches off the trunk, and {@code head} that of the head's.
 	 */
-	record Trunk(long key, float[] rows, float[] columns, float[] floor, float[] halfWidth, int mouth, int head,
-				 float minRow, float maxRow, float minColumn, float maxColumn) {
+	record Trough(long key, int arm, float[] rows, float[] columns, float[] floor, float[] halfWidth, int mouth,
+				  int head, float minRow, float maxRow, float minColumn, float maxColumn) {
+		/** A number for this trough alone, as long as mouths lie within 2²⁸ coarse pixels of the origin. */
+		long id() {
+			return key << 3 | arm;
+		}
+
 		boolean near(double ci0, double cj0, double ci1, double cj1) {
 			return maxRow + INFLUENCE >= ci0 && minRow - INFLUENCE <= ci1
 				&& maxColumn + INFLUENCE >= cj0 && minColumn - INFLUENCE <= cj1;
@@ -154,7 +191,7 @@ final class Fjords {
 	private final TerrainSource source;
 	private final long seed;
 	private final FastNoiseLite variation;
-	private final ConcurrentHashMap<Long, CompletableFuture<List<Trunk>>> blocks = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<Long, CompletableFuture<List<Trough>>> blocks = new ConcurrentHashMap<>();
 
 	Fjords(TerrainSource source, long seed) {
 		this.source = source;
@@ -164,9 +201,9 @@ final class Fjords {
 		variation.SetFrequency(VARIATION_FREQUENCY);
 	}
 
-	/** The fjords whose troughs may reach into the coarse pixels {@code [ci0, ci1) x [cj0, cj1)}, in any order. */
-	List<Trunk> near(double ci0, double cj0, double ci1, double cj1) {
-		List<Trunk> found = new ArrayList<>();
+	/** The troughs that may reach into the coarse pixels {@code [ci0, ci1) x [cj0, cj1)}, in any order. */
+	List<Trough> near(double ci0, double cj0, double ci1, double cj1) {
+		List<Trough> found = new ArrayList<>();
 		Set<Long> seen = new HashSet<>();
 		int bi0 = Math.floorDiv((int) Math.floor(ci0 - INFLUENCE), BLOCK);
 		int bi1 = Math.floorDiv((int) Math.floor(ci1 + INFLUENCE), BLOCK);
@@ -174,9 +211,9 @@ final class Fjords {
 		int bj1 = Math.floorDiv((int) Math.floor(cj1 + INFLUENCE), BLOCK);
 		for (int bi = bi0; bi <= bi1; bi++) {
 			for (int bj = bj0; bj <= bj1; bj++) {
-				for (Trunk trunk : block(bi, bj)) {
-					if (trunk.near(ci0, cj0, ci1, cj1) && seen.add(trunk.key())) {
-						found.add(trunk);
+				for (Trough trough : block(bi, bj)) {
+					if (trough.near(ci0, cj0, ci1, cj1) && seen.add(trough.id())) {
+						found.add(trough);
 					}
 				}
 			}
@@ -184,12 +221,12 @@ final class Fjords {
 		return found;
 	}
 
-	/** The fjords whose mouths lie within {@link #MOUTH_RANGE} of block {@code (bi, bj)}. */
-	List<Trunk> block(int bi, int bj) {
+	/** The troughs of the fjords whose mouths lie within {@link #MOUTH_RANGE} of block {@code (bi, bj)}. */
+	List<Trough> block(int bi, int bj) {
 		long key = ((long) bi << 32) | (bj & 0xffffffffL);
-		CompletableFuture<List<Trunk>> future = blocks.get(key);
+		CompletableFuture<List<Trough>> future = blocks.get(key);
 		if (future == null) {
-			CompletableFuture<List<Trunk>> mine = new CompletableFuture<>();
+			CompletableFuture<List<Trough>> mine = new CompletableFuture<>();
 			future = blocks.putIfAbsent(key, mine);
 			if (future == null) {
 				future = mine;
@@ -217,23 +254,20 @@ final class Fjords {
 		}
 	}
 
-	/** The fjords whose mouths lie within {@link #MOUTH_RANGE} of the block at coarse pixel {@code (ci0, cj0)}. */
-	private List<Trunk> trace(int ci0, int cj0) {
+	/** The troughs of the fjords whose mouths lie within {@link #MOUTH_RANGE} of the block at {@code (ci0, cj0)}. */
+	private List<Trough> trace(int ci0, int cj0) {
 		int size = BLOCK + 2 * MARGIN;
 		Ground ground = new Ground(source.coarse(ci0 - MARGIN, cj0 - MARGIN, ci0 - MARGIN + size, cj0 - MARGIN + size),
 			ci0 - MARGIN, cj0 - MARGIN, size);
-		List<Trunk> trunks = new ArrayList<>();
+		List<Trough> troughs = new ArrayList<>();
 		for (int ci = ci0 - MOUTH_RANGE; ci < ci0 + BLOCK + MOUTH_RANGE; ci++) {
 			for (int cj = cj0 - MOUTH_RANGE; cj < cj0 + BLOCK + MOUTH_RANGE; cj++) {
 				if (mouth(ground, ci, cj)) {
-					Trunk trunk = walk(ground, ci, cj);
-					if (trunk != null) {
-						trunks.add(trunk);
-					}
+					troughs.addAll(walk(ground, ci, cj));
 				}
 			}
 		}
-		return trunks;
+		return troughs;
 	}
 
 	private boolean candidate(Ground g, int ci, int cj) {
@@ -273,8 +307,8 @@ final class Fjords {
 		return true;
 	}
 
-	/** The fjord from the mouth at {@code (ci, cj)}, or null if its valley is too short. */
-	private @Nullable Trunk walk(Ground g, int ci, int cj) {
+	/** The troughs of the fjord at the mouth {@code (ci, cj)}, its trunk first; none if its valley is too short. */
+	private List<Trough> walk(Ground g, int ci, int cj) {
 		// The sea the mouth opens onto: its lowest neighbour there.
 		int sr = 0, sc = 0;
 		float lowest = Float.POSITIVE_INFINITY;
@@ -305,8 +339,7 @@ final class Fjords {
 					float low = g.low(nr, nc);
 					if (low > HEAD_FLOOR || step > 2 && g.seaBeside(nr, nc)
 						|| g.seaDistance(nr, nc) <= g.seaDistance(pr, pc) && g.seaDistance(pr, pc) <= INLAND
-						|| Glaciation.cold(g.seaTemperature(nr, nc)) < 0.25f
-						|| g.mountains(nr, nc) < 0.25f && g.mean(nr, nc) < HIGH) {
+						|| !icy(g, nr, nc)) {
 						continue;
 					}
 					float cos = (a * dr + b * dc) / (float) Math.sqrt((a * a + b * b) * (dr * dr + dc * dc));
@@ -328,7 +361,7 @@ final class Fjords {
 			path.add(new int[]{pr, pc});
 		}
 		if (path.size() - 1 < MIN_STEPS) {
-			return null;
+			return List.of();
 		}
 
 		// The points: two out at sea, the walk, and one past the head.
@@ -339,10 +372,140 @@ final class Fjords {
 		pointRow[1] = ci + sr + 0.5f;
 		pointColumn[1] = cj + sc + 0.5f;
 		for (int k = 0; k < path.size(); k++) {
-			int[] p = path.get(k);
-			pointRow[k + 2] = p[0] + 0.5f + VERTEX_JITTER * (2f * unit(seed, p[0], p[1], SALT_ROW) - 1f);
-			pointColumn[k + 2] = p[1] + 0.5f + VERTEX_JITTER * (2f * unit(seed, p[0], p[1], SALT_COLUMN) - 1f);
+			point(path.get(k), pointRow, pointColumn, k + 2);
 		}
+		long key = ((long) ci << 32) | (cj & 0xffffffffL);
+		List<Trough> troughs = new ArrayList<>();
+		Trough trunk = trough(key, 0, pointRow, pointColumn, 2, -SILL, MOUTH_WIDTH);
+		troughs.add(trunk);
+
+		// The arms, each from a point of the trunk between the mouth and the head, and at most half as long.
+		float most = Math.min(ARM_REACH, (path.size() - 1) / 2f);
+		if (most < ARM_MIN_STEPS) {
+			return troughs;
+		}
+		Set<Long> taken = new HashSet<>();
+		for (int[] p : path) {
+			taken.add(cell(p[0], p[1]));
+		}
+		int last = -ARM_SPACING;
+		for (int p = 1; p + 1 < path.size() && troughs.size() <= MAX_ARMS; p++) {
+			int[] at = path.get(p);
+			if (p - last < ARM_SPACING || unit(seed, at[0], at[1], SALT_ARM) >= ARM_CHANCE) {
+				continue;
+			}
+			List<int[]> arm = arm(g, path, p, most, taken);
+			if (arm.isEmpty()) {
+				continue;
+			}
+			int m = arm.size() + 1;
+			float[] armRow = new float[m], armColumn = new float[m];
+			for (int k = 0; k < arm.size(); k++) {
+				point(arm.get(k), armRow, armColumn, k);
+				taken.add(cell(arm.get(k)[0], arm.get(k)[1]));
+			}
+			troughs.add(trough(key, troughs.size(), armRow, armColumn, 0, trunk.floor()[(p + 2) * SAMPLES], ARM_WIDTH));
+			last = p;
+		}
+		return troughs;
+	}
+
+	/**
+	 * The cells of the arm that branches off the trunk {@code path} at its {@code p}th cell, from that cell on, reaching
+	 * {@code most} coarse pixels at most; none if no side valley there is low and long enough.
+	 */
+	private List<int[]> arm(Ground g, List<int[]> path, int p, float most, Set<Long> taken) {
+		int[] at = path.get(p), before = path.get(p - 1), after = path.get(p + 1);
+		int jr = at[0], jc = at[1];
+		// The trunk's way inland here.
+		int tr = after[0] - before[0], tc = after[1] - before[1];
+		float floor = Math.max(0f, g.low(jr, jc));
+		float luck = unit(seed, jr, jc, SALT_ARM_REACH);
+		float reach = ARM_MIN_STEPS + (most - ARM_MIN_STEPS) * luck * luck;
+		List<int[]> cells = new ArrayList<>();
+		cells.add(at);
+		int pr = jr, pc = jc, dr = 0, dc = 0;
+		for (int step = 1; ; step++) {
+			int here = (pr - jr) * (pr - jr) + (pc - jc) * (pc - jc);
+			float ceiling = Math.min(HEAD_FLOOR, floor + ARM_RISE * step);
+			float best = Float.POSITIVE_INFINITY;
+			int br = 0, bc = 0;
+			for (int a = -1; a <= 1; a++) {
+				for (int b = -1; b <= 1; b++) {
+					int nr = pr + a, nc = pc + b;
+					int there = (nr - jr) * (nr - jr) + (nc - jc) * (nc - jc);
+					if (there <= here || there > reach * reach || !g.land(nr, nc) || g.low(nr, nc) > ceiling
+						|| g.seaBeside(nr, nc) || !icy(g, nr, nc)) {
+						continue;
+					}
+					float cost = Math.max(0f, g.low(nr, nc));
+					if (step == 1) {
+						// A side valley: off the trunk, at 37° to 90° from it, never back towards the sea.
+						float cos = (a * tr + b * tc) / (float) Math.sqrt((a * a + b * b) * (tr * tr + tc * tc));
+						if (taken.contains(cell(nr, nc)) || cos < 0f || cos > ARM_ALONG) {
+							continue;
+						}
+					} else {
+						if (beside(taken, nr, nc)) {
+							continue;
+						}
+						float cos = (a * dr + b * dc) / (float) Math.sqrt((a * a + b * b) * (dr * dr + dc * dc));
+						cost += TURN * 0.5f * (1f - cos);
+					}
+					if (cost < best) {
+						best = cost;
+						br = nr;
+						bc = nc;
+					}
+				}
+			}
+			if (best == Float.POSITIVE_INFINITY) {
+				break;
+			}
+			dr = br - pr;
+			dc = bc - pc;
+			pr = br;
+			pc = bc;
+			cells.add(new int[]{pr, pc});
+		}
+		return cells.size() - 1 < ARM_MIN_STEPS ? List.of() : cells;
+	}
+
+	/** Whether the ice that cut a fjord's trough reached coarse pixel {@code (ci, cj)}: cold, and high or rugged. */
+	private static boolean icy(Ground g, int ci, int cj) {
+		return Glaciation.cold(g.seaTemperature(ci, cj)) >= 0.25f
+			&& (g.mountains(ci, cj) >= 0.25f || g.mean(ci, cj) >= HIGH);
+	}
+
+	/** Whether coarse pixel {@code (ci, cj)} or one of its eight neighbours is among {@code cells}. */
+	private static boolean beside(Set<Long> cells, int ci, int cj) {
+		for (int a = -1; a <= 1; a++) {
+			for (int b = -1; b <= 1; b++) {
+				if (cells.contains(cell(ci + a, cj + b))) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private static long cell(int ci, int cj) {
+		return ((long) ci << 32) | (cj & 0xffffffffL);
+	}
+
+	/** Sets point {@code k} to the middle of coarse pixel {@code cell}, jittered. */
+	private void point(int[] cell, float[] pointRow, float[] pointColumn, int k) {
+		pointRow[k] = cell[0] + 0.5f + VERTEX_JITTER * (2f * unit(seed, cell[0], cell[1], SALT_ROW) - 1f);
+		pointColumn[k] = cell[1] + 0.5f + VERTEX_JITTER * (2f * unit(seed, cell[0], cell[1], SALT_COLUMN) - 1f);
+	}
+
+	/**
+	 * The trough along {@code pointRow, pointColumn}, whose last point is left to this, past the head. It opens at
+	 * point {@code mouthPoint}, where its floor lies at {@code start} meters, {@code width} meters wide on either side.
+	 */
+	private Trough trough(long key, int arm, float[] pointRow, float[] pointColumn, int mouthPoint, float start,
+						  float width) {
+		int n = pointRow.length;
 		float lastRow = pointRow[n - 2] - pointRow[n - 3], lastColumn = pointColumn[n - 2] - pointColumn[n - 3];
 		float last = (float) Math.sqrt(lastRow * lastRow + lastColumn * lastColumn);
 		pointRow[n - 1] = pointRow[n - 2] + HEAD_EXTENSION * lastRow / last;
@@ -369,7 +532,7 @@ final class Fjords {
 			float a = rows[k] - rows[k - 1], b = columns[k] - columns[k - 1];
 			along[k] = along[k - 1] + (float) Math.sqrt(a * a + b * b);
 		}
-		int mouth = 2 * SAMPLES, head = (n - 2) * SAMPLES;
+		int mouth = mouthPoint * SAMPLES, head = (n - 2) * SAMPLES;
 		float length = along[head] - along[mouth];
 		float depth = Math.min(MAX_DEPTH, DEPTH_BASE + DEPTH_PER_PIXEL * length);
 		float sillLength = Math.min(1.5f, 0.3f * length), headLength = Math.max(1f, length / 3f);
@@ -377,17 +540,17 @@ final class Fjords {
 		for (int k = 0; k < dense; k++) {
 			float u = along[k] - along[mouth];
 			if (u <= 0f) {
-				floor[k] = -SILL;
-				halfWidth[k] = MOUTH_WIDTH;
+				floor[k] = start;
+				halfWidth[k] = width;
 			} else if (u <= length) {
 				// Narrows and broad basins: the width and depth wander, but not at the sill or the head.
 				float vr = rows[k], vc = columns[k];
 				float inside = Glaciation.smoothstep(0f, sillLength, u)
 					* (1f - Glaciation.smoothstep(length - headLength, length, u));
-				float basin = -SILL - (depth * (1f + DEPTH_VARIATION * inside * variation.GetNoise(vr + 517f, vc))
-					- SILL) * Glaciation.smoothstep(0f, sillLength, u);
+				float basin = start + (-depth * (1f + DEPTH_VARIATION * inside * variation.GetNoise(vr + 517f, vc))
+					- start) * Glaciation.smoothstep(0f, sillLength, u);
 				floor[k] = basin + (-HEAD_DEPTH - basin) * Glaciation.smoothstep(length - headLength, length, u);
-				halfWidth[k] = (MOUTH_WIDTH + (HEAD_WIDTH - MOUTH_WIDTH) * u / length)
+				halfWidth[k] = (width + (HEAD_WIDTH - width) * u / length)
 					* (1f + WIDTH_VARIATION * Glaciation.smoothstep(0f, sillLength, u)
 					* variation.GetNoise(vr, vc - 211f));
 			} else {
@@ -403,13 +566,12 @@ final class Fjords {
 			minColumn = Math.min(minColumn, columns[k]);
 			maxColumn = Math.max(maxColumn, columns[k]);
 		}
-		return new Trunk(((long) ci << 32) | (cj & 0xffffffffL), rows, columns, floor, halfWidth, mouth, head, minRow,
-			maxRow, minColumn, maxColumn);
+		return new Trough(key, arm, rows, columns, floor, halfWidth, mouth, head, minRow, maxRow, minColumn, maxColumn);
 	}
 
 	/**
-	 * The troughs of {@code trunks} over native pixels {@code [i0, i0 + h) x [j0, j0 + w)}, in {@value #PLANES} planes
-	 * of {@code h × w}, row-major: {@link #BEYOND}, {@link #FLOOR} and {@link #ROUGH}. Where troughs overlap, the lowest
+	 * The {@code troughs} over native pixels {@code [i0, i0 + h) x [j0, j0 + w)}, in {@value #PLANES} planes of
+	 * {@code h × w}, row-major: {@link #BEYOND}, {@link #FLOOR} and {@link #ROUGH}. Where troughs overlap, the lowest
 	 * wins. {@code scale} is the native pixels per coarse pixel. The trough at a pixel is {@code floor + }{@link #wall}
 	 * {@code (}{@link #rough}{@code (beyond, rough))}.
 	 *
@@ -420,7 +582,7 @@ final class Fjords {
 	 * <p>All of it is smooth at a few pixels, so it is worked out every {@value #CARVE_STEP} pixels, on a lattice fixed
 	 * in the world so that overlapping windows agree to the bit, and interpolated in between.
 	 */
-	float[] carve(List<Trunk> trunks, int scale, int i0, int j0, int h, int w) {
+	float[] carve(List<Trough> troughs, int scale, int i0, int j0, int h, int w) {
 		int li0 = Math.floorDiv(i0, CARVE_STEP), lj0 = Math.floorDiv(j0, CARVE_STEP);
 		int lh = Math.floorDiv(i0 + h - 1, CARVE_STEP) - li0 + 2, lw = Math.floorDiv(j0 + w - 1, CARVE_STEP) - lj0 + 2;
 		int nodes = lh * lw;
@@ -430,8 +592,9 @@ final class Fjords {
 		Arrays.fill(height, Float.POSITIVE_INFINITY);
 		Arrays.fill(beyond, Float.POSITIVE_INFINITY);
 		float metres = (float) WorldScale.METERS_PER_PIXEL;
-		for (Trunk trunk : trunks) {
-			float[] rows = trunk.rows(), columns = trunk.columns(), floor = trunk.floor(), halfWidth = trunk.halfWidth();
+		for (Trough trough : troughs) {
+			float[] rows = trough.rows(), columns = trough.columns(), floor = trough.floor();
+			float[] halfWidth = trough.halfWidth();
 			float walked = 0f;
 			for (int k = 0; k + 1 < rows.length; k++) {
 				// The segment in native pixels, from the centre of lattice point (0, 0).
@@ -465,8 +628,8 @@ final class Fjords {
 							beyond[node] = x;
 							bottom[node] = base;
 							along[node] = walked + t * segment;
-							// Each shore of each fjord has noise of its own.
-							shore[node] = trunk.key() * 2 + (sr * pc - sc * pr >= 0f ? 1 : 0);
+							// Each shore of each trough has noise of its own.
+							shore[node] = trough.id() * 2 + (sr * pc - sc * pr >= 0f ? 1 : 0);
 						}
 					}
 				}

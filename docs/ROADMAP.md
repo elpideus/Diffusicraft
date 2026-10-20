@@ -105,7 +105,7 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   meets the sea, in every world, with sea stacks and arches off them; all but the farthest LODs show them. At Earth
   1:1 the sea floor deepens away from the shore along a beach's profile. On cold mountain coasts the glaciers' valleys
   drown into fjords, with a biome of their own, and the longest run 100 km and more inland, over a sill into basins
-  up to 1,200 m deep. See [WORLDGEN.md](WORLDGEN.md#coasts).
+  up to 1,200 m deep, with arms up their side valleys. See [WORLDGEN.md](WORLDGEN.md#coasts).
 - **Distant Horizons.** Its far terrain comes straight from the terrain, without generating chunks: surface blocks
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
   (biome mods' own trees included), and the coarse map alone for the far horizon. See
@@ -140,9 +140,9 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
   tile would read the terrain of 5 × 5 tiles rather than 3 × 3, which a new world and a fast flight wait for. Also the
   fine basins larger than a block outside the lakes of the coarse map, which stay dry for now; and depressions of more
   than 16 tiles, like those of the Caspian or the Great Lakes, which are breached.
-- **Fjord arms and lakes.** The long fjords are single troughs along the coarse map's valleys; real fjord systems
-  branch into arms that follow the fine valleys. And the valleys that drown behind a step hold lakes at sea level,
-  where real ones, like Mjøsa or Hornindalsvatnet, stand above the sea though their floors lie below it.
+- **Fjord lakes.** The valleys that drown behind a step hold lakes at sea level, where real ones, like Mjøsa or
+  Hornindalsvatnet, stand above the sea though their floors lie below it. And the long fjords and their arms follow
+  the coarse map's valleys, not the fine terrain's, and their arms branch no further.
 
 ### Biomes
 

@@ -37,9 +37,10 @@ import java.util.List;
  *
  * <p>That drowns the valleys as far as the coarse map's valley floors lie under the trough, some 20 km inland. The
  * longest fjords, which the great outlet glaciers cut a hundred kilometres and more inland, are the {@link Fjords}:
- * troughs traced along the main valleys, each cut as a whole, so their water always reaches the sea. The fine samples
- * sink into them where they lie lower. In the coarse map, the pixels they cross keep {@code 1 −}
- * {@value #FJORD_COVER} of their height above the trough's floor, and their 5th percentile sinks to it.
+ * troughs traced along the main valleys and their arms up the side valleys, each cut as a whole, so their water
+ * always reaches the sea. The fine samples sink into them where they lie lower. In the coarse map, the pixels they
+ * cross keep {@code 1 −} {@value #FJORD_COVER} of their height above the trough's floor, and their 5th percentile
+ * sinks to it.
  */
 public final class Glaciation implements TerrainSource {
 	/** How far under the sea the ice cut the valley floors at the coast, in meters. */
@@ -155,9 +156,9 @@ public final class Glaciation implements TerrainSource {
 		int width = cj1 - cj0, coarsePlane = (ci1 - ci0) * width;
 		float[] ice = ice(source.coarse(ci0 - SEA_REACH, cj0 - SEA_REACH, ci1 + SEA_REACH, cj1 + SEA_REACH),
 			ci1 - ci0, width);
-		List<Fjords.Trunk> trunks = fjords.near((double) i0 / scale, (double) j0 / scale, (double) i1 / scale,
+		List<Fjords.Trough> troughs = fjords.near((double) i0 / scale, (double) j0 / scale, (double) i1 / scale,
 			(double) j1 / scale);
-		if (ice == null && trunks.isEmpty()) {
+		if (ice == null && troughs.isEmpty()) {
 			return sample;
 		}
 
@@ -167,8 +168,8 @@ public final class Glaciation implements TerrainSource {
 		if (ice != null) {
 			valleys(ice, i0, j0, h, w, ci0, cj0, coarsePlane, width, scale, elevation, climate, iceCut);
 		}
-		if (!trunks.isEmpty()) {
-			fjords(fjords.carve(trunks, scale, i0, j0, h, w), h, w, elevation, climate, iceCut);
+		if (!troughs.isEmpty()) {
+			fjords(fjords.carve(troughs, scale, i0, j0, h, w), h, w, elevation, climate, iceCut);
 		}
 		return new TerrainSample(i0, j0, h, w, elevation, climate);
 	}
@@ -294,17 +295,17 @@ public final class Glaciation implements TerrainSource {
 		}
 
 		// The fjords: the lowest floor of a trough in each coarse pixel it crosses.
-		List<Fjords.Trunk> trunks = fjords.near(ci0, cj0, ci1, cj1);
-		if (trunks.isEmpty()) {
+		List<Fjords.Trough> troughs = fjords.near(ci0, cj0, ci1, cj1);
+		if (troughs.isEmpty()) {
 			return out;
 		}
 		float[] deepest = new float[plane];
 		Arrays.fill(deepest, Float.POSITIVE_INFINITY);
-		for (Fjords.Trunk trunk : trunks) {
-			for (int k = 0; k < trunk.rows().length; k++) {
-				int r = (int) Math.floor(trunk.rows()[k]) - ci0, c = (int) Math.floor(trunk.columns()[k]) - cj0;
+		for (Fjords.Trough trough : troughs) {
+			for (int k = 0; k < trough.rows().length; k++) {
+				int r = (int) Math.floor(trough.rows()[k]) - ci0, c = (int) Math.floor(trough.columns()[k]) - cj0;
 				if (r >= 0 && r < h && c >= 0 && c < w) {
-					deepest[r * w + c] = Math.min(deepest[r * w + c], trunk.floor()[k]);
+					deepest[r * w + c] = Math.min(deepest[r * w + c], trough.floor()[k]);
 				}
 			}
 		}

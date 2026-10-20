@@ -20,24 +20,42 @@ class GlaciationTest {
 	 * tile wide, as in the game.
 	 */
 	static final class CoastSource implements TerrainSource {
+		/** Main valleys this many coarse pixels apart, in {@link Valleys#BRANCHING}. */
+		static final int MAIN_SPACING = 12;
+		/** Side valleys this many coarse rows apart, in {@link Valleys#BRANCHING}. */
+		static final int SIDE_SPACING = 3;
+		/** How far side valleys reach from their main valley, in coarse pixels, in {@link Valleys#BRANCHING}. */
+		static final int SIDE_LENGTH = 4;
+
+		/**
+		 * The valleys: narrower than a coarse pixel, across the whole coast; one valley a coarse pixel wide; or main
+		 * valleys a coarse pixel wide, {@value #MAIN_SPACING} apart, with side valleys off both sides of them, the
+		 * first {@value #SIDE_SPACING} coarse pixels inland and every {@value #SIDE_SPACING} beyond.
+		 */
+		enum Valleys { NARROW, BROAD, BRANCHING }
+
 		private final float seaTemperature;
 		private final float rise;
 		private final float plain;
-		private final boolean broad;
+		private final Valleys valleys;
 
-		private CoastSource(float seaTemperature, float rise, float plain, boolean broad) {
+		private CoastSource(float seaTemperature, float rise, float plain, Valleys valleys) {
 			this.seaTemperature = seaTemperature;
 			this.rise = rise;
 			this.plain = plain;
-			this.broad = broad;
+			this.valleys = valleys;
 		}
 
 		CoastSource(float seaTemperature, float rise, float plain) {
-			this(seaTemperature, rise, plain, false);
+			this(seaTemperature, rise, plain, Valleys.NARROW);
 		}
 
 		static CoastSource broadValley(float seaTemperature, float rise) {
-			return new CoastSource(seaTemperature, rise, Float.NaN, true);
+			return new CoastSource(seaTemperature, rise, Float.NaN, Valleys.BROAD);
+		}
+
+		static CoastSource branchingValleys(float seaTemperature, float rise) {
+			return new CoastSource(seaTemperature, rise, Float.NaN, Valleys.BRANCHING);
 		}
 
 		CoastSource(float seaTemperature, float rise) {
@@ -52,12 +70,27 @@ class GlaciationTest {
 			if (i < 0) {
 				return -200f;
 			}
-			if (broad) {
+			if (valleys == Valleys.BROAD) {
 				double beyond = Math.max(0, Math.max(-j, j - TerrainField.TILE));
 				return (float) (rise * i + Math.min(800, 8 * beyond));
 			}
+			if (valleys == Valleys.BRANCHING) {
+				int tile = TerrainField.TILE;
+				double main = Math.abs(j - nearest(j / tile, MAIN_SPACING) * tile);
+				double side = Double.POSITIVE_INFINITY;
+				if (i >= (SIDE_SPACING - 0.5) * tile && main <= (SIDE_LENGTH + 0.5) * tile) {
+					side = Math.abs(i - nearest(i / tile, SIDE_SPACING) * tile);
+				}
+				return (float) (rise * i + 2000 * Glaciation.smoothstep(0.3f * tile, 0.5f * tile,
+					(float) Math.min(main, side)));
+			}
 			return j < 0 && !Float.isNaN(plain) ? plain
 				: (float) (rise * i + 400 * (1 - Math.cos(2 * Math.PI * j / 200)));
+		}
+
+		/** The middle of the coarse pixel nearest {@code x} among every {@code spacing}th, in coarse pixels. */
+		private static double nearest(double x, int spacing) {
+			return Math.floor((x - 0.5) / spacing + 0.5) * spacing + 0.5;
 		}
 
 		@Override

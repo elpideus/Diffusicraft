@@ -3,7 +3,7 @@ package io.github.elpideus.diffusicraft.worldgen;
 import io.github.elpideus.diffusicraft.terrain.diffusion.TerrainSample;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -11,29 +11,42 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FjordsTest {
 	/** A cold mountain coast whose valleys climb gently, 51 m per coarse pixel: the ice could reach far inland. */
 	private static final GlaciationTest.CoastSource COAST = new GlaciationTest.CoastSource(5f, 0.2f);
+	/** The same coast, with main valleys a coarse pixel wide and side valleys off them. */
+	private static final GlaciationTest.CoastSource BRANCHING = GlaciationTest.CoastSource.branchingValleys(5f, 0.2f);
 	private static final int SCALE = TerrainField.TILE;
 
-	private static int mouthRow(Fjords.Trunk trunk) {
+	/** The trunks of the fjords on 128 coarse pixels of {@code source}'s coast, without their arms. */
+	private static List<Fjords.Trough> trunks(TerrainSource source) {
+		List<Fjords.Trough> trunks = new ArrayList<>();
+		for (Fjords.Trough trough : new Fjords(source, 1L).near(-4, -64, 4, 64)) {
+			if (trough.arm() == 0) {
+				trunks.add(trough);
+			}
+		}
+		return trunks;
+	}
+
+	private static int mouthRow(Fjords.Trough trunk) {
 		return (int) (trunk.key() >> 32);
 	}
 
-	private static int mouthColumn(Fjords.Trunk trunk) {
+	private static int mouthColumn(Fjords.Trough trunk) {
 		return (int) trunk.key();
 	}
 
 	@Test
 	void coldMountainCoastsGrowFjordsSpacedAlongThem() {
-		List<Fjords.Trunk> trunks = new Fjords(COAST, 1L).near(-4, -64, 4, 64);
+		List<Fjords.Trough> trunks = trunks(COAST);
 		assertTrue(trunks.size() >= 8, trunks.size() + " fjords on 128 coarse pixels of coast");
 		trunks.sort(Comparator.comparingInt(FjordsTest::mouthColumn));
 		for (int k = 0; k < trunks.size(); k++) {
-			Fjords.Trunk trunk = trunks.get(k);
+			Fjords.Trough trunk = trunks.get(k);
 			assertEquals(0, mouthRow(trunk), "the mouth is on the coast");
 			assertTrue(trunk.rows()[trunk.head()] > Fjords.MIN_STEPS, "the head lies inland");
 			if (k > 0) {
@@ -44,7 +57,7 @@ class FjordsTest {
 
 	@Test
 	void theTroughSinksBehindItsSillAndRisesToItsHead() {
-		for (Fjords.Trunk trunk : new Fjords(COAST, 1L).near(-4, -64, 4, 64)) {
+		for (Fjords.Trough trunk : trunks(COAST)) {
 			float[] floor = trunk.floor();
 			assertEquals(-Fjords.SILL, floor[trunk.mouth()]);
 			assertEquals(-Fjords.SILL, floor[0], "out at sea, the floor is the sill's");
@@ -62,8 +75,7 @@ class FjordsTest {
 
 	@Test
 	void theLongestFjordsCarryTheSeaFarBeyondTheValleys() {
-		List<Fjords.Trunk> trunks = new Fjords(COAST, 1L).near(-4, -64, 4, 64);
-		Fjords.Trunk longest = trunks.stream()
+		Fjords.Trough longest = trunks(COAST).stream()
 			.max(Comparator.comparingDouble(t -> t.rows()[t.head()])).orElseThrow();
 		assertTrue(longest.rows()[longest.head()] > Glaciation.SEA_REACH + 1,
 			"the longest fjord reaches " + longest.rows()[longest.head()] + " coarse pixels inland");
@@ -85,7 +97,7 @@ class FjordsTest {
 
 	@Test
 	void plainsOpenNoFjords() {
-		for (Fjords.Trunk trunk : new Fjords(new GlaciationTest.CoastSource(5f, 0.2f, 40f), 1L).near(-4, -64, 4, 64)) {
+		for (Fjords.Trough trunk : trunks(new GlaciationTest.CoastSource(5f, 0.2f, 40f))) {
 			assertTrue(mouthColumn(trunk) >= 0, "a fjord opens on the plain at " + mouthColumn(trunk));
 		}
 	}
@@ -93,27 +105,28 @@ class FjordsTest {
 	@Test
 	void neighbouringBlocksAgreeToTheBit() {
 		Fjords fjords = new Fjords(COAST, 1L);
-		Map<Long, Fjords.Trunk> first = new HashMap<>();
-		for (Fjords.Trunk trunk : fjords.block(0, 0)) {
-			first.put(trunk.key(), trunk);
+		Map<Long, Fjords.Trough> first = new HashMap<>();
+		for (Fjords.Trough trough : fjords.block(0, 0)) {
+			first.put(trough.id(), trough);
 		}
-		int shared = 0;
-		for (Fjords.Trunk trunk : fjords.block(0, 1)) {
-			Fjords.Trunk other = first.get(trunk.key());
+		int shared = 0, arms = 0;
+		for (Fjords.Trough trunk : fjords.block(0, 1)) {
+			Fjords.Trough other = first.get(trunk.id());
 			if (other != null) {
 				shared++;
+				arms += trunk.arm() > 0 ? 1 : 0;
 				assertArrayEquals(other.rows(), trunk.rows());
 				assertArrayEquals(other.columns(), trunk.columns());
 				assertArrayEquals(other.floor(), trunk.floor());
 				assertArrayEquals(other.halfWidth(), trunk.halfWidth());
 			}
 		}
-		assertTrue(shared > 0, "the blocks share fjords");
+		assertTrue(shared > 0 && arms > 0, "the blocks share fjords and their arms: " + shared + ", " + arms);
 	}
 
 	@Test
 	void overlappingSamplesAcrossAFjordAgreeToTheBit() {
-		Fjords.Trunk trunk = new Fjords(COAST, 1L).near(-4, -64, 4, 64).getFirst();
+		Fjords.Trough trunk = trunks(COAST).getFirst();
 		int k = trunk.mouth() + 2 * Fjords.SAMPLES;
 		int ci = (int) Math.floor(trunk.rows()[k] * SCALE), cj = (int) Math.floor(trunk.columns()[k] * SCALE);
 		Glaciation glaciation = new Glaciation(COAST, 1L);
@@ -126,6 +139,54 @@ class FjordsTest {
 				assertEquals(a.climate(TerrainSample.TEMPERATURE, i, j), b.climate(TerrainSample.TEMPERATURE, i, j), 0f);
 			}
 		}
+	}
+
+	@Test
+	void armsBranchUpTheSideValleys() {
+		List<Fjords.Trough> troughs = new Fjords(BRANCHING, 1L).near(-4, -64, 4, 64);
+		Map<Long, Fjords.Trough> trunks = new HashMap<>();
+		for (Fjords.Trough trough : troughs) {
+			if (trough.arm() == 0) {
+				trunks.put(trough.key(), trough);
+			}
+		}
+		TerrainField field = new TerrainField(1, BRANCHING);
+		TerrainField.Column column = new TerrainField.Column();
+		int arms = 0;
+		for (Fjords.Trough arm : troughs) {
+			if (arm.arm() == 0) {
+				continue;
+			}
+			arms++;
+			// It branches off its trunk, on the trunk's floor, between the mouth and the head.
+			Fjords.Trough trunk = trunks.get(arm.key());
+			assertNotNull(trunk);
+			int k = trunk.mouth();
+			while (k < trunk.head() && (trunk.rows()[k] != arm.rows()[0] || trunk.columns()[k] != arm.columns()[0])) {
+				k++;
+			}
+			assertTrue(k > trunk.mouth() && k < trunk.head(), "the arm branches off the trunk");
+			assertEquals(trunk.floor()[k], arm.floor()[0]);
+			// It runs up a side valley, away from the main one.
+			int headRow = (int) Math.floor(arm.rows()[arm.head()]);
+			int headColumn = (int) Math.floor(arm.columns()[arm.head()]);
+			assertEquals(0, Math.floorMod(headRow, GlaciationTest.CoastSource.SIDE_SPACING), "in a side valley");
+			assertTrue(Math.abs(headColumn - mouthColumn(trunk)) >= Fjords.ARM_MIN_STEPS, "away from the trunk");
+			// The water runs from the trunk all the way to the arm's head.
+			float[] floor = arm.floor();
+			for (int a = 0; a <= arm.head(); a++) {
+				assertTrue(floor[a] <= -Fjords.HEAD_DEPTH + 1e-3f, "the water runs all the way to the head");
+			}
+			assertEquals(-Fjords.HEAD_DEPTH, floor[arm.head()], 1e-3f);
+			assertTrue(floor[floor.length - 1] > 0f, "past the head, the valley climbs out of the sea");
+			for (int a = 0; a <= arm.head(); a += Fjords.SAMPLES / 4) {
+				int i = (int) Math.floor(arm.rows()[a] * SCALE), j = (int) Math.floor(arm.columns()[a] * SCALE);
+				field.column(i, j, column);
+				assertTrue(column.elevation < 0f && Glaciation.drowned(column.elevation, column.iceCut),
+					"at " + i + ", " + j + ": " + column.elevation + " m, cut " + column.iceCut);
+			}
+		}
+		assertTrue(arms >= 3, arms + " arms on " + trunks.size() + " fjords");
 	}
 
 	@Test
@@ -154,7 +215,7 @@ class FjordsTest {
 			}
 		}
 		Fjords fjords = new Fjords(COAST, 1L);
-		Fjords.Trunk trunk = fjords.near(-4, -64, 4, 64).getFirst();
+		Fjords.Trough trunk = trunks(COAST).getFirst();
 		int k = trunk.mouth() + 2 * Fjords.SAMPLES, size = 256, plane = size * size;
 		int ci = (int) Math.floor(trunk.rows()[k] * SCALE), cj = (int) Math.floor(trunk.columns()[k] * SCALE);
 		float[] carving = fjords.carve(List.of(trunk), SCALE, ci - size / 2, cj - size / 2, size, size);
