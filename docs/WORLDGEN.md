@@ -291,14 +291,14 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of seventeen new biomes. The first rule that matches wins:
+swap it for one of seventeen new biomes, or for another of vanilla's. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
 | **Fjord** | Water that was land before the glaciers lowered it, where they lowered ground at sea level by at least 120 m (see [Coasts](#coasts)) | Oceans and cold oceans, deep or not |
 | *(wetlands)* | Vanilla's swamp band: mangroves on tropical coasts (coldest month at least 15 °C, below 10 m), páramo on tropical mountains, bogs where the warmest month stays below 20 °C and the summers are not dry, tundra beyond the tree line, swamps elsewhere | Swamps and mangroves |
 | **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
-| *(vanilla snow and ice)* | Warmest month below 3 °C, or a year below −10 °C | Kept as vanilla picked them |
+| *(snow and ice)* | Warmest month below 3 °C, or a year below −10 °C with summers too cool for trees (warmest month below 10 °C), where the ground is white most of the year. Vanilla's snowy plains, ice spikes, snowy slopes and peaks stay; its frozen band has snowy taigas there too, and taigas where it is wettest, which become snowy plains, and its other land does the same, its slopes and hills snowy slopes | Any land but deserts, badlands and jungles |
 | **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief: the dry beds of old lakes, up on the cold Altiplano too | Plains, forests, taigas, savannas, deserts |
 | **Páramo**, **puna** | Tropical mountains (little seasonality) from 2500 m where the year averages below 10 °C. Every month is a growing season there, so the tree line follows the year rather than the summer, and the cloud forest gives way to them. Páramo with at least three times the rain of the aridity threshold, as in the northern Andes or on Mount Kenya; puna where it is drier, as on the Altiplano or Mauna Kea | Any land, peaks included |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
@@ -307,7 +307,7 @@ swap it for one of seventeen new biomes. The first rule that matches wins:
 | **Laurel forest** | Jungle where the coldest month falls below 15 °C, so frost can come. Vanilla's jungles start at a yearly mean of 15 °C, which takes in the humid subtropics, as around Shanghai or Atlanta | Jungles |
 | **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
 | **Bog** | The flattest land (less than 6 m of relief) below 1500 m, with cool summers (warmest month below 20 °C) and at least twice the rain of the aridity threshold, as in Finland, the West Siberian Plain and the Hudson Bay Lowlands. Not where maquis grows: peat needs ground wet all summer, and a Mediterranean summer is dry. Vanilla puts swamps only on low ground; bogs grow on flat land at any height below the mountains | Plains, forests, taigas, savannas |
-| **Larch taiga** | Coldest month below −25 °C, with at least the rain of the aridity threshold, as in eastern Siberia and the Greater Khingan. The ground stays frozen all year a metre down, and on the layer that thaws in summer larches, which shed their needles for the winter, take over from the evergreen spruces. Vanilla puts snowy plains, snowy taigas and ice spikes there below a yearly −5 °C, and taigas above it. Milder winters keep vanilla's spruce, drier ground its snowy plains, and a year below −10 °C its snow | Snowy plains, snowy taigas, ice spikes, plains, forests, taigas, savannas |
+| **Larch taiga** | Coldest month below −25 °C, with at least the rain of the aridity threshold, as in eastern Siberia and the Greater Khingan. The ground stays frozen all year a metre down, and on the layer that thaws in summer larches, which shed their needles for the winter, take over from the evergreen spruces. Vanilla puts snowy plains, snowy taigas and ice spikes there below a yearly −5 °C, and taigas above it. Larches grow in the coldest winters of all, as at Verkhoyansk and Oymyakon, wherever the summers pass 10 °C. Milder winters keep vanilla's spruce, and drier ground its snowy plains | Snowy plains, snowy taigas, ice spikes, plains, forests, taigas, savannas |
 | **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
 | **Maquis** | 12–21 °C, coldest month at least 2 °C, 250–1000 mm of strongly seasonal rain, below 1200 m | The same, deserts and meadows too, but no other slopes |
 | **Heath** | Oceanic lowland below 300 m: 6–12 °C, coldest month above −4 °C, 550–1100 mm of rain. Only where the variant noise is below −0.3, so it comes in patches among the woods | Plains, forests, taigas, savannas |
@@ -997,8 +997,9 @@ Other searches still read the full terrain and can take a while on new land:
   forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, Shanghai, Atlanta and
   Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, Dartmoor and the Pennines, the Lüneburg
   Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands,
-  Yakutsk, Verkhoyansk and the Greater Khingan, tropical coasts and the Sognefjord. On slopes, the tree line of the Alps
-  is higher on the sunny side, and the woods of the Rockies' foothills keep to the shaded side.
+  Yakutsk, Verkhoyansk, Oymyakon and the Greater Khingan, the Greenland ice sheet, Utqiaġvik and the South Shetlands,
+  tropical coasts and the Sognefjord. On slopes, the tree line of the Alps is higher on the sunny side, and the woods of
+  the Rockies' foothills keep to the shaded side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

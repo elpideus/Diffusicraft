@@ -22,8 +22,10 @@ import java.util.Set;
  *       tree line, swamps elsewhere.</li>
  *   <li><b>Cloud forest</b>: tropical mountainsides (little seasonality) between 1000 and 3500 m, 10 to 20 °C, at
  *       least 1500 mm of rain.</li>
- *   <li>Snow and ice are vanilla's where the warmest month stays below {@value #ICE_WARMEST} °C or the year averages
- *       below {@value #POLAR_TEMPERATURE} °C, so the ground is white most of the year.</li>
+ *   <li>Snow and ice where the warmest month stays below {@value #ICE_WARMEST} °C, or where the year averages below
+ *       {@value #POLAR_TEMPERATURE} °C and the summers are too cool for trees, so the ground is white most of the
+ *       year. Vanilla's frozen band has snowy taigas there, and taigas where it is wettest: they become snowy plains,
+ *       and its slopes and hills snowy slopes. Its other snowy biomes and its peaks stay.</li>
  *   <li><b>Salt flat</b>: the flattest desert floors, with less than {@value #SALT_FLAT_RELIEF} m of relief, up on
  *       the cold Altiplano too.</li>
  *   <li><b>Páramo</b> and <b>puna</b>: tropical mountains from {@value #TROPICAL_ALPINE_ELEVATION} m where the year
@@ -55,7 +57,8 @@ import java.util.Set;
  *       The ground stays frozen all year a metre down, and on the thin layer that thaws in summer the evergreen
  *       spruces give way to larches, which shed their needles for the winter. Vanilla puts its snowy plains and taigas
  *       (and ice spikes) there in the frozen band, below -5 °C, and its forests and taigas above it. Ground too dry
- *       for a forest keeps vanilla's pick.</li>
+ *       for a forest keeps vanilla's pick. Larches grow in the coldest winters of all, at Verkhoyansk and Oymyakon,
+ *       wherever the summers are warm enough for trees.</li>
  *   <li><b>Temperate rainforest</b>: mild oceanic climates (4 to 14 °C, coldest month above -3 °C) with at least
  *       1600 mm of rain.</li>
  *   <li><b>Maquis</b>: Mediterranean scrub, 12 to 21 °C with mild winters, 250 to 1000 mm of strongly seasonal
@@ -91,11 +94,13 @@ public final class BiomeRefiner {
 	public static final String FOREST = "minecraft:forest";
 	public static final String BIRCH_FOREST = "minecraft:birch_forest";
 	public static final String TAIGA = "minecraft:taiga";
+	public static final String SNOWY_PLAINS = "minecraft:snowy_plains";
+	public static final String SNOWY_SLOPES = "minecraft:snowy_slopes";
 
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, LARCH_TAIGA, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA);
+		FJORD, LARCH_TAIGA, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -104,7 +109,7 @@ public final class BiomeRefiner {
 	static final float SUBALPINE_WARMEST = 14f;
 	/** Warmest month below which snow lies all year round, °C. */
 	static final float ICE_WARMEST = 3f;
-	/** Annual mean below which the ground is white most of the year, °C. */
+	/** Annual mean below which the ground is white most of the year where the summers are too cool for trees, °C. */
 	static final float POLAR_TEMPERATURE = -10f;
 	/** The tree line: no forest grows where the warmest month stays below this, °C. */
 	static final float TREE_LINE = 10f;
@@ -237,8 +242,8 @@ public final class BiomeRefiner {
 			return CLOUD_FOREST;
 		}
 		float warmest = c.warmestMonth();
-		if (warmest < ICE_WARMEST || c.temperature < POLAR_TEMPERATURE) {
-			return null;
+		if (warmest < ICE_WARMEST || c.temperature < POLAR_TEMPERATURE && warmest < TREE_LINE) {
+			return snow(biome, kind);
 		}
 		float aridity = c.aridity();
 		if ((kind == Kind.DESERT || kind == Kind.LAND) && saltFlat(c, aridity)) {
@@ -311,6 +316,19 @@ public final class BiomeRefiner {
 		return c.temperature < 5f ? TAIGA : BIRCH_FOREST;
 	}
 
+	/**
+	 * Vanilla's snow for polar ground, where it may have picked a forest: its wettest frozen band holds snowy taigas and
+	 * taigas, and the band above it forests and slopes of spruce.
+	 */
+	private static @Nullable String snow(String biome, Kind kind) {
+		return switch (kind) {
+			case LAND -> SNOWY_PLAINS;
+			case SNOWY -> biome.equals("minecraft:snowy_taiga") ? SNOWY_PLAINS : null;
+			case SLOPE, HILLS -> biome.equals(SNOWY_SLOPES) ? null : SNOWY_SLOPES;
+			default -> null;
+		};
+	}
+
 	/** The wetland that vanilla's swamp band holds in this climate. */
 	static String wetland(BiomeClimate c) {
 		if (c.coldestMonth() >= MANGROVE_COLDEST && c.elevation < MANGROVE_ELEVATION) {
@@ -337,10 +355,7 @@ public final class BiomeRefiner {
 			&& aridity >= BOG_ARIDITY && !maquis(c);
 	}
 
-	/**
-	 * The summers are warm enough for trees wherever this is asked, and the year above the polar cold, which keeps
-	 * vanilla's snow.
-	 */
+	/** The summers are warm enough for trees wherever this is asked. */
 	static boolean larchTaiga(BiomeClimate c, float aridity) {
 		return c.coldestMonth() < LARCH_COLDEST && aridity >= 1f;
 	}

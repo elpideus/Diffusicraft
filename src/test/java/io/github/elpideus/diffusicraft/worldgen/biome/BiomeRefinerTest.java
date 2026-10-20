@@ -59,6 +59,26 @@ class BiomeRefinerTest {
 		// Inland Greenland, and Svalbard, whose warmest month stays below 3 °C.
 		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-25f, 12f, 200f, 30f, 2500f, 40f)));
 		assertNull(BiomeRefiner.refine("minecraft:snowy_slopes", climate(-6f, 6f, 400f, 30f, 300f, 120f)));
+		assertNull(BiomeRefiner.refine("minecraft:ice_spikes", climate(-25f, 12f, 200f, 30f, 2500f, 40f)));
+		assertNull(BiomeRefiner.refine("minecraft:frozen_peaks", climate(-6f, 6f, 400f, 30f, 300f, 120f)));
+	}
+
+	@Test
+	void polarGroundGrowsNoForest() {
+		// The wet southeastern flank of the Greenland ice sheet: vanilla's frozen band has snowy taiga there, and taiga
+		// where it is wettest.
+		BiomeClimate ice = climate(-12f, 8f, 900f, 25f, 200f, 40f);
+		assertEquals(BiomeRefiner.SNOWY_PLAINS, BiomeRefiner.refine("minecraft:snowy_taiga", ice));
+		assertEquals(BiomeRefiner.SNOWY_PLAINS, BiomeRefiner.refine("minecraft:taiga", ice));
+		assertEquals(BiomeRefiner.SNOWY_SLOPES, BiomeRefiner.refine("minecraft:grove", ice));
+		assertEquals(BiomeRefiner.SNOWY_SLOPES, BiomeRefiner.refine("minecraft:windswept_forest", ice));
+		// Utqiaġvik: a year of -11 °C and summers of 5 °C, white most of the year.
+		BiomeClimate arctic = climate(-11.3f, 11.5f, 115f, 40f, 10f, 10f);
+		assertEquals(BiomeRefiner.SNOWY_PLAINS, BiomeRefiner.refine("minecraft:snowy_taiga", arctic));
+		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", arctic));
+		// The South Shetlands, off the Antarctic Peninsula: a year of -2 °C and summers of 2 °C, in vanilla's cold band.
+		assertEquals(BiomeRefiner.SNOWY_PLAINS,
+			BiomeRefiner.refine("minecraft:forest", climate(-2.3f, 2.9f, 700f, 20f, 50f, 30f)));
 	}
 
 	@Test
@@ -270,9 +290,13 @@ class BiomeRefinerTest {
 		// Milder winters keep the spruce: the snowy taiga of Labrador, and the taiga around Arkhangelsk.
 		assertNull(BiomeRefiner.refine("minecraft:snowy_taiga", climate(-5.5f, 12f, 800f, 25f, 400f, 40f)));
 		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(1.5f, 10.5f, 600f, 30f, 20f, 20f)));
-		// Too dry for a forest, and Verkhoyansk, too cold all year: vanilla's snow.
+		// Verkhoyansk and Oymyakon: the coldest winters of the north, a year of -15 °C, and summers of 15 °C.
+		assertEquals(BiomeRefiner.LARCH_TAIGA,
+			BiomeRefiner.refine("minecraft:snowy_plains", climate(-14.5f, 22f, 180f, 55f, 140f, 30f)));
+		assertEquals(BiomeRefiner.LARCH_TAIGA,
+			BiomeRefiner.refine("minecraft:snowy_taiga", climate(-15.5f, 21f, 210f, 55f, 740f, 60f)));
+		// Too dry for a forest: vanilla's snow.
 		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-8f, 20f, 100f, 55f, 100f, 30f)));
-		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-14.5f, 22f, 180f, 55f, 140f, 30f)));
 		// The mires of the frozen lowlands stay bogs.
 		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:taiga", climate(-4f, 16f, 450f, 70f, 50f, 2f)));
 	}

@@ -22,6 +22,11 @@
     "diffusicraft:selenite_caverns",
     "diffusicraft:mushroom_forest",
     "minecraft:swamp",
-    "minecraft:mangrove_swamp"
+    "minecraft:mangrove_swamp",
+    "minecraft:forest",
+    "minecraft:birch_forest",
+    "minecraft:taiga",
+    "minecraft:snowy_plains",
+    "minecraft:snowy_slopes"
   ]
 }
