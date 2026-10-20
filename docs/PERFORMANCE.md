@@ -36,7 +36,10 @@ Options:
 
 - `-Pdiffusicraft.device=CPU` (or `ROCM`);
 - `-Pdiffusicraft.benchSize=256`;
-- `-Pdiffusicraft.gpuMemoryLimitMb=4096`.
+- `-Pdiffusicraft.gpuMemoryLimitMb=4096`;
+- `-Pdiffusicraft.providerOptions=prefer_nhwc=1,...`, to try execution provider options before making them defaults;
+- `-Pdiffusicraft.benchReference=/path/to/file`. The first run saves the regions' elevations there; later runs print
+  how far theirs are from them. Save a reference with the settings you trust, then check a change against it.
 
 The test uses the models and runtimes installed in the shared storage directory. Download them in game first, or
 with `RuntimeInstallTest`; see [DEVELOPMENT.md](DEVELOPMENT.md#tests).
