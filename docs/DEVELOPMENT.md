@@ -28,15 +28,17 @@ project directly, and Loom generates run configurations.
 - **Licensing.** Dev mods are `localRuntime` only: never compiled against, never bundled, never a dependency. Some
   are All Rights Reserved and can only ever be used this way. The optional integrations, Mod Menu and the Distant
   Horizons API (LGPL), are separate `compileOnly` dependencies: compiled against, never bundled. Mixins into other
-  dev mods name their classes and never compile against them.
+  dev mods name their classes and never compile against them. Where they need a type of the mod, as those into Voxy
+  (All Rights Reserved) do, Diffusicraft declares the few members it uses itself, in the `voxyStubs` source set,
+  which the client compiles against and the jar never holds.
 - **Without the modpack.** Add `-PnoDevMods` to start without it, for example when a dev mod has not caught up with a
   Minecraft update.
 - **Part of the modpack.** `-PdevMods=slug,slug` starts with only those mods, for example
   `-PdevMods=biomes-o-plenty,glitchcore,terrablender` to test the biome mods alone. It works for the client game test
   too.
 - **Mods outside the modpack.** Some compatibility targets are not in the maintainer's pack and load only when named
-  in `-PdevMods`, for example `-PdevMods=techreborn` to see the geology place the ores of a tech mod. They are listed
-  under `optionalDevMods` in the same file.
+  in `-PdevMods`, for example `-PdevMods=techreborn` to see the geology place the ores of a tech mod, or
+  `-PdevMods=voxy,sodium` for Voxy, which needs Sodium. They are listed under `optionalDevMods` in the same file.
 - **Adding or updating a mod.** Find the version id on the mod's Modrinth *Versions* page (the last part of the
   version URL) and add `'<slug>': '<version id>'`. If it fails to start, add the mod's required dependencies too.
 

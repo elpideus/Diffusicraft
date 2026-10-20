@@ -120,8 +120,8 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   network and saves work at both ends, in singleplayer and on a dedicated server; a client game test covers them.
   Empty sections cost about 80 bytes of memory
   instead of 450 and are left out of saves, sections of a few blocks take 1 to 3 bits per block instead of 4, and the
-  client keeps render data for the rows near the camera only. Sodium builds sections at every height. See
-  [HEIGHT.md](HEIGHT.md).
+  client keeps render data for the rows near the camera only. Sodium builds sections at every height, and Voxy is
+  kept within the 8192 blocks it holds. See [HEIGHT.md](HEIGHT.md).
 - **Real mountain heights.** Mountains stand at their real height in Earth 1:1, a block per meter up to 8 km: from
   −256 to 9087, with the underground and the oceans kept game-sized. Chunks are filled only up to their ground, so
   the air above it is never computed. See [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground).
@@ -136,8 +136,8 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 
 The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#next-steps)):
 
-- **Compatibility.** Voxy, which makes its own assumptions about world height. Distant Horizons holds 4095 blocks,
-  so the LODs of Earth 1:1 are flat above y = 3838.
+- **Compatibility.** Distant Horizons holds 4095 blocks and Voxy 8192, so the far terrain of Earth 1:1 is flat above
+  y = 3838 with the one and y = 4095 with the other.
 
 ### Terrain detail
 
@@ -163,8 +163,9 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Compatibility
 
-- **Voxy.** The same LODs for Voxy, which SeedGen also targets. Voxy has no release for 26.3 yet. It has no generator
-  API either: Diffusicraft would push sections of LOD columns into it, as Voxy's own importers do.
+- **Voxy.** The same far terrain for Voxy, which SeedGen also targets, straight from the terrain instead of from
+  chunks. Voxy has no generator API: Diffusicraft would write the coarsest sections of the far terrain into its store
+  and the sections near the player through its own ingest, as its importers do.
 - **Rendering mods.** Sodium, Iris and shader packs, which share the GPU with inference.
 - **Structures.** Structure mods, placed on realistic slopes with sensible foundations.
 - **Create.** Create and its addons.

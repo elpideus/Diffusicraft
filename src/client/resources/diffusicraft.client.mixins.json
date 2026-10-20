@@ -11,7 +11,9 @@
 		"height.RenderGridMixin",
 		"sodium.AbstractSectionVisitorMixin",
 		"sodium.DeferredTaskListMixin",
-		"sodium.TaskCollectingTreeMixin"
+		"sodium.TaskCollectingTreeMixin",
+		"voxy.VoxyRenderSystemMixin",
+		"voxy.WorldUpdaterMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

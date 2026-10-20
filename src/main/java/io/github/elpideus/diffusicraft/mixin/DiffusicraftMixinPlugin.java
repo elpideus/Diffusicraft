@@ -18,7 +18,8 @@ public final class DiffusicraftMixinPlugin implements IMixinConfigPlugin {
 	/** Mixin packages into other mods, and the mod each needs. */
 	private static final Map<String, String> MODS = Map.of(
 		PACKAGE + "mixin.dh.", "distanthorizons",
-		PACKAGE + "client.mixin.sodium.", "sodium");
+		PACKAGE + "client.mixin.sodium.", "sodium",
+		PACKAGE + "client.mixin.voxy.", "voxy");
 
 	@Override public void onLoad(String mixinPackage) { }
 	@Override public String getRefMapperConfig() { return null; }

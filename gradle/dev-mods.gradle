@@ -43,6 +43,7 @@ def devMods = [
 // Compatibility targets outside the maintainer's pack, loaded only when named in -PdevMods.
 def optionalDevMods = [
 	'techreborn'                 : 'CHhIdHEn',  // 6.2.0 (tech-mod ores for the geology; embeds RebornCore)
+	'voxy'                       : 'iIrM8ZKQ',  // 0.2.20-beta (LOD target, ARR: dev runtime only; needs sodium)
 ]
 
 if (!project.hasProperty('noDevMods')) {

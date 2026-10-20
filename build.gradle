@@ -26,6 +26,13 @@ repositories {
 	mavenCentral()
 }
 
+sourceSets {
+	// Declarations of the part of Voxy's API that Diffusicraft calls: compile-time only, never run or shipped.
+	voxyStubs {
+		compileClasspath += sourceSets.main.compileClasspath
+	}
+}
+
 loom {
 	splitEnvironmentSourceSets()
 	accessWidenerPath = file("src/main/resources/diffusicraft.classtweaker")
@@ -87,6 +94,9 @@ dependencies {
 	clientCompileOnly "maven.modrinth:modmenu:${project.modmenu_version}"
 	// Optional integration: Distant Horizons LODs drawn from the terrain (compat.dh). Compile-only; never bundled.
 	compileOnly "maven.modrinth:distanthorizons:${project.distanthorizons_version}"
+	// Optional integration: Voxy (client.compat.voxy, client.mixin.voxy). Voxy is All Rights Reserved, so Diffusicraft
+	// compiles against its own declarations of the few Voxy members it calls (src/voxyStubs), never against Voxy.
+	clientCompileOnly sourceSets.voxyStubs.output
 
 	// Dev-runtime mods (client run only). See gradle/dev-mods.gradle.
 }
