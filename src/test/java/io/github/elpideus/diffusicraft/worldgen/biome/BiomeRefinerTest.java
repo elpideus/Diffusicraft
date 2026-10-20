@@ -223,7 +223,7 @@ class BiomeRefinerTest {
 	void drownedGlacialValleysAreFjords() {
 		// The Sognefjord: a valley the ice lowered 400 m, now 300 m under the sea.
 		BiomeClimate c = climate(7f, 5f, 2000f, 25f, -300f, 150f);
-		c.glaciation = 1f;
+		c.iceCut = 400f;
 		assertEquals(BiomeRefiner.FJORD, BiomeRefiner.refine("minecraft:cold_ocean", c));
 		assertEquals(BiomeRefiner.FJORD, BiomeRefiner.refine("minecraft:deep_ocean", c));
 		// Greenland's fjords freeze over.
@@ -233,7 +233,7 @@ class BiomeRefinerTest {
 		assertNull(BiomeRefiner.refine("minecraft:deep_cold_ocean", c));
 		// Where the ice barely reached the sea, the drowned strip is too thin to be a fjord.
 		c.elevation = -50f;
-		c.glaciation = 0.2f;
+		c.iceCut = 80f;
 		assertNull(BiomeRefiner.refine("minecraft:ocean", c));
 	}
 

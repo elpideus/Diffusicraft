@@ -278,7 +278,7 @@ swap it for one of sixteen new biomes. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
-| **Fjord** | Water that was land before the glaciers lowered it, where they lowered it by at least 0.3 × 400 m (see [Coasts](#coasts)) | Oceans and cold oceans, deep or not |
+| **Fjord** | Water that was land before the glaciers lowered it, where they lowered ground at sea level by at least 120 m (see [Coasts](#coasts)) | Oceans and cold oceans, deep or not |
 | *(wetlands)* | Vanilla's swamp band: mangroves on tropical coasts (coldest month at least 15 °C, below 10 m), páramo on tropical mountains, bogs where the warmest month stays below 20 °C, tundra beyond the tree line, swamps elsewhere | Swamps and mangroves |
 | **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
 | *(vanilla snow and ice)* | Warmest month below 3 °C, or a year below −10 °C | Kept as vanilla picked them |
@@ -543,26 +543,38 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   with an opening at least 3 blocks high.
 - **Fjords.** In the ice ages, glaciers flowing off cold mountain coasts cut their valleys far below the sea, which
   flooded them when the ice melted: the fjords of Norway, Patagonia, Alaska and New Zealand. The model draws those
-  coasts smooth, so `Glaciation` wraps the terrain source and lowers the ground there by up to 400 m: fully from sea
-  level up to 100 m, fading out at 400 m up and 1200 m down. The lowering keeps every height in order, so it makes no
-  hollow for the rivers to fill. The coastline climbs to about the old 230 m contour, the valleys below it flood
-  several kilometres inland, the coastal lowland goes under, and the slopes above it steepen into walls. How strongly
-  the ice lowered a place, from 0 to 1, is the product of:
-  - mountains near the sea, from the coarse map: within a coarse pixel of one that rises 150 to 450 m above its 5th
-    percentile or the sea, and within 2 coarse pixels (15 km) of the sea, fading out at 4. It is interpolated between
-    the centres of the coarse pixels, so it is smooth;
+  coasts smooth, so `Glaciation` wraps the terrain source and cuts the valleys after the fact. The ice cut each valley's
+  floor down to a trough whose floor lies 400 m under the sea at the coast and climbs to sea level 12 coarse pixels (92
+  km) inland. The valley floor is the coarse map's 5th percentile, or sea level if that is lower, and counts only as far
+  as the coarse pixel is mountainous, rising 150 to 450 m above it: the lowest ground of a plateau or a broad valley is
+  no glacier's floor. The cut is the floor's height above the trough, in full up to 1000 m and fading out by 1400 m, so
+  high valleys keep their floors. In the mountains, ground up to 100 m above the valley floor is lowered by the full
+  cut, less higher up and none from 400 m above it. On plains, which the ice spread over rather than cut into, only the
+  floor itself is lowered in full, fading out 30 m above it, and in between as far as the coarse pixel is mountainous:
+  the coastal lowland and the plains at the foot of the mountains keep their ground. Under the sea the lowering fades
+  out at three times the cut down. It keeps every height in order, so it makes no hollow for the rivers to fill. The
+  valleys below the trough flood up to about 20 km inland, the slopes above them steepen into walls, and the rivers
+  reach the sea at the heads of the fjords. How far the ice reached a place, from 0 to 1, is the product of:
+  - mountains, from the coarse map: within a coarse pixel of one that rises 150 to 450 m above its 5th percentile or
+    the sea;
+  - the sea, within 8 coarse pixels (61 km), fading out at 11 (84 km);
   - the cold: an annual mean at sea level below 8 °C, fading out at 12 °C.
 
-  Lowered ground is warmer by its lapse rate. The coarse map is lowered alike, so the rivers, the farthest LODs and the
-  coarse searches see the same coasts. Water that was land before the ice is the fjord biome (see
-  [Refined biomes](#refined-biomes)): `deepen` keeps heights in order, so that is the water no deeper than 400 m times
-  the glaciation. On seed 42 about 8% of the land on the coarse map is glaciated, and a cold mountain coast 30 km long
-  loses some 50 km² of valleys and lowland to the sea, with inlets 5 to 8 km long.
+  The first two are interpolated between the centres of the coarse pixels, with the valley floor and the cut, so they
+  are smooth. Lowered ground is warmer by its lapse rate. The coarse map is lowered alike, so the rivers, the farthest
+  LODs and the coarse searches see the same coasts. Water that was land before the ice is the fjord biome (see [Refined
+  biomes](#refined-biomes)): the lowering keeps heights in order, so that is the water no deeper than the ice lowered
+  ground at sea level, where it lowered it by at least 120 m. On two cold coasts of seed 42, each 92 km square, the ice
+  drowned 476 and 119 km² of land, as deep as 450 m. Half the drowned water lies within a kilometre of the old coast,
+  and the longest arms run 19 and 8 km from it by water.
 - **Limits.** Distant Horizons' LODs show the cliffs, the sea floor and the stacks as the chunks do, except the
   farthest, which read the coarse map: it has no coastline, so no beaches, cliffs, profile or stacks there. The LODs
   hold one height per column, so arches show solid. The profile has no bars or troughs. Stacks have no notch at the
-  waterline, and no boulders lie around them. Fjords end where their valley floors climb past about 230 m, so they
-  reach kilometres inland, not the 100 km and more of the longest real ones, and they have no sills.
+  waterline, and no boulders lie around them. Fjords have no sills: their troughs are deepest at the mouth, where real
+  ones are shallowest, and climb steadily inland. They reach about 20 km inland, not the 100 km and more of the
+  longest real ones: the floor the ice cut down from is the coarse map's, so the water ends where a valley climbs over
+  a step or a saddle between coarse pixels. The trough beyond it holds a lake at sea level that counts as fjord, 15%
+  and 5% of the drowned water on those two coasts, where a real lake behind a sill stands above the sea.
 
 ### The ground
 
@@ -972,8 +984,10 @@ Other searches still read the full terrain and can take a while on new land:
   shelf a block above the water, the cliff meets the ground at the end of its strip, a low coast gets none, and the
   density takes every cliff column block by block.
 - `GlaciationTest` checks that the lowering keeps heights in order and leaves high ground and the deep sea alone, that
-  a cold mountain coast drowns its valleys under the ridges while a mild one keeps them, that the coarse map is
-  lowered alike, and that overlapping samples agree to the bit.
+  the trough climbs inland and spares valleys too high above it, that a cold mountain coast drowns its valleys under the
+  ridges while a mild one keeps them, that gentle valleys drown six tiles inland but not beyond the ice's reach, that
+  a plain beside the mountains keeps its ground, that the coarse map is lowered alike, and that overlapping samples
+  agree to the bit.
 - `GeographyTest` checks, on a table of heights shaped like the real one, that a seed always maps the same world,
   that land takes about its real share, that the origin is the kind of place asked for (a coast by the open sea on a
   continent, land far inland, a lone island, land over a Hollow or a high mountain) and that seeds draw the kinds by

@@ -131,8 +131,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 - **Real sizes.** Biomes are as large as their real counterparts: a forest can be tens of kilometres across at 1:1.
 - **More real-world biomes.** The other biomes the climate can tell apart.
-- **Longer fjords.** Today's fjords end where their valleys climb past about 230 m. The longest real ones run 100 km
-  and more inland, over sills, between walls a kilometre high.
+- **Longer fjords.** Today's fjords reach about 20 km inland and end where their valleys climb over a step the coarse
+  map does not see. The longest real ones run 100 km and more inland, over sills, between walls a kilometre high.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
 

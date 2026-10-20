@@ -13,19 +13,35 @@ class GlaciationTest {
 	private static final float LAPSE = -0.0065f;
 
 	/**
-	 * A mountain coast along {@code i = 0}: the sea 200 m deep to the north, and land rising inland 2 m per pixel, cut
-	 * by valleys every 200 pixels across, at {@code j = 0}, between ridges 800 m high. The coarse pixels are a tile
-	 * wide, as in the game.
+	 * A mountain coast along {@code i = 0}: the sea 200 m deep to the north, and land rising inland {@code rise} m per
+	 * pixel, cut by valleys every 200 pixels across, at {@code j = 0}, between ridges 800 m high. West of {@code j = 0}
+	 * the land may be a plain {@code plain} m high instead. The coarse pixels are a tile wide, as in the game.
 	 */
 	private static final class CoastSource implements TerrainSource {
 		private final float seaTemperature;
+		private final float rise;
+		private final float plain;
 
-		CoastSource(float seaTemperature) {
+		CoastSource(float seaTemperature, float rise, float plain) {
 			this.seaTemperature = seaTemperature;
+			this.rise = rise;
+			this.plain = plain;
 		}
 
-		static float elevation(double i, double j) {
-			return i < 0 ? -200f : (float) (2 * i + 400 * (1 - Math.cos(2 * Math.PI * j / 200)));
+		CoastSource(float seaTemperature, float rise) {
+			this(seaTemperature, rise, Float.NaN);
+		}
+
+		CoastSource(float seaTemperature) {
+			this(seaTemperature, 2f);
+		}
+
+		float elevation(double i, double j) {
+			if (i < 0) {
+				return -200f;
+			}
+			return j < 0 && !Float.isNaN(plain) ? plain
+				: (float) (rise * i + 400 * (1 - Math.cos(2 * Math.PI * j / 200)));
 		}
 
 		@Override
@@ -86,48 +102,105 @@ class GlaciationTest {
 
 	@Test
 	void deepeningKeepsHeightsInOrder() {
-		for (float g : new float[] {0.25f, 0.5f, 1f}) {
-			for (float e = -2000f; e < 1000f; e += 0.5f) {
-				assertTrue(Glaciation.deepen(e + 0.5f, g) > Glaciation.deepen(e, g), "at " + e + " m, g " + g);
+		for (float floor : new float[] {0f, 300f, 800f}) {
+			for (float cut : new float[] {100f, 400f, Glaciation.FULL_CUT}) {
+				for (float mountainous : new float[] {0f, 0.5f, 1f}) {
+					for (float e = -4000f; e < 2000f; e += 0.5f) {
+						assertTrue(Glaciation.deepen(e + 0.5f, floor, cut, mountainous)
+								> Glaciation.deepen(e, floor, cut, mountainous),
+							"at " + e + " m, floor " + floor + " m, cut " + cut + " m, mountainous " + mountainous);
+					}
+				}
 			}
 		}
 	}
 
 	@Test
 	void valleyFloorsSinkAndTheHighGroundAndDeepSeaStay() {
-		assertEquals(-350f, Glaciation.deepen(50f, 1f));
-		assertEquals(-150f, Glaciation.deepen(50f, 0.5f));
-		assertEquals(Glaciation.SHOULDER, Glaciation.deepen(Glaciation.SHOULDER, 1f));
-		assertEquals(-Glaciation.SEA_FADE, Glaciation.deepen(-Glaciation.SEA_FADE, 1f));
-		assertEquals(50f, Glaciation.deepen(50f, 0f));
-		assertTrue(Glaciation.drowned(Glaciation.deepen(1f, 1f), 1f));
-		assertFalse(Glaciation.drowned(Glaciation.deepen(-1f, 1f), 1f));
+		assertEquals(-350f, Glaciation.deepen(50f, 0f, 400f, 1f));
+		assertEquals(-150f, Glaciation.deepen(50f, 0f, 200f, 1f));
+		// A valley floor 300 m up, cut down to 400 m under the sea.
+		assertEquals(-400f, Glaciation.deepen(300f, 300f, 700f, 1f));
+		assertEquals(Glaciation.SHOULDER, Glaciation.deepen(Glaciation.SHOULDER, 0f, 400f, 1f));
+		assertEquals(300f + Glaciation.SHOULDER, Glaciation.deepen(300f + Glaciation.SHOULDER, 300f, 700f, 1f));
+		assertEquals(-1200f, Glaciation.deepen(-1200f, 0f, 400f, 1f));
+		assertEquals(50f, Glaciation.deepen(50f, 0f, 0f, 1f));
+		assertTrue(Glaciation.drowned(Glaciation.deepen(1f, 0f, 400f, 1f), 400f));
+		assertTrue(Glaciation.drowned(Glaciation.deepen(301f, 300f, 700f, 1f), 700f));
+		assertFalse(Glaciation.drowned(Glaciation.deepen(-1f, 0f, 400f, 1f), 400f));
+		// On a plain, the ice cut only the ground within a few meters of the floor: half way up, half as deep.
+		float half = Glaciation.PLAIN_SHOULDER / 2;
+		assertEquals(-400f, Glaciation.deepen(0f, 0f, 400f, 0f));
+		assertEquals(half - 200f, Glaciation.deepen(half, 0f, 400f, 0f));
+		assertEquals(50f, Glaciation.deepen(50f, 0f, 400f, 0f));
+	}
+
+	@Test
+	void theTroughClimbsInlandAndSparesHighValleys() {
+		assertEquals(Glaciation.DEPTH, Glaciation.cut(0f, 0f));
+		assertEquals(0f, Glaciation.cut(0f, Glaciation.LENGTH));
+		// Half way, the trough lies 200 m under the sea.
+		assertEquals(500f, Glaciation.cut(300f, Glaciation.LENGTH / 2), 1e-3f);
+		assertEquals(0f, Glaciation.cut(Glaciation.MAX_CUT, 0f));
 	}
 
 	@Test
 	void coldMountainCoastsDrownTheirValleys() {
-		TerrainField field = new TerrainField(1, new CoastSource(5f));
+		CoastSource coast = new CoastSource(5f);
+		TerrainField field = new TerrainField(1, coast);
 		TerrainField.Column column = new TerrainField.Column();
-		// A valley floor 50 m up, 750 m inland, is now 350 m under the sea.
+		// A valley floor 50 m up, 750 m inland, sank by the whole cut, to the trough some 400 m under the sea.
 		field.column(25, 0, column);
-		assertEquals(-350f, column.elevation, 5f);
-		assertEquals(1f, column.glaciation, 1e-3f);
-		assertTrue(Glaciation.drowned(column.elevation, column.glaciation));
+		assertEquals(50f - column.iceCut, column.elevation, 5f);
+		assertEquals(-Glaciation.DEPTH, column.elevation, 50f);
+		assertTrue(Glaciation.drowned(column.elevation, column.iceCut));
 		// The ridge above it stands as it was.
 		field.column(25, 100, column);
-		assertEquals(CoastSource.elevation(25, 100), column.elevation, 1f);
+		assertEquals(coast.elevation(25, 100), column.elevation, 1f);
 		// The open sea, deepened too, was sea before.
 		field.column(-100, 50, column);
-		assertEquals(Glaciation.deepen(-200f, 1f), column.elevation, 1f);
-		assertFalse(Glaciation.drowned(column.elevation, column.glaciation));
+		assertEquals(Glaciation.deepen(-200f, 0f, column.iceCut, 1f), column.elevation, 1f);
+		assertFalse(Glaciation.drowned(column.elevation, column.iceCut));
 		// So is the coarse map's.
 		field.coarseColumn(-128, 128, column);
-		assertEquals(Glaciation.deepen(-200f, 1f), column.elevation, 1f);
-		assertEquals(1f, column.glaciation, 1e-3f);
-		// Far inland, beyond the ice's reach, the valleys are dry.
+		assertEquals(Glaciation.deepen(-200f, 0f, Glaciation.DEPTH, 1f), column.elevation, 1f);
+		assertEquals(Glaciation.DEPTH, column.iceCut, 1e-3f);
+		// Valleys climbing this steeply leave the trough behind within a few tiles: 2.5 km up, they are dry.
 		field.column(5 * TerrainField.TILE, 0, column);
-		assertEquals(CoastSource.elevation(5 * TerrainField.TILE, 0), column.elevation, 5f);
-		assertEquals(0f, column.glaciation);
+		assertEquals(coast.elevation(5 * TerrainField.TILE, 0), column.elevation, 5f);
+		assertEquals(0f, column.iceCut);
+	}
+
+	@Test
+	void gentleValleysDrownFarInland() {
+		CoastSource coast = new CoastSource(5f, 0.2f);
+		TerrainField field = new TerrainField(1, coast);
+		TerrainField.Column column = new TerrainField.Column();
+		// Six tiles inland, 46 km in the game, a valley floor 300 m up is a fjord.
+		int i = 6 * TerrainField.TILE;
+		field.column(i, 0, column);
+		assertTrue(Glaciation.drowned(column.elevation, column.iceCut), column.elevation + " m, cut " + column.iceCut);
+		// Its walls still stand.
+		field.column(i, 100, column);
+		assertEquals(coast.elevation(i, 100), column.elevation, 1f);
+		// Beyond the ice's reach, the valleys are dry.
+		i = (Glaciation.SEA_REACH + 1) * TerrainField.TILE;
+		field.column(i, 0, column);
+		assertEquals(coast.elevation(i, 0), column.elevation, 5f);
+		assertEquals(0f, column.iceCut);
+	}
+
+	@Test
+	void plainsBesideTheMountainsKeepTheirGround() {
+		TerrainField field = new TerrainField(1, new CoastSource(5f, 2f, 40f));
+		TerrainField.Column column = new TerrainField.Column();
+		// A plain 40 m up, by the sea and a tile from the mountains: the ice reached it but spread over it.
+		field.column(25, -TerrainField.TILE / 2, column);
+		assertTrue(column.iceCut > 0f);
+		assertEquals(40f, column.elevation, 1f);
+		// The valley beside it drowned.
+		field.column(25, 200, column);
+		assertTrue(Glaciation.drowned(column.elevation, column.iceCut), column.elevation + " m, cut " + column.iceCut);
 	}
 
 	@Test
@@ -136,7 +209,7 @@ class GlaciationTest {
 		TerrainField.Column column = new TerrainField.Column();
 		field.column(25, 0, column);
 		assertEquals(50f, column.elevation, 5f);
-		assertEquals(0f, column.glaciation);
+		assertEquals(0f, column.iceCut);
 	}
 
 	@Test

@@ -130,11 +130,8 @@ public final class BiomeRefiner {
 	 * it, in patches among the woods, as people cleared them.
 	 */
 	static final float HEATH_VARIANT = -0.3f;
-	/**
-	 * Glaciation below which a drowned valley is no fjord: the ice lowered it by less than
-	 * {@code Glaciation.DEPTH} times this, 120 m.
-	 */
-	static final float FJORD_GLACIATION = 0.3f;
+	/** Meters the ice must have lowered ground at sea level for a drowned valley to be a fjord, not a thin strip. */
+	static final float FJORD_CUT = 120f;
 
 	/** What a vanilla biome is, as far as the rules care. */
 	enum Kind {
@@ -288,7 +285,7 @@ public final class BiomeRefiner {
 	}
 
 	static boolean fjord(BiomeClimate c) {
-		return c.glaciation >= FJORD_GLACIATION && Glaciation.drowned(c.elevation, c.glaciation);
+		return c.iceCut >= FJORD_CUT && Glaciation.drowned(c.elevation, c.iceCut);
 	}
 
 	static boolean bog(BiomeClimate c, float aridity) {

@@ -56,7 +56,7 @@ public final class TerrainField implements AutoCloseable {
 	static final int PRECIPITATION = 4;
 	static final int PRECIPITATION_SEASONALITY = 5;
 	static final int LAPSE_RATE = 6;
-	static final int GLACIATION = 7;
+	static final int ICE_CUT = 7;
 	static final int CHANNELS = 8;
 
 	private static final int DEFAULT_MAX_TILES = 96;
@@ -86,10 +86,10 @@ public final class TerrainField implements AutoCloseable {
 		 */
 		public float coast;
 		/**
-		 * How strongly glaciers lowered the ground here, in [0, 1]; see {@link Glaciation}. Ground below the sea and
-		 * less than {@link Glaciation#DEPTH} times this deep was land before: a fjord.
+		 * How far glaciers lowered ground at sea level here, in meters; see {@link Glaciation}. Ground below the sea
+		 * and less than this deep was land before: a fjord ({@link Glaciation#drowned}).
 		 */
-		public float glaciation;
+		public float iceCut;
 	}
 
 	/** Farthest distance to the coastline that {@link #coast} measures, in meters (360 m). */
@@ -206,7 +206,7 @@ public final class TerrainField implements AutoCloseable {
 		out.precipitation = Math.max(0f, tile.grid(PRECIPITATION, a, b, wu, wv));
 		out.precipitationSeasonality = tile.grid(PRECIPITATION_SEASONALITY, a, b, wu, wv);
 		out.coast = (float) (tile.coast(u, v) * WorldScale.METERS_PER_PIXEL);
-		out.glaciation = tile.grid(GLACIATION, a, b, wu, wv);
+		out.iceCut = tile.grid(ICE_CUT, a, b, wu, wv);
 	}
 
 	/**
@@ -264,7 +264,7 @@ public final class TerrainField implements AutoCloseable {
 		out.precipitation = Math.max(0f, coarseChannel(TerrainSource.COARSE_PRECIPITATION, i, j));
 		out.precipitationSeasonality = coarseChannel(TerrainSource.COARSE_PRECIPITATION_SEASONALITY, i, j);
 		out.coast = elevation >= 0f ? COAST_REACH : -COAST_REACH;
-		out.glaciation = coarseChannel(Glaciation.COARSE_GLACIATION, i, j);
+		out.iceCut = coarseChannel(Glaciation.COARSE_ICE_CUT, i, j);
 	}
 
 	/**
@@ -408,8 +408,8 @@ public final class TerrainField implements AutoCloseable {
 	private FieldTile computeTile(int ti, int tj) {
 		int i0 = ti * TILE - PAD, j0 = tj * TILE - PAD;
 		int plane = SPAN * SPAN;
-		float[] glaciation = new float[plane];
-		TerrainSample sample = source.sample(i0, j0, i0 + SPAN, j0 + SPAN, glaciation);
+		float[] iceCut = new float[plane];
+		TerrainSample sample = source.sample(i0, j0, i0 + SPAN, j0 + SPAN, iceCut);
 		float[] elevation = sample.elevation();
 		float[] climate = sample.climate();
 
@@ -450,7 +450,7 @@ public final class TerrainField implements AutoCloseable {
 				grid[PRECIPITATION * points + g] = climate[TerrainSample.PRECIPITATION * plane + px];
 				grid[PRECIPITATION_SEASONALITY * points + g] = climate[TerrainSample.PRECIPITATION_SEASONALITY * plane + px];
 				grid[LAPSE_RATE * points + g] = lapse;
-				grid[GLACIATION * points + g] = glaciation[px];
+				grid[ICE_CUT * points + g] = iceCut[px];
 			}
 		}
 		return new FieldTile(ti, tj, elevation, grid, Coastline.compute(elevation));
@@ -585,7 +585,7 @@ public final class TerrainField implements AutoCloseable {
 				try {
 					int ci0 = bi * COARSE_BLOCK, cj0 = bj * COARSE_BLOCK;
 					mine.complete(new CoarseBlock(
-						source.coarseWithGlaciation(ci0, cj0, ci0 + COARSE_BLOCK, cj0 + COARSE_BLOCK)));
+						source.coarseWithIceCut(ci0, cj0, ci0 + COARSE_BLOCK, cj0 + COARSE_BLOCK)));
 				} catch (Throwable t) {
 					coarse.remove(key, mine);
 					mine.completeExceptionally(t);
@@ -598,7 +598,7 @@ public final class TerrainField implements AutoCloseable {
 		return join(future).data[(channel * COARSE_BLOCK + cu - bi * COARSE_BLOCK) * COARSE_BLOCK + (cv - bj * COARSE_BLOCK)];
 	}
 
-	/** {@link Glaciation#coarseWithGlaciation}'s planes of {@value #COARSE_BLOCK}² coarse pixels. */
+	/** {@link Glaciation#coarseWithIceCut}'s planes of {@value #COARSE_BLOCK}² coarse pixels. */
 	private record CoarseBlock(float[] data) {
 	}
 
