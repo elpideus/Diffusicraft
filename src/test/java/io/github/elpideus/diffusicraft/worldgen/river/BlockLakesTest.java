@@ -299,7 +299,7 @@ class BlockLakesTest {
 	@Test
 	void aRiverWithinReachOfTheWaterKeepsTheRainOut() {
 		// The full bowl reaches column 39 of tile (0, 1), within reach of the river; the plateau keeps it apart.
-		assertTrue(lakes(bowlBesideAValley(60), DOWN, 0, 0, new float[SPAN * SPAN]).isEmpty());
+		assertTrue(lakes(bowlBesideAValley(67), DOWN, 0, 0, new float[SPAN * SPAN]).isEmpty());
 		CellLakes west = lakes(bowlBesideAValley(150), DOWN, 0, 0, new float[SPAN * SPAN]);
 		assertEquals(100f, west.level(128, TILE - 1), 0f, "a river elsewhere in the tile leaves the rain");
 		assertFalse(west.runFed(west.run(128, TILE - 1)));
@@ -308,7 +308,7 @@ class BlockLakesTest {
 	@Test
 	void aRiverWithinReachOfOnlyTheShoreLeavesTheRain() {
 		// Half full, the bowl reaches column 31 of tile (0, 1), out of the river's reach; its shore does not.
-		Terrain terrain = bowlBesideAValley(60);
+		Terrain terrain = bowlBesideAValley(67);
 		CellLakes west = lakes(terrain, DOWN, HALF, 0, 0, new float[SPAN * SPAN]);
 		assertEquals(95f, west.level(128, TILE - 1), 0f);
 		assertAgree(west, 0, 0, lakes(terrain, DOWN, HALF, 0, 1, new float[SPAN * SPAN]), 0, 1);

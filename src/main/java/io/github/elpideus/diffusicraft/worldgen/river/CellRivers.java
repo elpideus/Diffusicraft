@@ -25,7 +25,8 @@ import java.util.List;
  * draw the rivers of its tiles, which decide its lakes, without the lakes of the other blocks.
  *
  * <p>Paths stay in the interior band, {@value #LO} pixels from the sides, and nothing reaches farther than
- * {@value #REACH} pixels from a river, so every column of the tile is decided by this tile alone.
+ * {@value #REACH} pixels from a river's water, which lies at most {@link Rivers#MAX_HALF_WIDTH} pixels from its path,
+ * so every column of the tile is decided by this tile alone.
  */
 final class CellRivers {
 	static final CellRivers EMPTY = new CellRivers(new float[0], 0, new int[0][]);
@@ -41,8 +42,12 @@ final class CellRivers {
 	static final int NODE_MARGIN = 48;
 	/** Half-width of the box that smooths a side before its lowest point is taken. */
 	private static final int SMOOTH = 4;
-	/** Farthest a river and its banks reach from the centre line, in pixels. */
-	static final float REACH = 16f;
+	/**
+	 * Farthest the banks of a river reach from its water, in pixels (720 m). With the widest river, this is as far as the
+	 * band lies inside the sides, so a river decides no column past its tile. A valley cut deeper than its banks can
+	 * span at their usual slope gets steeper walls: a gorge.
+	 */
+	static final float REACH = 24f;
 	/** Rivers run straight across a side from this far outside it to this far inside. */
 	static final float STRAIGHT = 16f;
 	private static final int BUCKET = 8;

@@ -295,6 +295,56 @@ class RiversTest {
 	}
 
 	@Test
+	void aRidgeTheCoarseMapMissesGetsAGorgeWithSlopingWalls() {
+		// A ridge 500 m high and 3 km across lies across the valleys between the centres of two cells, where the coarse
+		// map does not see it, so the river cuts through it.
+		double crest = 3.0 * TILE + 64.0;
+		TerrainSource source = new ValleySource() {
+			@Override
+			public TerrainSample sample(int i0, int j0, int i1, int j1) {
+				TerrainSample sample = super.sample(i0, j0, i1, j1);
+				int w = j1 - j0;
+				for (int r = 0; r < i1 - i0; r++) {
+					double d = (i0 + r + 0.5 - crest) / 48.0;
+					float ridge = Math.abs(d) < 1.0 ? (float) (500.0 * Math.pow(Math.cos(Math.PI / 2 * d), 2)) : 0f;
+					for (int c = 0; c < w; c++) {
+						sample.elevation()[r * w + c] += ridge;
+					}
+				}
+				return sample;
+			}
+		};
+		TerrainField field = new TerrainField(1, source);
+		Rivers rivers = Rivers.of(field);
+		WorldScale scale = WorldScale.STANDARD;
+		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
+		int z = (int) Math.floor(crest / scale.pixelsPerBlock()), x0 = VALLEY * blocksPerTile;
+		float[] surface = new float[blocksPerTile], terrain = new float[blocksPerTile];
+		int first = -1, last = -1, waterTop = 0;
+		for (int dx = 0; dx < blocksPerTile; dx++) {
+			RiverColumn column = rivers.column(scale, x0 + dx, z);
+			terrain[dx] = field.surface(scale).y(x0 + dx, z);
+			surface[dx] = column.river ? column.surface : terrain[dx];
+			if (column.channel) {
+				first = first < 0 ? dx : first;
+				last = dx;
+				waterTop = column.waterTop;
+			}
+		}
+		assertTrue(first >= 0, "the river crosses the ridge");
+		assertTrue(terrain[first] - waterTop > 40f, "the river runs far below the crest: " + (terrain[first] - waterTop));
+		float steepest = 0f;
+		for (int dx = first; dx > 0; dx--) {
+			steepest = Math.max(steepest, surface[dx - 1] - surface[dx]);
+		}
+		for (int dx = last; dx + 1 < blocksPerTile; dx++) {
+			steepest = Math.max(steepest, surface[dx + 1] - surface[dx]);
+		}
+		// Banks rise 1.5 blocks across per block; walls too deep for the reach rise steeper, but not into a slot.
+		assertTrue(steepest < 2f, "the gorge's walls rise at most 2 blocks per block: " + steepest);
+	}
+
+	@Test
 	void lakesFillTheHollowsAndTheirShoresHoldThem() {
 		Rivers rivers = Rivers.of(field());
 		// The rolling hills on the slopes between the valleys leave hollows 3 m deep: three blocks at the Earth scale,

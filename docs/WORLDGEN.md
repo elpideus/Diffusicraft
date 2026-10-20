@@ -501,9 +501,11 @@ place.
   times at the standard scale and one and a half times at the grand scale so they stay visible, and nothing gets
   wider than 480 m. The depth grows with the width, up to 4, 6 and 10 blocks at the three scales, and shelves towards
   the banks.
-- **Columns.** `Rivers.column` says what a river does to a column. The channel is cut down to the water, or built up
-  on a footing 4 blocks deep where the river runs above the ground. Banks blend into the terrain over 1.5 blocks
-  across per block of height. Where the water steps down a block, it runs over the step as a little fall; the banks
+- **Columns.** `Rivers.column` says what a river does to a column. The channel is cut down to the water, or built up on
+  a footing 4 blocks deep where the river runs above the ground. Banks blend into the terrain over 1.5 blocks across per
+  block of height, out to 24 pixels (720 m) from the water at most, which keeps every column inside the tile whose river
+  shapes it. A valley cut deeper than that reach can span at 1.5 blocks per block, some 300 m at the standard scale,
+  gets steeper walls: a gorge. Where the water steps down a block, it runs over the step as a little fall; the banks
   within 2 blocks of the step rise above the higher water, which would otherwise spill over them and run beside the
   river as a second stream.
 - **Water and beds.** The material rule `diffusicraft:river` (`RiverRule`) fills the channel with water on a bed of
@@ -553,7 +555,12 @@ place.
   wide, keeps its ground but is solid from below the water up, so no cave entrance drains the lake. Where the shore
   still lies below the water, it rises into a bank as the rivers' banks do.
 - **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like an
-  embankment. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a basin across
+  embankment. Where a ridge of the fine terrain lies across it, the river cuts a gorge through: the coarse map, at
+  7.7 km a cell, cannot see the passes between the fine valleys, and its breaches drain basins too large to be lakes
+  through the ranges around them. In three windows of 12 by 12 cells in the mountains of seed 42, the lowest way across
+  a river cell, from the side where its river enters to the side where it leaves, rises a median 220 m above the water,
+  and more than 250 m in nearly half of them. One breach there runs 60 km through a range, as much as 650 m below the
+  ground it cuts. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a basin across
   tiles that a river crosses inside one of them rather than across a side: the river's level there depends on the lakes
   of the other blocks, and so on the terrain of the 24 tiles around a tile rather than 8, which a new world and a fast
   flight would wait for ([Generating ahead](PERFORMANCE.md#generating-ahead)). Lakes cover 4 to 8% of the land. A basin
@@ -1096,10 +1103,10 @@ Other searches still read the full terrain and can take a while on new land:
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
   fjord up the valley ends its rivers instead of being breached to the coast, that the way out of a lake by the coast
   stays above the sea, that a river meets itself across tile borders, that the banks hold the water where it steps down,
-  in the river and in the lakes it fills along its valley, that lakes fill the hollows between the hills and their
-  shores hold them, that a dry climate leaves the hollows dry, that every thread gets the same rivers, that a thread
-  asked about another chunk while it computes a column keeps that column's chunk, and that the width grows with the
-  discharge.
+  in the river and in the lakes it fills along its valley, that a ridge the coarse map misses gets a gorge whose walls
+  rise less than 2 blocks per block, that lakes fill the hollows between the hills and their shores hold them, that a
+  dry climate leaves the hollows dry, that every thread gets the same rivers, that a thread asked about another chunk
+  while it computes a column keeps that column's chunk, and that the width grows with the discharge.
 - `GreatLakeTest` sinks a bowl 500 m deep into the slope of the analytic valley, on the coarse map and the fine
   terrain alike, astride the border of two regions. It checks that both regions see the same lake, that its cells drain
   through its outlet, that no pit remains, that the rivers cross it at the level of its water and never climb, that
