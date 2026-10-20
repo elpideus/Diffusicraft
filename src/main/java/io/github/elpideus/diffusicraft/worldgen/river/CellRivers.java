@@ -525,7 +525,8 @@ final class CellRivers {
 			int n = 0;
 			int[] sea = new int[BAND * BAND];
 			for (int k = 0; k < sea.length; k++) {
-				if (h(k) < 0f) {
+				// Not a valley the ice drowned behind a step, which holds a lake above the sea.
+				if (g(k) < 0f) {
 					sea[n++] = k;
 				}
 			}

@@ -327,7 +327,7 @@ public final class Rivers {
 					lake.paint(ti, tj, CellLakes.MARGIN, level, fed, raise);
 				}
 			}
-			CellBasins basins = CellBasins.of(tile, raise);
+			CellBasins basins = CellBasins.of(tile, field.paddedDrowned(ti, tj), raise);
 			float[] pathLevel = null;
 			CellRivers rivers = CellRivers.EMPTY;
 			if (!flows.isEmpty()) {
@@ -351,12 +351,14 @@ public final class Rivers {
 	private BlockLakes block(int bi, int bj) {
 		Block block = RiverNetwork.once(blocks, RiverNetwork.key(bi, bj), () -> {
 			float[][] tiles = new float[4][];
+			long[][] drowned = new long[4][];
 			CellFlows[] flows = new CellFlows[4];
 			for (int t = 0; t < 4; t++) {
 				tiles[t] = field.paddedTile(bi + (t >> 1), bj + (t & 1));
+				drowned[t] = field.paddedDrowned(bi + (t >> 1), bj + (t & 1));
 				flows[t] = network.flows(bi + (t >> 1), bj + (t & 1));
 			}
-			return new Block(BlockLakes.build(tiles, flows, climate(), bi, bj));
+			return new Block(BlockLakes.build(tiles, drowned, flows, climate(), bi, bj));
 		});
 		block.lastUse = clock.incrementAndGet();
 		if (blocks.size() > MAX_CELLS) {

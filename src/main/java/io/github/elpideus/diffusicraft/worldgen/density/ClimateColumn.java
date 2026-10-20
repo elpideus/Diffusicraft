@@ -4,6 +4,7 @@ import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
 import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
+import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 
 /**
@@ -17,6 +18,10 @@ import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
  * and freeze where it is cold. Along the coast, where the sea cliffs reshape the ground, the column reads the
  * {@link io.github.elpideus.diffusicraft.worldgen.TerrainSurface ground} itself: the foot of a cliff is a beach, its
  * top is not.
+ *
+ * <p>A lake whose water stands above the sea over ground below it, in a valley the ice drowned behind a step, is a
+ * lake among the mountains and not a fjord: its columns get the climate of land at the lake's level, away from the
+ * coast. Their ground stays where it is, so the depth below it does too.
  */
 public final class ClimateColumn {
 	/** Highest erosion at which vanilla still picks a river biome for weirdness zero, inland. */
@@ -88,8 +93,14 @@ public final class ClimateColumn {
 		surfaceY = column.coast >= 0f && column.coast < ClimateMapping.maxCoastWidth(scale)
 			? field.surface(scale).y(blockX, blockZ)
 			: scale.surfaceY(column.elevation);
+		RiverColumn river = coarse ? null : Rivers.of(field).column(scale, blockX, blockZ);
+		if (river != null && river.lake && river.level > 0f && column.elevation < 0f) {
+			column.aboveLow += river.level - column.elevation;
+			column.elevation = river.level;
+			column.coast = TerrainField.COAST_REACH;
+		}
 		ClimateMapping.compute(scale, column, surfaceY, parameters);
-		valley = !coarse && Rivers.of(field).column(scale, blockX, blockZ).valley;
+		valley = river != null && river.valley;
 		if (valley) {
 			// Vanilla picks its river biomes where weirdness is near zero, unless the land is very eroded.
 			parameters[ClimateMapping.WEIRDNESS] = 0f;

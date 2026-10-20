@@ -11,7 +11,9 @@ import java.util.Arrays;
  * <p>A basin that a river crosses fills to the river's level, just below its lowest point, where the river flows on
  * out of it. Any other basin is filled by the rain, up to its lowest point, or less where the climate is too dry to
  * fill it: a basin whose precipitation falls short of the evaporation holds a shallower lake, and none in a desert.
- * Such a basin stays dry within the reach of a river and its banks, as wide as a river gets at any scale.
+ * Such a basin stays dry within the reach of a river and its banks, as wide as a river gets at any scale. A basin
+ * whose floor lies below the sea, a valley the ice drowned behind a step, holds the sea's water up to sea level
+ * whatever the climate, and the rain fills it from there.
  *
  * <p>The lakes cover the tile and {@value #MARGIN} pixels around it, where the lakes of the blocks it shares with its
  * neighbours reach: the shores of the lakes beside it.
@@ -143,11 +145,10 @@ final class CellLakes {
 				water = river;
 			} else {
 				int li = lowest / SPAN - PAD, lj = lowest % SPAN - PAD;
-				float wetness = climate.wetness(ti * TILE + li, tj * TILE + lj);
-				float share = Math.clamp((wetness - DRY) / (WET - DRY), 0f, 1f);
-				water = tile[lowest] + share * (spill - tile[lowest]);
+				water = rain(tile[lowest], spill, climate.wetness(ti * TILE + li, tj * TILE + lj));
 			}
-			if (water - tile[lowest] < CellBasins.MIN_DEPTH
+			// Water no higher than the sea is the sea's.
+			if (water - tile[lowest] < CellBasins.MIN_DEPTH || !(water > 0f)
 				|| Float.isNaN(river) && nearRiver(basins, first, end, tile, water, rivers, widest, hit)) {
 				continue;
 			}
@@ -175,6 +176,16 @@ final class CellLakes {
 			lakes += pixels > 0 ? 1 : 0;
 		}
 		return level == null ? EMPTY : runs(level, fed, lakes);
+	}
+
+	/**
+	 * The level the rain fills a basin to, from its {@code floor} up to its {@code spill}, both in meters, where the
+	 * precipitation over the evaporation is {@code wetness}. Below the sea the sea seeps in, so the rain fills a basin
+	 * whose floor lies below it from sea level.
+	 */
+	static float rain(float floor, float spill, float wetness) {
+		float bottom = Math.max(floor, 0f), share = Math.clamp((wetness - DRY) / (WET - DRY), 0f, 1f);
+		return bottom + share * (spill - bottom);
 	}
 
 	/** Packs a level per pixel into runs along the rows. */

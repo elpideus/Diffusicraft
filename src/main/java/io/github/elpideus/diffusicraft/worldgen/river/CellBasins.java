@@ -9,10 +9,14 @@ import java.util.Arrays;
  * off the edge of the tile or into the sea, each with the height at which it spills over.
  *
  * <p>A basin can hold a lake when it is at least {@value #MIN_DEPTH} m deep and {@value #MIN_PIXELS} pixels across,
- * lies above the sea, and keeps {@value #EDGE} pixels inside the tile, so that the tile alone decides its columns.
- * Rivers run over the surface of such a basin rather than its floor ({@link #ground}): they fill it and flow on out
- * over its lowest point. The {@link CellLakes} then follow from the rivers and the climate. Basins that reach past the
- * sides of the tile belong to the {@link BlockLakes}, and the rivers see the surface of those that a river feeds too.
+ * spills above the sea (by {@link CellRivers#DROP} if its floor lies below it), and keeps {@value #EDGE} pixels
+ * inside the tile, so that the tile alone decides its columns. The sea the water runs into is the ground below it that
+ * was sea before the ice: a valley the ice drowned (see TerrainField#paddedDrowned) is not, so one cut off from the sea
+ * by a step in its floor is a basin, whose floor lies below the sea and its water above, like the lakes behind the
+ * sills of Norway's fjords. Rivers run over the surface of such a basin rather than its floor ({@link #ground}): they
+ * fill it and flow on out over its lowest point. The {@link CellLakes} then follow from the rivers and the climate.
+ * Basins that reach past the sides of the tile belong to the {@link BlockLakes}, and the rivers see the surface of
+ * those that a river feeds too.
  *
  * <p>Pixels are numbered as in the padded tile, row by row over {@link TerrainField#SPAN} columns.
  */
@@ -57,15 +61,21 @@ final class CellBasins {
 
 	/** Finds the basins of a padded tile. */
 	static CellBasins of(float[] tile) {
-		return of(tile, null);
+		return of(tile, null, null);
+	}
+
+	/** Finds the basins of a padded tile, as {@link #of(float[], long[], float[])} does with no drowned valley. */
+	static CellBasins of(float[] tile, float[] raise) {
+		return of(tile, null, raise);
 	}
 
 	/**
-	 * Finds the basins of a padded tile, where the rivers see the ground {@code raise} over the lakes of the blocks
-	 * around (see BlockLakes#paint), in the frame of the padded tile: NaN where none lies. It may be null.
+	 * Finds the basins of a padded tile whose drowned valleys are {@code drowned} (see TerrainField#paddedDrowned;
+	 * null if none), where the rivers see the ground {@code raise} over the lakes of the blocks around (see
+	 * BlockLakes#paint), in the frame of the padded tile: NaN where none lies. It may be null.
 	 */
-	static CellBasins of(float[] tile, float[] raise) {
-		float[] fill = fill(tile, SPAN);
+	static CellBasins of(float[] tile, long[] drowned, float[] raise) {
+		float[] fill = fill(tile, drowned, SPAN);
 		int[] label = new int[SPAN * SPAN];
 		int[] pixels = new int[SPAN * SPAN];
 		int[] start = new int[64];
@@ -110,7 +120,9 @@ final class CellBasins {
 			float spill = fill[first];
 			start[count] = size;
 			lowest[count] = low;
-			holds[count] = inside && size - from >= MIN_PIXELS && spill - tile[low] >= MIN_DEPTH && spill > 0f;
+			// A basin floored below the sea holds a lake only where a river filling it would stand above the sea.
+			holds[count] = inside && size - from >= MIN_PIXELS && spill - tile[low] >= MIN_DEPTH
+				&& spill > (tile[low] < 0f ? CellRivers.DROP : 0f);
 			count++;
 		}
 		return new CellBasins(tile, fill, label, pixels, Arrays.copyOf(start, count), lowest, holds, raise);
@@ -166,16 +178,18 @@ final class CellBasins {
 
 	/**
 	 * The priority flood: the height to which water would fill each pixel of a square of elevation {@code span}
-	 * pixels across before it could run off the edge or into the sea. Pixels that would not hold water keep their own
-	 * height.
+	 * pixels across before it could run off the edge or into the sea, the ground below it that the ice did not drown
+	 * ({@code drowned}, as TerrainField#paddedDrowned has it over the square; null if none). Pixels that would not hold
+	 * water keep their own height.
 	 */
-	static float[] fill(float[] tile, int span) {
+	static float[] fill(float[] tile, long[] drowned, int span) {
 		float[] fill = new float[span * span];
 		Arrays.fill(fill, Float.NaN);
 		LongHeap heap = new LongHeap(4 * span);
 		for (int k = 0; k < fill.length; k++) {
 			int i = k / span, j = k % span;
-			if (i == 0 || j == 0 || i == span - 1 || j == span - 1 || tile[k] < 0f) {
+			if (i == 0 || j == 0 || i == span - 1 || j == span - 1
+				|| tile[k] < 0f && !TerrainField.isDrowned(drowned, k)) {
 				fill[k] = tile[k];
 				heap.push(LongHeap.key(tile[k], k));
 			}

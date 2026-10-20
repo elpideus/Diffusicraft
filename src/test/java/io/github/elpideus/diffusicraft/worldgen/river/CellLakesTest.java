@@ -83,6 +83,49 @@ class CellLakesTest {
 	}
 
 	@Test
+	void aValleyDrownedBehindAStepHoldsALakeAboveTheSea() {
+		// The sea 100 m deep north of row 40, and land 200 m high cut by two troughs 150 m below the sea, which the
+		// ice drowned. The first opens into the sea; a step 20 m above the sea cuts the second off from it.
+		float[] tile = new float[SPAN * SPAN];
+		long[] drowned = new long[(tile.length + 63) >> 6];
+		for (int k = 0; k < tile.length; k++) {
+			int i = k / SPAN - PAD, j = k % SPAN - PAD;
+			float e = i < 40 ? -100f : 200f;
+			if (i >= 40 && i < 200 && j >= 60 && j < 100) {
+				e = -150f;
+			} else if (i >= 40 && i < 200 && j >= 150 && j < 190) {
+				e = i < 50 ? 20f : -150f;
+			}
+			tile[k] = e;
+			if (i >= 40 && e < 0f) {
+				drowned[k >> 6] |= 1L << k;
+			}
+		}
+		CellBasins basins = CellBasins.of(tile, drowned, null);
+		CellLakes lakes = CellLakes.build(tile, basins, null, CellRivers.EMPTY, WET, 0, 0);
+		assertEquals(1, lakes.lakeCount());
+		assertEquals(20f, lakes.level(120, 170), 0f, "the lake fills up to the step");
+		assertTrue(Float.isNaN(lakes.level(120, 80)), "the open fjord is the sea's");
+		assertTrue(lakes(tile, WET, 0, 0).isEmpty(), "where the ice drowned nothing, all ground below the sea is sea");
+		// The rain fills it from sea level, which the sea holds up to, not from its floor.
+		CellLakes half = CellLakes.build(tile, basins, null, CellRivers.EMPTY, (i, j) -> 0.8f, 0, 0);
+		assertEquals(10f, half.level(120, 170), 1e-4f);
+		assertTrue(CellLakes.build(tile, basins, null, CellRivers.EMPTY, (i, j) -> 0.3f, 0, 0).isEmpty(),
+			"a desert leaves it to the sea");
+		// A step too low for the river that would fill the trough to stand above the sea leaves it to the sea, and the
+		// rivers see the sea there.
+		float[] low = tile.clone();
+		for (int i = 40; i < 50; i++) {
+			for (int j = 150; j < 190; j++) {
+				low[(i + PAD) * SPAN + j + PAD] = 1f;
+			}
+		}
+		CellBasins lowBasins = CellBasins.of(low, drowned, null);
+		assertTrue(lowBasins.ground((120 + PAD) * SPAN + 170 + PAD) < 0f);
+		assertTrue(CellLakes.build(low, lowBasins, null, CellRivers.EMPTY, WET, 0, 0).isEmpty());
+	}
+
+	@Test
 	void eachBasinIsItsOwnLake() {
 		float[] tile = bowl(80, 80, 15f, 10f);
 		float[] other = bowl(180, 170, 25f, 30f);

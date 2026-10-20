@@ -3,6 +3,7 @@ package io.github.elpideus.diffusicraft.worldgen;
 import io.github.elpideus.diffusicraft.terrain.diffusion.FastNoiseLite;
 import io.github.elpideus.diffusicraft.terrain.diffusion.TerrainSample;
 import io.github.elpideus.diffusicraft.terrain.geography.SpawnKind;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -289,6 +290,20 @@ public final class TerrainField implements AutoCloseable {
 		return tile(ti, tj).elevation;
 	}
 
+	/**
+	 * Which pixels of {@link #paddedTile} lie in a drowned valley ({@link Glaciation#drowned}): ground the ice lowered
+	 * below the sea that was land before. Pixel {@code k} is bit {@code k % 64} of word {@code k / 64}, as
+	 * {@link #isDrowned} reads it. Null if the tile has none. The array is shared and must not be modified.
+	 */
+	public long @Nullable [] paddedDrowned(int ti, int tj) {
+		return tile(ti, tj).drowned;
+	}
+
+	/** Whether pixel {@code k} is set in a mask of {@link #paddedDrowned}, which may be null. */
+	public static boolean isDrowned(long @Nullable [] drowned, int k) {
+		return drowned != null && (drowned[k >> 6] & 1L << k) != 0;
+	}
+
 	/** Native pixels per coarse pixel. */
 	public int coarseScale() {
 		return source.coarseScale();
@@ -467,7 +482,14 @@ public final class TerrainField implements AutoCloseable {
 					tj * TILE + b * GRID + 0.5);
 			}
 		}
-		return new FieldTile(ti, tj, elevation, grid, Coastline.compute(elevation));
+		long[] drowned = null;
+		for (int px = 0; px < plane; px++) {
+			if (Glaciation.drowned(elevation[px], iceCut[px])) {
+				drowned = drowned == null ? new long[(plane + 63) >> 6] : drowned;
+				drowned[px >> 6] |= 1L << px;
+			}
+		}
+		return new FieldTile(ti, tj, elevation, drowned, grid, Coastline.compute(elevation));
 	}
 
 	private void evictTiles() {
@@ -496,6 +518,8 @@ public final class TerrainField implements AutoCloseable {
 		final int i0;
 		final int j0;
 		final float[] elevation;
+		/** See {@link #paddedDrowned}. */
+		final long @Nullable [] drowned;
 		final float[] grid;
 		/** The signed distances of {@link Coastline}, or {@code null} far from the coast. */
 		final short[] coast;
@@ -503,12 +527,13 @@ public final class TerrainField implements AutoCloseable {
 		final float farCoast;
 		volatile long lastUse;
 
-		FieldTile(int ti, int tj, float[] elevation, float[] grid, short[] coast) {
+		FieldTile(int ti, int tj, float[] elevation, long @Nullable [] drowned, float[] grid, short[] coast) {
 			this.ti = ti;
 			this.tj = tj;
 			this.i0 = ti * TILE - PAD;
 			this.j0 = tj * TILE - PAD;
 			this.elevation = elevation;
+			this.drowned = drowned;
 			this.grid = grid;
 			this.coast = coast;
 			int first = Coastline.ORIGIN * SPAN + Coastline.ORIGIN;

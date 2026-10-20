@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GlaciationTest {
@@ -218,6 +219,25 @@ class GlaciationTest {
 		field.column(5 * TerrainField.TILE, 0, column);
 		assertEquals(coast.elevation(5 * TerrainField.TILE, 0), column.elevation, 5f);
 		assertEquals(0f, column.iceCut);
+	}
+
+	@Test
+	void theTilesMarkTheirDrownedValleys() {
+		int pad = TerrainField.PAD, span = TerrainField.SPAN;
+		TerrainField field = new TerrainField(1, new CoastSource(5f));
+		float[] tile = field.paddedTile(0, 0);
+		long[] drowned = field.paddedDrowned(0, 0);
+		// The valley floor of coldMountainCoastsDrownTheirValleys, and not the ridge beside it.
+		assertTrue(TerrainField.isDrowned(drowned, (25 + pad) * span + pad));
+		assertFalse(TerrainField.isDrowned(drowned, (25 + pad) * span + 100 + pad));
+		for (int k = 0; k < tile.length; k++) {
+			assertTrue(tile[k] < 0f || !TerrainField.isDrowned(drowned, k), "only ground below the sea");
+		}
+		// The open sea, deepened too, was sea before.
+		int k = (-100 + TerrainField.TILE + pad) * span + 50 + pad;
+		assertTrue(field.paddedTile(-1, 0)[k] < 0f);
+		assertFalse(TerrainField.isDrowned(field.paddedDrowned(-1, 0), k));
+		assertNull(new TerrainField(1, new CoastSource(15f)).paddedDrowned(0, 0), "mild coasts drown nothing");
 	}
 
 	@Test

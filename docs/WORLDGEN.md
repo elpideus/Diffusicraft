@@ -309,7 +309,7 @@ swap it for one of twenty-four new biomes, or for another of vanilla's. The firs
 
 | Biome | Climate | Replaces |
 |---|---|---|
-| **Fjord** | Water that was land before the glaciers lowered it, where they lowered ground at sea level by at least 120 m (see [Coasts](#coasts)) | Oceans and cold oceans, deep or not |
+| **Fjord** | Sea water that was land before the glaciers lowered it, where they lowered ground at sea level by at least 120 m (see [Coasts](#coasts)); the lakes behind the fjords' steps take the land's biomes | Oceans and cold oceans, deep or not |
 | *(wetlands)* | Vanilla's swamp band: mangroves on tropical coasts (coldest month at least 15 °C, below 10 m), páramo on tropical mountains, bogs where the warmest month stays below 20 °C and the summers are not dry, tundra beyond the tree line, swamps elsewhere | Swamps and mangroves |
 | **Cloud forest** | Tropical mountainsides: 1000–3500 m, 10–20 °C, little seasonality, at least 1500 mm of rain | Any land but peaks, deserts and badlands |
 | *(snow and ice)* | Warmest month below 3 °C, or a year below −10 °C with summers too cool for trees (warmest month below 10 °C), where the ground is white most of the year. Vanilla's snowy plains, ice spikes, snowy slopes and peaks stay; its frozen band has snowy taigas there too, and taigas where it is wettest, which become snowy plains, and its other land does the same, its slopes and hills snowy slopes | Any land but deserts, badlands and jungles |
@@ -503,13 +503,18 @@ place.
   sand and clay in the lowlands, and mostly gravel higher up. The valley, the channel and 3 blocks on each side, takes
   a river biome.
 - **Lakes.** `CellBasins` finds the closed basins of a tile with a priority flood, which gives the height at which each
-  would spill over. A basin can hold a lake when it is at least 1 m deep, two pixels across and above the sea, and
-  lies at least 4 pixels inside its tile, so the tile alone decides its columns. `CellLakes` fills them. A river that
-  crosses a basin fills it to the river's level, 1.5 m below its lowest point, whatever the climate, and flows on out
-  over that point; where two rivers cross it, the lower sets the level. The rain fills the other basins: where the
-  precipitation reaches the evapotranspiration, a basin fills to the brim. Drier basins fill less, down to nothing
-  where the precipitation is 60% of the evapotranspiration, so deserts keep their dry basins. These lakes lie beyond
-  the reach of any river, which would drain them.
+  would spill over. The sea is where the flood starts, but not the valleys the ice drowned (see [Coasts](#coasts)): a
+  drowned valley cut off from the sea by a step above it is a basin whose floor lies below the sea. A basin can hold a
+  lake when it is at least 1 m deep, two pixels across and spills above the sea, and lies at least 4 pixels inside its
+  tile, so the tile alone decides its columns. `CellLakes` fills them. A river that crosses a basin fills it to the
+  river's level, 1.5 m below its lowest point, whatever the climate, and flows on out over that point; where two rivers
+  cross it, the lower sets the level. The rain fills the other basins: where the precipitation reaches the
+  evapotranspiration, a basin fills to the brim. Drier basins fill less, down to nothing where the precipitation is 60%
+  of the evapotranspiration, so deserts keep their dry basins. These lakes lie beyond the reach of any river, which
+  would drain them. Below the sea the sea seeps in, so the rain fills a basin whose floor lies below it from sea level:
+  the lakes behind the steps of drowned valleys stand above the sea though their floors lie far below it, as Mjøsa and
+  Hornindalsvatnet do behind the sills the ice left. A lake whose water would stand no higher than the sea is the sea's,
+  and does not show.
 - **Lakes across tiles.** `BlockLakes` takes the basins that reach past the side of a tile. A block is two by two
   tiles; blocks overlap by a tile, so every tile lies in four of them, and every side and corner lies inside one. One
   priority flood over a block's four padded tiles finds its basins; it keeps those that stay 4 pixels inside the block
@@ -522,22 +527,23 @@ place.
   at one level, and the tiles on both sides of a side, which share the blocks that reach it, agree on the water there.
   A tile and its rivers therefore read the eight tiles around it.
 - **Great lakes.** `GreatLake` puts the water of a lake of the coarse map on the fine terrain. One priority flood over
-  the padded tiles of all its cells, the water escaping into the sea and past the edge of their padding, finds the
-  hollows the terrain holds. The water stands at one level for the whole lake, between the level of the cell it spills
-  into and the level at which it spills on the coarse map: the level at which its hollows cover the most of the lake's
-  tiles. It fills every hollow of the padded tiles that holds water at that level, and a tile takes it where it is
-  higher than its own lakes. The rivers of the coarse map run across the lake at the level of its water and leave it
-  level with it, so the lake is fed and its outlet is cut down from its surface. The rivers see the lake as they see
-  the lakes of a block. The lake is found once, for the first tile in it or next to it, which waits for the terrain of
-  all its tiles; the prefetcher computes them as soon as one of them is in its plan.
+  the padded tiles of all its cells, the water escaping into the sea, but not into the valleys the ice drowned, and past
+  the edge of their padding, finds the hollows the terrain holds. The water stands at one level for the whole lake,
+  between the level of the cell it spills into and the level at which it spills on the coarse map: the level at which
+  its hollows cover the most of the lake's tiles. It fills every hollow of the padded tiles that holds water at that
+  level, and a tile takes it where it is higher than its own lakes. The rivers of the coarse map run across the lake at
+  the level of its water and leave it level with it, so the lake is fed and its outlet is cut down from its surface. The
+  rivers see the lake as they see the lakes of a block. The lake is found once, for the first tile in it or next to it,
+  which waits for the terrain of all its tiles; the prefetcher computes them as soon as one of them is in its plan.
 - **Lake columns.** A column is in a lake where one of the four pixels around it is and its ground is below the water.
-  The lake decides such a column even within a river's reach, so the river flows into the lake and out again. The
-  water of a lake the rain fills stops at the last whole block below the lake's level, so it never stands above the
-  rim of its basin, and a lake shallower than a block does not show. A lake a river fills is level with the river,
-  block for block, and the river's banks and the lake's shore hold it. The lake takes the rivers' water rule, on a bed
-  mostly of clay and sand, but no river biome. Its shore, two pixels wide, keeps its ground but is solid from below the
-  water up, so no cave entrance drains the lake. Where the shore still lies below the water, it rises into a bank as
-  the rivers' banks do.
+  The lake decides such a column even within a river's reach, so the river flows into the lake and out again. The water
+  of a lake the rain fills stops at the last whole block below the lake's level, so it never stands above the rim of its
+  basin, and a lake shallower than a block does not show. A lake a river fills is level with the river, block for block,
+  and the river's banks and the lake's shore hold it. The lake takes the rivers' water rule, on a bed mostly of clay and
+  sand, but no river biome. A lake above the sea over ground the ice drowned takes the climate of land at the level of
+  its water and away from the coast, so it gets the biome of the land around it, not the fjord. Its shore, two pixels
+  wide, keeps its ground but is solid from below the water up, so no cave entrance drains the lake. Where the shore
+  still lies below the water, it rises into a bank as the rivers' banks do.
 - **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like an
   embankment. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a lake across tiles
   that the rain would fill where a river runs in one of the tiles its water reaches, even out of the river's reach: some
@@ -545,9 +551,10 @@ place.
   take the rivers of its tiles, and so the terrain of the 24 tiles around a tile rather than 8, which a new world and a
   fast flight would wait for ([Generating ahead](PERFORMANCE.md#generating-ahead)). A basin that reaches past a block's
   edge, 15 km, stays dry unless it lies in a lake of the coarse map, and a river crosses it as it crosses any other
-  ground. A depression of the coarse map larger than 16 cells, or wider than 8 cells (60 km), is breached rather than
-  filled, so the largest lakes of the real world stay dry. The hollows of a great lake's tiles that do not hold water at
-  its level stay dry, and so do those whose water spills past the padding of its tiles.
+  ground. Where a basin that stays dry for one of these reasons lies in a valley the ice drowned, its floor below the
+  sea, the sea's water stays in it at sea level, as a fjord. A depression of the coarse map larger than 16 cells, or wider than 8 cells (60 km), is breached
+  rather than filled, so the largest lakes of the real world stay dry. The hollows of a great lake's tiles that do not
+  hold water at its level stay dry, and so do those whose water spills past the padding of its tiles.
 
 ### Coasts
 
@@ -677,14 +684,19 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
 - **Limits.** Distant Horizons' LODs show the cliffs, the sea floor and the stacks as the chunks do, except the
   farthest, which read the coarse map: it has no coastline, so no beaches, cliffs, profile or stacks there. The LODs
   hold one height per column, so arches show solid. The profile has no bars or troughs. Stacks have no notch at the
-  waterline, and no boulders lie around them. The drowned valleys have no sills: their troughs are deepest at the
-  mouth, where real ones are shallowest, and climb steadily inland; only the long fjords have sills. Those valleys end
-  where they climb over a step or a saddle between coarse pixels, and the trough beyond holds a lake at sea level that
-  counts as fjord, 11% and 5% of the drowned water on the first two coasts above and 21% and 6% on the others, where a
-  real lake behind a sill stands above the sea. The long fjords follow the coarse map's valleys, 7.7 km to a pixel,
-  not the fine terrain's: they cut straight through the spurs and saddles between. Arms branch only off the trunks,
-  never off each other, so a fjord system is a trunk and its side valleys, without the further branches of the
-  largest real ones.
+  waterline, and no boulders lie around them. The drowned valleys have no sills: their troughs are deepest at the mouth,
+  where real ones are shallowest, and climb steadily inland; only the long fjords have sills. Those valleys end where
+  they climb over a step or a saddle between coarse pixels. The trough beyond is a basin like any other, which a river
+  or the rain fills above the sea (see [Rivers](#rivers)), as the ice left Mjøsa and Hornindalsvatnet behind their
+  sills. On the coasts of 138 and 123 km square above, 126 and 18 km² of drowned ground are cut off from the sea,
+  besides what drains past the edges of the squares, and lakes stand above 30 and 12 km² of it, up to 228 m above the
+  sea over ground down to 378 m below it. The rest keeps the sea's level and counts as fjord: basins wider than a tile
+  that the rain would fill but for a river in one of their tiles (65 and 5 km², see the limits of [Rivers](#rivers)),
+  and on the first coast 31 km² in basins wider than a block. Under the lakes above the sea the ground still takes the
+  shape of a coast at sea level, its shelves, cliffs and stacks under the water. The long fjords follow the coarse map's
+  valleys, 7.7 km to a pixel, not the fine terrain's: they cut straight through the spurs and saddles between. Arms
+  branch only off the trunks, never off each other, so a fjord system is a trunk and its side valleys, without the
+  further branches of the largest real ones.
 
 ### The ground
 

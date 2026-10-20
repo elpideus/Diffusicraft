@@ -38,28 +38,49 @@ class BlockLakesTest {
 		return tile;
 	}
 
+	/** Which pixels of the world lie in a valley the ice drowned. */
+	interface Drowned {
+		boolean at(int i, int j);
+	}
+
+	private static long[] paddedDrowned(Drowned drowned, int ti, int tj) {
+		if (drowned == null) {
+			return null;
+		}
+		long[] mask = new long[(SPAN * SPAN + 63) >> 6];
+		for (int k = 0; k < SPAN * SPAN; k++) {
+			if (drowned.at(ti * TILE + k / SPAN - PAD, tj * TILE + k % SPAN - PAD)) {
+				mask[k >> 6] |= 1L << k;
+			}
+		}
+		return mask;
+	}
+
 	/** Where rivers cross the sides of each tile; none by default. */
 	interface Flows {
 		CellFlows of(int ti, int tj);
 	}
 
-	private static BlockLakes block(Terrain terrain, Flows flows, CellLakes.Climate climate, int bi, int bj) {
+	private static BlockLakes block(Terrain terrain, Drowned drowned, Flows flows, CellLakes.Climate climate, int bi,
+									int bj) {
 		float[][] tiles = new float[4][];
+		long[][] masks = new long[4][];
 		CellFlows[] crossings = new CellFlows[4];
 		for (int t = 0; t < 4; t++) {
 			tiles[t] = paddedTile(terrain, bi + (t >> 1), bj + (t & 1));
+			masks[t] = paddedDrowned(drowned, bi + (t >> 1), bj + (t & 1));
 			crossings[t] = flows.of(bi + (t >> 1), bj + (t & 1));
 		}
-		return BlockLakes.build(tiles, crossings, climate, bi, bj);
+		return BlockLakes.build(tiles, masks, crossings, climate, bi, bj);
 	}
 
 	private static BlockLakes block(Terrain terrain, Flows flows, int bi, int bj) {
-		return block(terrain, flows, WET, bi, bj);
+		return block(terrain, null, flows, WET, bi, bj);
 	}
 
 	/** The lakes of a tile without rivers of its own, over the blocks around it, as Rivers puts them together. */
-	private static CellLakes lakes(Terrain terrain, Flows flows, CellLakes.Climate climate, int ti, int tj,
-								   float[] raise) {
+	private static CellLakes lakes(Terrain terrain, Drowned drowned, Flows flows, CellLakes.Climate climate, int ti,
+								   int tj, float[] raise) {
 		float[] tile = paddedTile(terrain, ti, tj);
 		float[] level = new float[CellLakes.SIDE * CellLakes.SIDE];
 		boolean[] fed = new boolean[level.length];
@@ -67,10 +88,17 @@ class BlockLakesTest {
 		Arrays.fill(raise, Float.NaN);
 		for (int oi = 0; oi < 2; oi++) {
 			for (int oj = 0; oj < 2; oj++) {
-				block(terrain, flows, climate, ti - oi, tj - oj).paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
+				block(terrain, drowned, flows, climate, ti - oi, tj - oj)
+					.paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
 			}
 		}
-		return CellLakes.build(tile, CellBasins.of(tile, raise), null, CellRivers.EMPTY, climate, ti, tj, level, fed);
+		CellBasins basins = CellBasins.of(tile, paddedDrowned(drowned, ti, tj), raise);
+		return CellLakes.build(tile, basins, null, CellRivers.EMPTY, climate, ti, tj, level, fed);
+	}
+
+	private static CellLakes lakes(Terrain terrain, Flows flows, CellLakes.Climate climate, int ti, int tj,
+								   float[] raise) {
+		return lakes(terrain, null, flows, climate, ti, tj, raise);
 	}
 
 	private static CellLakes lakes(Terrain terrain, Flows flows, int ti, int tj, float[] raise) {
@@ -147,6 +175,24 @@ class BlockLakesTest {
 		for (int t = 0; t < 4; t++) {
 			assertTrue(lakes(terrain, t >> 1, t & 1).isEmpty());
 		}
+	}
+
+	@Test
+	void aValleyDrownedBehindAStepAcrossASideHoldsALakeAboveTheSea() {
+		// The sea north of row 40, and a trough 150 m below it that the ice drowned, across the side between tiles
+		// (0, 0) and (0, 1), cut off from the sea by a step 20 m above it.
+		Terrain terrain = (i, j) -> i < 40 ? -100f : i < 200 && j >= 200 && j < 320 ? i < 50 ? 20f : -150f : 200f;
+		Drowned drowned = (i, j) -> i >= 40 && terrain.at(i, j) < 0f;
+		Flows none = (i, j) -> CellFlows.NONE;
+		CellLakes west = lakes(terrain, drowned, none, WET, 0, 0, new float[SPAN * SPAN]);
+		CellLakes east = lakes(terrain, drowned, none, WET, 0, 1, new float[SPAN * SPAN]);
+		assertEquals(20f, west.level(120, TILE - 1), 0f);
+		assertEquals(20f, west.level(120, 200), 0f);
+		assertEquals(20f, east.level(120, 0), 0f);
+		assertEquals(20f, east.level(120, 320 - TILE - 1), 0f);
+		assertTrue(Float.isNaN(west.level(45, 250)), "the step is dry");
+		assertAgree(west, 0, 0, east, 0, 1);
+		assertTrue(lakes(terrain, 0, 0).isEmpty(), "where the ice drowned nothing, all ground below the sea is sea");
 	}
 
 	@Test

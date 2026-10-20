@@ -83,12 +83,22 @@ final class BlockLakes {
 	}
 
 	/**
-	 * Finds the lakes of block {@code (bi, bj)} from the padded elevation of its tiles and the rivers crossing them,
-	 * in the order {@code (bi, bj)}, {@code (bi, bj + 1)}, {@code (bi + 1, bj)}, {@code (bi + 1, bj + 1)}.
+	 * Finds the lakes of a block with no drowned valley, as
+	 * {@link #build(float[][], long[][], CellFlows[], CellLakes.Climate, int, int)} does.
 	 */
 	static BlockLakes build(float[][] tiles, CellFlows[] flows, CellLakes.Climate climate, int bi, int bj) {
+		return build(tiles, new long[4][], flows, climate, bi, bj);
+	}
+
+	/**
+	 * Finds the lakes of block {@code (bi, bj)} from the padded elevation of its tiles, their drowned valleys (see
+	 * TerrainField#paddedDrowned; null where a tile has none) and the rivers crossing them, in the order
+	 * {@code (bi, bj)}, {@code (bi, bj + 1)}, {@code (bi + 1, bj)}, {@code (bi + 1, bj + 1)}.
+	 */
+	static BlockLakes build(float[][] tiles, long[][] drowned, CellFlows[] flows, CellLakes.Climate climate, int bi,
+							int bj) {
 		float[] e = window(tiles);
-		float[] fill = CellBasins.fill(e, WINDOW);
+		float[] fill = CellBasins.fill(e, window(drowned), WINDOW);
 		float[] crossing = crossings(tiles, flows);
 		boolean[] flowing = new boolean[4];
 		for (int t = 0; t < 4; t++) {
@@ -152,9 +162,7 @@ final class BlockLakes {
 				water = Math.min(river, spill - CellRivers.DROP);
 			} else {
 				int li = low / WINDOW - PAD, lj = low % WINDOW - PAD;
-				float wetness = climate.wetness(bi * TILE + li, bj * TILE + lj);
-				float share = Math.clamp((wetness - CellLakes.DRY) / (CellLakes.WET - CellLakes.DRY), 0f, 1f);
-				water = floor + share * (spill - floor);
+				water = CellLakes.rain(floor, spill, climate.wetness(bi * TILE + li, bj * TILE + lj));
 				// The tiles that see the water, where a river of their own could drain it.
 				boolean[] reaches = new boolean[4];
 				for (int n = 0; n < size; n++) {
@@ -177,7 +185,7 @@ final class BlockLakes {
 					continue;
 				}
 			}
-			if (water - floor < CellBasins.MIN_DEPTH) {
+			if (water - floor < CellBasins.MIN_DEPTH || !(water > 0f)) {
 				continue;
 			}
 			for (int n = 0; n < size; n++) {
@@ -240,6 +248,34 @@ final class BlockLakes {
 				}
 			}
 		}
+	}
+
+	/**
+	 * The drowned valleys of the block's window, as {@link CellBasins#fill} takes them, from those of its four padded
+	 * tiles; null if none has any.
+	 */
+	private static long[] window(long[][] drowned) {
+		if (drowned[0] == null && drowned[1] == null && drowned[2] == null && drowned[3] == null) {
+			return null;
+		}
+		long[] mask = new long[(WINDOW * WINDOW + 63) >> 6];
+		for (int wi = 0; wi < WINDOW; wi++) {
+			int i = wi - PAD;
+			int a = i < TILE ? 0 : 1;
+			for (int b = 0; b < 2; b++) {
+				// As in window(float[][]).
+				int from = b == 0 ? 0 : TILE + PAD, to = b == 0 ? TILE + PAD : WINDOW;
+				long[] tile = drowned[2 * a + b];
+				int row = (i - a * TILE + PAD) * SPAN - b * TILE;
+				for (int wj = from; wj < to; wj++) {
+					if (TerrainField.isDrowned(tile, row + wj)) {
+						int k = wi * WINDOW + wj;
+						mask[k >> 6] |= 1L << k;
+					}
+				}
+			}
+		}
+		return mask;
 	}
 
 	/** The padded elevation of the block's window, from its four padded tiles. */

@@ -78,17 +78,22 @@ final class GreatLake {
 		float[] e = new float[h * w];
 		Arrays.fill(e, Float.NaN);
 		boolean[] own = new boolean[h * w];
+		boolean[] drowned = new boolean[h * w];
 		for (int c = 0; c < cells.length; c += 2) {
 			float[] tile = field.paddedTile(cells[c], cells[c + 1]);
+			long[] valleys = field.paddedDrowned(cells[c], cells[c + 1]);
 			int oi = (cells[c] - ci0) * TILE, oj = (cells[c + 1] - cj0) * TILE;
 			for (int r = 0; r < SPAN; r++) {
 				System.arraycopy(tile, r * SPAN, e, (oi + r) * w + oj, SPAN);
+				for (int col = 0; valleys != null && col < SPAN; col++) {
+					drowned[(oi + r) * w + oj + col] |= TerrainField.isDrowned(valleys, r * SPAN + col);
+				}
 			}
 			for (int r = PAD; r < PAD + TILE; r++) {
 				Arrays.fill(own, (oi + r) * w + oj + PAD, (oi + r) * w + oj + PAD + TILE, true);
 			}
 		}
-		float[] fill = fill(e, h, w);
+		float[] fill = fill(e, drowned, h, w);
 		float water = level(e, fill, own, lowest, lake.level());
 		int i0 = ci0 * TILE - PAD, j0 = cj0 * TILE - PAD;
 
@@ -131,10 +136,11 @@ final class GreatLake {
 	}
 
 	/**
-	 * Floods the window from the sea and from its edge, where it meets the pixels outside the lake's padded tiles:
-	 * the level each pixel's water would stand at before it found a way out.
+	 * Floods the window from the sea, the ground below it that the ice did not drown, and from its edge, where it meets
+	 * the pixels outside the lake's padded tiles: the level each pixel's water would stand at before it found a way
+	 * out, as in {@link CellBasins#fill}.
 	 */
-	private static float[] fill(float[] e, int h, int w) {
+	private static float[] fill(float[] e, boolean[] drowned, int h, int w) {
 		float[] fill = new float[e.length];
 		Arrays.fill(fill, Float.NaN);
 		LongHeap heap = new LongHeap(4 * (h + w));
@@ -143,7 +149,7 @@ final class GreatLake {
 				continue;
 			}
 			int i = k / w, j = k % w;
-			boolean edge = e[k] < 0f;
+			boolean edge = e[k] < 0f && !drowned[k];
 			for (int d = 0; d < 8 && !edge; d++) {
 				int ni = i + DI[d], nj = j + DJ[d];
 				edge = ni < 0 || nj < 0 || ni >= h || nj >= w || Float.isNaN(e[ni * w + nj]);
