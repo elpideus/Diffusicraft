@@ -465,8 +465,16 @@ class BiomeRefinerTest {
 			BiomeRefiner.refine("minecraft:snowy_plains", climate(-14.5f, 22f, 180f, 55f, 140f, 30f)));
 		assertEquals(BiomeRefiner.LARCH_TAIGA,
 			BiomeRefiner.refine("minecraft:snowy_taiga", climate(-15.5f, 21f, 210f, 55f, 740f, 60f)));
-		// Too dry for a forest: vanilla's snow.
-		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-8f, 20f, 100f, 55f, 100f, 30f)));
+		// Too dry for a forest: the snow lies thin, and the frozen band is steppe like the band above it, as in the
+		// Chuya basin below the Altai, at Kosh-Agach (a year of -6.7 °C, January near -32 °C, 120 mm of rain). Drier
+		// still, cold desert.
+		BiomeClimate chuya = climate(-6.7f, 16.4f, 120f, 80f, 1760f, 30f);
+		assertEquals(BiomeRefiner.STEPPE, BiomeRefiner.refine("minecraft:snowy_plains", chuya));
+		assertEquals(BiomeRefiner.STEPPE, BiomeRefiner.refine("minecraft:plains", chuya));
+		assertEquals(BiomeRefiner.SHRUB_STEPPE,
+			BiomeRefiner.refine("minecraft:ice_spikes", climate(-8f, 20f, 80f, 55f, 100f, 30f)));
+		assertEquals(BiomeRefiner.COLD_DESERT,
+			BiomeRefiner.refine("minecraft:snowy_plains", climate(-8f, 20f, 60f, 55f, 100f, 30f)));
 		// The mires of the frozen lowlands stay bogs.
 		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:taiga", climate(-4f, 16f, 450f, 70f, 50f, 2f)));
 	}
@@ -493,8 +501,9 @@ class BiomeRefinerTest {
 			BiomeRefiner.refine("minecraft:taiga", climate(1f, 7f, 1200f, 25f, 1900f, 300f)));
 		// Rovaniemi, on the Arctic Circle, has summers of 15 °C, and closed taiga.
 		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(0.9f, 10.2f, 550f, 30f, 100f, 40f)));
-		// Too dry for trees: vanilla's snow. Colder winters grow larches, and flat, wet ground bogs.
-		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-7f, 12.5f, 120f, 50f, 100f, 30f)));
+		// Too dry for trees: steppe. Colder winters grow larches, and flat, wet ground bogs.
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:snowy_plains", climate(-7f, 12.5f, 120f, 50f, 100f, 30f)));
 		assertEquals(BiomeRefiner.LARCH_TAIGA,
 			BiomeRefiner.refine("minecraft:snowy_taiga", climate(-9f, 14f, 300f, 50f, 100f, 30f)));
 		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:taiga", climate(-4.4f, 10.9f, 650f, 35f, 20f, 3f)));

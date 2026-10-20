@@ -60,9 +60,10 @@ import java.util.Set;
  *   <li><b>Larch taiga</b>: where the coldest month falls below {@value #LARCH_COLDEST} °C, as in eastern Siberia.
  *       The ground stays frozen all year a metre down, and on the thin layer that thaws in summer the evergreen
  *       spruces give way to larches, which shed their needles for the winter. Vanilla puts its snowy plains and taigas
- *       (and ice spikes) there in the frozen band, below -5 °C, and its forests and taigas above it. Ground too dry
- *       for a forest keeps vanilla's pick. Larches grow in the coldest winters of all, at Verkhoyansk and Oymyakon,
- *       wherever the summers are warm enough for trees.</li>
+ *       (and ice spikes) there in the frozen band, below -5 °C, and its forests and taigas above it. Larches grow in
+ *       the coldest winters of all, at Verkhoyansk and Oymyakon, wherever the summers are warm enough for trees. Ground
+ *       too dry for them is steppe or cold desert, as in the Chuya basin below the Altai: vanilla's snowy plains there
+ *       become what its plains become a band warmer, since so little snow falls that it lies thin and blows away.</li>
  *   <li><b>Temperate rainforest</b>: mild oceanic climates (4 to 14 °C, coldest month above -3 °C) with at least
  *       1600 mm of rain.</li>
  *   <li><b>Maquis</b>: Mediterranean scrub, 12 to 21 °C with mild winters, 250 to 1000 mm of strongly seasonal
@@ -379,7 +380,16 @@ public final class BiomeRefiner {
 			if (larchTaiga(c, aridity)) {
 				return LARCH_TAIGA;
 			}
-			return forestTundra(c, aridity) ? FOREST_TUNDRA : null;
+			if (forestTundra(c, aridity)) {
+				return FOREST_TUNDRA;
+			}
+			if (aridity >= 1f) {
+				return null;
+			}
+			if (aridity < 0.5f) {
+				return COLD_DESERT;
+			}
+			return shrubSteppe(c, aridity) ? SHRUB_STEPPE : STEPPE;
 		}
 		boolean meadow = biome.equals("minecraft:meadow");
 		if ((kind == Kind.LAND || kind == Kind.HILLS || meadow) && moorland(c)) {
