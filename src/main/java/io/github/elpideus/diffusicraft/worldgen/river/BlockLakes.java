@@ -20,8 +20,10 @@ import java.util.Arrays;
  * where it crosses ({@link CellRivers#node}): it fills to that river's level, and at most to {@link CellRivers#DROP}
  * below its spill, where the river flows on out of it. The rivers of its tiles see it as the surface of its water, as
  * they see the tile's own lakes. Any other basin is filled by the rain, as in {@link CellLakes}, but only where no
- * river runs in the tiles it reaches: the rivers of each tile are its own, and the block cannot tell whether one of
- * them would pass beside the lake, lower than its water, and drain it.
+ * river runs in the tiles its water reaches: the rivers of each tile are its own, and the block cannot tell whether
+ * one of them would pass beside the lake, lower than its water, and drain it. A river keeps {@link CellRivers#LO}
+ * pixels inside its tile, farther than it and its banks reach, except where it crosses into the next tile, which then
+ * carries it too, so the dry shores of a basin may reach a tile with rivers.
  *
  * <p>A lake larger than a block stays dry, unless it lies in a depression of the coarse map ({@link GreatLake}).
  */
@@ -103,7 +105,6 @@ final class BlockLakes {
 			// Gather the basin, as in CellBasins.
 			int size = 0, low = first, tileOf = -1;
 			boolean inside = true, ownTile = true;
-			boolean[] reaches = new boolean[4];
 			float river = Float.NaN;
 			pixels[size++] = first;
 			label[first] = 1;
@@ -150,9 +151,17 @@ final class BlockLakes {
 			if (fed) {
 				water = Math.min(river, spill - CellRivers.DROP);
 			} else {
-				// The tiles that see the lake or its shores, where a river of their own could drain it.
+				int li = low / WINDOW - PAD, lj = low % WINDOW - PAD;
+				float wetness = climate.wetness(bi * TILE + li, bj * TILE + lj);
+				float share = Math.clamp((wetness - CellLakes.DRY) / (CellLakes.WET - CellLakes.DRY), 0f, 1f);
+				water = floor + share * (spill - floor);
+				// The tiles that see the water, where a river of their own could drain it.
+				boolean[] reaches = new boolean[4];
 				for (int n = 0; n < size; n++) {
 					int k = pixels[n];
+					if (!(e[k] < water)) {
+						continue;
+					}
 					int i = k / WINDOW - PAD, j = k % WINDOW - PAD;
 					for (int t = 0; t < 4; t++) {
 						int ti = (t >> 1) * TILE, tj = (t & 1) * TILE;
@@ -167,10 +176,6 @@ final class BlockLakes {
 				if (!dry) {
 					continue;
 				}
-				int li = low / WINDOW - PAD, lj = low % WINDOW - PAD;
-				float wetness = climate.wetness(bi * TILE + li, bj * TILE + lj);
-				float share = Math.clamp((wetness - CellLakes.DRY) / (CellLakes.WET - CellLakes.DRY), 0f, 1f);
-				water = floor + share * (spill - floor);
 			}
 			if (water - floor < CellBasins.MIN_DEPTH) {
 				continue;

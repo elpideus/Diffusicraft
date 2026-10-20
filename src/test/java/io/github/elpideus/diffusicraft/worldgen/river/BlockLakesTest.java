@@ -14,6 +14,8 @@ class BlockLakesTest {
 	private static final int PAD = TerrainField.PAD;
 	private static final int SPAN = TerrainField.SPAN;
 	private static final CellLakes.Climate WET = (i, j) -> 2f;
+	/** A climate that fills a basin half way up. */
+	private static final CellLakes.Climate HALF = (i, j) -> 0.8f;
 
 	/** Elevation at a pixel of the world. */
 	interface Terrain {
@@ -41,18 +43,23 @@ class BlockLakesTest {
 		CellFlows of(int ti, int tj);
 	}
 
-	private static BlockLakes block(Terrain terrain, Flows flows, int bi, int bj) {
+	private static BlockLakes block(Terrain terrain, Flows flows, CellLakes.Climate climate, int bi, int bj) {
 		float[][] tiles = new float[4][];
 		CellFlows[] crossings = new CellFlows[4];
 		for (int t = 0; t < 4; t++) {
 			tiles[t] = paddedTile(terrain, bi + (t >> 1), bj + (t & 1));
 			crossings[t] = flows.of(bi + (t >> 1), bj + (t & 1));
 		}
-		return BlockLakes.build(tiles, crossings, WET, bi, bj);
+		return BlockLakes.build(tiles, crossings, climate, bi, bj);
+	}
+
+	private static BlockLakes block(Terrain terrain, Flows flows, int bi, int bj) {
+		return block(terrain, flows, WET, bi, bj);
 	}
 
 	/** The lakes of a tile without rivers of its own, over the blocks around it, as Rivers puts them together. */
-	private static CellLakes lakes(Terrain terrain, Flows flows, int ti, int tj, float[] raise) {
+	private static CellLakes lakes(Terrain terrain, Flows flows, CellLakes.Climate climate, int ti, int tj,
+								   float[] raise) {
 		float[] tile = paddedTile(terrain, ti, tj);
 		float[] level = new float[CellLakes.SIDE * CellLakes.SIDE];
 		boolean[] fed = new boolean[level.length];
@@ -60,10 +67,14 @@ class BlockLakesTest {
 		Arrays.fill(raise, Float.NaN);
 		for (int oi = 0; oi < 2; oi++) {
 			for (int oj = 0; oj < 2; oj++) {
-				block(terrain, flows, ti - oi, tj - oj).paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
+				block(terrain, flows, climate, ti - oi, tj - oj).paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
 			}
 		}
-		return CellLakes.build(tile, CellBasins.of(tile, raise), null, CellRivers.EMPTY, WET, ti, tj, level, fed);
+		return CellLakes.build(tile, CellBasins.of(tile, raise), null, CellRivers.EMPTY, climate, ti, tj, level, fed);
+	}
+
+	private static CellLakes lakes(Terrain terrain, Flows flows, int ti, int tj, float[] raise) {
+		return lakes(terrain, flows, WET, ti, tj, raise);
 	}
 
 	private static CellLakes lakes(Terrain terrain, int ti, int tj) {
@@ -209,5 +220,23 @@ class BlockLakesTest {
 			return flows;
 		};
 		assertFalse(lakes(terrain, far, 0, 0, new float[SPAN * SPAN]).isEmpty(), "a tile the lake does not reach");
+	}
+
+	@Test
+	void aRiverOnlyTheShoreReachesLeavesTheRain() {
+		// A bowl across the east side of tile (0, 0), whose water, half way up, stays inside it, and a river in the
+		// tile east of it, which only the bowl's dry shore reaches.
+		Terrain terrain = bowl(128, TILE - 26, 30f, 10f);
+		Flows east = (ti, tj) -> {
+			if (ti != 0 || tj != 1) {
+				return CellFlows.NONE;
+			}
+			CellFlows flows = new CellFlows();
+			flows.addOut(0, 50f, 10f);
+			return flows;
+		};
+		CellLakes west = lakes(terrain, east, HALF, 0, 0, new float[SPAN * SPAN]);
+		assertEquals(95f, west.level(128, TILE - 26), 0f);
+		assertAgree(west, 0, 0, lakes(terrain, east, HALF, 0, 1, new float[SPAN * SPAN]), 0, 1);
 	}
 }

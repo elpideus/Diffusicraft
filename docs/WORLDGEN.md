@@ -480,7 +480,7 @@ place.
   but not inside a single tile, which the tile already fills. A river that crosses an inner side of the block through
   such a basin, near the point where it crosses, fills it to its own level, at most 1.5 m below the spill, and the
   rivers of the tiles around run over the lake's surface. The rain fills the others as it fills a tile's basins, but
-  only where no river runs in any of the tiles the lake reaches: the block does not draw the rivers of its tiles, and
+  only where no river runs in any of the tiles its water reaches: the block does not draw the rivers of its tiles, and
   cannot tell whether one would pass beside the lake, below its water, and drain it. A tile takes the lakes of its four
   blocks; where they overlap, the highest water wins. They are all real hollows of the terrain, so lakes that touch meet
   at one level, and the tiles on both sides of a side, which share the blocks that reach it, agree on the water there.
@@ -502,13 +502,16 @@ place.
   mostly of clay and sand, but no river biome. Its shore, two pixels wide, keeps its ground but is solid from below the
   water up, so no cave entrance drains the lake. Where the shore still lies below the water, it rises into a bank as
   the rivers' banks do.
-- **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like
-  an embankment. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a basin across
-  tiles that the rain would fill where a river runs in one of those tiles. A basin that reaches past a block's edge,
-  15 km, stays dry unless it lies in a lake of the coarse map, and a river crosses it as it crosses any other ground.
-  A depression of the coarse map larger than 16 cells, or wider than 8 cells (60 km), is breached rather than filled,
-  so the largest lakes of the real world stay dry. The hollows of a great lake's tiles that do not hold water at its
-  level stay dry, and so do those whose water spills past the padding of its tiles.
+- **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like an
+  embankment. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a lake across tiles
+  that the rain would fill where a river runs in one of the tiles its water reaches, even out of the river's reach: some
+  0.5% of the land at most, where lakes cover 4 to 8% of it. Telling whether the river passes beside such a lake would
+  take the rivers of its tiles, and so the terrain of the 24 tiles around a tile rather than 8, which a new world and a
+  fast flight would wait for ([Generating ahead](PERFORMANCE.md#generating-ahead)). A basin that reaches past a block's
+  edge, 15 km, stays dry unless it lies in a lake of the coarse map, and a river crosses it as it crosses any other
+  ground. A depression of the coarse map larger than 16 cells, or wider than 8 cells (60 km), is breached rather than
+  filled, so the largest lakes of the real world stay dry. The hollows of a great lake's tiles that do not hold water at
+  its level stay dry, and so do those whose water spills past the padding of its tiles.
 
 ### Coasts
 
