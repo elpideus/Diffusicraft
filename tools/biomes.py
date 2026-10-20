@@ -110,6 +110,18 @@ def trees(feature, counts, sapling):
                             {"type": "minecraft:biome"}])
 
 
+def groves(feature, count, sapling, size=48, offset=-0.3):
+    """Trees in groves with open ground between them: `count` tries per chunk, kept only where vanilla's
+    biome-information noise, `size` blocks to its unit, passes -`offset`. The noise count rounds noise + offset up, so
+    it is one try inside a grove and none outside it."""
+    return placed(feature, [{"type": "minecraft:count", "count": count}, {"type": "minecraft:in_square"},
+                            {"type": "minecraft:noise_based_count", "noise_to_count_ratio": 1, "noise_factor": size,
+                             "noise_offset": offset},
+                            {"type": "minecraft:surface_water_depth_filter", "max_water_depth": 0},
+                            {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"}, survives(sapling),
+                            {"type": "minecraft:biome"}])
+
+
 def patch(feature, tries, spread=7, chance=None, count=None, on=None, heightmap="MOTION_BLOCKING", survive=None):
     """Vanilla's patch: `count` centers per chunk, or one in `chance` chunks, each trying `tries` spots around it.
     `on` lists the blocks the spot must stand on; `survive` names a block that must be able to stand there."""
@@ -263,6 +275,11 @@ FEATURES = {
     "steppe_grass": simple([("short_grass", 6), ("short_dry_grass", 3), ("tall_dry_grass", 1)]),
     # Wild tulips, poppies and alliums of the spring steppe.
     "steppe_flowers": simple([("red_tulip", 2), ("orange_tulip", 2), ("poppy", 3), ("dandelion", 2), ("allium", 1)]),
+    # The meadow-steppe's grass: greener and taller than the steppe's.
+    "forest_steppe_grass": simple([("short_grass", 6), ("tall_grass", 2), ("short_dry_grass", 1)]),
+    # Sage, ox-eye daisies, poppies and buttercups of the meadow-steppe in early summer.
+    "forest_steppe_flowers": simple([("cornflower", 3), ("oxeye_daisy", 3), ("poppy", 2), ("dandelion", 2),
+                                     ("azure_bluet", 1)]),
     "maquis_grass": simple([("short_grass", 3), ("short_dry_grass", 2)]),
     "maquis_flowers": simple([(ours("lavender"), 4), ("allium", 2), ("poppy", 2), ("cornflower", 1), ("dandelion", 1)]),
     "heather": simple([(ours("heather"), 1)]),
@@ -385,6 +402,8 @@ PLACED = {
     "trees_puna": trees(ours("polylepis"), {0: 16, 1: 1}, "oak_sapling"),
     "trees_desert_scrub": trees(ours("trees_desert_scrub"), {1: 2, 2: 3, 3: 3, 4: 1}, "acacia_sapling"),
     "trees_mixed_forest": trees(ours("trees_mixed_forest"), {10: 9, 11: 1}, "spruce_sapling"),
+    "trees_forest_steppe": groves(ours("trees_forest_steppe"), 16, "birch_sapling"),
+    "lone_trees_forest_steppe": trees(ours("trees_forest_steppe"), {0: 3, 1: 1}, "birch_sapling"),
     "patch_tundra_grass": patch(ours("tundra_ground_cover"), 24, count=3),
     "tundra_moss": scattered(ours("tundra_moss_patch"), chance=2),
     "rainforest_moss": scattered("minecraft:moss_patch", count=1),
@@ -392,6 +411,8 @@ PLACED = {
     "patch_alpine_flowers": patch(ours("alpine_flowers"), 48, spread=6, chance=2),
     "patch_steppe_grass": patch(ours("steppe_grass"), 32, count=6),
     "patch_steppe_flowers": patch(ours("steppe_flowers"), 48, chance=3),
+    "patch_forest_steppe_grass": patch(ours("forest_steppe_grass"), 32, count=10),
+    "patch_forest_steppe_flowers": patch(ours("forest_steppe_flowers"), 48, spread=6, count=1),
     "patch_maquis_grass": patch(ours("maquis_grass"), 32, count=3),
     "patch_maquis_bush": patch("minecraft:bush", 24, spread=5, count=2),
     "patch_maquis_flowers": patch(ours("maquis_flowers"), 48, spread=6, chance=2),
@@ -497,6 +518,13 @@ FEATURES["trees_mixed_forest"] = {"type": "minecraft:random_selector", "default"
                                                {"chance": 0.05, "feature": "minecraft:fancy_oak_leaf_litter"},
                                                {"chance": 0.02, "feature": "minecraft:fallen_spruce_tree"},
                                                {"chance": 0.02, "feature": "minecraft:fallen_birch_tree"}]}
+# Birches and aspens, and oaks where the black earth is deepest, as in the Ukrainian forest-steppe. Now and then a
+# pine, and a fallen trunk.
+FEATURES["trees_forest_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:birch_leaf_litter",
+                                   "features": [{"chance": 0.35, "feature": "minecraft:oak_leaf_litter"},
+                                                {"chance": 0.08, "feature": "minecraft:fancy_oak_leaf_litter"},
+                                                {"chance": 0.05, "feature": "minecraft:pine_checked"},
+                                                {"chance": 0.02, "feature": "minecraft:fallen_birch_tree"}]}
 FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
@@ -630,6 +658,23 @@ BIOMES = {
         "vegetation": ["minecraft:glow_lichen", "trees_steppe", "minecraft:patch_tall_grass_2", "patch_steppe_grass",
                        "patch_steppe_flowers", "minecraft:patch_bush"],
         "tags": ["c:is_plains", "c:is_dry/overworld", "c:is_temperate/overworld",
+                 "minecraft:has_structure/mineshaft", "minecraft:has_structure/pillager_outpost",
+                 "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trial_chambers",
+                 "minecraft:has_structure/village_plains", "minecraft:is_overworld",
+                 "minecraft:stronghold_biased_to"],
+    },
+    # Between the steppe and the forest: groves of birch and aspen, and of oak where the soil is deepest, in a meadow-
+    # steppe of tall grass and flowers. From Ukraine across Russia and Siberia to the Altai, in Manchuria, and the
+    # aspen parkland of the Canadian prairies. The plains' farm animals, and the steppe's horses and foxes.
+    "forest_steppe": {
+        "template": "plains", "temperature": 0.6, "downfall": 0.45,
+        "effects": {"grass_color": "#9db35b", "foliage_color": "#7ea24a", "dry_foliage_color": "#a28650"},
+        "creatures": [spawn("sheep", 10, 4), spawn("cow", 8, 4), spawn("pig", 6, 4), spawn("chicken", 8, 4),
+                      spawn("horse", 5, 2, 6), spawn("rabbit", 4, 2, 3), spawn("fox", 2, 2, 3)],
+        "vegetation": ["minecraft:glow_lichen", "trees_forest_steppe", "lone_trees_forest_steppe",
+                       "minecraft:patch_tall_grass_2", "patch_forest_steppe_grass", "patch_forest_steppe_flowers",
+                       "minecraft:patch_bush"],
+        "tags": ["c:is_plains", "c:is_temperate/overworld", "c:is_tree/deciduous",
                  "minecraft:has_structure/mineshaft", "minecraft:has_structure/pillager_outpost",
                  "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trial_chambers",
                  "minecraft:has_structure/village_plains", "minecraft:is_overworld",

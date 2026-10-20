@@ -102,8 +102,10 @@ class BiomeRefinerTest {
 		// 1300 m in the Tatras, 3 °C, July 15.5 °C: spruce.
 		assertEquals(BiomeRefiner.TAIGA,
 			BiomeRefiner.refine("minecraft:meadow", climate(3f, 9f, 900f, 40f, 1300f, 250f)));
-		// Just humid enough: a plain forest.
+		// Just humid enough: a plain forest. With less rain the summers are too dry for closed woods.
 		assertEquals(BiomeRefiner.FOREST,
+			BiomeRefiner.refine("minecraft:meadow", climate(10f, 7f, 600f, 30f, 900f, 150f)));
+		assertEquals(BiomeRefiner.FOREST_STEPPE,
 			BiomeRefiner.refine("minecraft:meadow", climate(10f, 7f, 500f, 30f, 900f, 150f)));
 		// The high plains of central Anatolia, 380 mm at 11 °C, are too dry for a closed forest.
 		assertNull(BiomeRefiner.refine("minecraft:meadow", climate(11f, 8f, 380f, 45f, 1100f, 120f)));
@@ -194,6 +196,33 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void drySummersOpenTheWoodsIntoForestSteppeAndSteppe() {
+		// Astana, Orenburg and Volgograd: rain enough for woods by the year's mean, too little for their hot summers.
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:forest", climate(3.5f, 12.3f, 330f, 40f, 350f, 20f)));
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(5.2f, 12.4f, 380f, 25f, 100f, 20f)));
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:taiga", climate(8.5f, 10.8f, 380f, 20f, 100f, 20f)));
+		// Groves among the meadow-steppe: Kharkiv, Omsk, Edmonton's aspen parkland, Budapest and Harbin.
+		assertEquals(BiomeRefiner.FOREST_STEPPE,
+			BiomeRefiner.refine("minecraft:forest", climate(7.7f, 9.4f, 520f, 25f, 150f, 30f)));
+		assertEquals(BiomeRefiner.FOREST_STEPPE,
+			BiomeRefiner.refine("minecraft:taiga", climate(1.9f, 12.7f, 400f, 60f, 90f, 20f)));
+		assertEquals(BiomeRefiner.FOREST_STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(4.2f, 9.9f, 456f, 70f, 670f, 30f)));
+		assertEquals(BiomeRefiner.FOREST_STEPPE,
+			BiomeRefiner.refine("minecraft:birch_forest", climate(11.1f, 7.7f, 560f, 20f, 110f, 30f)));
+		assertEquals(BiomeRefiner.FOREST_STEPPE,
+			BiomeRefiner.refine("minecraft:taiga", climate(4.8f, 14.5f, 530f, 110f, 150f, 40f)));
+		// Fairbanks gets less rain than Astana, but its ground is frozen below: taiga.
+		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(-2.3f, 14.1f, 280f, 60f, 140f, 40f)));
+		// Moscow, with as warm a summer and more rain, stays forest.
+		assertEquals(BiomeRefiner.MIXED_FOREST,
+			BiomeRefiner.refine("minecraft:forest", climate(5.8f, 9f, 710f, 30f, 150f, 30f)));
+	}
+
+	@Test
 	void hotDesertsGrowScrubButTheDriestAreBareSand() {
 		// The Mojave at Las Vegas, the Sonoran Desert at Phoenix, the Nama Karoo at Upington and the desert of
 		// Mesopotamia at Baghdad.
@@ -214,7 +243,8 @@ class BiomeRefinerTest {
 
 	@Test
 	void hemiborealClimatesGrowMixedForest() {
-		// Helsinki, Moscow, Stockholm, Ottawa and Harbin: on either side of vanilla's line between taiga and forest.
+		// Helsinki, Moscow, Stockholm, Ottawa and Tonghua, in the hills of Manchuria: on either side of vanilla's line
+		// between taiga and forest.
 		assertEquals(BiomeRefiner.MIXED_FOREST,
 			BiomeRefiner.refine("minecraft:taiga", climate(6f, 7.7f, 680f, 25f, 20f, 20f)));
 		assertEquals(BiomeRefiner.MIXED_FOREST,
@@ -224,7 +254,7 @@ class BiomeRefinerTest {
 		assertEquals(BiomeRefiner.MIXED_FOREST,
 			BiomeRefiner.refine("minecraft:forest", climate(6.6f, 11f, 920f, 12f, 80f, 40f)));
 		assertEquals(BiomeRefiner.MIXED_FOREST,
-			BiomeRefiner.refine("minecraft:taiga", climate(4.8f, 14.5f, 530f, 110f, 150f, 40f)));
+			BiomeRefiner.refine("minecraft:taiga", climate(5.3f, 13.3f, 870f, 90f, 400f, 60f)));
 		// Vanilla's variants and open land stay.
 		assertNull(BiomeRefiner.refine("minecraft:old_growth_spruce_taiga", climate(6f, 7.7f, 680f, 25f, 20f, 20f)));
 		assertNull(BiomeRefiner.refine("minecraft:plains", climate(6f, 7.7f, 680f, 25f, 20f, 20f)));
@@ -282,12 +312,13 @@ class BiomeRefinerTest {
 	@Test
 	void inADryClimateTheWoodsKeepToTheShadedSlopes() {
 		// The foothills of the Rockies: firs, pines and aspens on the slopes facing north, which are cool enough for the
-		// mixed forest, and grass on those facing south.
-		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(0, 10f, 9f, 450f, 30f, 1800f, 200f)));
+		// mixed forest, open pine woods on flat ground and grass on the slopes facing south.
+		assertEquals(BiomeRefiner.FOREST_STEPPE,
+			BiomeRefiner.refine("minecraft:forest", onSlope(0, 10f, 9f, 520f, 30f, 1800f, 200f)));
 		assertEquals(BiomeRefiner.MIXED_FOREST,
-			BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 450f, 30f, 1800f, 200f)));
+			BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 520f, 30f, 1800f, 200f)));
 		assertEquals(BiomeRefiner.STEPPE,
-			BiomeRefiner.refine("minecraft:forest", onSlope(1, 10f, 9f, 450f, 30f, 1800f, 200f)));
+			BiomeRefiner.refine("minecraft:forest", onSlope(1, 10f, 9f, 520f, 30f, 1800f, 200f)));
 		// The plains below them get less rain, most of it in summer: steppe even on the shaded side, as around Denver.
 		assertEquals(BiomeRefiner.STEPPE,
 			BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 300f, 30f, 1600f, 30f)));

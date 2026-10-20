@@ -263,16 +263,28 @@ Some adjustments move biomes away from vanilla's defaults:
   mean in °C, for rain that falls through the year, and `20 T + 280` mm where at least 70% of it falls in the summer
   half, when the heat takes more of it back. The climate says how unevenly the rain falls (BIO15) but not when. Where
   the coldest month freezes, uneven rain falls in summer, since cold air holds little water, as in Mongolia and on the
-  Great Plains; where it stays above 15 °C, it comes with the monsoon. There the summer threshold applies, as far as
-  the rain is uneven: the wetter half of a sinusoidal year holds one half plus BIO15 × √2/π of the rain. Between the
-  two, uneven rain may be Mediterranean and fall in winter, so the year-round threshold stands. The threshold never
-  falls below 140 mm, so tundra counts as moderately dry rather than as wet as a rainforest. The season only decides
-  near the threshold: it counts in full up to the year-round one and fades out by two and a half times it, so the
-  wettest taigas, and the peat of the West Siberian Plain and of northern Alberta, which also get most of their rain
-  in summer, stay as wet as they are. With the year-round threshold, a plain with 340 mm of summer rain at 6.5 °C,
-  January at −10 °C, came out as one forest 64 km across; now 92% of it is steppe, as on the plains of Inner
-  Mongolia, and the woods keep to the higher, wetter hills on its edge, where 380 mm falls. The soils and the ground
-  cover read the same ratio.
+  Great Plains; where it stays above 15 °C, it comes with the monsoon. There the summer threshold applies, as far as the
+  rain is uneven: the wetter half of a sinusoidal year holds one half plus BIO15 × √2/π of the rain. Between the two,
+  uneven rain may be Mediterranean and fall in winter, so the year-round threshold stands. The threshold never falls
+  below 140 mm, so tundra counts as moderately dry rather than as wet as a rainforest. The season only decides near the
+  threshold: it counts in full up to the year-round one and fades out by two and a half times it, so the wettest taigas,
+  and the peat of the West Siberian Plain and of northern Alberta, which also get most of their rain in summer, stay as
+  wet as they are. With the year-round threshold, a plain with 340 mm of summer rain at 6.5 °C, January at −10 °C, came
+  out as one forest 64 km across; with the summer threshold 92% of it was steppe, as on the plains of Inner Mongolia,
+  and the woods kept to the higher, wetter hills on its edge, where 380 mm falls. The soils and the ground cover read
+  the same ratio.
+- <a id="summer-moisture"></a>**Summer moisture.** Köppen's threshold follows the year's mean, which hides a continental
+  summer. Astana averages 3.5 °C over the year but 21 °C in July, and its 330 mm pass the threshold, so Köppen calls it
+  humid; it is steppe. So the [refiner](#refined-biomes) also takes the threshold at the warmest month's temperature,
+  `20 T_warm + 140` mm (`BiomeClimate.summerMoisture`). Where the warmest month reaches 17 °C and the year averages −2
+  to 18 °C, land humid by the year's ratio but with less rain than that is forest-steppe, and with less than 0.7 of it
+  steppe. Cooler summers take little water back. Colder years keep the taiga: the ground is frozen a little way down and
+  holds the snowmelt, so that larches and spruces grow on 250 mm at Yakutsk and Fairbanks. Of real places, this puts
+  Astana, Orenburg, Volgograd and Saskatoon in the steppe; Kharkiv, Omsk, Novosibirsk, Krasnoyarsk, Edmonton, Winnipeg,
+  Budapest and Harbin in the forest-steppe; and Moscow, Kyiv, Warsaw, Berlin, Paris, Ottawa and Minneapolis in the
+  forest. It errs by a few hundred kilometres at the edges: the grassland around Odessa and Regina comes out as
+  forest-steppe, and so do the hills around Beijing, while Voronezh, Kursk and Kazan, on the forest-steppe's northern
+  edge, come out as forest. Vanilla's table still reads the year's ratio.
 - **Snow.** Snowy slopes and peaks need temperatures below 1 °C. A warmer mountain is moved into the plateau and
   forest bands. Between 1 and 8 °C, a summit more than 250 m above the land around it becomes stony peaks; a lower
   one keeps the woods of its own band. Vanilla gives stony peaks only to its warm band, which gives jungle wherever
@@ -291,7 +303,7 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of nineteen new biomes, or for another of vanilla's. The first rule that matches wins:
+swap it for one of twenty new biomes, or for another of vanilla's. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
@@ -302,7 +314,7 @@ swap it for one of nineteen new biomes, or for another of vanilla's. The first r
 | **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief: the dry beds of old lakes, up on the cold Altiplano too | Plains, forests, taigas, savannas, deserts |
 | **Páramo**, **puna** | Tropical mountains (little seasonality) from 2500 m where the year averages below 10 °C. Every month is a growing season there, so the tree line follows the year rather than the summer, and the cloud forest gives way to them. Páramo with at least three times the rain of the aridity threshold, as in the northern Andes or on Mount Kenya; puna where it is drier, as on the Altiplano or Mauna Kea | Any land, peaks included |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
-| *(montane forest)* | Humid mountainsides (aridity at least 1) below the subalpine belt, where the warmest month passes 14 °C, some 600 m below the tree line. Vanilla's plateau row puts meadows there between the woods of its lowland row, in strips along every valley side; they become those woods: mixed forest in its climate; elsewhere forest, and with at least twice the rain of the aridity threshold birch forest, or taiga below 5 °C. Meadows stay in the subalpine belt and on drier ground | Meadows |
+| *(montane forest)* | Humid mountainsides (aridity at least 1) below the subalpine belt, where the warmest month passes 14 °C, some 600 m below the tree line. Vanilla's plateau row puts meadows there between the woods of its lowland row, in strips along every valley side; they become those woods: forest-steppe where the summers are too dry for closed woods (the meadow stays in the steppe's climate), mixed forest in its climate; elsewhere forest, and with at least twice the rain of the aridity threshold birch forest, or taiga below 5 °C. Meadows stay in the subalpine belt and on drier ground | Meadows |
 | **Monsoon forest** | Frost-free lowland (coldest month at least 15 °C) with at least the rain of the aridity threshold. Vanilla only has temperate woods for it between its savannas and its jungles; jungles count too where the rain is strongly seasonal (BIO15 at least 80 %) and below 2000 mm, as in India and Thailand. Wetter jungles stay, as in the Amazon | Forests and taigas, jungles |
 | **Laurel forest** | Jungle where the coldest month falls below 15 °C, so frost can come. Vanilla's jungles start at a yearly mean of 15 °C, which takes in the humid subtropics, as around Shanghai or Atlanta | Jungles |
 | **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
@@ -311,10 +323,11 @@ swap it for one of nineteen new biomes, or for another of vanilla's. The first r
 | **Temperate rainforest** | 4–14 °C, coldest month above −3 °C, at least 1600 mm of rain | Plains, forests, taigas, savannas, slopes and hills |
 | **Maquis** | 12–21 °C, coldest month at least 2 °C, 250–1000 mm of strongly seasonal rain, below 1200 m | The same, deserts and meadows too, but no other slopes |
 | **Heath** | Oceanic lowland below 300 m: 6–12 °C, coldest month above −4 °C, 550–1100 mm of rain. Only where the variant noise is below −0.3, so it comes in patches among the woods | Plains, forests, taigas, savannas |
+| **Forest-steppe**, **steppe** | Humid by the year's rain (aridity at least 1), but not by the summer's: the warmest month reaches 17 °C, the year averages −2 to 18 °C, and less rain falls than the threshold at the warmest month's temperature (see [Summer moisture](#summer-moisture)). Groves of birch and oak among the meadow-steppe, as from Ukraine to the Altai, in Manchuria and in the aspen parkland of the Canadian prairies; with less than 0.7 of that rain, steppe, as around Astana and Orenburg | Plains, forests, taigas, savannas; on humid mountainsides, meadows (see the montane forest) |
 | **Mixed forest** | 3.5–9 °C, warmest month at least 16 °C, coldest month below −1 °C, with at least the rain of the aridity threshold, as in southern Finland and Sweden, around Moscow, by the Great Lakes and in Manchuria. Oaks and birches grow among the spruces and pines there. Vanilla draws its line between taiga and forest at 5 °C, through the middle of that belt, and grows one or the other on either side of it. The oak needs a summer warm enough to ripen its acorns; milder winters favour the beech, and the forest is broadleaf, as in Denmark and around Berlin, which vanilla's forest already is | Forests, birch forests and taigas; on humid mountainsides, meadows (see the montane forest) |
 | **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts |
 | **Desert scrub** | Desert from 12 °C with at least 0.15 of the rain of the aridity threshold, as in the Mojave, the Sonoran Desert and the Karoo, where shrubs grow over stony ground. Only drier deserts are hyperarid, getting less than a twentieth of the water the sun could take back, as in the heart of the Sahara; they stay vanilla's bare sand | Deserts |
-| **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C | Plains, forests, taigas, savannas |
+| **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C, and where the summers are drier still (see the forest-steppe) | Plains, forests, taigas, savannas |
 
 Frozen and warm oceans, shores, rivers, caves and the mushroom fields are never touched, and neither is any biome a mod adds to the
 table: only vanilla's own biomes are refined. `BiomeRefiner` is pure and unit-tested.
@@ -359,6 +372,7 @@ the colours:
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
 | Steppe | Plains | Grass, dry grass, tulips and poppies, a lone oak or birch | Grass with patches of coarse dirt over loess |
+| Forest-steppe | Plains | Groves of birches (aspens), oaks and the odd big oak or pine, with fallen leaves and now and then a fallen trunk, among tall grass, cornflowers (sage), ox-eye daisies, poppies, dandelions (buttercups) and azure bluets; a lone tree here and there, bushes; the plains' farm animals, with horses, rabbits and foxes | Grass |
 | Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with bare peat and sphagnum (moss), peat below |
 | Heath | Plains | Heather and grass under scattered birches with bees, Scots pines and junipers | Grass with sandy coarse dirt and podzol |
 | Salt flat | Desert | Nothing | Salt crust over rock salt |
@@ -1002,10 +1016,11 @@ Other searches still read the full terrain and can take a while on new land:
   Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, the Mojave, the Sonoran Desert, the
   Karoo, Mesopotamia, Cairo and the Libyan Desert, Dartmoor and the Pennines, the Lüneburg Heath, Bonneville and Uyuni,
   Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands, Yakutsk, Verkhoyansk, Oymyakon
-  and the Greater Khingan, southern Finland, Moscow, Stockholm, Ottawa and Harbin against Copenhagen, Berlin, Iceland
-  and Kirov, the Vosges and the Black Forest, the Greenland ice sheet, Utqiaġvik and the South Shetlands, tropical
-  coasts and the Sognefjord. On slopes, the tree line of the Alps is higher on the sunny side, and the woods of the
-  Rockies' foothills keep to the shaded side, where it is cool enough for mixed forest.
+  and the Greater Khingan, southern Finland, Moscow, Stockholm, Ottawa and Manchuria's hills against Copenhagen, Berlin,
+  Iceland and Kirov, the Vosges and the Black Forest, Astana, Orenburg and Volgograd, Kharkiv, Omsk, Edmonton, Budapest
+  and Harbin against Fairbanks, the Greenland ice sheet, Utqiaġvik and the South Shetlands, tropical coasts and the
+  Sognefjord. On slopes, the tree line of the Alps is higher on the sunny side, and the woods of the Rockies' foothills
+  keep to the shaded side, where it is cool enough for mixed forest; flat ground there is open forest-steppe.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

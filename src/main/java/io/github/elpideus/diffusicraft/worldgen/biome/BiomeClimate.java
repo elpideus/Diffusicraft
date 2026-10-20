@@ -51,4 +51,13 @@ public final class BiomeClimate {
 	public float aridity() {
 		return ClimateMapping.aridityRatio(temperature, seasonality, precipitation, precipitationSeasonality);
 	}
+
+	/**
+	 * Precipitation over Köppen's aridity threshold taken at the warmest month's temperature rather than the year's. The
+	 * year's mean hides a continental summer's heat, when the trees need the water: Köppen calls Astana humid, and
+	 * steppe grows there. Where the summers are warm, below 0.7 is steppe and below 1 forest-steppe.
+	 */
+	public float summerMoisture() {
+		return precipitation / Math.max(20f * warmestMonth() + 140f, 140f);
+	}
 }

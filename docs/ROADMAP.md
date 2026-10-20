@@ -47,12 +47,13 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   game with Biomes O' Plenty and TerraBlender. See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
   rainforest, Mediterranean maquis, moorland, heath, salt flats, bogs, Siberian larch taiga, cold desert, desert scrub,
-  steppe, fjords, monsoon, laurel and mixed forests, and the páramo and puna of tropical mountains, with their own trees
-  (krummholz, giant spruces, olives, stone pines, cypresses, black spruces, larches, mesquites, teak, live oaks,
-  frailejones, queñuas), plants and ground; the wetlands follow the climate, from mangroves to bogs. New plants:
-  heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their own under some biomes: peat,
-  which burns, terra rossa, laterite and loess. Snow follows the climate rather than a fixed height, above a real tree
-  line, with no forest on it, and the Grand Hollows are free of sculk. See [WORLDGEN.md](WORLDGEN.md#refined-biomes).
+  steppe, forest-steppe, fjords, monsoon, laurel and mixed forests, and the páramo and puna of tropical mountains, with
+  their own trees (krummholz, giant spruces, olives, stone pines, cypresses, black spruces, larches, mesquites, teak,
+  live oaks, frailejones, queñuas), plants and ground; the wetlands follow the climate, from mangroves to bogs. New
+  plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their own under some biomes:
+  peat, which burns, terra rossa, laterite and loess. Snow follows the climate rather than a fixed height, above a real
+  tree line, with no forest on it, and the Grand Hollows are free of sculk. See
+  [WORLDGEN.md](WORLDGEN.md#refined-biomes).
 - **Real biome sizes.** Biomes come in patches as large as their real counterparts. At Earth 1:1 the main forests
   and taigas average 10 to 20 km across, a few hundred square kilometres at most, and steppe or maquis can cover a
   whole plain. Sun and shade are measured over a whole valley side, vanilla's variants are picked by noise with a

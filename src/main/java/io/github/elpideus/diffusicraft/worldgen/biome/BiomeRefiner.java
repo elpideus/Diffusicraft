@@ -65,6 +65,14 @@ import java.util.Set;
  *       rain.</li>
  *   <li><b>Heath</b>: patches of oceanic lowland, 6 to 12 °C with 550 to 1100 mm of rain, as on the Lüneburg
  *       Heath or in Jutland.</li>
+ *   <li><b>Forest-steppe</b> and <b>steppe</b> where the summers are too dry for closed woods, on land humid enough
+ *       by the year's rain: where the warmest month reaches {@value #STEPPE_SUMMER} °C and the year averages
+ *       {@value #PERMAFROST} to 18 °C, the summer's rain decides (see {@link BiomeClimate#summerMoisture}). With less
+ *       than it takes back, groves of birch and oak stand among the meadow-steppe, as from Ukraine to the Altai, in
+ *       Manchuria and in the aspen parkland of the Canadian prairies; with less than {@value #STEPPE_MOISTURE} of it,
+ *       only grass, as around Astana and Orenburg. A mountainside's meadow stays in the steppe's climate and opens into
+ *       forest-steppe in the other. Colder years keep the taiga: the ground is frozen a little way down and holds the
+ *       snowmelt, so that larches and spruces grow on 250 mm at Yakutsk and Fairbanks.</li>
  *   <li><b>Mixed forest</b>: vanilla's forests and taigas where the year averages {@value #MIXED_COOLEST} to
  *       {@value #MIXED_WARMEST} °C, the warmest month reaches {@value #OAK_SUMMER} °C and the coldest falls below
  *       {@value #MIXED_COLDEST} °C. Oaks, limes and birches grow among the spruces and pines there, as in southern
@@ -101,6 +109,7 @@ public final class BiomeRefiner {
 	public static final String FJORD = "diffusicraft:fjord";
 	public static final String LARCH_TAIGA = "diffusicraft:larch_taiga";
 	public static final String MIXED_FOREST = "diffusicraft:mixed_forest";
+	public static final String FOREST_STEPPE = "diffusicraft:forest_steppe";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 	public static final String FOREST = "minecraft:forest";
@@ -112,8 +121,8 @@ public final class BiomeRefiner {
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA,
-		SNOWY_PLAINS, SNOWY_SLOPES);
+		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST,
+		TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -184,6 +193,20 @@ public final class BiomeRefiner {
 	static final float OAK_SUMMER = 16f;
 	/** Coldest month the mixed forest falls below, °C: milder winters favour the beech. */
 	static final float MIXED_COLDEST = -1f;
+	/** Summer moisture ({@link BiomeClimate#summerMoisture}) below which the summer's dryness keeps woods to groves. */
+	static final float FOREST_STEPPE_MOISTURE = 1f;
+	/** Summer moisture below which the summer's dryness keeps every tree off: steppe. */
+	static final float STEPPE_MOISTURE = 0.7f;
+	/**
+	 * Warmest month from which the summer's rain decides whether woods grow, °C: cooler summers take little water back
+	 * from the ground.
+	 */
+	static final float STEPPE_SUMMER = 17f;
+	/**
+	 * Annual mean below which the ground is frozen a little way down, °C: it holds the snowmelt, and the taiga grows on
+	 * little rain.
+	 */
+	static final float PERMAFROST = -2f;
 	/** Meters the ice must have lowered ground at sea level for a drowned valley to be a fjord, not a thin strip. */
 	static final float FJORD_CUT = 120f;
 
@@ -324,6 +347,12 @@ public final class BiomeRefiner {
 		if (kind == Kind.LAND && heath(c)) {
 			return HEATH;
 		}
+		if (kind == Kind.LAND && aridity >= 1f) {
+			String open = drySummer(c);
+			if (open != null) {
+				return open;
+			}
+		}
 		if (MIXED_WOODS.contains(biome) && aridity >= 1f && mixedForest(c)) {
 			return MIXED_FOREST;
 		}
@@ -344,9 +373,14 @@ public final class BiomeRefiner {
 	/**
 	 * The woods of vanilla's lowland row in the band and humidity where its plateau row has a meadow: forest, and where
 	 * there is twice the rain the ground needs (vanilla's wetter half), birch forest, or taiga in the band below 5 °C.
-	 * In the mixed forest's climate, mixed forest.
+	 * In the mixed forest's climate, mixed forest. Where the summers are too dry for closed woods, forest-steppe, or
+	 * the meadow in the steppe's climate.
 	 */
-	private static String montaneForest(BiomeClimate c, float aridity) {
+	private static @Nullable String montaneForest(BiomeClimate c, float aridity) {
+		String open = drySummer(c);
+		if (open != null) {
+			return open.equals(STEPPE) ? null : open;
+		}
 		if (mixedForest(c)) {
 			return MIXED_FOREST;
 		}
@@ -398,6 +432,18 @@ public final class BiomeRefiner {
 	/** The summers are warm enough for trees wherever this is asked. */
 	static boolean larchTaiga(BiomeClimate c, float aridity) {
 		return c.coldestMonth() < LARCH_COLDEST && aridity >= 1f;
+	}
+
+	/** Steppe or forest-steppe where the summers are too dry for closed woods, or {@code null}. */
+	static @Nullable String drySummer(BiomeClimate c) {
+		if (c.warmestMonth() < STEPPE_SUMMER || c.temperature < PERMAFROST || c.temperature >= 18f) {
+			return null;
+		}
+		float moisture = c.summerMoisture();
+		if (moisture < STEPPE_MOISTURE) {
+			return STEPPE;
+		}
+		return moisture < FOREST_STEPPE_MOISTURE ? FOREST_STEPPE : null;
 	}
 
 	/** Whether the temperatures are the mixed forest's. Its callers check that the ground is humid enough for woods. */
