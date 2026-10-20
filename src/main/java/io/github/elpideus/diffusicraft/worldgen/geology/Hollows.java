@@ -190,13 +190,13 @@ public final class Hollows {
 		floorLimit = minY + 6;
 		noodleTop = -4;
 		tiers = new Tier[] {
-			new Tier(Kind.HOLLOW, 112, 0.32, 14, 30, 10, 22, 6, 6 + Math.max(30, 0.45 * room), 0, 1),
-			new Tier(Kind.DEEP_HOLLOW, 144, 0.32, 20, 42, 14, 28, lava + 0.5 * room, -8, 0, 2),
-			new Tier(Kind.GRAND_HOLLOW, 448, 0.18, 70, 160, Math.max(22, 0.35 * room), Math.max(30, 0.55 * room),
+			new Tier(Kind.HOLLOW, 112, 0.14, 14, 30, 10, 22, 6, 6 + Math.max(30, 0.45 * room), 0, 1),
+			new Tier(Kind.DEEP_HOLLOW, 144, 0.14, 20, 42, 14, 28, lava + 0.5 * room, -8, 0, 2),
+			new Tier(Kind.GRAND_HOLLOW, 448, 0.1, 70, 160, Math.max(22, 0.35 * room), Math.max(30, 0.55 * room),
 				lava + 0.38 * room, lava + 0.6 * room, 1, 3),
-			new Tier(Kind.ANCIENT_GRAND_HOLLOW, 896, 0.12, 150, 320, Math.max(26, 0.45 * room),
+			new Tier(Kind.ANCIENT_GRAND_HOLLOW, 896, 0.07, 150, 320, Math.max(26, 0.45 * room),
 				Math.max(36, 0.7 * room), lava + 0.3 * room, lava + 0.45 * room, 1.6, 4),
-			new Tier(Kind.DEEP_GRAND_HOLLOW, 640, 0.14, 100, 230, Math.max(18, 0.3 * room), Math.max(26, 0.45 * room),
+			new Tier(Kind.DEEP_GRAND_HOLLOW, 640, 0.08, 100, 230, Math.max(18, 0.3 * room), Math.max(26, 0.45 * room),
 				lava + 0.06 * room, lava + 0.14 * room, 0, 5),
 		};
 		double lakes = Double.NEGATIVE_INFINITY, caverns = Double.NEGATIVE_INFINITY;
