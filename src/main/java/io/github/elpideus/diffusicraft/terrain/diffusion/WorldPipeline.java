@@ -59,6 +59,10 @@ public final class WorldPipeline {
 	private static final float[] MP_CONCAT_SCALES = mpConcatScales();
 	private static final float ELEVATION_DENOISE_SIGMA = 5f;
 	private static final int CLIMATE_WINDOW = 15;
+	/** The share of land among the coarse pixels around below which the climate takes the standard lapse rate. */
+	private static final float CLIMATE_LAND_SHARE = 0.02f;
+	/** Coarse pixels on each side of a coarse pixel from which the climate works out its lapse rate. */
+	public static final int CLIMATE_RADIUS = CLIMATE_WINDOW / 2;
 	private static final float WEIGHT_EPS = 1e-6f;
 
 	/** Soft in-memory limits per stage. Persistent windows are reloaded from the {@link WindowStore} when evicted. */
@@ -483,8 +487,7 @@ public final class WorldPipeline {
 			coarseElevation[px] = v * v;
 		}
 
-		float[][][] baseline = LaplacianUtils.localBaselineTemperature(
-			to2D(map[2], ch, cw), to2D(coarseElevation, ch, cw), CLIMATE_WINDOW, 0.02f);
+		float[][][] baseline = seaLevelClimate(to2D(map[2], ch, cw), to2D(coarseElevation, ch, cw));
 		int bh = baseline[0].length, bw = baseline[0][0].length;
 		int crop = CLIMATE_WINDOW / 2;
 		int ih = ch - 2 * crop, iw = cw - 2 * crop;
@@ -509,6 +512,17 @@ public final class WorldPipeline {
 			}
 		}
 		return out;
+	}
+
+	/**
+	 * The climate of the {@link #sample}s at sea level over a window of the coarse map, per coarse pixel: the annual
+	 * mean temperature at sea level ({@code [0]}) and the local lapse rate in °C per meter, at most 0 ({@code [1]}),
+	 * which the samples interpolate between the centres of the coarse pixels. The lapse rate is the slope of the
+	 * temperature against the elevation over the land {@link #CLIMATE_RADIUS} pixels around. {@code temperature} and
+	 * {@code elevation} (meters, the sea at 0) cover the window with {@link #CLIMATE_RADIUS} pixels more all round.
+	 */
+	public static float[][][] seaLevelClimate(float[][] temperature, float[][] elevation) {
+		return LaplacianUtils.localBaselineTemperature(temperature, elevation, CLIMATE_WINDOW, CLIMATE_LAND_SHARE);
 	}
 
 	// ---------------------------------------------------------------------------------------------------------

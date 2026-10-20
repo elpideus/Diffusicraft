@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.terrain.diffusion.TerrainSample;
+import io.github.elpideus.diffusicraft.terrain.diffusion.WorldPipeline;
 import io.github.elpideus.diffusicraft.terrain.geography.SpawnKind;
 import org.jspecify.annotations.Nullable;
 
@@ -32,8 +33,9 @@ import java.util.List;
  * The sea must be near: the ice reaches fully {@value #SEA_NEAR} coarse pixels inland and not beyond
  * {@value #SEA_REACH} (61 and 84 km in the game), so the fjords end where their troughs no longer reach under the sea.
  * Those come from the source's coarse map ({@link #ice}). And it must be cold: the annual mean at sea level below
- * {@value #COLD} °C, fading out at {@value #MILD} °C. The fine samples and the coarse map are deepened alike. Lowered
- * ground is warmer by the local lapse rate.
+ * {@value #COLD} °C, fading out at {@value #MILD} °C. The coarse map reduces its temperatures to sea level as the fine
+ * samples do ({@link #seaLevel}), so both find the same coasts cold. The fine samples and the coarse map are deepened
+ * alike. Lowered ground is warmer by the local lapse rate.
  *
  * <p>That drowns the valleys as far as the coarse map's valley floors lie under the trough, some 20 km inland. The
  * longest fjords, which the great outlet glaciers cut a hundred kilometres and more inland, are the {@link Fjords}:
@@ -74,8 +76,6 @@ public final class Glaciation implements TerrainSource {
 	static final float SEA_NEAR = 8f;
 	/** Coarse pixels from the sea beyond which the ice does not reach. */
 	static final int SEA_REACH = 11;
-	/** °C per meter by which the coarse map's temperatures are reduced to sea level: the standard atmosphere's. */
-	static final float STANDARD_LAPSE = 0.0065f;
 	/** The plane of {@link #coarseWithIceCut} that holds the cut, after the coarse channels. */
 	static final int COARSE_ICE_CUT = COARSE_CHANNELS;
 
@@ -272,13 +272,16 @@ public final class Glaciation implements TerrainSource {
 			}
 		}
 		float[] ice = ice(map, h, w);
+		float[] climate = null;
 		for (int px = 0; ice != null && px < plane; px++) {
 			if (ice[px] <= 0f) {
 				continue;
 			}
+			if (climate == null) {
+				climate = seaLevel(map, h, w, m);
+			}
 			float mean = out[COARSE_ELEVATION * plane + px];
-			float temperature = out[COARSE_TEMPERATURE * plane + px];
-			float cut = ice[px] * cold(temperature + STANDARD_LAPSE * Math.max(0f, mean));
+			float cut = ice[px] * cold(climate[px]);
 			if (cut <= 0f) {
 				continue;
 			}
@@ -287,8 +290,8 @@ public final class Glaciation implements TerrainSource {
 			out[COARSE_ELEVATION * plane + px] = deepened;
 			out[COARSE_LOW_ELEVATION * plane + px] = deepen(out[COARSE_LOW_ELEVATION * plane + px], floor, cut,
 				ice[2 * plane + px]);
-			out[COARSE_TEMPERATURE * plane + px] =
-				temperature + STANDARD_LAPSE * (Math.max(0f, mean) - Math.max(0f, deepened));
+			// The lapse rate is negative: lowered ground is warmer.
+			out[COARSE_TEMPERATURE * plane + px] += climate[plane + px] * (Math.max(0f, deepened) - Math.max(0f, mean));
 			if (withIceCut) {
 				out[COARSE_ICE_CUT * plane + px] = cut;
 			}
@@ -314,10 +317,13 @@ public final class Glaciation implements TerrainSource {
 			if (floor == Float.POSITIVE_INFINITY || mean < 0f) {
 				continue;
 			}
+			if (climate == null) {
+				climate = seaLevel(map, h, w, m);
+			}
 			float lowered = mean - FJORD_COVER * Math.max(0f, mean - floor);
 			out[COARSE_ELEVATION * plane + px] = lowered;
 			out[COARSE_LOW_ELEVATION * plane + px] = Math.min(out[COARSE_LOW_ELEVATION * plane + px], floor);
-			out[COARSE_TEMPERATURE * plane + px] += STANDARD_LAPSE * (Math.max(0f, mean) - Math.max(0f, lowered));
+			out[COARSE_TEMPERATURE * plane + px] += climate[plane + px] * (Math.max(0f, lowered) - Math.max(0f, mean));
 			if (withIceCut) {
 				out[COARSE_ICE_CUT * plane + px] = Math.max(out[COARSE_ICE_CUT * plane + px], Fjords.cut(floor));
 			}
@@ -400,6 +406,56 @@ public final class Glaciation implements TerrainSource {
 			}
 		}
 		return reached ? ice : null;
+	}
+
+	/**
+	 * The climate at sea level over an {@code height × width} window of the coarse map, as the fine samples have it
+	 * ({@link WorldPipeline#seaLevelClimate}): two planes, row-major, the annual mean at sea level in °C and the local
+	 * lapse rate in °C per meter, at most 0. {@code map} is the source's coarse map of the window with a margin of
+	 * {@code margin} pixels all round, at least {@link WorldPipeline#CLIMATE_RADIUS}.
+	 */
+	static float[] seaLevel(float[] map, int height, int width, int margin) {
+		int r = WorldPipeline.CLIMATE_RADIUS, skip = margin - r;
+		int outerWidth = width + 2 * margin;
+		float[][][] around = temperatures(map, outerWidth, (height + 2 * margin) * outerWidth, skip, skip, height + 2 * r,
+			width + 2 * r);
+		float[][][] climate = WorldPipeline.seaLevelClimate(around[0], around[1]);
+		int plane = height * width;
+		float[] out = new float[2 * plane];
+		for (int a = 0; a < height; a++) {
+			System.arraycopy(climate[0][a], 0, out, a * width, width);
+			System.arraycopy(climate[1][a], 0, out, plane + a * width, width);
+		}
+		return out;
+	}
+
+	/**
+	 * The annual mean at sea level, in °C, at row {@code r} and column {@code c} of the source's coarse map {@code map}
+	 * of a square {@code size} pixels across, as {@link #seaLevel} has it there: those lie at least
+	 * {@link WorldPipeline#CLIMATE_RADIUS} pixels from its sides.
+	 */
+	static float seaTemperature(float[] map, int size, int r, int c) {
+		int radius = WorldPipeline.CLIMATE_RADIUS, side = 2 * radius + 1;
+		float[][][] around = temperatures(map, size, size * size, r - radius, c - radius, side, side);
+		return WorldPipeline.seaLevelClimate(around[0], around[1])[0][0][0];
+	}
+
+	/**
+	 * The temperature (in {@code [0]}) and the elevation over the sea (in {@code [1]}) of the {@code height × width}
+	 * pixels from row {@code r0} and column {@code c0} of a coarse map {@code mapWidth} pixels wide and {@code plane} in
+	 * all, as {@link WorldPipeline#seaLevelClimate} takes them.
+	 */
+	private static float[][][] temperatures(float[] map, int mapWidth, int plane, int r0, int c0, int height,
+											int width) {
+		float[][][] out = new float[2][height][width];
+		for (int a = 0; a < height; a++) {
+			for (int b = 0; b < width; b++) {
+				int k = (r0 + a) * mapWidth + c0 + b;
+				out[0][a][b] = map[COARSE_TEMPERATURE * plane + k];
+				out[1][a][b] = Math.max(0f, map[COARSE_ELEVATION * plane + k]);
+			}
+		}
+		return out;
 	}
 
 	/** How cold a coast with this annual mean at sea level is, in [0, 1]: 1 where glaciers reached the sea. */

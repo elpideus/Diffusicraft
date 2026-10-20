@@ -39,12 +39,18 @@ class GlaciationTest {
 		private final float rise;
 		private final float plain;
 		private final Valleys valleys;
+		private final float lapse;
 
-		private CoastSource(float seaTemperature, float rise, float plain, Valleys valleys) {
+		private CoastSource(float seaTemperature, float rise, float plain, Valleys valleys, float lapse) {
 			this.seaTemperature = seaTemperature;
 			this.rise = rise;
 			this.plain = plain;
 			this.valleys = valleys;
+			this.lapse = lapse;
+		}
+
+		private CoastSource(float seaTemperature, float rise, float plain, Valleys valleys) {
+			this(seaTemperature, rise, plain, valleys, LAPSE);
 		}
 
 		CoastSource(float seaTemperature, float rise, float plain) {
@@ -65,6 +71,11 @@ class GlaciationTest {
 
 		CoastSource(float seaTemperature) {
 			this(seaTemperature, 2f);
+		}
+
+		/** This coast with the temperature falling by {@code lapse} °C per meter, a negative number, instead. */
+		CoastSource withLapse(float lapse) {
+			return new CoastSource(seaTemperature, rise, plain, valleys, lapse);
 		}
 
 		float elevation(double i, double j) {
@@ -104,11 +115,11 @@ class GlaciationTest {
 					int px = r * w + c;
 					float e = elevation(i0 + r + 0.5, j0 + c + 0.5);
 					elevation[px] = e;
-					climate[TerrainSample.TEMPERATURE * plane + px] = seaTemperature + LAPSE * Math.max(0f, e);
+					climate[TerrainSample.TEMPERATURE * plane + px] = seaTemperature + lapse * Math.max(0f, e);
 					climate[TerrainSample.TEMPERATURE_SEASONALITY * plane + px] = 500f;
 					climate[TerrainSample.PRECIPITATION * plane + px] = 2000f;
 					climate[TerrainSample.PRECIPITATION_SEASONALITY * plane + px] = 25f;
-					climate[TerrainSample.LAPSE_RATE * plane + px] = LAPSE;
+					climate[TerrainSample.LAPSE_RATE * plane + px] = lapse;
 				}
 			}
 			return new TerrainSample(i0, j0, h, w, elevation, climate);
@@ -140,7 +151,7 @@ class GlaciationTest {
 					float mean = (float) (sum / samples.length);
 					out[COARSE_ELEVATION * plane + px] = mean;
 					out[COARSE_LOW_ELEVATION * plane + px] = samples[samples.length / 20];
-					out[COARSE_TEMPERATURE * plane + px] = seaTemperature + LAPSE * Math.max(0f, mean);
+					out[COARSE_TEMPERATURE * plane + px] = seaTemperature + lapse * Math.max(0f, mean);
 					out[COARSE_TEMPERATURE_SEASONALITY * plane + px] = 500f;
 					out[COARSE_PRECIPITATION * plane + px] = 2000f;
 					out[COARSE_PRECIPITATION_SEASONALITY * plane + px] = 25f;
@@ -290,6 +301,25 @@ class GlaciationTest {
 		field.column(25, 0, column);
 		assertEquals(50f, column.elevation, 5f);
 		assertEquals(0f, column.iceCut);
+	}
+
+	@Test
+	void theCoarseMapReducesTemperaturesToSeaLevelAsTheSamplesDo() {
+		// At 3 °C a kilometre, the mountains of this half-glaciated coast are warmer than the standard atmosphere's
+		// lapse rate would make them, which would find a mild coast at sea level. The coarse map must find the same
+		// sea as the samples, whose temperature it reduces by the local lapse rate, and cut its valleys alike.
+		float[] standard = new Glaciation(new CoastSource(10f)).coarseWithIceCut(0, -2, 4, 2);
+		float[] gentle = new Glaciation(new CoastSource(10f).withLapse(-0.003f)).coarseWithIceCut(0, -2, 4, 2);
+		int plane = 4 * 4;
+		float most = 0f;
+		for (int px = 0; px < plane; px++) {
+			for (int ch : new int[]{Glaciation.COARSE_ICE_CUT, TerrainSource.COARSE_ELEVATION,
+				TerrainSource.COARSE_LOW_ELEVATION}) {
+				assertEquals(standard[ch * plane + px], gentle[ch * plane + px], 0.01f, "channel " + ch + ", pixel " + px);
+			}
+			most = Math.max(most, gentle[Glaciation.COARSE_ICE_CUT * plane + px]);
+		}
+		assertTrue(most > 100f, "cut " + most + " m");
 	}
 
 	@Test

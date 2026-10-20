@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.terrain.diffusion.FastNoiseLite;
+import io.github.elpideus.diffusicraft.terrain.diffusion.WorldPipeline;
 import io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise;
 import org.jspecify.annotations.Nullable;
 
@@ -15,7 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static io.github.elpideus.diffusicraft.worldgen.TerrainSource.COARSE_ELEVATION;
 import static io.github.elpideus.diffusicraft.worldgen.TerrainSource.COARSE_LOW_ELEVATION;
-import static io.github.elpideus.diffusicraft.worldgen.TerrainSource.COARSE_TEMPERATURE;
 
 /**
  * The long fjords: the troughs that the great outlet glaciers of the ice ages cut along a cold mountain coast's main
@@ -256,9 +256,9 @@ final class Fjords {
 
 	/** The troughs of the fjords whose mouths lie within {@link #MOUTH_RANGE} of the block at {@code (ci0, cj0)}. */
 	private List<Trough> trace(int ci0, int cj0) {
-		int size = BLOCK + 2 * MARGIN;
-		Ground ground = new Ground(source.coarse(ci0 - MARGIN, cj0 - MARGIN, ci0 - MARGIN + size, cj0 - MARGIN + size),
-			ci0 - MARGIN, cj0 - MARGIN, size);
+		int size = BLOCK + 2 * MARGIN, r = WorldPipeline.CLIMATE_RADIUS;
+		Ground ground = new Ground(source.coarse(ci0 - MARGIN - r, cj0 - MARGIN - r, ci0 - MARGIN + size + r,
+			cj0 - MARGIN + size + r), ci0 - MARGIN, cj0 - MARGIN, size);
 		List<Trough> troughs = new ArrayList<>();
 		for (int ci = ci0 - MOUTH_RANGE; ci < ci0 + BLOCK + MOUTH_RANGE; ci++) {
 			for (int cj = cj0 - MOUTH_RANGE; cj < cj0 + BLOCK + MOUTH_RANGE; cj++) {
@@ -271,14 +271,14 @@ final class Fjords {
 	}
 
 	private boolean candidate(Ground g, int ci, int cj) {
-		if (!g.land(ci, cj) || Glaciation.cold(g.seaTemperature(ci, cj)) < 0.5f) {
+		if (!g.land(ci, cj)) {
 			return false;
 		}
 		// Mountains on the coast, or straight inland of it: a coastal plain that only lies beside them is no mouth.
 		for (int[] d : FOUR) {
 			if (!g.land(ci + d[0], cj + d[1])
 				&& Math.max(g.rugged(ci, cj), g.rugged(ci - d[0], cj - d[1])) >= 0.5f) {
-				return true;
+				return Glaciation.cold(g.seaTemperature(ci, cj)) >= 0.5f;
 			}
 		}
 		return false;
@@ -473,8 +473,8 @@ final class Fjords {
 
 	/** Whether the ice that cut a fjord's trough reached coarse pixel {@code (ci, cj)}: cold, and high or rugged. */
 	private static boolean icy(Ground g, int ci, int cj) {
-		return Glaciation.cold(g.seaTemperature(ci, cj)) >= 0.25f
-			&& (g.mountains(ci, cj) >= 0.25f || g.mean(ci, cj) >= HIGH);
+		return (g.mountains(ci, cj) >= 0.25f || g.mean(ci, cj) >= HIGH)
+			&& Glaciation.cold(g.seaTemperature(ci, cj)) >= 0.25f;
 	}
 
 	/** Whether coarse pixel {@code (ci, cj)} or one of its eight neighbours is among {@code cells}. */
@@ -739,24 +739,32 @@ final class Fjords {
 	/** The source's coarse map over a square window, read by absolute coarse pixel. */
 	private static final class Ground {
 		private final int ci0, cj0, size;
+		private final float[] map;
 		private final float[] mean, low, seaTemperature, rugged, seaDistance;
 
+		/**
+		 * The window of {@code size²} coarse pixels from {@code (ci0, cj0)}, from the source's coarse map of it with
+		 * {@link WorldPipeline#CLIMATE_RADIUS} pixels more all round, over which the temperature is reduced to sea
+		 * level.
+		 */
 		Ground(float[] map, int ci0, int cj0, int size) {
 			this.ci0 = ci0;
 			this.cj0 = cj0;
 			this.size = size;
+			this.map = map;
+			int r = WorldPipeline.CLIMATE_RADIUS, outerWidth = size + 2 * r, outerPlane = outerWidth * outerWidth;
 			int plane = size * size;
 			mean = new float[plane];
 			low = new float[plane];
 			seaTemperature = new float[plane];
+			Arrays.fill(seaTemperature, Float.NaN);
 			rugged = new float[plane];
 			seaDistance = new float[plane];
 			Arrays.fill(seaDistance, Float.NaN);
 			for (int px = 0; px < plane; px++) {
-				mean[px] = map[COARSE_ELEVATION * plane + px];
-				low[px] = map[COARSE_LOW_ELEVATION * plane + px];
-				seaTemperature[px] = map[COARSE_TEMPERATURE * plane + px]
-					+ Glaciation.STANDARD_LAPSE * Math.max(0f, mean[px]);
+				int k = (px / size + r) * outerWidth + px % size + r;
+				mean[px] = map[COARSE_ELEVATION * outerPlane + k];
+				low[px] = map[COARSE_LOW_ELEVATION * outerPlane + k];
 				rugged[px] = mean[px] - Math.max(0f, low[px]);
 			}
 		}
@@ -778,7 +786,12 @@ final class Fjords {
 		}
 
 		float seaTemperature(int ci, int cj) {
-			return seaTemperature[index(ci, cj)];
+			int px = index(ci, cj);
+			if (Float.isNaN(seaTemperature[px])) {
+				int r = WorldPipeline.CLIMATE_RADIUS;
+				seaTemperature[px] = Glaciation.seaTemperature(map, size + 2 * r, ci - ci0 + r, cj - cj0 + r);
+			}
+			return seaTemperature[px];
 		}
 
 		/** Coarse pixels to the nearest sea, or {@link #INLAND} + 1 if it is farther. */

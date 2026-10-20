@@ -628,7 +628,9 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   - mountains, from the coarse map: within a coarse pixel of one that rises 150 to 450 m above its 5th percentile or
     the sea;
   - the sea, within 8 coarse pixels (61 km), fading out at 11 (84 km);
-  - the cold: an annual mean at sea level below 8 °C, fading out at 12 °C.
+  - the cold: an annual mean at sea level below 8 °C, fading out at 12 °C. The samples, the coarse map and the long
+    fjords all reduce the temperature to sea level by the lapse rate regressed over the land around, so they find the
+    same coasts cold.
 
   The first two are interpolated between the centres of the coarse pixels, with the valley floor and the cut, so they
   are smooth. Lowered ground is warmer by its lapse rate. The coarse map is lowered alike, so the rivers, the farthest
