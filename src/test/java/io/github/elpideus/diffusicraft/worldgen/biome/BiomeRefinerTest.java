@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.worldgen.biome;
 
 import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -107,8 +108,11 @@ class BiomeRefinerTest {
 			BiomeRefiner.refine("minecraft:meadow", climate(10f, 7f, 600f, 30f, 900f, 150f)));
 		assertEquals(BiomeRefiner.FOREST_STEPPE,
 			BiomeRefiner.refine("minecraft:meadow", climate(10f, 7f, 500f, 30f, 900f, 150f)));
-		// The high plains of central Anatolia, 380 mm at 11 °C, are too dry for a closed forest.
-		assertNull(BiomeRefiner.refine("minecraft:meadow", climate(11f, 8f, 380f, 45f, 1100f, 120f)));
+		// The hills of central Anatolia, 380 mm at 11 °C, are too dry for a closed forest: open woods of juniper. With
+		// 240 mm, too dry for junipers too.
+		assertEquals(BiomeRefiner.JUNIPER_WOODLAND,
+			BiomeRefiner.refine("minecraft:meadow", climate(11f, 8f, 380f, 45f, 1100f, 120f)));
+		assertNull(BiomeRefiner.refine("minecraft:meadow", climate(11f, 8f, 240f, 45f, 1100f, 120f)));
 	}
 
 	@Test
@@ -193,6 +197,29 @@ class BiomeRefinerTest {
 		assertEquals(BiomeRefiner.STEPPE, BiomeRefiner.refine("minecraft:plains", climate(6f, 13f, 220f, 50f, 300f, 20f)));
 		// A hot desert stays a desert.
 		assertNull(BiomeRefiner.refine("minecraft:desert", climate(25f, 7f, 50f, 100f, 300f, 40f)));
+	}
+
+	@Test
+	void ruggedSemiAridGroundGrowsJuniperWoodland() {
+		// The foothills around Santa Fe, 360 mm at 10 °C with the summer monsoon, and the hills above Cedar City, 280 mm
+		// at 10 °C: pinyon and juniper.
+		BiomeClimate santaFe = climate(10.1f, 7.9f, 360f, 45f, 2130f, 80f);
+		BiomeClimate cedarHills = climate(9.9f, 9f, 280f, 30f, 1900f, 100f);
+		for (String biome : List.of("minecraft:plains", "minecraft:savanna", "minecraft:forest", "minecraft:taiga",
+			"minecraft:meadow")) {
+			assertEquals(BiomeRefiner.JUNIPER_WOODLAND, BiomeRefiner.refine(biome, santaFe), biome);
+			assertEquals(BiomeRefiner.JUNIPER_WOODLAND, BiomeRefiner.refine(biome, cedarHills), biome);
+		}
+		// The valley floor below Cedar City, as flat as the Great Plains: steppe.
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(9.9f, 9f, 280f, 30f, 1700f, 20f)));
+		// The dry hills of Mongolia are too cold for junipers, the hills of the Sahel too hot, and the hills of the
+		// Great Basin's driest ranges too dry.
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:taiga", climate(0f, 13f, 200f, 60f, 1500f, 120f)));
+		assertNull(BiomeRefiner.refine("minecraft:savanna", climate(26f, 4f, 450f, 100f, 500f, 100f)));
+		assertEquals(BiomeRefiner.COLD_DESERT,
+			BiomeRefiner.refine("minecraft:plains", climate(10f, 9f, 180f, 30f, 1600f, 100f)));
 	}
 
 	@Test
@@ -315,12 +342,12 @@ class BiomeRefinerTest {
 	@Test
 	void inADryClimateTheWoodsKeepToTheShadedSlopes() {
 		// The foothills of the Rockies: firs, pines and aspens on the slopes facing north, which are cool enough for the
-		// mixed forest, open pine woods on flat ground and grass on the slopes facing south.
+		// mixed forest, open pine woods on flat ground and junipers on the slopes facing south.
 		assertEquals(BiomeRefiner.FOREST_STEPPE,
 			BiomeRefiner.refine("minecraft:forest", onSlope(0, 10f, 9f, 520f, 30f, 1800f, 200f)));
 		assertEquals(BiomeRefiner.MIXED_FOREST,
 			BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 520f, 30f, 1800f, 200f)));
-		assertEquals(BiomeRefiner.STEPPE,
+		assertEquals(BiomeRefiner.JUNIPER_WOODLAND,
 			BiomeRefiner.refine("minecraft:forest", onSlope(1, 10f, 9f, 520f, 30f, 1800f, 200f)));
 		// The plains below them get less rain, most of it in summer: steppe even on the shaded side, as around Denver.
 		assertEquals(BiomeRefiner.STEPPE,

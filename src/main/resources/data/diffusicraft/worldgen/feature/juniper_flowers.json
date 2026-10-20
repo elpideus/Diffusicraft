@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:simple_block",
+  "to_place": {
+    "type": "minecraft:weighted",
+    "entries": [
+      {
+        "data": "minecraft:orange_tulip",
+        "weight": 3
+      },
+      {
+        "data": "minecraft:red_tulip",
+        "weight": 1
+      },
+      {
+        "data": "minecraft:allium",
+        "weight": 2
+      },
+      {
+        "data": "minecraft:cornflower",
+        "weight": 1
+      }
+    ]
+  }
+}

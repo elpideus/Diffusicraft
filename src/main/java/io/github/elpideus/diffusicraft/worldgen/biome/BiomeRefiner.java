@@ -36,9 +36,9 @@ import java.util.Set;
  *   <li><b>Tundra</b> and <b>alpine tundra</b>: beyond the tree line, where the warmest month stays below
  *       {@value #TREE_LINE} °C; alpine on mountains. This is what moves the snow line above the tree line.</li>
  *   <li>Meadows keep to the subalpine belt, where the warmest month stays below {@value #SUBALPINE_WARMEST} °C, and
- *       to ground too dry for a closed forest. Lower down, on a humid mountainside, vanilla's meadow becomes the
- *       forest it puts on the lowlands beside it, so the woods no longer break into strips of meadow along every
- *       valley side.</li>
+ *       to ground too dry for a closed forest but not for grass. Lower down, on a humid mountainside, vanilla's meadow
+ *       becomes the forest it puts on the lowlands beside it, so the woods no longer break into strips of meadow along
+ *       every valley side; on a semi-arid one it becomes juniper woodland.</li>
  *   <li><b>Monsoon forest</b>: frost-free lowlands (coldest month from {@value #TROPICAL_COLDEST} °C) where vanilla
  *       puts a temperate forest, and seasonal jungles (rain seasonality from {@value #MONSOON_SEASONALITY} %) with less
  *       than {@value #MONSOON_RAIN} mm of rain: the teak and sal forests of India and Southeast Asia, which shed their
@@ -90,6 +90,12 @@ import java.util.Set;
  *   <li><b>Desert scrub</b>: the other deserts but the driest, which get less than {@value #SCRUB_ARIDITY} of the
  *       rain they would need to be steppe. Only those, as in the heart of the Sahara, are bare sand; in the others
  *       shrubs grow over gravel and stony ground, as in the Mojave, the Sonoran Desert and the Karoo.</li>
+ *   <li><b>Juniper woodland</b>: semi-arid ground, at least {@value #JUNIPER_ARIDITY} of the rain of the aridity
+ *       threshold, where the year averages {@value #JUNIPER_TEMPERATURE} to 18 °C and the land is rugged: at least
+ *       {@value #JUNIPER_RELIEF} m of relief, or a mountainside's meadow below the subalpine belt. Junipers and pinyon
+ *       pines root in the cracks of the rock, where the water gathers that the grass of the plains below takes first,
+ *       as on the ranges of the Great Basin, the mesas of the Colorado Plateau, the foothills of the Tien Shan and the
+ *       hills of Anatolia and Iran.</li>
  *   <li><b>Steppe</b>: semi-arid grassland cooler than 18 °C.</li>
  * </ul>
  *
@@ -117,6 +123,7 @@ public final class BiomeRefiner {
 	public static final String MIXED_FOREST = "diffusicraft:mixed_forest";
 	public static final String FOREST_STEPPE = "diffusicraft:forest_steppe";
 	public static final String FOREST_TUNDRA = "diffusicraft:forest_tundra";
+	public static final String JUNIPER_WOODLAND = "diffusicraft:juniper_woodland";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 	public static final String FOREST = "minecraft:forest";
@@ -128,8 +135,8 @@ public final class BiomeRefiner {
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, FOREST_TUNDRA, SWAMP, MANGROVE_SWAMP, FOREST,
-		BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
+		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, FOREST_TUNDRA, JUNIPER_WOODLAND, SWAMP,
+		MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -216,6 +223,12 @@ public final class BiomeRefiner {
 	 * little rain.
 	 */
 	static final float PERMAFROST = -2f;
+	/** Precipitation over the aridity threshold from which rugged semi-arid ground holds junipers. */
+	static final float JUNIPER_ARIDITY = 0.6f;
+	/** Relief from which semi-arid ground is rugged enough for junipers, in meters: hills, mesas and canyons. */
+	static final float JUNIPER_RELIEF = 60f;
+	/** Annual mean below which semi-arid hills stay steppe, °C. */
+	static final float JUNIPER_TEMPERATURE = 3f;
 	/** Meters the ice must have lowered ground at sea level for a drowned valley to be a fjord, not a thin strip. */
 	static final float FJORD_CUT = 120f;
 
@@ -353,8 +366,13 @@ public final class BiomeRefiner {
 				return MAQUIS;
 			}
 		}
-		if (meadow && aridity >= 1f && warmest >= SUBALPINE_WARMEST) {
-			return montaneForest(c, aridity);
+		if (meadow && warmest >= SUBALPINE_WARMEST) {
+			if (aridity >= 1f) {
+				return montaneForest(c, aridity);
+			}
+			if (juniperWoodland(c, aridity)) {
+				return JUNIPER_WOODLAND;
+			}
 		}
 		if (kind == Kind.LAND && heath(c)) {
 			return HEATH;
@@ -379,7 +397,7 @@ public final class BiomeRefiner {
 				return DESERT_SCRUB;
 			}
 			if (kind == Kind.LAND && aridity < 1f && c.temperature < 18f) {
-				return STEPPE;
+				return c.relief >= JUNIPER_RELIEF && juniperWoodland(c, aridity) ? JUNIPER_WOODLAND : STEPPE;
 			}
 		}
 		return null;
@@ -447,6 +465,12 @@ public final class BiomeRefiner {
 	/** The summers are warm enough for trees wherever this is asked. */
 	static boolean larchTaiga(BiomeClimate c, float aridity) {
 		return c.coldestMonth() < LARCH_COLDEST && aridity >= 1f;
+	}
+
+	/** Whether semi-arid ground is wet and warm enough for junipers. Its callers check that it is rugged. */
+	static boolean juniperWoodland(BiomeClimate c, float aridity) {
+		return aridity >= JUNIPER_ARIDITY && aridity < 1f && c.temperature >= JUNIPER_TEMPERATURE
+			&& c.temperature < 18f;
 	}
 
 	/** Whether the summers are warm enough for scattered trees only. Its callers check that they are for trees at all. */

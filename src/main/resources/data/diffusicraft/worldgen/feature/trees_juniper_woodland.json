@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:juniper_checked",
+  "features": [
+    {
+      "chance": 0.35,
+      "feature": "diffusicraft:pinyon_checked"
+    },
+    {
+      "chance": 0.25,
+      "feature": "diffusicraft:maquis_shrub_checked"
+    }
+  ]
+}

@@ -274,12 +274,23 @@ FEATURES = {
     "mesquite": tree("acacia_log", {"type": "minecraft:forking_trunk_placer", "base_height": 2, "height_rand_a": 1,
                                     "height_rand_b": 1}, "acacia_leaves",
                      {"type": "minecraft:acacia_foliage_placer", "radius": 2, "offset": 0}, two_layers(1, 0, 2)),
+    # Junipers: short and bushy on a few crooked, grey stems, their scaly foliage grey-green.
+    "juniper": tree("acacia_log", {"type": "minecraft:forking_trunk_placer", "base_height": 2, "height_rand_a": 1,
+                                   "height_rand_b": 1}, "oak_leaves",
+                    {"type": "minecraft:random_spread_foliage_placer", "radius": 2, "offset": 0,
+                     "foliage_height": 3, "leaf_placement_attempts": 45}, two_layers(1, 0, 1)),
+    # Pinyon pines: low, with rounded, uneven crowns of dark needles.
+    "pinyon": tree("spruce_log", straight(3, 1, 0), "spruce_leaves",
+                   {"type": "minecraft:random_spread_foliage_placer", "radius": 2, "offset": 0,
+                    "foliage_height": 3, "leaf_placement_attempts": 55}, two_layers(1, 0, 1)),
     "tundra_ground_cover": simple([("short_grass", 4), (ours("cottongrass"), 2), ("fern", 1)]),
     "tundra_moss_vegetation": simple([("moss_carpet", 3), ("short_grass", 2)]),
     "alpine_grass": simple([("short_grass", 6), ("fern", 1)]),
     "alpine_flowers": simple([(ours("edelweiss"), 3), (ours("gentian"), 3), ("azure_bluet", 1), ("oxeye_daisy", 1)]),
     "steppe_grass": simple([("short_grass", 6), ("short_dry_grass", 3), ("tall_dry_grass", 1)]),
     # Wild tulips, poppies and alliums of the spring steppe.
+    # Paintbrush and globemallow, wild onion and the odd bluebell among the bunchgrass.
+    "juniper_flowers": simple([("orange_tulip", 3), ("red_tulip", 1), ("allium", 2), ("cornflower", 1)]),
     "steppe_flowers": simple([("red_tulip", 2), ("orange_tulip", 2), ("poppy", 3), ("dandelion", 2), ("allium", 1)]),
     # The meadow-steppe's grass: greener and taller than the steppe's.
     "forest_steppe_grass": simple([("short_grass", 6), ("tall_grass", 2), ("short_dry_grass", 1)]),
@@ -387,6 +398,8 @@ PLACED = {
     "polylepis_checked": checked(ours("polylepis"), "oak_sapling"),
     "desert_shrub_checked": checked(ours("desert_shrub"), "acacia_sapling"),
     "mesquite_checked": checked(ours("mesquite"), "acacia_sapling"),
+    "juniper_checked": checked(ours("juniper"), "oak_sapling"),
+    "pinyon_checked": checked(ours("pinyon"), "spruce_sapling"),
     "boulders": scattered(ours("boulder"), chance=4),
     "boulders_rare": scattered(ours("boulder"), chance=12),
     "limestone_boulders": scattered(ours("limestone_boulder"), chance=5),
@@ -399,6 +412,8 @@ PLACED = {
     "trees_temperate_rainforest": trees(ours("trees_temperate_rainforest"), {12: 9, 14: 1}, "spruce_sapling"),
     "trees_cloud_forest": trees(ours("trees_cloud_forest"), {12: 9, 14: 1}, "jungle_sapling"),
     "trees_maquis": trees(ours("trees_maquis"), {1: 3, 2: 3, 3: 2, 4: 1}, "oak_sapling"),
+    # An open woodland, a few strides between the trees, as dense as the rock lets it be.
+    "trees_juniper_woodland": trees(ours("trees_juniper_woodland"), {1: 2, 2: 3, 3: 3, 5: 2}, "oak_sapling"),
     "trees_steppe": trees(ours("trees_steppe"), {0: 24, 1: 1}, "oak_sapling"),
     "trees_moorland": trees(ours("trees_moorland"), {0: 14, 1: 1}, "birch_sapling"),
     "trees_heath": trees(ours("trees_heath"), {0: 4, 1: 2, 2: 1}, "birch_sapling"),
@@ -421,6 +436,7 @@ PLACED = {
     "patch_alpine_grass": patch(ours("alpine_grass"), 32, count=4),
     "patch_alpine_flowers": patch(ours("alpine_flowers"), 48, spread=6, chance=2),
     "patch_steppe_grass": patch(ours("steppe_grass"), 32, count=6),
+    "patch_juniper_flowers": patch(ours("juniper_flowers"), 24, chance=2),
     "patch_steppe_flowers": patch(ours("steppe_flowers"), 48, chance=3),
     "patch_forest_steppe_grass": patch(ours("forest_steppe_grass"), 32, count=10),
     "patch_forest_steppe_flowers": patch(ours("forest_steppe_flowers"), 48, spread=6, count=1),
@@ -543,6 +559,10 @@ FEATURES["trees_forest_tundra"] = {"type": "minecraft:random_selector", "default
                                                 {"chance": 0.12, "feature": ours("krummholz_checked")},
                                                 {"chance": 0.08, "feature": "minecraft:spruce_checked"},
                                                 {"chance": 0.01, "feature": "minecraft:fallen_spruce_tree"}]}
+# Junipers, pinyons and young junipers.
+FEATURES["trees_juniper_woodland"] = {"type": "minecraft:random_selector", "default": ours("juniper_checked"),
+                                      "features": [{"chance": 0.35, "feature": ours("pinyon_checked")},
+                                                   {"chance": 0.25, "feature": ours("maquis_shrub_checked")}]}
 FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
@@ -680,6 +700,23 @@ BIOMES = {
                  "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trial_chambers",
                  "minecraft:has_structure/village_plains", "minecraft:is_overworld",
                  "minecraft:stronghold_biased_to"],
+    },
+    # Open woods of juniper and pinyon pine on semi-arid hills, mesas and mountainsides, over bunchgrass, sagebrush
+    # and bare, stony ground: the Great Basin's ranges and the Colorado Plateau, the foothills of the Tien Shan, the
+    # hills of Anatolia and Iran. Wild horses and burros, bighorns (goats), rabbits, foxes and coyotes (wolves).
+    "juniper_woodland": {
+        "template": "plains", "temperature": 0.7, "downfall": 0.2,
+        "effects": {"grass_color": "#a3a865", "foliage_color": "#7d9a80", "dry_foliage_color": "#9c8456"},
+        "creatures": [spawn("rabbit", 10, 2, 3), spawn("horse", 4, 2, 6), spawn("donkey", 2, 1, 3),
+                      spawn("goat", 4, 1, 3), spawn("fox", 3, 2, 3), spawn("wolf", 2, 2, 4)],
+        "local": ["boulders"],
+        "vegetation": ["minecraft:glow_lichen", "trees_juniper_woodland", "patch_steppe_grass", "patch_sagebrush",
+                       "patch_juniper_flowers", "minecraft:patch_dead_bush_2"],
+        "tags": ["c:is_dry/overworld", "c:is_temperate/overworld", "c:is_sparse_vegetation/overworld",
+                 "c:is_tree/coniferous", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/pillager_outpost", "minecraft:has_structure/ruined_portal_standard",
+                 "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_desert",
+                 "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
     },
     # Between the steppe and the forest: groves of birch and aspen, and of oak where the soil is deepest, in a meadow-
     # steppe of tall grass and flowers. From Ukraine across Russia and Siberia to the Altai, in Manchuria, and the
@@ -988,6 +1025,10 @@ SURFACE_RULE = sequence(
         # Needles under the spruces and pines, grass under the broadleaves.
         when(biome_is("mixed_forest"), sequence(when(noise(0.35), block("podzol")), block("grass_block"))),
         when(biome_is("steppe"), sequence(when(noise(0.55), block("coarse_dirt")), block("grass_block"))),
+        # Thin, stony soil between the bunchgrass, and the rock where it is steep.
+        when(biome_is("juniper_woodland"), sequence(
+            when(STEEP, block("stone")), when(noise(0.3), block("coarse_dirt")),
+            when(noise(hi=-0.5), block("gravel")), block("grass_block"))),
         # Limestone breaking through thin terra rossa.
         when(biome_is("maquis"), sequence(
             when(STEEP, block(ours("limestone"))), when(noise(hi=-0.55), block(ours("limestone"))),
@@ -1008,7 +1049,7 @@ SURFACE_RULE = sequence(
     ))),
     when("minecraft:under_floor", sequence(
         when(biome_is("cold_desert", "desert_scrub"), block("sandstone")),
-        when(biome_is("alpine_tundra", "paramo", "puna"), when(STEEP, block("stone"))),
+        when(biome_is("alpine_tundra", "paramo", "puna", "juniper_woodland"), when(STEEP, block("stone"))),
         when(biome_is("maquis"), when(STEEP, block(ours("limestone")))),
         when(biome_is("salt_flat"), block(ours("rock_salt"))),
         when(biome_is("moorland"), when(STEEP, block("stone"))),

@@ -520,6 +520,60 @@
               "if_true": {
                 "type": "minecraft:biome",
                 "biome_is": [
+                  "diffusicraft:juniper_woodland"
+                ]
+              },
+              "then_run": {
+                "type": "minecraft:sequence",
+                "sequence": [
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:steep"
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:stone"
+                    }
+                  },
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:noise_threshold",
+                      "noise": "minecraft:surface",
+                      "min_threshold": 0.3,
+                      "max_threshold": 1.7976931348623157e+308
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:coarse_dirt"
+                    }
+                  },
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:noise_threshold",
+                      "noise": "minecraft:surface",
+                      "min_threshold": -1.7976931348623157e+308,
+                      "max_threshold": -0.5
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:gravel"
+                    }
+                  },
+                  {
+                    "type": "minecraft:block",
+                    "result_state": "minecraft:grass_block"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "minecraft:condition",
+              "if_true": {
+                "type": "minecraft:biome",
+                "biome_is": [
                   "diffusicraft:maquis"
                 ]
               },
@@ -802,7 +856,8 @@
               "biome_is": [
                 "diffusicraft:alpine_tundra",
                 "diffusicraft:paramo",
-                "diffusicraft:puna"
+                "diffusicraft:puna",
+                "diffusicraft:juniper_woodland"
               ]
             },
             "then_run": {
