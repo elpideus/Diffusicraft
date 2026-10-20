@@ -143,4 +143,30 @@ class FjordsTest {
 		assertEquals(Math.min(0f, 100f) - Fjords.SMOOTH / 4f, Fjords.smoothMin(0f, 0f), 1e-3f);
 		assertEquals(-50f, Fjords.smoothMin(-50f, 100f));
 	}
+
+	@Test
+	void roughWallsStandOutAndBackButStillRiseFromAClearFloor() {
+		for (float r = -Fjords.ROUGHNESS; r <= Fjords.ROUGHNESS; r += Fjords.ROUGHNESS / 4f) {
+			assertEquals(-30f, Fjords.rough(-30f, r), "the floor is left as it is");
+			assertEquals(0f, Fjords.rough(0f, r));
+			for (float x = 10f; x <= Fjords.WALL_REACH; x += 10f) {
+				assertTrue(Fjords.rough(x, r) > Fjords.rough(x - 10f, r), "the wall turns back at " + x + " by " + r);
+			}
+		}
+		Fjords fjords = new Fjords(COAST, 1L);
+		Fjords.Trunk trunk = fjords.near(-4, -64, 4, 64).getFirst();
+		int k = trunk.mouth() + 2 * Fjords.SAMPLES, size = 256, plane = size * size;
+		int ci = (int) Math.floor(trunk.rows()[k] * SCALE), cj = (int) Math.floor(trunk.columns()[k] * SCALE);
+		float[] carving = fjords.carve(List.of(trunk), SCALE, ci - size / 2, cj - size / 2, size, size);
+		float low = Float.POSITIVE_INFINITY, high = Float.NEGATIVE_INFINITY;
+		for (int px = 0; px < plane; px++) {
+			if (carving[Fjords.BEYOND * plane + px] != Float.POSITIVE_INFINITY) {
+				float r = carving[Fjords.ROUGH * plane + px];
+				assertTrue(Math.abs(r) <= Fjords.ROUGHNESS, r + " m");
+				low = Math.min(low, r);
+				high = Math.max(high, r);
+			}
+		}
+		assertTrue(high - low > Fjords.ROUGHNESS, "along the shore, the walls stand out and back: " + low + " to " + high);
+	}
 }

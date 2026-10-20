@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.terrain.diffusion.FastNoiseLite;
+import io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -32,15 +33,16 @@ import static io.github.elpideus.diffusicraft.worldgen.TerrainSource.COARSE_TEMP
  * pixels from their mouth (123 km in the game). It stops where no neighbour is still mountainous or high, cold, away
  * from the sea and with its floor under {@value #HEAD_FLOOR} m; a walk shorter than {@value #MIN_STEPS} steps is no
  * fjord. Its path, two pixels out into the sea, through the walk and {@value #HEAD_EXTENSION} pixels on past the head,
- * is jittered, smoothed and made to meander.
+ * is jittered and smoothed; it does not meander, as ice cuts straight reaches.
  *
  * <p>The trough's floor lies {@value #SILL} m under the sea at the sill, sinks over the first pixel and a half to the
  * fjord's depth, {@value #DEPTH_BASE} m and {@value #DEPTH_PER_PIXEL} m more per coarse pixel of its length, and rises
  * over the last third to {@value #HEAD_DEPTH} m under the sea at the head; beyond, the valley climbs
  * {@value #HEAD_RISE} m per coarse pixel. The floor is {@value #MOUTH_WIDTH} m wide on either side of the path at the
  * mouth and {@value #HEAD_WIDTH} m at the head, and the walls rise from it in a U. Between the sill and the head, the
- * width and the depth wander, into narrows and broad basins. Ground above the trough sinks to it, with a smooth crease
- * where they meet.
+ * width and the depth wander, into narrows and broad basins. Along each shore the walls stand out and back by up to
+ * {@value #ROUGHNESS} m, into pointed spurs and rounded coves, but never over the floor, so the water runs through to
+ * the head. Ground above the trough sinks to it, with a smooth crease where they meet.
  *
  * <p>Fjords are traced in blocks of {@value #BLOCK} coarse pixels, each from a coarse map with a margin large enough
  * that every fjord depends only on the map around its mouth: neighbouring blocks agree to the bit.
@@ -93,16 +95,23 @@ final class Fjords {
 	static final float SMOOTH = 40f;
 	/** How far each coarse pixel's point on a path may move, in coarse pixels along each axis. */
 	static final float VERTEX_JITTER = 0.3f;
-	/** How far the path meanders to either side, in coarse pixels. */
-	static final float MEANDER = 0.08f;
-	/** The meanders' frequency, per coarse pixel. */
-	static final float MEANDER_FREQUENCY = 1.5f;
 	/** How much the trough widens and narrows along its length, as a share of its width. */
 	static final float WIDTH_VARIATION = 0.45f;
 	/** How much the basin's floor rises and sinks along its length, as a share of its depth. */
 	static final float DEPTH_VARIATION = 0.2f;
-	/** How slowly the width and depth vary: their frequency is the meanders' times this. */
-	static final float VARIATION_SCALE = 0.2f;
+	/** The frequency of the width's and the depth's variation, per coarse pixel. */
+	static final float VARIATION_FREQUENCY = 0.5f;
+	/** How far the walls wander in and out, at most, in meters: the spurs and coves along the shore. */
+	static final float ROUGHNESS = 800f;
+	/**
+	 * Meters from the floor's edge over which the walls' wandering grows to its full {@link #ROUGHNESS}: the floor
+	 * itself stays clear, so the water always runs through to the head.
+	 */
+	static final float ROUGHNESS_RAMP = 1000f;
+	/** The length of the walls' largest spurs and coves along the shore, in meters. */
+	static final double ROUGHNESS_WAVELENGTH = 3000.0;
+	/** Octaves of the walls' roughness, each half the wavelength of the one before. */
+	static final int ROUGHNESS_OCTAVES = 4;
 	/** Points of the smoothed path per coarse step. */
 	static final int SAMPLES = 16;
 	/** Side of the blocks of coarse pixels whose fjords are traced together, in coarse pixels. */
@@ -116,9 +125,18 @@ final class Fjords {
 	/** Coarse pixels around a fjord's path within which its trough can lower the ground. */
 	static final float INFLUENCE = 1f;
 
+	/** {@link #carve}'s plane of meters from the edge of the nearest trough's floor, infinite beyond its walls. */
+	static final int BEYOND = 0;
+	/** {@link #carve}'s plane of that trough's floor, in meters. */
+	static final int FLOOR = 1;
+	/** {@link #carve}'s plane of how far that trough's wall stands out from its U, in meters: see {@link #rough}. */
+	static final int ROUGH = 2;
+	static final int PLANES = 3;
+
 	private static final int MAX_BLOCKS = 64;
 	private static final int[][] FOUR = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 	private static final int SALT_MOUTH = 1, SALT_ROW = 2, SALT_COLUMN = 3, SALT_REACH = 4;
+	private static final long ROUGHNESS_SALT = 0x6a61676765644cL;
 
 	/**
 	 * One fjord's smoothed path, in coarse pixel units (pixel {@code ci} spans {@code [ci, ci + 1)}), with the floor of
@@ -135,15 +153,15 @@ final class Fjords {
 
 	private final TerrainSource source;
 	private final long seed;
-	private final FastNoiseLite meander;
+	private final FastNoiseLite variation;
 	private final ConcurrentHashMap<Long, CompletableFuture<List<Trunk>>> blocks = new ConcurrentHashMap<>();
 
 	Fjords(TerrainSource source, long seed) {
 		this.source = source;
 		this.seed = seed;
-		this.meander = new FastNoiseLite((int) (seed ^ (seed >>> 32)) ^ 0xf102d5);
-		meander.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-		meander.SetFrequency(MEANDER_FREQUENCY);
+		this.variation = new FastNoiseLite((int) (seed ^ (seed >>> 32)) ^ 0xf102d5);
+		variation.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+		variation.SetFrequency(VARIATION_FREQUENCY);
 	}
 
 	/** The fjords whose troughs may reach into the coarse pixels {@code [ci0, ci1) x [cj0, cj1)}, in any order. */
@@ -330,7 +348,7 @@ final class Fjords {
 		pointRow[n - 1] = pointRow[n - 2] + HEAD_EXTENSION * lastRow / last;
 		pointColumn[n - 1] = pointColumn[n - 2] + HEAD_EXTENSION * lastColumn / last;
 
-		// Catmull-Rom through the points, then meanders across the path.
+		// Catmull-Rom through the points. Ice cuts straight reaches: no meanders.
 		int dense = (n - 1) * SAMPLES + 1;
 		float[] rows = new float[dense], columns = new float[dense];
 		for (int k = 0; k < n - 1; k++) {
@@ -344,23 +362,11 @@ final class Fjords {
 		}
 		rows[dense - 1] = pointRow[n - 1];
 		columns[dense - 1] = pointColumn[n - 1];
-		float[] offset = new float[dense];
-		for (int k = 0; k < dense; k++) {
-			offset[k] = MEANDER * meander.GetNoise(rows[k], columns[k]);
-		}
-		float[] meanderedRows = new float[dense], meanderedColumns = new float[dense];
-		for (int k = 0; k < dense; k++) {
-			int before = Math.max(0, k - 1), after = Math.min(dense - 1, k + 1);
-			float tr = rows[after] - rows[before], tc = columns[after] - columns[before];
-			float length = (float) Math.sqrt(tr * tr + tc * tc);
-			meanderedRows[k] = length > 0f ? rows[k] - offset[k] * tc / length : rows[k];
-			meanderedColumns[k] = length > 0f ? columns[k] + offset[k] * tr / length : columns[k];
-		}
 
 		// Distances along the path, in coarse pixels, and the trough's profile.
 		float[] along = new float[dense];
 		for (int k = 1; k < dense; k++) {
-			float a = meanderedRows[k] - meanderedRows[k - 1], b = meanderedColumns[k] - meanderedColumns[k - 1];
+			float a = rows[k] - rows[k - 1], b = columns[k] - columns[k - 1];
 			along[k] = along[k - 1] + (float) Math.sqrt(a * a + b * b);
 		}
 		int mouth = 2 * SAMPLES, head = (n - 2) * SAMPLES;
@@ -375,15 +381,15 @@ final class Fjords {
 				halfWidth[k] = MOUTH_WIDTH;
 			} else if (u <= length) {
 				// Narrows and broad basins: the width and depth wander, but not at the sill or the head.
-				float vr = rows[k] * VARIATION_SCALE, vc = columns[k] * VARIATION_SCALE;
+				float vr = rows[k], vc = columns[k];
 				float inside = Glaciation.smoothstep(0f, sillLength, u)
 					* (1f - Glaciation.smoothstep(length - headLength, length, u));
-				float basin = -SILL - (depth * (1f + DEPTH_VARIATION * inside * meander.GetNoise(vr + 517f, vc))
+				float basin = -SILL - (depth * (1f + DEPTH_VARIATION * inside * variation.GetNoise(vr + 517f, vc))
 					- SILL) * Glaciation.smoothstep(0f, sillLength, u);
 				floor[k] = basin + (-HEAD_DEPTH - basin) * Glaciation.smoothstep(length - headLength, length, u);
 				halfWidth[k] = (MOUTH_WIDTH + (HEAD_WIDTH - MOUTH_WIDTH) * u / length)
 					* (1f + WIDTH_VARIATION * Glaciation.smoothstep(0f, sillLength, u)
-					* meander.GetNoise(vr, vc - 211f));
+					* variation.GetNoise(vr, vc - 211f));
 			} else {
 				floor[k] = -HEAD_DEPTH + HEAD_RISE * (u - length);
 				halfWidth[k] = HEAD_WIDTH;
@@ -392,43 +398,54 @@ final class Fjords {
 		float minRow = Float.POSITIVE_INFINITY, maxRow = Float.NEGATIVE_INFINITY;
 		float minColumn = Float.POSITIVE_INFINITY, maxColumn = Float.NEGATIVE_INFINITY;
 		for (int k = 0; k < dense; k++) {
-			minRow = Math.min(minRow, meanderedRows[k]);
-			maxRow = Math.max(maxRow, meanderedRows[k]);
-			minColumn = Math.min(minColumn, meanderedColumns[k]);
-			maxColumn = Math.max(maxColumn, meanderedColumns[k]);
+			minRow = Math.min(minRow, rows[k]);
+			maxRow = Math.max(maxRow, rows[k]);
+			minColumn = Math.min(minColumn, columns[k]);
+			maxColumn = Math.max(maxColumn, columns[k]);
 		}
-		return new Trunk(((long) ci << 32) | (cj & 0xffffffffL), meanderedRows, meanderedColumns, floor, halfWidth,
-			mouth, head, minRow, maxRow, minColumn, maxColumn);
+		return new Trunk(((long) ci << 32) | (cj & 0xffffffffL), rows, columns, floor, halfWidth, mouth, head, minRow,
+			maxRow, minColumn, maxColumn);
 	}
 
 	/**
-	 * Writes into {@code trough} the height of the troughs of {@code trunks} over native pixels {@code [i0, i0 + h) x
-	 * [j0, j0 + w)}, row-major, where it is lower than what is there, and the floor of the trough under each such
-	 * pixel into {@code floorAt}. {@code scale} is the native pixels per coarse pixel.
+	 * The troughs of {@code trunks} over native pixels {@code [i0, i0 + h) x [j0, j0 + w)}, in {@value #PLANES} planes
+	 * of {@code h × w}, row-major: {@link #BEYOND}, {@link #FLOOR} and {@link #ROUGH}. Where troughs overlap, the lowest
+	 * wins. {@code scale} is the native pixels per coarse pixel. The trough at a pixel is {@code floor + }{@link #wall}
+	 * {@code (}{@link #rough}{@code (beyond, rough))}.
 	 *
-	 * <p>The troughs are smooth, so they are worked out every {@value #CARVE_STEP} pixels, on a lattice fixed in the
-	 * world so that overlapping windows agree to the bit, and interpolated in between.
+	 * <p>The walls stand out from their U and back by up to {@value #ROUGHNESS} m, into spurs and coves of every size
+	 * down to a few hundred meters: folded fractal noise along each shore, so the spurs end in points. The noise runs
+	 * along the shore, not across it, so the walls still rise all the way up from the water and hold no pits.
+	 *
+	 * <p>All of it is smooth at a few pixels, so it is worked out every {@value #CARVE_STEP} pixels, on a lattice fixed
+	 * in the world so that overlapping windows agree to the bit, and interpolated in between.
 	 */
-	static void carve(List<Trunk> trunks, int scale, int i0, int j0, int h, int w, float[] trough, float[] floorAt) {
+	float[] carve(List<Trunk> trunks, int scale, int i0, int j0, int h, int w) {
 		int li0 = Math.floorDiv(i0, CARVE_STEP), lj0 = Math.floorDiv(j0, CARVE_STEP);
 		int lh = Math.floorDiv(i0 + h - 1, CARVE_STEP) - li0 + 2, lw = Math.floorDiv(j0 + w - 1, CARVE_STEP) - lj0 + 2;
-		float[] z = new float[lh * lw], base = new float[lh * lw];
-		Arrays.fill(z, Float.POSITIVE_INFINITY);
+		int nodes = lh * lw;
+		float[] height = new float[nodes], beyond = new float[nodes], bottom = new float[nodes];
+		float[] along = new float[nodes];
+		long[] shore = new long[nodes];
+		Arrays.fill(height, Float.POSITIVE_INFINITY);
+		Arrays.fill(beyond, Float.POSITIVE_INFINITY);
 		float metres = (float) WorldScale.METERS_PER_PIXEL;
 		for (Trunk trunk : trunks) {
 			float[] rows = trunk.rows(), columns = trunk.columns(), floor = trunk.floor(), halfWidth = trunk.halfWidth();
+			float walked = 0f;
 			for (int k = 0; k + 1 < rows.length; k++) {
 				// The segment in native pixels, from the centre of lattice point (0, 0).
 				double ar = (double) rows[k] * scale - (li0 * CARVE_STEP + 0.5);
 				double ac = (double) columns[k] * scale - (lj0 * CARVE_STEP + 0.5);
 				double br = (double) rows[k + 1] * scale - (li0 * CARVE_STEP + 0.5);
 				double bc = (double) columns[k + 1] * scale - (lj0 * CARVE_STEP + 0.5);
+				float sr = (float) (br - ar), sc = (float) (bc - ac), squared = sr * sr + sc * sc;
+				float segment = (float) Math.sqrt(squared) * metres;
 				double reach = (Math.max(halfWidth[k], halfWidth[k + 1]) + WALL_REACH) / metres;
 				int a0 = Math.max(0, (int) Math.floor((Math.min(ar, br) - reach) / CARVE_STEP));
 				int a1 = Math.min(lh, (int) Math.ceil((Math.max(ar, br) + reach) / CARVE_STEP) + 1);
 				int b0 = Math.max(0, (int) Math.floor((Math.min(ac, bc) - reach) / CARVE_STEP));
 				int b1 = Math.min(lw, (int) Math.ceil((Math.max(ac, bc) + reach) / CARVE_STEP) + 1);
-				float sr = (float) (br - ar), sc = (float) (bc - ac), squared = sr * sr + sc * sc;
 				for (int a = a0; a < a1; a++) {
 					float pr = (float) (a * CARVE_STEP - ar);
 					for (int b = b0; b < b1; b++) {
@@ -440,37 +457,74 @@ final class Fjords {
 						if (x > WALL_REACH) {
 							continue;
 						}
-						float bottom = floor[k] + (floor[k + 1] - floor[k]) * t;
-						float height = bottom + wall(x);
+						float base = floor[k] + (floor[k + 1] - floor[k]) * t;
+						float z = base + wall(x);
 						int node = a * lw + b;
-						if (height < z[node]) {
-							z[node] = height;
-							base[node] = bottom;
+						if (z < height[node]) {
+							height[node] = z;
+							beyond[node] = x;
+							bottom[node] = base;
+							along[node] = walked + t * segment;
+							// Each shore of each fjord has noise of its own.
+							shore[node] = trunk.key() * 2 + (sr * pc - sc * pr >= 0f ? 1 : 0);
 						}
 					}
 				}
+				walked += segment;
 			}
 		}
+		float[] rough = new float[nodes];
+		for (int node = 0; node < nodes; node++) {
+			if (beyond[node] != Float.POSITIVE_INFINITY) {
+				rough[node] = roughness(shore[node], along[node]);
+			}
+		}
+
+		int plane = h * w;
+		float[] out = new float[PLANES * plane];
+		Arrays.fill(out, BEYOND * plane, (BEYOND + 1) * plane, Float.POSITIVE_INFINITY);
 		for (int r = 0; r < h; r++) {
 			int i = i0 + r, a = Math.floorDiv(i, CARVE_STEP) - li0;
 			float u = Math.floorMod(i, CARVE_STEP) / (float) CARVE_STEP;
 			for (int c = 0; c < w; c++) {
 				int j = j0 + c, b = Math.floorDiv(j, CARVE_STEP) - lj0;
-				float v = Math.floorMod(j, CARVE_STEP) / (float) CARVE_STEP;
 				int n00 = a * lw + b, n10 = n00 + lw;
-				float z00 = z[n00], z01 = z[n00 + 1], z10 = z[n10], z11 = z[n10 + 1];
-				if (z00 == Float.POSITIVE_INFINITY || z01 == Float.POSITIVE_INFINITY
-					|| z10 == Float.POSITIVE_INFINITY || z11 == Float.POSITIVE_INFINITY) {
+				if (beyond[n00] == Float.POSITIVE_INFINITY || beyond[n00 + 1] == Float.POSITIVE_INFINITY
+					|| beyond[n10] == Float.POSITIVE_INFINITY || beyond[n10 + 1] == Float.POSITIVE_INFINITY) {
 					continue;
 				}
-				float height = lerp(lerp(z00, z01, v), lerp(z10, z11, v), u);
+				float v = Math.floorMod(j, CARVE_STEP) / (float) CARVE_STEP;
 				int px = r * w + c;
-				if (height < trough[px]) {
-					trough[px] = height;
-					floorAt[px] = lerp(lerp(base[n00], base[n00 + 1], v), lerp(base[n10], base[n10 + 1], v), u);
-				}
+				out[BEYOND * plane + px] = bilinear(beyond, n00, lw, u, v);
+				out[FLOOR * plane + px] = bilinear(bottom, n00, lw, u, v);
+				out[ROUGH * plane + px] = bilinear(rough, n00, lw, u, v);
 			}
 		}
+		return out;
+	}
+
+	/**
+	 * How far the wall of a shore stands out from its U, {@code along} meters along it, in meters within
+	 * {@code ±}{@value #ROUGHNESS}. {@code shore} tells the shores apart.
+	 */
+	private float roughness(long shore, float along) {
+		double n = GeoNoise.fractal(seed ^ ROUGHNESS_SALT ^ shore * 0x9e3779b97f4a7c15L, along / ROUGHNESS_WAVELENGTH,
+			0.5, ROUGHNESS_OCTAVES);
+		return ROUGHNESS * (float) (1.0 - 2.0 * Math.min(1.0, 2.0 * Math.abs(n)));
+	}
+
+	/**
+	 * Meters from the edge of the floor that the wall at {@code beyond} meters stands at, where it stands out by
+	 * {@code rough}: by none of it on the floor, and by all of it {@value #ROUGHNESS_RAMP} m out. It grows with
+	 * {@code beyond}, by at least {@code 1 − }{@value #ROUGHNESS}{@code  / }{@value #ROUGHNESS_RAMP} m a meter, and
+	 * with {@code rough}.
+	 */
+	static float rough(float beyond, float rough) {
+		return beyond + rough * Math.clamp(beyond / ROUGHNESS_RAMP, 0f, 1f);
+	}
+
+	private static float bilinear(float[] nodes, int n00, int width, float u, float v) {
+		return lerp(lerp(nodes[n00], nodes[n00 + 1], v), lerp(nodes[n00 + width], nodes[n00 + width + 1], v), u);
 	}
 
 	private static float lerp(float a, float b, float t) {

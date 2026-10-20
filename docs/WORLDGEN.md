@@ -637,8 +637,8 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
     along the coast. How far its ice reached is drawn for each mouth, from 3 to 16 coarse pixels (23 to 123 km) in a
     straight line, most of them short. The walk ends where no neighbour is still mountainous or 400 m high, cold, away
     from the sea and with its floor under 2,500 m.
-  - The path, from two pixels out at sea through the walk to a pixel and a half past the head, is jittered, smoothed
-    and made to meander.
+  - The path, from two pixels out at sea through the walk to a pixel and a half past the head, is jittered and
+    smoothed. It does not meander: ice cuts straight reaches.
   - The trough's floor lies 100 m under the sea at the sill, sinks within 11 km to the basin, 200 m deep and 35 m
     deeper per coarse pixel of the fjord's length, at most 1,200 m, and rises over the last third to 40 m under the sea
     at the head. Beyond it the valley climbs 400 m per coarse pixel. The floor is 2.4 km wide at the mouth and 800 m at
@@ -646,6 +646,12 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
     basins. The walls rise from the floor in a U, 750 m within a kilometre of it and ever steeper. Ground sinks into the
     trough where it is lower, with a crease smoothed over 40 m. Side valleys are not cut: they hang above the trough,
     as real ones do.
+  - A smooth U makes a shore of round bays, one after the other. Along each shore the walls stand out and back by up
+    to 800 m, into spurs and coves from 3 km long down to a few hundred meters: folded fractal noise, so the spurs end
+    in points and the coves are round. The noise runs along the shore, not across it, so the walls still climb all
+    the way from the water, with no pits or ponds in them. It grows from nothing at the edge of the floor to its full
+    size a kilometre out, faster than the wall can turn back, so the floor stays clear and the water runs through to
+    the head.
   - The ice cut there is the depth of the trough's floor and 40 m more, on its walls too, so the fjord biome follows
     the water to the head. In the coarse map, the pixels a fjord crosses keep 80% of their height above its floor and
     their 5th percentile sinks to it, so the rivers, the farthest LODs and the coarse searches see it.
@@ -653,9 +659,9 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   Fjords are traced in blocks of 16 coarse pixels, each from the coarse map around it, so neighbouring blocks agree to
   the bit. The trough is worked out every 4 pixels, on a lattice fixed in the world, and interpolated: about 1 ms per
   tile it reaches. Within 400 coarse pixels of the origin of seed 42, a square of 6,100 km, there are 280 fjords: half
-  are longer than 49 km, a tenth longer than 127 km, and the longest runs 197 km; 42 are longer than 100 km. On two
-  cold coasts of seed 42, 138 and 123 km square, the fjords and valleys drowned 730 and 1,011 km² of land joined to the
-  sea. Half of that water lies more than 60 and 10 km from the old coast by water, and the farthest 177 and 54 km.
+  are longer than 47 km, a tenth longer than 121 km, and the longest runs 189 km; 39 are longer than 100 km. On two
+  cold coasts of seed 42, 138 and 123 km square, the fjords and valleys drowned 684 and 1,010 km² of land joined to the
+  sea. Half of that water lies more than 52 and 10 km from the old coast by water, and the farthest 177 and 54 km.
 - **Limits.** Distant Horizons' LODs show the cliffs, the sea floor and the stacks as the chunks do, except the
   farthest, which read the coarse map: it has no coastline, so no beaches, cliffs, profile or stacks there. The LODs
   hold one height per column, so arches show solid. The profile has no bars or troughs. Stacks have no notch at the

@@ -168,7 +168,7 @@ public final class Glaciation implements TerrainSource {
 			valleys(ice, i0, j0, h, w, ci0, cj0, coarsePlane, width, scale, elevation, climate, iceCut);
 		}
 		if (!trunks.isEmpty()) {
-			fjords(trunks, i0, j0, h, w, scale, elevation, climate, iceCut);
+			fjords(fjords.carve(trunks, scale, i0, j0, h, w), h, w, elevation, climate, iceCut);
 		}
 		return new TerrainSample(i0, j0, h, w, elevation, climate);
 	}
@@ -215,19 +215,21 @@ public final class Glaciation implements TerrainSource {
 		}
 	}
 
-	/** Sinks a window of the fine terrain into the troughs of {@code trunks} where they lie below it. */
-	private static void fjords(List<Fjords.Trunk> trunks, int i0, int j0, int h, int w, int scale, float[] elevation,
-							   float[] climate, float @Nullable [] iceCut) {
+	/** Sinks a window of the fine terrain into the long fjords' troughs where they lie below it. */
+	private static void fjords(float[] carving, int h, int w, float[] elevation, float[] climate,
+							   float @Nullable [] iceCut) {
 		int plane = h * w;
-		float[] trough = new float[plane], floorAt = new float[plane];
-		Arrays.fill(trough, Float.POSITIVE_INFINITY);
-		Fjords.carve(trunks, scale, i0, j0, h, w, trough, floorAt);
 		for (int px = 0; px < plane; px++) {
-			float e = elevation[px];
-			if (trough[px] >= e + Fjords.SMOOTH) {
+			float beyond = carving[Fjords.BEYOND * plane + px];
+			if (beyond == Float.POSITIVE_INFINITY) {
 				continue;
 			}
-			float carved = Fjords.smoothMin(e, trough[px]);
+			float e = elevation[px], floor = carving[Fjords.FLOOR * plane + px];
+			float trough = floor + Fjords.wall(Fjords.rough(beyond, carving[Fjords.ROUGH * plane + px]));
+			if (trough >= e + Fjords.SMOOTH) {
+				continue;
+			}
+			float carved = Fjords.smoothMin(e, trough);
 			elevation[px] = carved;
 			// The lapse rate is negative: lowered ground is warmer.
 			climate[TerrainSample.TEMPERATURE * plane + px] += climate[TerrainSample.LAPSE_RATE * plane + px]
@@ -235,7 +237,7 @@ public final class Glaciation implements TerrainSource {
 			if (iceCut != null) {
 				// The whole trough was land, down to its floor: a fjord. The walls carry the floor's cut too, so it
 				// holds where the cut is interpolated between them.
-				iceCut[px] = Math.max(iceCut[px], Fjords.cut(floorAt[px]));
+				iceCut[px] = Math.max(iceCut[px], Fjords.cut(floor));
 			}
 		}
 	}
