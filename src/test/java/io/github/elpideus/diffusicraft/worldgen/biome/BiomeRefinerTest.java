@@ -72,6 +72,21 @@ class BiomeRefinerTest {
 	}
 
 	@Test
+	void meadowsKeepToTheSubalpineBeltAndDryGround() {
+		// 1000 m in the Vosges, 7 °C, July 16 °C and 1200 mm: beech and fir, not meadow.
+		assertEquals(BiomeRefiner.BIRCH_FOREST,
+			BiomeRefiner.refine("minecraft:meadow", climate(7f, 6.5f, 1200f, 25f, 1000f, 200f)));
+		// 1300 m in the Tatras, 3 °C, July 15.5 °C: spruce.
+		assertEquals(BiomeRefiner.TAIGA,
+			BiomeRefiner.refine("minecraft:meadow", climate(3f, 9f, 900f, 40f, 1300f, 250f)));
+		// Just humid enough: a plain forest.
+		assertEquals(BiomeRefiner.FOREST,
+			BiomeRefiner.refine("minecraft:meadow", climate(8f, 7f, 450f, 30f, 900f, 150f)));
+		// The high plains of central Anatolia, 380 mm at 11 °C, are too dry for a closed forest.
+		assertNull(BiomeRefiner.refine("minecraft:meadow", climate(11f, 8f, 380f, 45f, 1100f, 120f)));
+	}
+
+	@Test
 	void tropicalMountainsideIsCloudForest() {
 		// Monteverde, Costa Rica.
 		BiomeClimate c = climate(18f, 1f, 2500f, 60f, 1500f, 200f);

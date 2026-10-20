@@ -33,6 +33,10 @@ import java.util.Set;
  *       ones puna, as on the Altiplano or Mauna Kea.</li>
  *   <li><b>Tundra</b> and <b>alpine tundra</b>: beyond the tree line, where the warmest month stays below
  *       {@value #TREE_LINE} °C; alpine on mountains. This is what moves the snow line above the tree line.</li>
+ *   <li>Meadows keep to the subalpine belt, where the warmest month stays below {@value #SUBALPINE_WARMEST} °C, and
+ *       to ground too dry for a closed forest. Lower down, on a humid mountainside, vanilla's meadow becomes the
+ *       forest it puts on the lowlands beside it, so the woods no longer break into strips of meadow along every
+ *       valley side.</li>
  *   <li><b>Monsoon forest</b>: frost-free lowlands (coldest month from {@value #TROPICAL_COLDEST} °C) where vanilla
  *       puts a temperate forest, and seasonal jungles (rain seasonality from {@value #MONSOON_SEASONALITY} %) with less
  *       than {@value #MONSOON_RAIN} mm of rain: the teak and sal forests of India and Southeast Asia, which shed their
@@ -78,12 +82,20 @@ public final class BiomeRefiner {
 	public static final String FJORD = "diffusicraft:fjord";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
+	public static final String FOREST = "minecraft:forest";
+	public static final String BIRCH_FOREST = "minecraft:birch_forest";
+	public static final String TAIGA = "minecraft:taiga";
 
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, SWAMP, MANGROVE_SWAMP);
+		FJORD, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA);
 
+	/**
+	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
+	 * mountainside is closed forest. Above it the forest opens into meadows on its way up to the tree line.
+	 */
+	static final float SUBALPINE_WARMEST = 14f;
 	/** Warmest month below which snow lies all year round, °C. */
 	static final float ICE_WARMEST = 3f;
 	/** Annual mean below which the ground is white most of the year, °C. */
@@ -254,6 +266,9 @@ public final class BiomeRefiner {
 				return MAQUIS;
 			}
 		}
+		if (meadow && aridity >= 1f && warmest >= SUBALPINE_WARMEST) {
+			return montaneForest(c, aridity);
+		}
 		if (kind == Kind.LAND && heath(c)) {
 			return HEATH;
 		}
@@ -266,6 +281,17 @@ public final class BiomeRefiner {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * The woods of vanilla's lowland row in the band and humidity where its plateau row has a meadow: forest, and where
+	 * there is twice the rain the ground needs (vanilla's wetter half), birch forest, or taiga in the band below 5 °C.
+	 */
+	private static String montaneForest(BiomeClimate c, float aridity) {
+		if (aridity < 2f) {
+			return FOREST;
+		}
+		return c.temperature < 5f ? TAIGA : BIRCH_FOREST;
 	}
 
 	/** The wetland that vanilla's swamp band holds in this climate. */
