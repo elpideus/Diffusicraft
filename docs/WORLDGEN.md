@@ -305,7 +305,7 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of twenty-two new biomes, or for another of vanilla's. The first rule that matches wins:
+swap it for one of twenty-three new biomes, or for another of vanilla's. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
@@ -329,7 +329,8 @@ swap it for one of twenty-two new biomes, or for another of vanilla's. The first
 | **Forest-steppe**, **steppe** | Humid by the year's rain (aridity at least 1), but not by the summer's: the warmest month reaches 17 °C, the year averages −2 to 18 °C, and less rain falls than the threshold at the warmest month's temperature (see [Summer moisture](#summer-moisture)). Groves of birch and oak among the meadow-steppe, as from Ukraine to the Altai, in Manchuria and in the aspen parkland of the Canadian prairies; with less than 0.7 of that rain, steppe, as around Astana and Orenburg | Plains, forests, taigas, savannas; on humid mountainsides, meadows (see the montane forest) |
 | **Mixed forest** | 3.5–9 °C, warmest month at least 16 °C, coldest month below −1 °C, with at least the rain of the aridity threshold, as in southern Finland and Sweden, around Moscow, by the Great Lakes and in Manchuria. Oaks and birches grow among the spruces and pines there. Vanilla draws its line between taiga and forest at 5 °C, through the middle of that belt, and grows one or the other on either side of it. The oak needs a summer warm enough to ripen its acorns; milder winters favour the beech, and the forest is broadleaf, as in Denmark and around Berlin, which vanilla's forest already is | Forests, birch forests and taigas; on humid mountainsides, meadows (see the montane forest) |
 | **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts |
-| **Desert scrub** | Desert from 12 °C with at least 0.15 of the rain of the aridity threshold, as in the Mojave, the Sonoran Desert and the Karoo, where shrubs grow over stony ground. Only drier deserts are hyperarid, getting less than a twentieth of the water the sun could take back, as in the heart of the Sahara; they stay vanilla's bare sand | Deserts |
+| **Desert scrub** | Desert from 12 °C with at least 0.15 of the rain of the aridity threshold, as in the Mojave, the Sonoran Desert and the Karoo, where shrubs grow over stony ground. Only drier deserts are hyperarid, getting less than a twentieth of the water the sun could take back, as in the heart of the Sahara; they are bare: stony desert, or vanilla's sand | Deserts |
+| **Stony desert** | Hyperarid desert (below 0.15 of the rain of the aridity threshold, from 12 °C) that rises 20 m or more above the low ground around, the 5th percentile of the ground within 7.7 km. The wind sweeps the sand off the higher ground and leaves gravel plains and bare rock, the reg and hamada that make most of the Sahara, as in the Tanezrouft and on the Hamada du Draa. The sand gathers below, in the ergs, and stays vanilla's desert. Of the driest deserts, 49% are stony, 44% sand and 3% salt flats | Deserts |
 | **Juniper woodland** | Semi-arid (aridity 0.6 to 1), 3–18 °C, on rugged ground: at least 60 m of relief, or a mountainside's meadow below the subalpine belt. Junipers and pinyon pines root in the cracks of the rock, where the water gathers that the grass of the plains takes first. So the ranges of the Great Basin, the mesas of the Colorado Plateau, the foothills of the Tien Shan and the hills of Anatolia and Iran are open woods above the steppe of their valleys | Plains, forests, taigas, savannas; on semi-arid mountainsides, meadows |
 | **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C, where the ground is too flat, too dry or too cold for junipers, and where the summers are drier still (see the forest-steppe) | Plains, forests, taigas, savannas |
 
@@ -375,6 +376,7 @@ the colours:
 | Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass and terra rossa on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
+| Stony desert | Desert | Dead bushes and the odd boulder; a few rabbits and camels | Gravel with bare sandstone and drifts of sand, sandstone where it is steep and below |
 | Steppe | Plains | Grass, dry grass, tulips and poppies, a lone oak or birch | Grass with patches of coarse dirt over loess |
 | Juniper woodland | Plains | Junipers, pinyon pines and young junipers a few strides apart over bunchgrass, sagebrush (bushes), dead bushes, paintbrush and globemallow (tulips), wild onion (alliums) and the odd cornflower, boulders; wild horses and burros, bighorns (goats), rabbits, foxes and coyotes (wolves). Its villages are the desert's, which look like adobe pueblos | Grass with coarse dirt and gravel, rock where it is steep |
 | Forest-steppe | Plains | Groves of birches (aspens), oaks and the odd big oak or pine, with fallen leaves and now and then a fallen trunk, among tall grass, cornflowers (sage), ox-eye daisies, poppies, dandelions (buttercups) and azure bluets; a lone tree here and there, bushes; the plains' farm animals, with horses, rabbits and foxes | Grass |
@@ -1026,16 +1028,16 @@ Other searches still read the full terrain and can take a while on new land:
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes' cloud
   forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, Shanghai, Atlanta and
   Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, the Mojave, the Sonoran Desert, the
-  Karoo, Mesopotamia, Cairo and the Libyan Desert, Dartmoor and the Pennines, the Lüneburg Heath, Bonneville and Uyuni,
-  Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands, Yakutsk, Verkhoyansk, Oymyakon
-  and the Greater Khingan, southern Finland, Moscow, Stockholm, Ottawa and Manchuria's hills against Copenhagen, Berlin,
-  Kirov, the Vosges and the Black Forest, Astana, Orenburg and Volgograd, Kharkiv, Omsk, Edmonton, Budapest and Harbin
-  against Fairbanks, the Greenland ice sheet, Utqiaġvik and the South Shetlands, tropical coasts and the Sognefjord, and
-  Kuujjuarapik, Nain, Murmansk, Ungava, Akureyri and Iceland's other coasts against Rovaniemi, and Santa Fe, the hills
-  above Cedar City and of Anatolia against the valley below Cedar City, Mongolia's hills and the Sahel's. On slopes, the
-  tree line of the Alps is higher on the sunny side, with forest-tundra just below it, and the woods of the Rockies'
-  foothills keep to the shaded side, where it is cool enough for mixed forest; flat ground there is open forest-steppe,
-  and junipers grow on the sunny side.
+  Karoo, Mesopotamia, Kufra's sand sea against the Tanezrouft and the hamada above Cairo, Dartmoor and the Pennines, the
+  Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay
+  Lowlands, Yakutsk, Verkhoyansk, Oymyakon and the Greater Khingan, southern Finland, Moscow, Stockholm, Ottawa and
+  Manchuria's hills against Copenhagen, Berlin, Kirov, the Vosges and the Black Forest, Astana, Orenburg and Volgograd,
+  Kharkiv, Omsk, Edmonton, Budapest and Harbin against Fairbanks, the Greenland ice sheet, Utqiaġvik and the South
+  Shetlands, tropical coasts and the Sognefjord, and Kuujjuarapik, Nain, Murmansk, Ungava, Akureyri and Iceland's other
+  coasts against Rovaniemi, and Santa Fe, the hills above Cedar City and of Anatolia against the valley below Cedar
+  City, Mongolia's hills and the Sahel's. On slopes, the tree line of the Alps is higher on the sunny side, with
+  forest-tundra just below it, and the woods of the Rockies' foothills keep to the shaded side, where it is cool enough
+  for mixed forest; flat ground there is open forest-steppe, and junipers grow on the sunny side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

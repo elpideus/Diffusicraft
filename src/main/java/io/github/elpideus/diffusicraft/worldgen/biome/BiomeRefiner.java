@@ -89,8 +89,12 @@ import java.util.Set;
  *       Vosges do.</li>
  *   <li><b>Cold desert</b>: deserts cooler than {@value #COLD_DESERT_TEMPERATURE} °C.</li>
  *   <li><b>Desert scrub</b>: the other deserts but the driest, which get less than {@value #SCRUB_ARIDITY} of the
- *       rain they would need to be steppe. Only those, as in the heart of the Sahara, are bare sand; in the others
- *       shrubs grow over gravel and stony ground, as in the Mojave, the Sonoran Desert and the Karoo.</li>
+ *       rain they would need to be steppe. Only those, as in the heart of the Sahara, are bare; in the others shrubs
+ *       grow over gravel and stony ground, as in the Mojave, the Sonoran Desert and the Karoo.</li>
+ *   <li><b>Stony desert</b>: the driest deserts where they rise {@value #ERG_ABOVE} m or more above the low ground
+ *       around ({@link BiomeClimate#aboveLow}). The wind sweeps the sand off the higher ground and leaves gravel plains
+ *       and bare rock, the reg and hamada that make most of the Sahara, as in the Tanezrouft and on the Hamada du
+ *       Draa. The sand gathers below, in the ergs, and stays vanilla's desert: about half of the driest deserts.</li>
  *   <li><b>Juniper woodland</b>: semi-arid ground, at least {@value #JUNIPER_ARIDITY} of the rain of the aridity
  *       threshold, where the year averages {@value #JUNIPER_TEMPERATURE} to 18 °C and the land is rugged: at least
  *       {@value #JUNIPER_RELIEF} m of relief, or a mountainside's meadow below the subalpine belt. Junipers and pinyon
@@ -125,6 +129,7 @@ public final class BiomeRefiner {
 	public static final String FOREST_STEPPE = "diffusicraft:forest_steppe";
 	public static final String FOREST_TUNDRA = "diffusicraft:forest_tundra";
 	public static final String JUNIPER_WOODLAND = "diffusicraft:juniper_woodland";
+	public static final String STONY_DESERT = "diffusicraft:stony_desert";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 	public static final String FOREST = "minecraft:forest";
@@ -136,8 +141,8 @@ public final class BiomeRefiner {
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, FOREST_TUNDRA, JUNIPER_WOODLAND, SWAMP,
-		MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
+		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, FOREST_TUNDRA, JUNIPER_WOODLAND, STONY_DESERT,
+		SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -176,6 +181,8 @@ public final class BiomeRefiner {
 	 * twentieth of the water the sun could take back.
 	 */
 	static final float SCRUB_ARIDITY = 0.15f;
+	/** The driest deserts are stony from this height above the low ground around, in meters; sand lies below. */
+	static final float ERG_ABOVE = 20f;
 	/** Coldest month above which a swamp at sea level is a mangrove, °C. */
 	static final float MANGROVE_COLDEST = 15f;
 	/** Mangroves grow on tidal flats: no higher than this, in meters. */
@@ -396,6 +403,9 @@ public final class BiomeRefiner {
 			}
 			if (kind == Kind.DESERT && aridity >= SCRUB_ARIDITY) {
 				return DESERT_SCRUB;
+			}
+			if (kind == Kind.DESERT && c.aboveLow >= ERG_ABOVE) {
+				return STONY_DESERT;
 			}
 			if (kind == Kind.LAND && aridity < 1f && c.temperature < 18f) {
 				return c.relief >= JUNIPER_RELIEF && juniperWoodland(c, aridity) ? JUNIPER_WOODLAND : STEPPE;

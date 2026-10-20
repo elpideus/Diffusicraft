@@ -251,7 +251,7 @@ class BiomeRefinerTest {
 	}
 
 	@Test
-	void hotDesertsGrowScrubButTheDriestAreBareSand() {
+	void hotDesertsGrowScrubButTheDriestAreBare() {
 		// The Mojave at Las Vegas, the Sonoran Desert at Phoenix, the Nama Karoo at Upington and the desert of
 		// Mesopotamia at Baghdad.
 		assertEquals(BiomeRefiner.DESERT_SCRUB, BiomeRefiner.refine("minecraft:desert",
@@ -262,9 +262,21 @@ class BiomeRefinerTest {
 			climate(20.5f, 5.7f, 190f, 70f, 830f, 30f)));
 		assertEquals(BiomeRefiner.DESERT_SCRUB, BiomeRefiner.refine("minecraft:desert",
 			climate(23f, 8.8f, 150f, 90f, 40f, 20f)));
-		// The hyperarid Sahara at Cairo and the Libyan Desert's sand sea at Kufra.
-		assertNull(BiomeRefiner.refine("minecraft:desert", climate(22f, 5f, 25f, 100f, 50f, 30f)));
-		assertNull(BiomeRefiner.refine("minecraft:desert", climate(23f, 6.4f, 2f, 150f, 380f, 30f)));
+		// The hyperarid Sahara. The sand sea of the Libyan Desert at Kufra lies in the hollows; the Tanezrouft's gravel
+		// plain at Reggane, flat but higher up, and the hamada of the Mokattam Hills above Cairo are stony.
+		BiomeClimate kufra = climate(23f, 6.4f, 2f, 150f, 380f, 30f);
+		kufra.aboveLow = 8f;
+		assertNull(BiomeRefiner.refine("minecraft:desert", kufra));
+		BiomeClimate reggane = climate(28f, 8f, 11f, 120f, 230f, 3f);
+		reggane.aboveLow = 30f;
+		assertEquals(BiomeRefiner.STONY_DESERT, BiomeRefiner.refine("minecraft:desert", reggane));
+		BiomeClimate cairo = climate(22f, 5f, 25f, 100f, 150f, 30f);
+		cairo.aboveLow = 90f;
+		assertEquals(BiomeRefiner.STONY_DESERT, BiomeRefiner.refine("minecraft:desert", cairo));
+		// Less dry, the higher ground grows scrub.
+		BiomeClimate phoenix = climate(24f, 7.6f, 204f, 54f, 340f, 40f);
+		phoenix.aboveLow = 90f;
+		assertEquals(BiomeRefiner.DESERT_SCRUB, BiomeRefiner.refine("minecraft:desert", phoenix));
 		// Badlands stay badlands.
 		assertNull(BiomeRefiner.refine("minecraft:badlands", climate(24f, 7.6f, 204f, 54f, 900f, 60f)));
 	}

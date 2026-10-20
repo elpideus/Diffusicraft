@@ -78,7 +78,8 @@ final class BiomeColors {
 		Map.entry("diffusicraft:mixed_forest", 0x3d8a4a),
 		Map.entry("diffusicraft:forest_steppe", 0x8fae58),
 		Map.entry("diffusicraft:forest_tundra", 0x6f8a5a),
-		Map.entry("diffusicraft:juniper_woodland", 0x8a9a5e)
+		Map.entry("diffusicraft:juniper_woodland", 0x8a9a5e),
+		Map.entry("diffusicraft:stony_desert", 0xa39a86)
 	);
 
 	private BiomeColors() {

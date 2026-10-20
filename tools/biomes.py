@@ -688,6 +688,19 @@ BIOMES = {
                  "minecraft:spawns_warm_variant_farm_animals", "minecraft:spawns_warm_variant_frogs",
                  "minecraft:stronghold_biased_to"],
     },
+    # Reg and hamada, the gravel plains and bare rock that make most of the Sahara: too dry even for scrub. A few dead
+    # bushes and boulders, and camels crossing.
+    "stony_desert": {
+        "template": "desert", "temperature": 2.0, "downfall": 0.0,
+        "creatures": [spawn("rabbit", 4, 2, 3), spawn("camel", 2, 1)],
+        "local": ["boulders_rare"],
+        "vegetation": ["minecraft:glow_lichen", "minecraft:patch_dead_bush_2"],
+        "tags": ["c:is_desert", "c:is_dry/overworld", "c:is_hot/overworld", "c:is_sparse_vegetation/overworld",
+                 "minecraft:has_structure/desert_pyramid", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/ruined_portal_desert", "minecraft:has_structure/trial_chambers",
+                 "minecraft:is_overworld", "minecraft:spawns_gold_rabbits",
+                 "minecraft:spawns_warm_variant_farm_animals", "minecraft:stronghold_biased_to"],
+    },
     "steppe": {
         "template": "plains", "temperature": 0.65, "downfall": 0.25,
         "effects": {"grass_color": "#a9b15e", "foliage_color": "#93a04c", "dry_foliage_color": "#a68a52"},
@@ -1017,6 +1030,10 @@ SURFACE_RULE = sequence(
         when(biome_is("desert_scrub"), sequence(
             when("minecraft:on_ceiling", block("coarse_dirt")), when(noise(0.2), block("sand")),
             when(noise(hi=-0.45), block("gravel")), block("coarse_dirt"))),
+        # Gravel pavement, bare sandstone where it is steep and on the hamada, and sand the wind has left.
+        when(biome_is("stony_desert"), sequence(
+            when(STEEP, block("sandstone")), when("minecraft:on_ceiling", block("sandstone")),
+            when(noise(0.35), block("sand")), when(noise(hi=-0.4), block("sandstone")), block("gravel"))),
         when(biome_is("tundra", "forest_tundra"), sequence(
             when(noise(0.4), block("coarse_dirt")), when(noise(hi=-0.45), block("podzol")), block("grass_block"))),
         # Needle litter, and ground churned bare by the frost.
@@ -1048,7 +1065,7 @@ SURFACE_RULE = sequence(
             when(noise(0.4), block(ours("peat"))), when(noise(hi=0.05), block("moss_block")), block("grass_block"))),
     ))),
     when("minecraft:under_floor", sequence(
-        when(biome_is("cold_desert", "desert_scrub"), block("sandstone")),
+        when(biome_is("cold_desert", "desert_scrub", "stony_desert"), block("sandstone")),
         when(biome_is("alpine_tundra", "paramo", "puna", "juniper_woodland"), when(STEEP, block("stone"))),
         when(biome_is("maquis"), when(STEEP, block(ours("limestone")))),
         when(biome_is("salt_flat"), block(ours("rock_salt"))),

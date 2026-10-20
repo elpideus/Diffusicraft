@@ -369,6 +369,68 @@
               "if_true": {
                 "type": "minecraft:biome",
                 "biome_is": [
+                  "diffusicraft:stony_desert"
+                ]
+              },
+              "then_run": {
+                "type": "minecraft:sequence",
+                "sequence": [
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:steep"
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:sandstone"
+                    }
+                  },
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": "minecraft:on_ceiling",
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:sandstone"
+                    }
+                  },
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:noise_threshold",
+                      "noise": "minecraft:surface",
+                      "min_threshold": 0.35,
+                      "max_threshold": 1.7976931348623157e+308
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:sand"
+                    }
+                  },
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:noise_threshold",
+                      "noise": "minecraft:surface",
+                      "min_threshold": -1.7976931348623157e+308,
+                      "max_threshold": -0.4
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:sandstone"
+                    }
+                  },
+                  {
+                    "type": "minecraft:block",
+                    "result_state": "minecraft:gravel"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "minecraft:condition",
+              "if_true": {
+                "type": "minecraft:biome",
+                "biome_is": [
                   "diffusicraft:tundra",
                   "diffusicraft:forest_tundra"
                 ]
@@ -841,7 +903,8 @@
               "type": "minecraft:biome",
               "biome_is": [
                 "diffusicraft:cold_desert",
-                "diffusicraft:desert_scrub"
+                "diffusicraft:desert_scrub",
+                "diffusicraft:stony_desert"
               ]
             },
             "then_run": {
