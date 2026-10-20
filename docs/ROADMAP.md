@@ -50,10 +50,12 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   desert scrub, stony desert, steppe, shrub steppe, forest-steppe, juniper woodland, fjords, monsoon, laurel and mixed
   forests, and the páramo and puna of tropical mountains, with their own trees (krummholz, giant spruces, olives, stone
   pines, cypresses, black spruces, mountain birches, larches, junipers, pinyons, mesquites, teak, live oaks,
-  frailejones, queñuas), plants and ground; the wetlands follow the climate, from mangroves to bogs. New plants:
-  heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of their own under some biomes: peat,
-  which burns, terra rossa, laterite and loess. Snow follows the climate rather than a fixed height, above a real tree
-  line, with no forest on it, and the Grand Hollows are free of sculk. See [WORLDGEN.md](WORLDGEN.md#refined-biomes).
+  frailejones, queñuas), plants and ground; vanilla's own biomes where its table picks the wrong ones, taiga in its
+  boreal forests, savanna on its tropical plains and steppe on its dry frozen ground; the wetlands follow the climate,
+  from mangroves to bogs. New plants: heather, cottongrass, lavender, edelweiss and gentian, and salt crust. Soils of
+  their own under some biomes: peat, which burns, terra rossa, laterite and loess. Snow follows the climate rather than
+  a fixed height, above a real tree line, with no forest on it, and the Grand Hollows are free of sculk. See
+  [WORLDGEN.md](WORLDGEN.md#refined-biomes).
 - **Real biome sizes.** Biomes come in patches as large as their real counterparts. At Earth 1:1 the main forests
   and taigas average 10 to 20 km across, a few hundred square kilometres at most, and steppe or maquis can cover a
   whole plain. Sun and shade are measured over a whole valley side, vanilla's variants are picked by noise with a
@@ -138,7 +140,10 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Biomes
 
-- **More real-world biomes.** The other biomes the climate can tell apart.
+- **More real-world biomes.** A survey of the land of two worlds by rough Köppen class finds a fitting biome in every
+  class now. What is left needs more than the yearly figures: the prairie and the pampas, which fires and grazers keep
+  from the forest their climate would grow; the thorn scrub of the driest savannas; and whether the rain of a climate
+  between the Mediterranean and the monsoon falls in summer or in winter, which the data has no month for.
 - **Longer fjords.** Today's fjords reach about 20 km inland and end where their valleys climb over a step the coarse
   map does not see. The longest real ones run 100 km and more inland, over sills, between walls a kilometre high.
   Cutting deeper only drowns more troughs behind those steps at sea level: they would need lakes above the sea, like
