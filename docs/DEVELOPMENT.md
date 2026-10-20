@@ -95,6 +95,10 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
 - [`TreesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TreesGameTest.java) plants three of
   each of Diffusicraft's trees on a superflat world, in the biome each grows in, and saves a view of each
   (`diffusicraft-world-tree-<name>.png`). It fails if a tree never grows on open grass. It needs no models.
+- [`BiomesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/BiomesGameTest.java) lays out a
+  plot of each of Diffusicraft's surface biomes on a superflat world, grows its plants there as world generation
+  would, and saves a view of each (`diffusicraft-world-biome-<name>.png`): how dense its woods are, how its trees mix
+  and what colour its grass and leaves take. The ground stays superflat grass. It needs no models.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods
@@ -115,7 +119,7 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   ```
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
 - **Some of them.** `-Pdiffusicraft.gametests=TallDimension,Earth` runs only the tests whose class names start with
-  one of those. The tall dimension and the trees each take under a minute.
+  one of those. The tall dimension, the trees and the biomes each take under a minute.
 - **Not part of `build`.** Run them yourself after changing anything in `client/screen`, `worldgen` or the mixins.
 
 ## Project conventions

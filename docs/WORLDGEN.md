@@ -1046,3 +1046,6 @@ Other searches still read the full terrain and can take a while on new land:
 - `TreesGameTest`, a client game test that needs no models, plants three of each of Diffusicraft's trees on a
   superflat world, each in its own biome for the colours of its leaves, and saves a view of each. A tree that never
   grows on open grass fails it.
+- `BiomesGameTest`, a client game test that needs no models, lays out a plot of each of Diffusicraft's surface biomes
+  on a superflat world, grows its plants and trees there as world generation would, and saves a view of each. The
+  ground stays superflat grass, so the biomes' own ground and the plants that need sand are missing.
