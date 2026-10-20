@@ -47,6 +47,11 @@ public final class ClimateMapping {
 	static final float SNOW_LINE_TEMPERATURE = 1f;
 	/** Bare stony summits stop below this temperature; warmer peaks are forested. */
 	static final float STONY_PEAK_TEMPERATURE = 8f;
+	/**
+	 * Erosion below which vanilla's peak slice picks its peak biome however far inland: relief over 250 m. Only there
+	 * does a summit's forced temperature band give stony peaks; elsewhere it would give a jungle.
+	 */
+	static final float PEAK_EROSION = -0.78f;
 	/** How much warmer than flat ground a sunny slope is, at most, in °C: a cliff facing south. */
 	public static final float EXPOSURE_WARMING = 3f;
 	/** The share of its water the sun dries out of a sunny slope, at most, and a shaded slope keeps. */
@@ -90,7 +95,7 @@ public final class ClimateMapping {
 
 		boolean mountain = erosion < -0.375f || peaks > 0.2f && erosion < -0.2225f;
 		if (mountain && !hot && c.temperature >= SNOW_LINE_TEMPERATURE) {
-			if (peaks >= 0.7f && c.temperature < STONY_PEAK_TEMPERATURE) {
+			if (peaks >= 0.7f && erosion < PEAK_EROSION && c.temperature < STONY_PEAK_TEMPERATURE) {
 				temperature = 0.3f;
 			} else {
 				erosion = Math.max(erosion, -0.3f);

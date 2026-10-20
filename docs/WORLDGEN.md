@@ -259,7 +259,9 @@ Some adjustments move biomes away from vanilla's defaults:
     of the Rockies;
   - Mediterranean scrub spreads up the sunny slopes.
 - **Snow.** Snowy slopes and peaks need temperatures below 1 °C. A warmer mountain is moved into the plateau and
-  forest bands. Between 1 and 8 °C, a summit becomes stony peaks.
+  forest bands. Between 1 and 8 °C, a summit more than 250 m above the land around it becomes stony peaks; a lower
+  one keeps the woods of its own band. Vanilla gives stony peaks only to its warm band, which gives jungle wherever
+  vanilla picks no peak biome, so a summit is moved there only where vanilla does.
 - **Windswept and rivers.** Erosion never reaches the windswept band. Weirdness reaches the river band only in the
   valleys of [the rivers](#rivers), which therefore take vanilla's river biomes, frozen where it is cold. Both come
   from the terrain, not from noise.

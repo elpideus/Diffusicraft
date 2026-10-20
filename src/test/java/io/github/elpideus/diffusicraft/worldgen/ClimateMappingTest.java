@@ -60,6 +60,11 @@ class ClimateMappingTest {
 		// A rugged peak at 2 °C: no snow, bare stone (stony peaks need temperature band 3).
 		float[] cool = parameters(column(2500f, 1800f, 300f, 2f, 900f));
 		assertEquals(0.3f, cool[ClimateMapping.TEMPERATURE], 1e-6);
+		// A rounded summit at 4 °C, 160 m above the land around it, keeps the woods of its own band: forced into the
+		// warm band, it would get vanilla's jungle wherever vanilla does not pick a peak biome.
+		float[] rounded = parameters(column(1160f, 1000f, 150f, 4f, 2000f));
+		assertTrue(rounded[ClimateMapping.TEMPERATURE] < -0.15f);
+		assertTrue(rounded[ClimateMapping.EROSION] >= -0.3f);
 		// A rugged slope at 12 °C: pushed out of the snowy mountain erosion bands.
 		float[] warm = parameters(column(1500f, 1500f, 300f, 12f, 900f));
 		assertTrue(warm[ClimateMapping.EROSION] >= -0.3f);
