@@ -102,6 +102,13 @@ import java.util.Set;
  *       as on the ranges of the Great Basin, the mesas of the Colorado Plateau, the foothills of the Tien Shan and the
  *       hills of Anatolia and Iran.</li>
  *   <li><b>Steppe</b>: semi-arid grassland cooler than 18 °C.</li>
+ *   <li><b>Shrub steppe</b>: the steppe that is nearly desert, with less than {@value #SHRUB_ARIDITY} of the rain of
+ *       the aridity threshold, or whose rain falls in the cool season, where the coldest month stays above
+ *       {@value #WINTER_RAIN_COLDEST} °C. Winter's rain soaks deep while little of it evaporates, and it waters the long
+ *       roots of shrubs; the summer's rain wets only the top of the soil, which the grass takes first. Sagebrush and
+ *       saltbush cover the Great Basin and the Columbia Plateau, the steppe of Patagonia and the wormwood steppe of
+ *       Kazakhstan that way. The steppe of summer rain and more of it stays grass, as on the Great Plains and in
+ *       Mongolia.</li>
  * </ul>
  *
  * <p>Pure and static, so it is unit-tested without a world.
@@ -130,6 +137,7 @@ public final class BiomeRefiner {
 	public static final String FOREST_TUNDRA = "diffusicraft:forest_tundra";
 	public static final String JUNIPER_WOODLAND = "diffusicraft:juniper_woodland";
 	public static final String STONY_DESERT = "diffusicraft:stony_desert";
+	public static final String SHRUB_STEPPE = "diffusicraft:shrub_steppe";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 	public static final String FOREST = "minecraft:forest";
@@ -142,7 +150,7 @@ public final class BiomeRefiner {
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
 		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, FOREST_TUNDRA, JUNIPER_WOODLAND, STONY_DESERT,
-		SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
+		SHRUB_STEPPE, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -237,6 +245,13 @@ public final class BiomeRefiner {
 	static final float JUNIPER_RELIEF = 60f;
 	/** Annual mean below which semi-arid hills stay steppe, °C. */
 	static final float JUNIPER_TEMPERATURE = 3f;
+	/** Precipitation over the aridity threshold below which the steppe is nearly desert: shrub steppe. */
+	static final float SHRUB_ARIDITY = 0.65f;
+	/**
+	 * Coldest month from which a semi-arid climate's rain falls mostly in the cool season, °C, as the aridity threshold
+	 * ({@link BiomeClimate#aridity}) has it: it soaks below the grass's roots, and the steppe is shrub steppe.
+	 */
+	static final float WINTER_RAIN_COLDEST = 2f;
 	/** Meters the ice must have lowered ground at sea level for a drowned valley to be a fjord, not a thin strip. */
 	static final float FJORD_CUT = 120f;
 
@@ -408,7 +423,10 @@ public final class BiomeRefiner {
 				return STONY_DESERT;
 			}
 			if (kind == Kind.LAND && aridity < 1f && c.temperature < 18f) {
-				return c.relief >= JUNIPER_RELIEF && juniperWoodland(c, aridity) ? JUNIPER_WOODLAND : STEPPE;
+				if (c.relief >= JUNIPER_RELIEF && juniperWoodland(c, aridity)) {
+					return JUNIPER_WOODLAND;
+				}
+				return shrubSteppe(c, aridity) ? SHRUB_STEPPE : STEPPE;
 			}
 		}
 		return null;
@@ -482,6 +500,11 @@ public final class BiomeRefiner {
 	static boolean juniperWoodland(BiomeClimate c, float aridity) {
 		return aridity >= JUNIPER_ARIDITY && aridity < 1f && c.temperature >= JUNIPER_TEMPERATURE
 			&& c.temperature < 18f;
+	}
+
+	/** Whether semi-arid steppe is shrub steppe: nearly desert, or watered in the cool season. */
+	static boolean shrubSteppe(BiomeClimate c, float aridity) {
+		return aridity < SHRUB_ARIDITY || c.coldestMonth() >= WINTER_RAIN_COLDEST;
 	}
 
 	/** Whether the summers are warm enough for scattered trees only. Its callers check that they are for trees at all. */

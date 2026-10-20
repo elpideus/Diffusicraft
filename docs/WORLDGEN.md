@@ -305,7 +305,7 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of twenty-three new biomes, or for another of vanilla's. The first rule that matches wins:
+swap it for one of twenty-four new biomes, or for another of vanilla's. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
@@ -332,7 +332,8 @@ swap it for one of twenty-three new biomes, or for another of vanilla's. The fir
 | **Desert scrub** | Desert from 12 °C with at least 0.15 of the rain of the aridity threshold, as in the Mojave, the Sonoran Desert and the Karoo, where shrubs grow over stony ground. Only drier deserts are hyperarid, getting less than a twentieth of the water the sun could take back, as in the heart of the Sahara; they are bare: stony desert, or vanilla's sand | Deserts |
 | **Stony desert** | Hyperarid desert (below 0.15 of the rain of the aridity threshold, from 12 °C) that rises 20 m or more above the low ground around, the 5th percentile of the ground within 7.7 km. The wind sweeps the sand off the higher ground and leaves gravel plains and bare rock, the reg and hamada that make most of the Sahara, as in the Tanezrouft and on the Hamada du Draa. The sand gathers below, in the ergs, and stays vanilla's desert. Of the driest deserts, 49% are stony, 44% sand and 3% salt flats | Deserts |
 | **Juniper woodland** | Semi-arid (aridity 0.6 to 1), 3–18 °C, on rugged ground: at least 60 m of relief, or a mountainside's meadow below the subalpine belt. Junipers and pinyon pines root in the cracks of the rock, where the water gathers that the grass of the plains takes first. So the ranges of the Great Basin, the mesas of the Colorado Plateau, the foothills of the Tien Shan and the hills of Anatolia and Iran are open woods above the steppe of their valleys | Plains, forests, taigas, savannas; on semi-arid mountainsides, meadows |
-| **Steppe** | Semi-arid (aridity below 1) and cooler than 18 °C, where the ground is too flat, too dry or too cold for junipers, and where the summers are drier still (see the forest-steppe) | Plains, forests, taigas, savannas |
+| **Shrub steppe** | Semi-arid and cooler than 18 °C where the ground is too flat, too dry or too cold for junipers, and either nearly desert (aridity below 0.65) or watered in the cool season (the coldest month above 2 °C, from which the aridity threshold takes the rain to fall in winter). Winter's rain soaks deep while little of it evaporates and waters the long roots of shrubs; summer's wets only the top of the soil, which the grass takes first. So sagebrush and saltbush cover the Great Basin and the Columbia Plateau, the steppe of Patagonia and the wormwood steppe of Kazakhstan. In the worlds surveyed, a third of the semi-arid steppe, and three-quarters in a drier one | Plains, forests, taigas, savannas |
+| **Steppe** | The rest of the semi-arid land cooler than 18 °C: summer rain, and more of it, as on the Great Plains and in Mongolia; and where the summers are drier still (see the forest-steppe) | Plains, forests, taigas, savannas |
 
 Frozen and warm oceans, shores, rivers, caves and the mushroom fields are never touched, and neither is any biome a mod adds to the
 table: only vanilla's own biomes are refined. `BiomeRefiner` is pure and unit-tested.
@@ -378,6 +379,7 @@ the colours:
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
 | Stony desert | Desert | Dead bushes and the odd boulder; a few rabbits and camels | Gravel with bare sandstone and drifts of sand, sandstone where it is steep and below |
 | Steppe | Plains | Grass, dry grass, tulips and poppies, a lone oak or birch | Grass with patches of coarse dirt over loess |
+| Shrub steppe | Plains | Sagebrush a stride or two apart, as waist-high mounds of silvery leaves and low bushes, over dry bunchgrass, paintbrush and globemallow (tulips), wild onion (alliums), dead bushes and the odd boulder; wild horses and burros, sheep, jackrabbits (rabbits), foxes and coyotes (wolves) | Grass with bare coarse dirt and gravel over loess, rock where it is steep |
 | Juniper woodland | Plains | Junipers, pinyon pines and young junipers a few strides apart over bunchgrass, sagebrush (bushes), dead bushes, paintbrush and globemallow (tulips), wild onion (alliums) and the odd cornflower, boulders; wild horses and burros, bighorns (goats), rabbits, foxes and coyotes (wolves). Its villages are the desert's, which look like adobe pueblos | Grass with coarse dirt and gravel, rock where it is steep |
 | Forest-steppe | Plains | Groves of birches (aspens), oaks and the odd big oak or pine, with fallen leaves and now and then a fallen trunk, among tall grass, cornflowers (sage), ox-eye daisies, poppies, dandelions (buttercups) and azure bluets; a lone tree here and there, bushes; the plains' farm animals, with horses, rabbits and foxes | Grass |
 | Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with bare peat and sphagnum (moss), peat below |
@@ -758,7 +760,7 @@ calcrete (calcite) under the subsoil, where the rain stops sinking in. The depth
 world type. Sand and gravel never hang over open space: there they stay sandstone and rock.
 
 Some biomes lay a soil of their own on top, to vanilla's depth: peat under the moors, the tundra, the páramo and the
-bogs, whose pools it lines too, terra rossa under the maquis, loess under the steppe and laterite under the jungles, the
+bogs, whose pools it lines too, terra rossa under the maquis, loess under the steppes and laterite under the jungles, the
 monsoon and laurel forests, the savannas and the cloud forest. Peat, terra rossa and laterite also lie bare on top in
 patches. The profile goes on under them. Vanilla's plain dirt stays only as topsoil: below it lies the subsoil. Only the
 column's top run of ground gets a profile, so the floors of caves and the ground under arches and rivers keep what the
@@ -1027,17 +1029,19 @@ Other searches still read the full terrain and can take a while on new land:
   `build/river-map`, to look at them without starting the game.
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes' cloud
   forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, Shanghai, Atlanta and
-  Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the steppe, the Mojave, the Sonoran Desert, the
-  Karoo, Mesopotamia, Kufra's sand sea against the Tanezrouft and the hamada above Cairo, Dartmoor and the Pennines, the
-  Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay
-  Lowlands, Yakutsk, Verkhoyansk, Oymyakon and the Greater Khingan, southern Finland, Moscow, Stockholm, Ottawa and
-  Manchuria's hills against Copenhagen, Berlin, Kirov, the Vosges and the Black Forest, Astana, Orenburg and Volgograd,
-  Kharkiv, Omsk, Edmonton, Budapest and Harbin against Fairbanks, the Greenland ice sheet, Utqiaġvik and the South
-  Shetlands, tropical coasts and the Sognefjord, and Kuujjuarapik, Nain, Murmansk, Ungava, Akureyri and Iceland's other
-  coasts against Rovaniemi, and Santa Fe, the hills above Cedar City and of Anatolia against the valley below Cedar
-  City, Mongolia's hills and the Sahel's. On slopes, the tree line of the Alps is higher on the sunny side, with
-  forest-tundra just below it, and the woods of the Rockies' foothills keep to the shaded side, where it is cool enough
-  for mixed forest; flat ground there is open forest-steppe, and junipers grow on the sunny side.
+  Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the wormwood steppe of Kazakhstan, the Mojave, the
+  Sonoran Desert, the Karoo, Mesopotamia, Kufra's sand sea against the Tanezrouft and the hamada above Cairo, Dartmoor
+  and the Pennines, the Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of
+  Allen, the Hudson Bay Lowlands, Yakutsk, Verkhoyansk, Oymyakon and the Greater Khingan, southern Finland, Moscow,
+  Stockholm, Ottawa and Manchuria's hills against Copenhagen, Berlin, Kirov, the Vosges and the Black Forest, Astana,
+  Orenburg and Volgograd, Kharkiv, Omsk, Edmonton, Budapest and Harbin against Fairbanks, the Greenland ice sheet,
+  Utqiaġvik and the South Shetlands, tropical coasts and the Sognefjord, and Kuujjuarapik, Nain, Murmansk, Ungava,
+  Akureyri and Iceland's other coasts against Rovaniemi, and Santa Fe, the hills above Cedar City and of Anatolia
+  against the valley below Cedar City, Mongolia's hills and the Sahel's, and the sagebrush of Elko and the valley below
+  Cedar City and Patagonia's shrub steppe at Comodoro Rivadavia against the grass of Río Gallegos, Denver and
+  Scottsbluff. On slopes, the tree line of the Alps is higher on the sunny side, with forest-tundra just below it, and
+  the woods of the Rockies' foothills keep to the shaded side, where it is cool enough for mixed forest; flat ground
+  there is open forest-steppe, and junipers grow on the sunny side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

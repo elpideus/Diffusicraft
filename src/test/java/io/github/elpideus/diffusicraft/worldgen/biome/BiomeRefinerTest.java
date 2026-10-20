@@ -193,9 +193,10 @@ class BiomeRefinerTest {
 
 	@Test
 	void coolDrylandsAreColdDesertOrSteppe() {
-		// The Gobi, and the Kazakh steppe.
+		// The Gobi, and the wormwood steppe of central Kazakhstan, nearly as dry.
 		assertEquals(BiomeRefiner.COLD_DESERT, BiomeRefiner.refine("minecraft:desert", climate(4f, 14f, 100f, 80f, 1200f, 40f)));
-		assertEquals(BiomeRefiner.STEPPE, BiomeRefiner.refine("minecraft:plains", climate(6f, 13f, 220f, 50f, 300f, 20f)));
+		assertEquals(BiomeRefiner.SHRUB_STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(6f, 13f, 220f, 50f, 300f, 20f)));
 		// A hot desert stays a desert.
 		assertNull(BiomeRefiner.refine("minecraft:desert", climate(25f, 7f, 50f, 100f, 300f, 40f)));
 	}
@@ -211,8 +212,8 @@ class BiomeRefinerTest {
 			assertEquals(BiomeRefiner.JUNIPER_WOODLAND, BiomeRefiner.refine(biome, santaFe), biome);
 			assertEquals(BiomeRefiner.JUNIPER_WOODLAND, BiomeRefiner.refine(biome, cedarHills), biome);
 		}
-		// The valley floor below Cedar City, as flat as the Great Plains: steppe.
-		assertEquals(BiomeRefiner.STEPPE,
+		// The valley floor below Cedar City, as flat as the Great Plains: sagebrush.
+		assertEquals(BiomeRefiner.SHRUB_STEPPE,
 			BiomeRefiner.refine("minecraft:plains", climate(9.9f, 9f, 280f, 30f, 1700f, 20f)));
 		// The dry hills of Mongolia are too cold for junipers, the hills of the Sahel too hot, and the hills of the
 		// Great Basin's driest ranges too dry.
@@ -221,6 +222,24 @@ class BiomeRefinerTest {
 		assertNull(BiomeRefiner.refine("minecraft:savanna", climate(26f, 4f, 450f, 100f, 500f, 100f)));
 		assertEquals(BiomeRefiner.COLD_DESERT,
 			BiomeRefiner.refine("minecraft:plains", climate(10f, 9f, 180f, 30f, 1600f, 100f)));
+	}
+
+	@Test
+	void theSteppeNearlyDesertOrWateredInWinterIsShrubSteppe() {
+		// Sagebrush around Elko, nearly a desert, and the shrub steppe of Patagonia at Comodoro Rivadavia, whose rain
+		// falls in the mild winter.
+		assertEquals(BiomeRefiner.SHRUB_STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(8f, 8.6f, 250f, 30f, 1550f, 20f)));
+		assertEquals(BiomeRefiner.SHRUB_STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(13f, 4.5f, 235f, 40f, 50f, 20f)));
+		// Grass where there is more rain and the winters are colder: the tussock steppe of Río Gallegos, and the
+		// shortgrass prairie around Denver and Scottsbluff.
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(7.6f, 4.5f, 250f, 35f, 20f, 20f)));
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(10.4f, 7.6f, 400f, 45f, 1600f, 20f)));
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:plains", climate(9.4f, 8.6f, 400f, 50f, 1200f, 20f)));
 	}
 
 	@Test

@@ -54,7 +54,9 @@ def uniform(lo, hi):
 
 
 def weighted(entries):
-    return {"type": "minecraft:weighted", "entries": [{"data": mc(block), "weight": w} for block, w in entries]}
+    """Blocks by weight: a name, or a state such as `leaves` makes."""
+    return {"type": "minecraft:weighted", "entries": [
+        {"data": block if isinstance(block, dict) else mc(block), "weight": w} for block, w in entries]}
 
 
 def straight(base, a, b):
@@ -320,6 +322,11 @@ FEATURES = {
     # Ichu: golden bunchgrass from one horizon to the other.
     "puna_grass": simple([("short_dry_grass", 4), ("tall_dry_grass", 3), ("short_grass", 1)]),
     "scrub_grass": simple([("short_dry_grass", 5), ("tall_dry_grass", 2), ("short_grass", 1)]),
+    # Bluebunch wheatgrass, needlegrass and straw-coloured cheatgrass between the shrubs.
+    "shrub_steppe_grass": simple([("short_dry_grass", 4), ("short_grass", 3), ("tall_dry_grass", 1)]),
+    # Big sagebrush, a waist-high mound of silvery leaves; persistent, since no log holds it.
+    "sagebrush": simple([({**leaves("oak_leaves"), "properties": {**leaves("oak_leaves")["properties"],
+                                                                   "persistent": "true"}}, 1)]),
     # Desert marigolds and sand verbena, after the rain.
     "desert_flowers": simple([("dandelion", 3), ("allium", 1)]),
     # Lilies of the valley and wood anemones, which flower in the spring before the trees come into leaf.
@@ -444,6 +451,11 @@ PLACED = {
     "patch_maquis_bush": patch("minecraft:bush", 24, spread=5, count=2),
     "patch_maquis_flowers": patch(ours("maquis_flowers"), 48, spread=6, chance=2),
     "patch_sagebrush": patch("minecraft:bush", 12, spread=6, chance=3),
+    # Sagebrush a stride or two apart: the low bushes, and mounds of leaves that stand on the ground, never in the air.
+    "patch_sage": patch("minecraft:bush", 16, spread=6, count=3),
+    "patch_sage_mounds": patch(ours("sagebrush"), 12, spread=6, count=2,
+                               on=["grass_block", "coarse_dirt", "gravel", "dirt"]),
+    "patch_shrub_steppe_grass": patch(ours("shrub_steppe_grass"), 32, count=4),
     "patch_heather_moor": patch(ours("heather"), 64, count=4),
     "patch_moor_grass": patch(ours("moor_grass"), 32, count=3),
     "patch_heather_heath": patch(ours("heather"), 64, count=3),
@@ -709,6 +721,24 @@ BIOMES = {
         "vegetation": ["minecraft:glow_lichen", "trees_steppe", "minecraft:patch_tall_grass_2", "patch_steppe_grass",
                        "patch_steppe_flowers", "minecraft:patch_bush"],
         "tags": ["c:is_plains", "c:is_dry/overworld", "c:is_temperate/overworld",
+                 "minecraft:has_structure/mineshaft", "minecraft:has_structure/pillager_outpost",
+                 "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trial_chambers",
+                 "minecraft:has_structure/village_plains", "minecraft:is_overworld",
+                 "minecraft:stronghold_biased_to"],
+    },
+    # Sagebrush steppe: grey-green shrubs knee- to waist-high a stride or two apart over dry bunchgrass, bare ground and
+    # gravel, where the winter's rain soaks below the grass's roots or there is too little rain for a sward: the Great
+    # Basin and the Columbia Plateau, Patagonia, the wormwood steppe of Kazakhstan. Wild horses and burros, jackrabbits
+    # (rabbits), foxes and coyotes (wolves).
+    "shrub_steppe": {
+        "template": "plains", "temperature": 0.7, "downfall": 0.15,
+        "effects": {"grass_color": "#a4a676", "foliage_color": "#b9c2a6", "dry_foliage_color": "#a08a5c"},
+        "creatures": [spawn("rabbit", 12, 2, 3), spawn("horse", 4, 2, 6), spawn("donkey", 2, 1, 3),
+                      spawn("sheep", 4, 4), spawn("fox", 2, 2, 3), spawn("wolf", 1, 2, 4)],
+        "local": ["boulders_rare"],
+        "vegetation": ["minecraft:glow_lichen", "patch_sage_mounds", "patch_sage", "patch_shrub_steppe_grass",
+                       "patch_juniper_flowers", "minecraft:patch_dead_bush_2"],
+        "tags": ["c:is_plains", "c:is_dry/overworld", "c:is_temperate/overworld", "c:is_sparse_vegetation/overworld",
                  "minecraft:has_structure/mineshaft", "minecraft:has_structure/pillager_outpost",
                  "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trial_chambers",
                  "minecraft:has_structure/village_plains", "minecraft:is_overworld",
@@ -1042,6 +1072,10 @@ SURFACE_RULE = sequence(
         # Needles under the spruces and pines, grass under the broadleaves.
         when(biome_is("mixed_forest"), sequence(when(noise(0.35), block("podzol")), block("grass_block"))),
         when(biome_is("steppe"), sequence(when(noise(0.55), block("coarse_dirt")), block("grass_block"))),
+        # Bare, pale ground between the shrubs, gravel pavement, and the rock where it is steep.
+        when(biome_is("shrub_steppe"), sequence(
+            when(STEEP, block("stone")), when(noise(0.2), block("coarse_dirt")),
+            when(noise(hi=-0.5), block("gravel")), block("grass_block"))),
         # Thin, stony soil between the bunchgrass, and the rock where it is steep.
         when(biome_is("juniper_woodland"), sequence(
             when(STEEP, block("stone")), when(noise(0.3), block("coarse_dirt")),
@@ -1066,7 +1100,8 @@ SURFACE_RULE = sequence(
     ))),
     when("minecraft:under_floor", sequence(
         when(biome_is("cold_desert", "desert_scrub", "stony_desert"), block("sandstone")),
-        when(biome_is("alpine_tundra", "paramo", "puna", "juniper_woodland"), when(STEEP, block("stone"))),
+        when(biome_is("alpine_tundra", "paramo", "puna", "juniper_woodland", "shrub_steppe"),
+             when(STEEP, block("stone"))),
         when(biome_is("maquis"), when(STEEP, block(ours("limestone")))),
         when(biome_is("salt_flat"), block(ours("rock_salt"))),
         when(biome_is("moorland"), when(STEEP, block("stone"))),
@@ -1075,7 +1110,7 @@ SURFACE_RULE = sequence(
         when(SUBSOIL, sequence(
             when(biome_is("moorland", "tundra", "forest_tundra", "paramo"), block(ours("peat"))),
             when(biome_is("maquis"), block(ours("terra_rossa"))),
-            when(biome_is("steppe"), block(ours("loess"))),
+            when(biome_is("steppe", "shrub_steppe"), block(ours("loess"))),
             when(biome_is(*TROPICAL), block(ours("laterite"))))),
     )),
 )
