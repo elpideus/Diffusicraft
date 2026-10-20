@@ -242,7 +242,7 @@ gives each one a physical meaning, with breakpoints at the edges of vanilla's ow
 | humidity (vegetation) | Precipitation over the Köppen aridity threshold `20 × (T + 7)` mm, less what the sun dries out of a sunny slope. |
 | continentalness | Offshore: the water depth. On the [coast](#coasts): the height above the sea. Inland: the mean elevation. |
 | erosion | Local relief: rugged land is low, flat land is high. Flat, low and wet land is put in the swamp band. |
-| weirdness | Whether the column is a local peak or a hollow. The sign comes from smooth noise and only picks variants. |
+| weirdness | Whether the column is a local peak or a hollow. The sign comes from smooth noise with a wavelength of 12 km of real ground and only picks variants, in patches kilometres across. |
 | depth | Blocks below the surface, capped at 60 blocks above the sea. |
 
 Some adjustments move biomes away from vanilla's defaults:

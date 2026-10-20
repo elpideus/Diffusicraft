@@ -47,7 +47,7 @@ public final class TerrainField implements AutoCloseable {
 	/** Half the run, in pixels, over which {@link #slope} measures a hillside (60 m). */
 	static final int HILLSIDE = 2;
 	/** Real-world wavelength of the noise that picks vanilla's biome variants, in meters. */
-	static final float VARIANT_WAVELENGTH = 4000f;
+	static final float VARIANT_WAVELENGTH = 12000f;
 
 	static final int MEAN = 0;
 	static final int RELIEF = 1;
