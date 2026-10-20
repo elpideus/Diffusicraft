@@ -995,7 +995,8 @@ BIOMES = {
 }
 # Vanilla biomes the refiner swaps between, which the source must be able to return.
 REFINED_VANILLA = ["minecraft:swamp", "minecraft:mangrove_swamp", "minecraft:forest", "minecraft:birch_forest",
-                   "minecraft:taiga", "minecraft:snowy_plains", "minecraft:snowy_slopes"]
+                   "minecraft:taiga", "minecraft:savanna", "minecraft:snowy_plains",
+                   "minecraft:snowy_slopes"]
 
 
 # The ground of the new biomes, run before vanilla's overworld surface rule (see worldgen_data.py).

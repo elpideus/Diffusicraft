@@ -318,6 +318,7 @@ swap it for one of twenty-four new biomes, or for another of vanilla's. The firs
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
 | *(montane forest)* | Humid mountainsides (aridity at least 1) below the subalpine belt, where the warmest month passes 14 °C, some 600 m below the tree line. Vanilla's plateau row puts meadows there between the woods of its lowland row, in strips along every valley side; they become those woods: forest-steppe where the summers are too dry for closed woods (the meadow stays in the steppe's climate), mixed forest in its climate; elsewhere forest, and with at least twice the rain of the aridity threshold birch forest, or taiga below 5 °C. Semi-arid mountainsides get juniper woodland (see below). Meadows stay in the subalpine belt and on ground drier still | Meadows |
 | **Monsoon forest** | Frost-free lowland (coldest month at least 15 °C) with at least the rain of the aridity threshold. Vanilla only has temperate woods for it between its savannas and its jungles; jungles count too where the rain is strongly seasonal (BIO15 at least 80 %) and below 2000 mm, as in India and Thailand. Wetter jungles stay, as in the Amazon | Forests and taigas, jungles |
+| *(savanna)* | The same frost-free land (coldest month at least 15 °C) with at least the rain of the aridity threshold. Vanilla puts its plains there wherever its humidity is low, about half of the wet-and-dry tropics in the worlds surveyed, but grassland that warm, with a dry season, is savanna, as in the Cerrado around Brasília, the Llanos and around Darwin | Plains, sunflower plains |
 | **Laurel forest** | Jungle where the coldest month falls below 15 °C, so frost can come. Vanilla's jungles start at a yearly mean of 15 °C, which takes in the humid subtropics, as around Shanghai or Atlanta | Jungles |
 | **Moorland** | Rolling uplands (300–1500 m, less than 90 m of relief) with cool summers (warmest month below 15.5 °C), coldest month above −6 °C, at least 800 mm of rain | Plains, forests, taigas, savannas, hills and meadows |
 | **Bog** | The flattest land (less than 6 m of relief) below 1500 m, with cool summers (warmest month below 20 °C) and at least twice the rain of the aridity threshold, as in Finland, the West Siberian Plain and the Hudson Bay Lowlands. Not where maquis grows: peat needs ground wet all summer, and a Mediterranean summer is dry. Vanilla puts swamps only on low ground; bogs grow on flat land at any height below the mountains | Plains, forests, taigas, savannas |
@@ -1029,20 +1030,21 @@ Other searches still read the full terrain and can take a while on new land:
 - `RiverMapTest` needs the models. It surveys the rivers of a real world and draws maps of them and their lakes to
   `build/river-map`, to look at them without starting the game.
 - `BiomeRefinerTest` checks each rule on real climates: arctic lowland, the Alps above the tree line, the Andes' cloud
-  forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, Shanghai, Atlanta and
-  Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the wormwood steppe of Kazakhstan, the Mojave, the
-  Sonoran Desert, the Karoo, Mesopotamia, Kufra's sand sea against the Tanezrouft and the hamada above Cairo, Dartmoor
-  and the Pennines, the Lüneburg Heath, Bonneville and Uyuni, Finland's mires, the West Siberian Plain, the Bog of
-  Allen, the Hudson Bay Lowlands, Yakutsk, Verkhoyansk, Oymyakon and the Greater Khingan, southern Finland, Moscow,
-  Stockholm, Ottawa and Manchuria's hills against Copenhagen, Berlin, Kirov, the Vosges and the Black Forest, the taiga
-  of Kirov and Fort Smith, Astana, Orenburg and Volgograd, Kharkiv, Omsk, Edmonton, Budapest and Harbin against
-  Fairbanks, the Greenland ice sheet, Utqiaġvik and the South Shetlands, tropical coasts and the Sognefjord, and
-  Kuujjuarapik, Nain, Murmansk, Ungava, Akureyri and Iceland's other coasts against Rovaniemi, and Santa Fe, the hills
-  above Cedar City and of Anatolia against the valley below Cedar City, Mongolia's hills and the Sahel's, and the
-  sagebrush of Elko and the valley below Cedar City and Patagonia's shrub steppe at Comodoro Rivadavia against the grass
-  of Río Gallegos, Denver and Scottsbluff. On slopes, the tree line of the Alps is higher on the sunny side, with
-  forest-tundra just below it, and the woods of the Rockies' foothills keep to the shaded side, where it is cool enough
-  for mixed forest; flat ground there is open forest-steppe, and junipers grow on the sunny side.
+  forest, Ecuador's páramo, the Altiplano and Mauna Kea, central India, Thailand and the Amazon, the Cerrado around
+  Brasília and Darwin, Shanghai, Atlanta and Hong Kong, the Pacific Northwest, the Mediterranean, the Gobi and the
+  wormwood steppe of Kazakhstan, the Mojave, the Sonoran Desert, the Karoo, Mesopotamia, Kufra's sand sea against the
+  Tanezrouft and the hamada above Cairo, Dartmoor and the Pennines, the Lüneburg Heath, Bonneville and Uyuni, Finland's
+  mires, the West Siberian Plain, the Bog of Allen, the Hudson Bay Lowlands, Yakutsk, Verkhoyansk, Oymyakon and the
+  Greater Khingan, southern Finland, Moscow, Stockholm, Ottawa and Manchuria's hills against Copenhagen, Berlin, Kirov,
+  the Vosges and the Black Forest, the taiga of Kirov and Fort Smith, Astana, Orenburg and Volgograd, Kharkiv, Omsk,
+  Edmonton, Budapest and Harbin against Fairbanks, the Greenland ice sheet, Utqiaġvik and the South Shetlands, tropical
+  coasts and the Sognefjord, and Kuujjuarapik, Nain, Murmansk, Ungava, Akureyri and Iceland's other coasts against
+  Rovaniemi, and Santa Fe, the hills above Cedar City and of Anatolia against the valley below Cedar City, Mongolia's
+  hills and the Sahel's, and the sagebrush of Elko and the valley below Cedar City and Patagonia's shrub steppe at
+  Comodoro Rivadavia against the grass of Río Gallegos, Denver and Scottsbluff. On slopes, the tree line of the Alps is
+  higher on the sunny side, with forest-tundra just below it, and the woods of the Rockies' foothills keep to the shaded
+  side, where it is cool enough for mixed forest; flat ground there is open forest-steppe, and junipers grow on the
+  sunny side.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

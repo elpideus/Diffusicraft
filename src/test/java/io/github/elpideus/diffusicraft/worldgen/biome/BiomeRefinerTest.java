@@ -150,9 +150,16 @@ class BiomeRefinerTest {
 		BiomeClimate india = climate(27f, 4.5f, 1100f, 140f, 310f, 40f);
 		assertEquals(BiomeRefiner.MONSOON_FOREST, BiomeRefiner.refine("minecraft:forest", india));
 		assertEquals(BiomeRefiner.MONSOON_FOREST, BiomeRefiner.refine("minecraft:birch_forest", india));
-		// Its open land stays savanna and plains.
+		// Its open land is savanna, as in the Cerrado around Brasília and around Darwin; vanilla's plains are a
+		// temperate meadow.
 		assertNull(BiomeRefiner.refine("minecraft:savanna", india));
-		assertNull(BiomeRefiner.refine("minecraft:plains", india));
+		assertEquals(BiomeRefiner.SAVANNA, BiomeRefiner.refine("minecraft:plains", india));
+		assertEquals(BiomeRefiner.SAVANNA,
+			BiomeRefiner.refine("minecraft:plains", climate(21.5f, 1.3f, 1500f, 90f, 1100f, 30f)));
+		assertEquals(BiomeRefiner.SAVANNA,
+			BiomeRefiner.refine("minecraft:sunflower_plains", climate(27.5f, 1.4f, 1700f, 100f, 30f, 20f)));
+		// Plains with frosty winters stay plains.
+		assertNull(BiomeRefiner.refine("minecraft:plains", climate(12f, 7f, 800f, 30f, 100f, 20f)));
 		// Central Thailand: 1500 mm with a long dry season, where vanilla puts a jungle.
 		assertEquals(BiomeRefiner.MONSOON_FOREST,
 			BiomeRefiner.refine("minecraft:jungle", climate(28.5f, 1.5f, 1500f, 85f, 20f, 10f)));

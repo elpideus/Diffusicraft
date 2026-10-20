@@ -44,6 +44,9 @@ import java.util.Set;
  *       puts a temperate forest, and seasonal jungles (rain seasonality from {@value #MONSOON_SEASONALITY} %) with less
  *       than {@value #MONSOON_RAIN} mm of rain: the teak and sal forests of India and Southeast Asia, which shed their
  *       leaves in the dry season.</li>
+ *   <li><b>Savanna</b> for vanilla's plains on the same frost-free, humid land, between the monsoon forests: grass
+ *       with scattered trees that the dry season and its fires keep open, as in the Cerrado, the Llanos, the Sudanian
+ *       savanna and northern Australia. Vanilla's plains, with their oaks and sunflowers, are a temperate meadow.</li>
  *   <li><b>Laurel forest</b>: jungles where the coldest month falls below {@value #TROPICAL_COLDEST} °C. Vanilla's
  *       jungles start at a yearly mean of 15 °C, which takes in the humid subtropics and their frosty winters: the
  *       evergreen oaks and laurels of southern China and Japan, and the live oaks and magnolias of the American
@@ -142,6 +145,7 @@ public final class BiomeRefiner {
 	public static final String JUNIPER_WOODLAND = "diffusicraft:juniper_woodland";
 	public static final String STONY_DESERT = "diffusicraft:stony_desert";
 	public static final String SHRUB_STEPPE = "diffusicraft:shrub_steppe";
+	public static final String SAVANNA = "minecraft:savanna";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 	public static final String FOREST = "minecraft:forest";
@@ -154,7 +158,7 @@ public final class BiomeRefiner {
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
 		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, FOREST_TUNDRA, JUNIPER_WOODLAND, STONY_DESERT,
-		SHRUB_STEPPE, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
+		SHRUB_STEPPE, SAVANNA, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -362,6 +366,9 @@ public final class BiomeRefiner {
 		if (monsoonForest(biome, kind, c, aridity)) {
 			return MONSOON_FOREST;
 		}
+		if (tropicalSavanna(biome, c, aridity)) {
+			return SAVANNA;
+		}
 		if (kind == Kind.JUNGLE && c.coldestMonth() < TROPICAL_COLDEST) {
 			return LAUREL_FOREST;
 		}
@@ -559,6 +566,12 @@ public final class BiomeRefiner {
 			return c.precipitationSeasonality >= MONSOON_SEASONALITY && c.precipitation < MONSOON_RAIN;
 		}
 		return kind == Kind.LAND && !OPEN_LAND.contains(biome);
+	}
+
+	/** Whether vanilla's plains lie on the monsoon forest's frost-free, humid land. */
+	static boolean tropicalSavanna(String biome, BiomeClimate c, float aridity) {
+		return (biome.equals("minecraft:plains") || biome.equals("minecraft:sunflower_plains"))
+			&& c.coldestMonth() >= TROPICAL_COLDEST && aridity >= 1f;
 	}
 
 	static boolean temperateRainforest(BiomeClimate c) {
