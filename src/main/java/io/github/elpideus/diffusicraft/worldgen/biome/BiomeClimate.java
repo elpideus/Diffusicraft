@@ -49,6 +49,6 @@ public final class BiomeClimate {
 
 	/** Precipitation over the Köppen aridity threshold: below 0.5 is desert, below 1 steppe. */
 	public float aridity() {
-		return ClimateMapping.aridityRatio(temperature, precipitation);
+		return ClimateMapping.aridityRatio(temperature, seasonality, precipitation, precipitationSeasonality);
 	}
 }

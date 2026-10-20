@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.geology;
 
+import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
 import io.github.elpideus.diffusicraft.worldgen.geology.Soils.Horizon;
 import io.github.elpideus.diffusicraft.worldgen.geology.Soils.Soil;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,8 @@ class SoilsTest {
 	private static Soils.Profile profile(Rock rock, float temperature, float precipitation, double slope, int x,
 										 int z) {
 		Soils.Profile p = new Soils.Profile();
-		SOILS.profile(rock, temperature, precipitation, slope, false, x, z, p);
+		SOILS.profile(rock, temperature, precipitation, ClimateMapping.aridityRatio(temperature, 0f, precipitation, 0f),
+			slope, false, x, z, p);
 		return p;
 	}
 
@@ -46,7 +48,7 @@ class SoilsTest {
 			assertEquals(Soil.LATERITE, profile(rock, 24, 1000, 0.1, 0, 0).soil(), "a savanna on " + rock);
 			assertEquals(Soil.LOESS, profile(rock, 6, 300, 0.05, 0, 0).soil(), "the cool, dry plains on " + rock);
 			Soils.Profile bog = new Soils.Profile();
-			SOILS.profile(rock, 6, 1200, 0.05, true, 0, 0, bog);
+			SOILS.profile(rock, 6, 1200, ClimateMapping.aridityRatio(6, 0f, 1200, 0f), 0.05, true, 0, 0, bog);
 			assertEquals(Soil.CLAY, bog.soil(), "gley under peat on " + rock);
 		}
 		// Loess blankets the plains, not the hills.

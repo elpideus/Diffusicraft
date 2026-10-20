@@ -201,10 +201,13 @@ class BiomeRefinerTest {
 	@Test
 	void inADryClimateTheWoodsKeepToTheShadedSlopes() {
 		// The foothills of the Rockies: pines on the slopes facing north, grass on those facing south.
-		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(0, 10f, 9f, 375f, 30f, 1800f, 200f)));
-		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 375f, 30f, 1800f, 200f)));
+		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(0, 10f, 9f, 450f, 30f, 1800f, 200f)));
+		assertNull(BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 450f, 30f, 1800f, 200f)));
 		assertEquals(BiomeRefiner.STEPPE,
-			BiomeRefiner.refine("minecraft:forest", onSlope(1, 10f, 9f, 375f, 30f, 1800f, 200f)));
+			BiomeRefiner.refine("minecraft:forest", onSlope(1, 10f, 9f, 450f, 30f, 1800f, 200f)));
+		// The plains below them get less rain, most of it in summer: steppe even on the shaded side, as around Denver.
+		assertEquals(BiomeRefiner.STEPPE,
+			BiomeRefiner.refine("minecraft:forest", onSlope(-1, 10f, 9f, 300f, 30f, 1600f, 30f)));
 	}
 
 	@Test

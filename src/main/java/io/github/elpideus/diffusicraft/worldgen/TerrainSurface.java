@@ -213,7 +213,7 @@ public final class TerrainSurface implements Erosion.Surface {
 			field.column(i, j, column);
 			Geology.Site site = geology.site(x, z, scale.surfaceY(column.meanElevation), column.meanElevation,
 				column.relief);
-			double cover = cover(column.temperature, column.precipitation);
+			double cover = cover(column);
 			if (gullies.cuts(gx, gz)) {
 				y += gullies.depth(x, z, gx, gz, geology.hardness(site, y), cover);
 			}
@@ -494,12 +494,11 @@ public final class TerrainSurface implements Erosion.Surface {
 	}
 
 	/**
-	 * How much soil and plants cover the ground, from 0 to 1, at an annual mean temperature in °C and annual
-	 * precipitation in mm: none in deserts or where the ground is frozen most of the year, full where it is humid and
-	 * mild.
+	 * How much soil and plants cover the ground of a column, from 0 to 1: none in deserts or where the ground is frozen
+	 * most of the year, full where it is humid and mild.
 	 */
-	static double cover(float temperature, float precipitation) {
-		return GeoNoise.smoothstep(0.5, 1.5, ClimateMapping.aridityRatio(temperature, precipitation))
-			* GeoNoise.smoothstep(-4, 4, temperature);
+	static double cover(TerrainField.Column column) {
+		return GeoNoise.smoothstep(0.5, 1.5, ClimateMapping.aridityRatio(column))
+			* GeoNoise.smoothstep(-4, 4, column.temperature);
 	}
 }

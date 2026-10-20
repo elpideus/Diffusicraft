@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.elpideus.diffusicraft.block.DiffusicraftBlocks;
 import io.github.elpideus.diffusicraft.mixin.MaterialRuleContextAccessor;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
+import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
 import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
@@ -255,7 +256,8 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 				hasProfile = true;
 				cover();
 				Rock parent = geology.rock(column, x, topY - PARENT_DEPTH, z);
-				soils.profile(parent, column.temperature, column.precipitation, slope, waterlogged, x, z, profile);
+				soils.profile(parent, column.temperature, column.precipitation, ClimateMapping.aridityRatio(terrain), slope,
+					waterlogged, x, z, profile);
 			}
 			return profile;
 		}

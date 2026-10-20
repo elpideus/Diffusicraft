@@ -10,8 +10,8 @@ package io.github.elpideus.diffusicraft.worldgen;
  *   <li><b>temperature</b>: the annual mean at the column's elevation, so the lapse rate makes mountain tops cold,
  *       and on its slope, which the sun warms or leaves in the shade ({@link #expose}). The hot band (deserts and
  *       badlands) needs dry air as well as heat.</li>
- *   <li><b>humidity</b>: precipitation relative to the Köppen aridity threshold {@code 20 (T + 7)} mm (at least
- *       140 mm), less what the sun dries out of a sunny slope.</li>
+ *   <li><b>humidity</b>: precipitation relative to the Köppen aridity threshold ({@link #aridityRatio}), less what
+ *       the sun dries out of a sunny slope.</li>
  *   <li><b>continentalness</b>: water depth offshore, the height above the sea on the coast, the mean elevation
  *       inland. The coast, which holds vanilla's beaches and stony shores, is the strip of low ground along the
  *       coastline, as wide as real beaches are.</li>
@@ -56,6 +56,13 @@ public final class ClimateMapping {
 	public static final float EXPOSURE_WARMING = 3f;
 	/** The share of its water the sun dries out of a sunny slope, at most, and a shaded slope keeps. */
 	public static final float EXPOSURE_DRYING = 0.4f;
+	/** √2: a sinusoidal annual cycle with standard deviation σ peaks at σ√2 from its mean. */
+	private static final float AMPLITUDE = 1.4142135f;
+	/**
+	 * Share of the year's rain beyond one half that Köppen's wetter half-year must hold for the rain to count as
+	 * seasonal: 70%.
+	 */
+	private static final float SEASONAL_SHARE = 0.2f;
 	/** Depth is measured from at most this many blocks above the sea. */
 	static final int DEPTH_CEILING = 60;
 	/** Blocks per unit of depth. Cave biomes sit between 0.2 and 0.9, the deep dark at 1.1. */
@@ -82,7 +89,7 @@ public final class ClimateMapping {
 	 * {@code groundY}, in blocks. Only the coast reads the ground; elsewhere it may be the smooth surface.
 	 */
 	public static void compute(WorldScale scale, TerrainField.Column c, float groundY, float[] out) {
-		float aridity = aridityRatio(c.temperature, c.precipitation);
+		float aridity = aridityRatio(c);
 		float humidity = humidity(aridity);
 		boolean hot = isHotDesert(c.temperature, aridity);
 		float temperature = temperature(c.temperature, hot);
@@ -136,12 +143,41 @@ public final class ClimateMapping {
 	}
 
 	/**
-	 * Precipitation over the Köppen aridity threshold: below 0.5 is desert, below 1 steppe. The threshold stops falling
-	 * below 0 °C, so tundra counts as moderately dry (snowy plains) rather than as wet as a rainforest.
+	 * Precipitation over the Köppen aridity threshold: below 0.5 is desert, below 1 steppe. The threshold is
+	 * {@code 20 T + 140} mm where the rain falls through the year, and {@code 20 T + 280} mm where at least 70% of it
+	 * falls in the summer half, when the heat takes more of it back. The climate does not say when the rain falls, only
+	 * how unevenly (BIO15), so the summer threshold is used only where uneven rain cannot fall in winter: where the
+	 * coldest month freezes, since cold air holds little water (Mongolia, the Great Plains), and where it stays above
+	 * 15 °C, since there it comes with the monsoon. Between those it may be Mediterranean rain, which falls in winter
+	 * (Köppen's {@code 20 T}), and the year-round threshold stands. The threshold stops falling at 140 mm, so tundra
+	 * counts as moderately dry (snowy plains) rather than as wet as a rainforest.
+	 *
+	 * <p>The season counts only near the edge of the dry climates, where it decides whether the ground dries out. With
+	 * two and a half times the year-round threshold the ground stays wet whenever the rain falls, so between once and
+	 * two and a half times it the season fades out, and the wettest taigas and the peat of the West Siberian Plain and
+	 * of northern Alberta stay where they are.
+	 *
+	 * @param temperature              annual mean, °C
+	 * @param seasonality              standard deviation of the monthly mean temperatures, °C (WorldClim BIO4 / 100)
+	 * @param precipitation            annual, mm
+	 * @param precipitationSeasonality coefficient of variation of the monthly precipitation, % (WorldClim BIO15)
 	 */
-	public static float aridityRatio(float temperature, float precipitation) {
-		float threshold = 20f * Math.max(temperature + 7f, 7f);
-		return precipitation / threshold;
+	public static float aridityRatio(float temperature, float seasonality, float precipitation,
+									 float precipitationSeasonality) {
+		float coldest = temperature - AMPLITUDE * seasonality;
+		float summer = Math.max(1f - smoothstep(-2f, 2f, coldest), smoothstep(13f, 17f, coldest));
+		// The wetter half of a sinusoidal year holds 1/2 + CV √2/π of the rain.
+		float share = precipitationSeasonality / 100f * AMPLITUDE / (float) Math.PI;
+		float seasonal = summer * clamp(share / SEASONAL_SHARE, 0f, 1f);
+		float yearRound = precipitation / Math.max(20f * temperature + 140f, 140f);
+		float ratio = precipitation / Math.max(20f * temperature + 140f * (1f + seasonal), 140f);
+		return ratio + (yearRound - ratio) * smoothstep(1f, 2.5f, yearRound);
+	}
+
+	/** {@link #aridityRatio(float, float, float, float)} for a column. */
+	public static float aridityRatio(TerrainField.Column c) {
+		return aridityRatio(c.temperature, c.temperatureSeasonality / 100f, c.precipitation,
+			c.precipitationSeasonality);
 	}
 
 	static boolean isHotDesert(float temperature, float aridity) {
@@ -225,6 +261,11 @@ public final class ClimateMapping {
 			}
 		}
 		return ys[ys.length - 1];
+	}
+
+	private static float smoothstep(float edge0, float edge1, float x) {
+		float t = clamp((x - edge0) / (edge1 - edge0), 0f, 1f);
+		return t * t * (3f - 2f * t);
 	}
 
 	static float clamp(float v, float min, float max) {

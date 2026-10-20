@@ -142,12 +142,12 @@ public final class Soils {
 	 * @param parent        the rock a few blocks under the top, which the soil weathered from
 	 * @param temperature   annual mean, °C
 	 * @param precipitation annual, mm
+	 * @param aridity       precipitation over the Köppen aridity threshold ({@link ClimateMapping#aridityRatio})
 	 * @param slope         blocks per block
 	 * @param waterlogged   whether peat or mud lies on top, which keeps the ground under it wet
 	 */
-	public void profile(Rock parent, float temperature, float precipitation, double slope, boolean waterlogged,
-						int x, int z, Profile p) {
-		double aridity = ClimateMapping.aridityRatio(temperature, precipitation);
+	public void profile(Rock parent, float temperature, float precipitation, float aridity, double slope,
+						boolean waterlogged, int x, int z, Profile p) {
 		// How fast the rock rots, from 0 (frozen or dry) to 1 (hot and wet).
 		double weathering = clamp01(precipitation / WET) * clamp01((temperature - FROZEN) / (HOT - FROZEN));
 		double flat = 1 - (1 - STEEP_KEEPS) * clamp01(slope / STEEP);

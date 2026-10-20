@@ -47,6 +47,31 @@ class ClimateMappingTest {
 	}
 
 	@Test
+	void summerRainCountsForLess() {
+		// 340 mm at 6.5 °C, January at -10 °C, mostly in summer: the steppe of Inner Mongolia.
+		assertTrue(ClimateMapping.aridityRatio(6.5f, 12f, 340f, 73f) < 1f);
+		// With no more than the year-round threshold, the threshold is Köppen's for summer rain.
+		assertEquals(260f / (20 * 6.5f + 280), ClimateMapping.aridityRatio(6.5f, 12f, 260f, 73f), 1e-4f);
+		// The same rain through the year would keep a forest.
+		assertTrue(ClimateMapping.aridityRatio(6.5f, 12f, 340f, 0f) > 1f);
+		// The monsoon tropics count it as summer rain too.
+		assertEquals(600f / (20 * 26 + 280), ClimateMapping.aridityRatio(26f, 1f, 600f, 90f), 1e-4f);
+		// Mild winters may bring Mediterranean rain, so the year-round threshold stands.
+		assertEquals(ClimateMapping.aridityRatio(15f, 5f, 500f, 0f), ClimateMapping.aridityRatio(15f, 5f, 500f, 80f));
+		// Cold climates keep the 140 mm floor.
+		assertEquals(250f / 140f, ClimateMapping.aridityRatio(-9f, 20f, 250f, 80f), 1e-4f);
+		// Far over the threshold the ground stays wet whenever the rain falls: a wet taiga, and the peat of the West
+		// Siberian Plain and of northern Alberta.
+		assertEquals(1200f / 200f, ClimateMapping.aridityRatio(3f, 9f, 1200f, 50f), 1e-4f);
+		assertTrue(ClimateMapping.aridityRatio(-2f, 13f, 450f, 45f) > 2f);
+		assertTrue(ClimateMapping.aridityRatio(1f, 13f, 450f, 50f) > 2f);
+		for (float rain = 100f; rain < 3000f; rain += 10f) {
+			assertTrue(ClimateMapping.aridityRatio(6.5f, 12f, rain + 10f, 73f)
+				> ClimateMapping.aridityRatio(6.5f, 12f, rain, 73f), "more rain is wetter, at " + rain + " mm");
+		}
+	}
+
+	@Test
 	void hotDesertNeedsDryAir() {
 		float[] desert = parameters(column(300f, 300f, 20f, 25f, 100f));
 		assertTrue(desert[ClimateMapping.TEMPERATURE] >= 0.55f, "dry heat is the desert band");

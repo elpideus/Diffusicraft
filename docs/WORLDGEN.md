@@ -239,7 +239,7 @@ gives each one a physical meaning, with breakpoints at the edges of vanilla's ow
 | Parameter | Computed from |
 |---|---|
 | temperature | Annual mean at the column's elevation, on its slope. The hot band (desert, badlands) also requires dry air. |
-| humidity (vegetation) | Precipitation over the Köppen aridity threshold `20 × (T + 7)` mm, less what the sun dries out of a sunny slope. |
+| humidity (vegetation) | Precipitation over the Köppen aridity threshold (see [Summer rain](#summer-rain) below), less what the sun dries out of a sunny slope. |
 | continentalness | Offshore: the water depth. On the [coast](#coasts): the height above the sea. Inland: the mean elevation. |
 | erosion | Local relief: rugged land is low, flat land is high. Flat, low and wet land is put in the swamp band. |
 | weirdness | Whether the column is a local peak or a hollow. The sign comes from smooth noise with a wavelength of 12 km of real ground and only picks variants, in patches kilometres across. |
@@ -259,6 +259,20 @@ Some adjustments move biomes away from vanilla's defaults:
   - in dry climates the woods keep to the shaded slopes and grass or steppe takes the sunny ones, as in the foothills
     of the Rockies;
   - Mediterranean scrub spreads up the sunny slopes.
+- <a id="summer-rain"></a>**Summer rain.** The aridity threshold is Köppen's: `20 T + 140` mm, where T is the annual
+  mean in °C, for rain that falls through the year, and `20 T + 280` mm where at least 70% of it falls in the summer
+  half, when the heat takes more of it back. The climate says how unevenly the rain falls (BIO15) but not when. Where
+  the coldest month freezes, uneven rain falls in summer, since cold air holds little water, as in Mongolia and on the
+  Great Plains; where it stays above 15 °C, it comes with the monsoon. There the summer threshold applies, as far as
+  the rain is uneven: the wetter half of a sinusoidal year holds one half plus BIO15 × √2/π of the rain. Between the
+  two, uneven rain may be Mediterranean and fall in winter, so the year-round threshold stands. The threshold never
+  falls below 140 mm, so tundra counts as moderately dry rather than as wet as a rainforest. The season only decides
+  near the threshold: it counts in full up to the year-round one and fades out by two and a half times it, so the
+  wettest taigas, and the peat of the West Siberian Plain and of northern Alberta, which also get most of their rain
+  in summer, stay as wet as they are. With the year-round threshold, a plain with 340 mm of summer rain at 6.5 °C,
+  January at −10 °C, came out as one forest 64 km across; now 92% of it is steppe, as on the plains of Inner
+  Mongolia, and the woods keep to the higher, wetter hills on its edge, where 380 mm falls. The soils and the ground
+  cover read the same ratio.
 - **Snow.** Snowy slopes and peaks need temperatures below 1 °C. A warmer mountain is moved into the plateau and
   forest bands. Between 1 and 8 °C, a summit more than 250 m above the land around it becomes stony peaks; a lower
   one keeps the woods of its own band. Vanilla gives stony peaks only to its warm band, which gives jungle wherever
