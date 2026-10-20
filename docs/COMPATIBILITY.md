@@ -8,7 +8,7 @@ for each mod, and what is still open.
 | Mod | Status | What Diffusicraft does |
 |---|---|---|
 | [Distant Horizons](#distant-horizons) 3.3.4 | Integrated | Draws the far terrain straight from the terrain, without chunks |
-| [Voxy](#voxy) 0.2.20-beta | Works, checked in game | Keeps it within the heights it can hold; draws its far terrain straight from the terrain in singleplayer (not yet checked in game) |
+| [Voxy](#voxy) 0.2.20-beta | Works, checked in game | Keeps it within the heights it can hold; draws its far terrain straight from the terrain in singleplayer |
 | Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Both mods' far terrain comes from Diffusicraft's terrain instead, Voxy's in singleplayer |
 | [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's; their trees show in the LODs |
 | Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
@@ -128,7 +128,6 @@ Horizons.
   `ActiveSectionTrackerMixin` fills each section the store misses.
 - On a server, Voxy's far terrain is still built from the chunks the client sees: the client has no terrain of its
   own to fill it from. Turn [`voxyLods`](CONFIG.md#voxylods) off to have the same in singleplayer.
-- Not yet checked in game; the voxel rule has unit tests (`LodGridTest`).
 
 **Heights.** Voxy packs the height of its sections into 8 bits, so it holds y = −4096 to 4095. Grand fits. In a taller
 level, Earth 1:1 or a dimension of up to 32,736 blocks (see [HEIGHT.md](HEIGHT.md)), its renderer walked the sections
@@ -142,7 +141,12 @@ levels" as soon as the player entered. Two mixins, applied only when Voxy is ins
 In Earth 1:1, ground above y = 4095 shows cut flat in Voxy's far terrain; the chunks themselves are whole.
 
 **Checking it.** The client game tests for tall dimensions and for Earth 1:1 pass with Voxy
-(`-PdevMods=voxy,sodium`: Voxy needs Sodium) and save screenshots.
+(`-PdevMods=voxy,sodium`: Voxy needs Sodium) and save screenshots. `VoxyGameTest` looks at the far terrain from above
+the spawn at a render distance of 6 chunks. On CUDA, Voxy asked for some 16,000 sections for its first view, filled
+in about 7 minutes, and for 7,000 to 10,000 more for each later view, filled in under a minute and a half; none
+failed. Forests, coasts and the sea run on past the chunks to the haze. Thin light or dark lines show here and there
+along the edges of sections, most over the sea; whether Voxy draws them over the levels it builds from chunks too has
+not been checked. The voxel rule has unit tests (`LodGridTest`).
 
 **Licensing.** Voxy is All Rights Reserved. It is a dev mod outside the pack (`localRuntime`, named in `-PdevMods`),
 never a dependency and never bundled. Diffusicraft compiles its mixins against its own declarations of the few Voxy

@@ -102,6 +102,11 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   plot of each of Diffusicraft's surface biomes on a superflat world, grows its plants there as world generation
   would, and saves a view of each (`diffusicraft-world-biome-<name>.png`): how dense its woods are, how its trees mix
   and what colour its grass and leaves take. The ground stays superflat grass. It needs no models.
+- [`VoxyGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/VoxyGameTest.java) runs only with
+  Voxy installed (`-PdevMods=voxy,sodium`). It creates the world of `WorldGenerationGameTest` at a render distance of
+  6 chunks, so that all but the nearest 100 blocks of its views are Voxy's far terrain, and saves three views from
+  above the spawn (`diffusicraft-voxy-<view>.png`), each once Voxy has stopped asking for sections. It fails if no
+  section was filled from the terrain or one could not be. It needs the models, and takes about 11 minutes on CUDA.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods

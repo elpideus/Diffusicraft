@@ -68,6 +68,7 @@ public final class VoxyTerrain {
 			filled = fill(engine, source, section, minY);
 		} catch (RuntimeException e) {
 			// Most often the world closing under Voxy's threads.
+			VoxyLods.FAILED.incrementAndGet();
 			if (warned.compareAndSet(false, true)) {
 				Diffusicraft.LOGGER.warn("Could not fill Voxy's far terrain", e);
 			} else {
@@ -76,6 +77,9 @@ public final class VoxyTerrain {
 			return VoxyLods.MISSING;
 		}
 		repairParents(engine, section);
+		if (filled) {
+			VoxyLods.FILLED.incrementAndGet();
+		}
 		return filled ? VoxyLods.LOADED : VoxyLods.MISSING;
 	}
 
