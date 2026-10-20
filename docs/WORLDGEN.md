@@ -209,12 +209,13 @@ world shows.
 ### Ledges
 
 Where a slope cuts through the sedimentary cover, its hard beds stand out and the soft beds between them recede, as on
-the walls of the Grand Canyon: cliffs of sandstone and limestone, with gentler slopes and benches of shale, chalk, salt
-or coal between them. `Geology.ledge` moves the ground to make them, in every world:
+the walls of the Grand Canyon: cliffs of stone, limestone and sandstone, with gentler slopes and benches of shale,
+chalk, salt, coal or stone between them. `Geology.ledge` moves the ground to make them, in every world:
 
-- **Which beds.** Thick beds of sandstone, red sandstone and limestone are hard; shale, chalk, rock salt and coal are
-  soft. A thin bed (1 or 2 blocks) goes with the beds around it: between two hard beds it is a parting or a coal seam in
-  their cliff, and next to a soft bed it recedes with it.
+- **Which beds.** Three fifths of the thick beds are hard, the rest soft. A thin bed (1 or 2 blocks) goes with the
+  beds around it: between two hard beds it is a parting or a coal seam in their cliff, and next to a soft bed it
+  recedes with it. The rock follows: limestone, sandstone and red sandstone lie only in hard beds; shale, chalk and
+  rock salt only in soft ones; stone in both.
 - **Profile.** Each run of hard beds pairs with the run of soft beds above it. The top of the hard run stands as a
   cliff three times as steep as the slope, up to 15 blocks tall; a thicker run keeps the slope's pace below that, as
   under a cliff whose foot is buried in its own debris. The soft run brings the ground back to the slope's line by its
@@ -776,18 +777,20 @@ its cliffs are the [ledges](#ledges) and the sides of the [gullies](#gullies), a
 `ErosionSurveyTest` under [Tests](#tests)).
 
 `Geology` is a pure function of the geology seed, the scale and the column's terrain. It holds no Minecraft classes and
-is tested on its own. From the top down:
+is tested on its own. As in vanilla, most of the ground is stone above y = 0 and deepslate below it; the other rocks
+come in beds, bands and bodies in them. From the top down:
 
 | Layer | Where | Rocks |
 |---|---|---|
-| Sedimentary cover | From the surface down to a depth set by the basin: up to about 2 km of rock under lowlands and shelves, but never more than about 210 blocks below the sea; a thin skin on rugged uplands | Beds 1–8 blocks thick that follow the height, not the surface, so valley walls cut through them and their hard beds stand out as [ledges](#ledges). The basin decides the rocks: limestone, chalk, shale and sandstone where there was a sea; sandstone and shale on land; coal seams in swampy basins; red sandstone and rock salt where it is hot and dry |
+| Sedimentary cover | From the surface down to a depth set by the basin: up to about 2 km of rock under lowlands and shelves, but never more than about 210 blocks below the sea; a thin skin on rugged uplands | Beds 1–8 blocks thick that follow the height, not the surface, so valley walls cut through them and their hard beds stand out as [ledges](#ledges). Most of the beds, three in five, are stone; the basin decides the others: limestone, shale and chalk where there was a sea; shale with a little limestone and sandstone on land; coal seams in swampy basins; limestone, shale, rock salt and a little red sandstone where it is hot and dry. Only in deserts (Köppen's: less rain in mm than 10 times the mean temperature in °C, plus 70) are most beds sandstone and red sandstone |
 | Fold belts | Rugged land over thick sediment | The beds fold steeply; deep shale turns to slate, then schist, and limestone to marble |
-| Basement | Below the cover, down to about y = 4 | Granite, gneiss, stone, schist or andesite with tuff beds, by region, with lenses of diorite, granite, andesite or marble |
-| Lower crust | From about y = 4 | Deepslate, then gabbro |
-| Mantle | Above the magma layer | Peridotite, pierced by rare kimberlite pipes; a quarter of the pipes reach the surface |
+| Basement | Below the cover, down to about y = 4 | Stone, with its region's rock in it: granite plutons, bands of gneiss or schist, or flows of andesite with tuff beds between them; and lenses of diorite, granite, andesite or marble |
+| Lower crust | From about y = 4 | Deepslate, then a few blocks of gabbro |
+| Mantle | Above the magma layer | A few blocks of peridotite, pierced by rare kimberlite pipes; a quarter of the pipes reach the surface |
 | Magma layer | The last blocks above the bedrock | Magma blocks, blackstone and basalt |
 
-The deep layers share the room between y = 0 and the bottom of the world, so they are thicker in the tall worlds.
+The deep layers share the room between y = 0 and the bottom of the world, so they are thicker in the tall worlds. In
+vanilla's height the gabbro is about 5 blocks thick and the peridotite 3, leaving some 50 blocks of deepslate.
 Thicknesses in meters follow the world's vertical scale down to the sea, so mountains keep the full height of their
 strata. Below the sea, they use at least 10 m per block. A lowland's cover therefore ends within about 210 blocks of
 the sea in every world type: without that, Earth 1:1's 1.7 km of sediment would run past the bottom of the world and
@@ -1085,11 +1088,13 @@ Other searches still read the full terrain and can take a while on new land:
 
 ## Tests
 
-- `GeologyTest` checks the layer order, that lowlands are covered in sediment, that Earth 1:1 keeps the standard
+- `GeologyTest` checks the layer order, that lowlands are covered in sediment, that stone makes up most of the ground
+  above y = 0 and deepslate most below it, that sandstone keeps to the deserts, that Earth 1:1 keeps the standard
   world's layers below the sea and its own scale above it, determinism, ore rarity and diamond depth, that the
   basement is harder than its cover and granite harder than schist, that the hardness never jumps, and the sampling
   speed. For the ledges, it checks that the ground climbs steeply through hard beds and gently through soft ones,
-  with the cliffs in hard beds and the benches mostly on soft ones at full and at weak strength, that the ledges
+  that limestone and sandstone lie only in hard beds and shale, chalk and salt only in soft ones, with the cliffs in
+  hard rock or stone and the benches mostly on soft rock or stone at full and at weak strength, that the ledges
   average out, stay within 10 blocks and change smoothly, and that there are none in the basement or in fold belts.
   For the ores of tech mods, it checks that their minerals take only some of the bodies, only in their host rocks and
   only where a mod adds them, and that the bodies stay vanilla's without the mods. `ModOresTest` checks how a block

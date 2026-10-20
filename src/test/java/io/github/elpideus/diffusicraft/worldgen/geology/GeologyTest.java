@@ -59,6 +59,7 @@ class GeologyTest {
 	@Test
 	void lowlandsAreCoveredInSediment() {
 		Geology geology = new Geology(SEED, -64, 15, 10);
+		int cover = 0;
 		int sediment = 0;
 		int total = 0;
 		for (int x = -3000; x < 3000; x += 131) {
@@ -66,13 +67,72 @@ class GeologyTest {
 				Geology.Column c = lowland(geology, x, z);
 				for (int y = 70; y < 80; y++) {
 					total++;
-					if (SEDIMENTS.contains(geology.rock(c, x, y, z))) {
-						sediment++;
+					if (y >= c.sedimentBase()) {
+						cover++;
+						sediment += SEDIMENTS.contains(geology.rock(c, x, y, z)) ? 1 : 0;
 					}
 				}
 			}
 		}
-		assertTrue(sediment > total / 2, sediment + " of " + total + " blocks below lowland surfaces are sediment");
+		assertTrue(cover > total / 2, cover + " of " + total + " blocks below lowland surfaces are in the cover");
+		System.out.printf("Cover: %d of %d blocks sedimentary rock%n", sediment, cover);
+		// Most of the cover's beds are stone; the rest are the basin's own rocks.
+		assertTrue(sediment > cover / 5 && sediment < cover / 2,
+			sediment + " of " + cover + " blocks of the cover are sedimentary rock");
+	}
+
+	@Test
+	void theGroundIsMostlyStoneAboveZeroAndDeepslateBelow() {
+		Geology geology = new Geology(SEED, -64, 15, 10);
+		Map<Rock, Integer> above = new EnumMap<>(Rock.class);
+		Map<Rock, Integer> below = new EnumMap<>(Rock.class);
+		int aboveTotal = 0;
+		int belowTotal = 0;
+		for (int x = -6000; x < 6000; x += 211) {
+			for (int z = -6000; z < 6000; z += 199) {
+				Geology.Column c = lowland(geology, x, z);
+				for (int y = -60; y < 72; y++) {
+					Rock rock = geology.rock(c, x, y, z);
+					if (y >= 0) {
+						above.merge(rock, 1, Integer::sum);
+						aboveTotal++;
+					} else {
+						below.merge(rock, 1, Integer::sum);
+						belowTotal++;
+					}
+				}
+			}
+		}
+		int stone = above.getOrDefault(Rock.STONE, 0);
+		int deepslate = below.getOrDefault(Rock.DEEPSLATE, 0);
+		int sandstone = above.getOrDefault(Rock.SANDSTONE, 0) + above.getOrDefault(Rock.RED_SANDSTONE, 0);
+		assertTrue(stone > 0.5 * aboveTotal, "stone " + stone + " of " + aboveTotal + ": " + above);
+		assertTrue(deepslate > 0.6 * belowTotal, "deepslate " + deepslate + " of " + belowTotal + ": " + below);
+		assertTrue(sandstone < 0.05 * aboveTotal, "sandstone " + sandstone + " of " + aboveTotal + ": " + above);
+	}
+
+	@Test
+	void sandstoneKeepsToTheDeserts() {
+		Geology geology = new Geology(SEED, -64, 15, 10);
+		int sandstone = 0;
+		int total = 0;
+		for (int x = -6000; x < 6000; x += 211) {
+			for (int z = -6000; z < 6000; z += 199) {
+				Geology.Column c = lowland(geology, x, z);
+				c.temperature = 24;
+				c.precipitation = 150;
+				geology.column(x, z, c);
+				for (int y = 70; y < 80; y++) {
+					if (y < c.sedimentBase()) {
+						continue;
+					}
+					Rock rock = geology.rock(c, x, y, z);
+					total++;
+					sandstone += rock == Rock.SANDSTONE || rock == Rock.RED_SANDSTONE ? 1 : 0;
+				}
+			}
+		}
+		assertTrue(sandstone > 0.2 * total, sandstone + " of " + total + " blocks of a desert's cover are sandstone");
 	}
 
 	@Test
@@ -218,21 +278,22 @@ class GeologyTest {
 	@Test
 	void hardBedsStandOutOfSlopesAsLedges() {
 		// Slopes down through the cover of lowlands at Earth 1:1, sampled finely: the ground climbs steeply through the
-		// beds that show sandstone and limestone, and gently through those that show shale, chalk, salt and coal.
+		// hard beds and gently through the soft ones. Sandstone and limestone show only in hard beds; shale, chalk and
+		// salt only in soft ones, and stone in both.
 		Geology geology = new Geology(SEED, -256, 1, 1);
 		Ledges full = ledges(geology, 1);
 		System.out.printf("Ledges: hard beds %.2f, soft beds %.2f times as steep as the slope; %.1f%% of the cliffs in"
-			+ " hard beds, %.1f%% of the benches on soft ones%n", full.hard, full.soft, 100 * full.hardCliffs,
-			100 * full.softBenches);
+			+ " hard rock or stone, %.1f%% of the benches on soft rock or stone%n", full.hard, full.soft,
+			100 * full.hardCliffs, 100 * full.softBenches);
 		assertTrue(full.hard > 1.4, "hard beds stand steeper than the slope: " + full.hard);
 		assertTrue(full.soft < 0.6, "soft beds lie gentler than the slope: " + full.soft);
-		// Thin partings and coal seams sit in some cliffs, and thin sandstones recede with the shale around them.
-		assertTrue(full.hardCliffs > 0.95, "cliffs in hard beds: " + full.hardCliffs);
-		assertTrue(full.softBenches > 0.75, "benches on soft beds: " + full.softBenches);
+		// Coal seams sit in some cliffs.
+		assertTrue(full.hardCliffs > 0.95, "cliffs in hard rock or stone: " + full.hardCliffs);
+		assertTrue(full.softBenches > 0.75, "benches on soft rock or stone: " + full.softBenches);
 		// Weaker ledges, on a gentler or a greener slope, stand on the same beds.
 		Ledges weak = ledges(geology, 0.4);
-		System.out.printf("Weak ledges: %.1f%% of the cliffs in hard beds%n", 100 * weak.hardCliffs);
-		assertTrue(weak.hardCliffs > 0.95, "weak cliffs in hard beds: " + weak.hardCliffs);
+		System.out.printf("Weak ledges: %.1f%% of the cliffs in hard rock or stone%n", 100 * weak.hardCliffs);
+		assertTrue(weak.hardCliffs > 0.95, "weak cliffs in hard rock or stone: " + weak.hardCliffs);
 	}
 
 	/** How steep the ground climbs through hard and soft beds, and which beds its cliffs and benches are in. */
@@ -254,18 +315,22 @@ class GeologyTest {
 					double next = y + step + geology.ledge(site, y + step, strength);
 					double steepness = (next - ground) / step;
 					assertTrue(steepness > 0, "the ground climbs at " + x + ", " + y + ", " + z);
-					Rock rock = geology.rock(c, x, (int) Math.floor((ground + next) / 2), z);
+					int block = (int) Math.floor((ground + next) / 2);
+					Rock rock = geology.rock(c, x, block, z);
+					boolean hardBed = geology.hardBed(c, block);
+					assertFalse(hardBed ? SOFT_BEDS.contains(rock) && rock != Rock.COAL_SEAM : HARD_BEDS.contains(rock),
+						rock + " in a " + (hardBed ? "hard" : "soft") + " bed at " + x + ", " + block + ", " + z);
 					if (steepness > cliff) {
 						cliffs++;
-						hardCliffs += HARD_BEDS.contains(rock) ? 1 : 0;
+						hardCliffs += HARD_BEDS.contains(rock) || rock == Rock.STONE ? 1 : 0;
 					} else if (steepness < 0.5) {
 						benches++;
-						softBenches += SOFT_BEDS.contains(rock) ? 1 : 0;
+						softBenches += SOFT_BEDS.contains(rock) || rock == Rock.STONE ? 1 : 0;
 					}
-					if (HARD_BEDS.contains(rock)) {
+					if (hardBed) {
 						hard += steepness;
 						hardCount++;
-					} else if (SOFT_BEDS.contains(rock)) {
+					} else {
 						soft += steepness;
 						softCount++;
 					}

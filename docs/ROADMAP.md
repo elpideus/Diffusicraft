@@ -62,8 +62,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   12 km wavelength, summer rain counts as Köppen counts it, so continental plains are steppe, and meadows keep to the
   subalpine belt instead of lining every valley side. Pale gardens, from vanilla's plateau row, still come in belts a
   few kilometres long on the upper slopes. See [WORLDGEN.md](WORLDGEN.md#biome-parameters).
-- **Geology.** Sedimentary beds by basin, fold belts, basement, deepslate, gabbro, peridotite with kimberlite pipes,
-  and a magma layer above the bedrock. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See
+- **Geology.** Stone above y = 0 and deepslate below, as in vanilla, with sedimentary beds by basin, fold belts and
+  basement rocks in them, gabbro, peridotite with kimberlite pipes, and a magma layer above the bedrock. Sandstone
+  keeps to the deserts. Ore bodies by rock and depth on top of vanilla's ores. Eleven new rocks. See
   [WORLDGEN.md](WORLDGEN.md#the-ground).
 - **Cliffs and scree.** Ground too steep for soil shows the rock beneath, and scree of gravel and broken rock lies
   under the cliffs. See [WORLDGEN.md](WORLDGEN.md#the-ground).
@@ -79,8 +80,8 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   branch, deeper on steeper ground; gentle ground stays smooth. The rock and the climate shape them: crags in hard
   rock, badlands in bare soft rock, rounded hills where soil and plants cover soft rock. See
   [WORLDGEN.md](WORLDGEN.md#gullies).
-- **Ledges.** Where a slope cuts through the sedimentary cover, its hard beds of sandstone and limestone stand out as
-  cliffs and the soft beds between them recede into benches, as in the Grand Canyon, in every world. See
+- **Ledges.** Where a slope cuts through the sedimentary cover, its hard beds of stone, limestone and sandstone stand
+  out as cliffs and the soft beds between them recede into benches, as in the Grand Canyon, in every world. See
   [WORLDGEN.md](WORLDGEN.md#ledges).
 - **Lakes on rivers.** Rivers fill the basins they cross and flow on out of them over their lowest point. See
   [WORLDGEN.md](WORLDGEN.md#rivers).
@@ -89,10 +90,10 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 - **Great lakes.** The depressions of the coarse map hold lakes of up to 64 tiles and 123 km across, where the water
   flowing into them outweighs what they evaporate. Their water stands at one level over all their tiles, and the rivers
   cross them at that level and flow on out. See [WORLDGEN.md](WORLDGEN.md#rivers).
-- **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
 - **Caves.** Vanilla's caves, opening a little over a third as much of the ground, most of it in noodle tunnels: rare
   cheese caverns, spaghetti tunnels in networks with solid ground between them, and a sixth of the carved caves.
   See [WORLDGEN.md](WORLDGEN.md#density-and-caves).
+- **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
 - **Life in the Hollows.** Each Grand Hollow is one cave biome, from the climate over it: lush caves under the wet

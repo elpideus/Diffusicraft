@@ -6,6 +6,7 @@ import java.util.Set;
 import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.clamp01;
 import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.fractal;
 import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.gradient;
+import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.gradient3;
 import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.hash;
 import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.mix;
 import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.smoothstep;
@@ -17,26 +18,28 @@ import static io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise.value3;
  * What the ground is made of: the rock at every block below the surface, and the ore bodies in it. One instance per
  * world seed and scale; it is immutable and thread-safe, while each thread keeps its own {@link Column}.
  *
- * <p>From the top down, as on Earth:
+ * <p>As in vanilla, the ground is mostly stone above y=0 and deepslate below; the other rocks come in beds, bands
+ * and bodies in it. From the top down, as on Earth:
  * <ol>
  *     <li><b>Sedimentary cover</b> in beds a few blocks thick. The beds follow the height, not the surface, so cliffs
  *     and valley walls cut through them and show the bands. Lowland basins collect a thick cover, rugged uplands a
- *     thin one. What the beds are made of depends on the basin: limestone, chalk and shale where there was a sea;
- *     sandstone and shale on land; coal seams in swampy basins; red sandstone and rock salt in arid ones. In fold
- *     belts (rugged land over thick sediment) the beds are folded steeply, and the deep ones turn into slate, marble
- *     and schist.</li>
- *     <li><b>Basement</b>: the old crust under the cover. Granite, gneiss, plain stone, schist with marble lenses, or
- *     andesite with tuff beds, by region, with lenses of other rocks.</li>
- *     <li><b>Lower crust</b> from about y=4 down: deepslate, as in vanilla, then gabbro.</li>
- *     <li><b>Mantle</b>: peridotite, pierced by rare kimberlite pipes that carry diamonds upwards.</li>
+ *     thin one. Most beds are plain stone; what the others are made of depends on the basin: limestone, chalk and
+ *     shale where there was a sea; shale and a little limestone and sandstone on land; coal seams in swampy basins;
+ *     limestone, shale and rock salt in arid ones. Only in the deserts are the beds mostly sandstone and red
+ *     sandstone. In fold belts (rugged land over thick sediment) the beds are folded steeply, and the deep ones turn
+ *     into slate, marble and schist.</li>
+ *     <li><b>Basement</b>: the old crust under the cover, stone with the rock of its region in it: granite plutons,
+ *     bands of gneiss or schist, or lava flows of andesite with tuff beds between them, and lenses of other rocks.</li>
+ *     <li><b>Lower crust</b> from about y=4 down: deepslate, as in vanilla, then a few blocks of gabbro.</li>
+ *     <li><b>Mantle</b>: a few blocks of peridotite, pierced by rare kimberlite pipes that carry diamonds upwards.</li>
  *     <li><b>The magma layer</b>: magma, blackstone and basalt just above the bedrock.</li>
  * </ol>
  * Ores come in bodies whose mineral depends on the rock around them (copper and gold in granite, lapis in marble,
  * emerald in mountain schist, diamonds deep down), so prospecting by rock pays off. Where tech mods add them, the
  * bodies hold their minerals too: zinc and lead in limestone, tin in granite, nickel in gabbro. See docs/WORLDGEN.md.
  *
- * <p>The hard beds of the cover, sandstone and limestone, stand out of slopes as ledges, and the soft beds between them
- * recede into benches: {@link #ledge}.
+ * <p>The hard beds of the cover stand out of slopes as ledges, and the soft beds between them recede into benches:
+ * {@link #ledge}.
  *
  * <p>Thicknesses are given in meters. Above the sea they follow the world's vertical scale, so mountains look the
  * same at every scale. Below the sea they never use fewer than {@link #UNDERGROUND_METERS} meters per block, so the
@@ -58,17 +61,21 @@ public final class Geology {
 	 * stone are hard, schist splits along its foliation, and lava flows alternate with soft ash.
 	 */
 	private static final double[] BASEMENT_HARDNESS = {1.0, 0.85, 0.65, 0.35, 0.6};
-	/** The hardness of flat-lying beds: sandstone and limestone between shale, chalk and salt. */
+	/** The hardness of flat-lying beds: stone, limestone and sandstone between shale, chalk and salt. */
 	private static final double SEDIMENT_HARDNESS = 0;
 	/** The hardness of folded beds, turned to slate, marble and schist. */
 	private static final double FOLDED_HARDNESS = 0.35;
 	/** Blocks over which the hardness passes from the basement to the cover above it. */
 	private static final double CONTACT = 4;
+	/** The share of the basement's bands that are of its region's rock, gneiss, schist or andesite; the rest is stone. */
+	private static final double BAND_SHARE = 0.35;
+	/** Where the granite of a granite basement is: above this in its noise, in about two fifths of the ground. */
+	private static final double PLUTON = 0.12;
 	/** Basement noise over which the hardness passes from one kind of basement to the next. */
 	private static final double BASEMENT_BLEND = 0.05;
 	/**
-	 * Thick beds whose roll is below this are hard: sandstone and limestone in every basin. The rolls of the soft rocks,
-	 * shale, chalk, rock salt and coal, lie above it. Thin beds go with the beds around them: see {@link #hardBeds}.
+	 * Thick beds whose roll is below this are hard. Thin beds go with the beds around them: see {@link #hardBeds}. Hard
+	 * beds are stone, limestone and sandstone, soft ones shale, chalk, rock salt, coal and stone.
 	 */
 	private static final float HARD_SHARE = 0.6f;
 	/** How many times steeper than the slope around them the cliffs of hard beds stand. */
@@ -119,6 +126,8 @@ public final class Geology {
 
 		float fold;
 		float sedimentBase;
+		/** Desert: the cover is of sandstone and red sandstone, as in the deserts' ergs and red beds. */
+		boolean desert;
 		float warp;
 		Basin basin;
 		Basement basement;
@@ -179,6 +188,8 @@ public final class Geology {
 	private final short[] bedAt = new short[PERIOD];
 	private final float[] bedRoll;
 	private final boolean[] bedThin;
+	/** Which beds hold up ledges: see {@link #hardBeds}. */
+	private final boolean[] bedHard;
 	/**
 	 * {@link #ledge}'s profile: at the bottom of each block of the bed sequence, how much further along the slope's
 	 * smooth height has come than the ground. It is linear within a block.
@@ -197,12 +208,12 @@ public final class Geology {
 		this.verticalMeters = verticalMeters;
 		this.undergroundMeters = Math.max(verticalMeters, UNDERGROUND_METERS);
 		this.stretch = Math.sqrt(15.0 / horizontalMeters);
-		// The deep layers share out the room between the bottom of the world and y=0: 64 blocks in vanilla's height,
-		// 256 in tall worlds.
+		// The deep layers share out the room between the bottom of the world and y=0, 64 blocks in vanilla's height
+		// and 256 in tall worlds, leaving most of it to the deepslate.
 		int depth = Math.max(64, -minY);
 		magmaTop = minY + 4 + Math.max(5, depth / 16);
-		peridotiteTop = magmaTop + Math.max(4, depth / 10);
-		gabbroTop = peridotiteTop + Math.max(6, depth / 6);
+		peridotiteTop = magmaTop + Math.max(3, depth / 20);
+		gabbroTop = peridotiteTop + Math.max(5, depth / 12);
 		deepWarp = Math.max(2, depth / 40);
 
 		float[] rolls = new float[PERIOD];
@@ -221,6 +232,7 @@ public final class Geology {
 		}
 		bedRoll = Arrays.copyOf(rolls, bed);
 		bedThin = Arrays.copyOf(thin, bed);
+		bedHard = hardBeds();
 		ledges();
 	}
 
@@ -236,7 +248,7 @@ public final class Geology {
 	 * Its mean is taken off, which keeps the ground at the slope's height on average at every strength.
 	 */
 	private void ledges() {
-		boolean[] hard = hardBeds();
+		boolean[] hard = bedHard;
 		double steeper = 1 - 1 / LEDGE_STEEPNESS;
 		double[] ratio = new double[PERIOD];
 		Arrays.fill(ratio, 1);
@@ -315,6 +327,8 @@ public final class Geology {
 		c.warp = (float) warp(x, z, sx, sz, c.fold);
 
 		boolean arid = c.precipitation < 350 && c.temperature > 8;
+		// Köppen's desert: under half the rain the warmth would dry up.
+		c.desert = arid && c.precipitation < 10 * c.temperature + 70;
 		if (arid && faciesNoise > -0.1) {
 			c.basin = Basin.EVAPORITE;
 		} else if (c.meanElevation < -40 || faciesNoise < -0.15) {
@@ -380,7 +394,7 @@ public final class Geology {
 	}
 
 	/**
-	 * How well the ground at height {@code y} of a site resists erosion, from 0 (flat beds of sandstone and limestone
+	 * How well the ground at height {@code y} of a site resists erosion, from 0 (flat beds of stone and limestone
 	 * between shale, chalk and salt) to 1 (granite). It is the bulk of the rock there, not the bed at {@code y}:
 	 * landforms are carved over many beds. It changes smoothly across the contacts between rocks, so the shapes it
 	 * gives the ground have no seams.
@@ -599,13 +613,24 @@ public final class Geology {
 			return lens;
 		}
 		return switch (c.basement) {
-			case GRANITE -> Rock.GRANITE;
-			case GNEISS -> Rock.GNEISS;
+			case GRANITE -> pluton(x, y, z) ? Rock.GRANITE : Rock.STONE;
+			case GNEISS -> band(c, y) ? Rock.GNEISS : Rock.STONE;
 			case STONE -> Rock.STONE;
-			case SCHIST -> Rock.SCHIST;
+			case SCHIST -> band(c, y) ? Rock.SCHIST : Rock.STONE;
 			// Lava flows with ash beds between them.
-			case VOLCANIC -> bedThin[bed(c, y)] ? Rock.TUFF : Rock.ANDESITE;
+			case VOLCANIC -> bedThin[bed(c, y)] ? Rock.TUFF : band(c, y) ? Rock.ANDESITE : Rock.STONE;
 		};
+	}
+
+	/** Whether a block of a granite basement is in one of its plutons, bodies a few dozen blocks across. */
+	private boolean pluton(int x, int y, int z) {
+		return gradient3(seed + 15, x / 40.0, y / 28.0, z / 40.0)
+			+ 0.4 * gradient3(seed + 16, x / 14.0, y / 10.0, z / 14.0) > PLUTON;
+	}
+
+	/** Whether a block of the basement is in a band of its region's rock: see {@link #BAND_SHARE}. */
+	private boolean band(Column c, int y) {
+		return unit(hash(seed + 17, bed(c, y), 0, 0)) < BAND_SHARE;
 	}
 
 	/** Bodies of another rock inside the basement: intrusions, and marble lenses in schist. */
@@ -647,17 +672,31 @@ public final class Geology {
 	private Rock sediment(Column c, int y) {
 		int bed = bed(c, y);
 		float roll = bedRoll[bed];
-		// The hard rocks take the rolls below HARD_SHARE in every basin, so the ledges stand where they show.
-		Rock rock = switch (c.basin) {
-			case MARINE -> roll < 0.40f ? Rock.LIMESTONE : roll < HARD_SHARE ? Rock.SANDSTONE
-				: roll < 0.84f ? Rock.SHALE : Rock.CHALK;
-			case CLASTIC -> roll < 0.44f ? Rock.SANDSTONE : roll < 0.52f ? Rock.LIMESTONE
-				: roll < HARD_SHARE ? Rock.RED_SANDSTONE : Rock.SHALE;
-			case COAL -> bedThin[bed] && roll < 0.7f ? Rock.COAL_SEAM : roll < 0.42f ? Rock.SANDSTONE
-				: roll < HARD_SHARE ? Rock.LIMESTONE : Rock.SHALE;
-			case EVAPORITE -> roll < 0.36f ? Rock.RED_SANDSTONE : roll < HARD_SHARE ? Rock.LIMESTONE
-				: roll < 0.78f ? Rock.SHALE : Rock.ROCK_SALT;
-		};
+		// The hard rocks lie in the beds that hold up the ledges and the soft ones in those that recede, so the ledges
+		// stand where they show; stone lies in both. Most beds are stone, but in the deserts. The rolls are spread
+		// evenly over each kind of bed.
+		float r = roll < HARD_SHARE ? roll / HARD_SHARE : (roll - HARD_SHARE) / (1 - HARD_SHARE);
+		Rock rock;
+		if (c.basin == Basin.COAL && bedThin[bed] && roll < 0.7f) {
+			rock = Rock.COAL_SEAM;
+		} else if (bedHard[bed]) {
+			rock = switch (c.basin) {
+				case MARINE -> r < 0.7f ? Rock.STONE : Rock.LIMESTONE;
+				case CLASTIC -> c.desert ? r < 0.73f ? Rock.SANDSTONE : r < 0.87f ? Rock.LIMESTONE : Rock.RED_SANDSTONE
+					: r < 0.75f ? Rock.STONE : r < 0.88f ? Rock.LIMESTONE : Rock.SANDSTONE;
+				case COAL -> r < 0.75f ? Rock.STONE : r < 0.92f ? Rock.LIMESTONE : Rock.SANDSTONE;
+				case EVAPORITE -> c.desert ? r < 0.3f ? Rock.SANDSTONE : r < 0.6f ? Rock.RED_SANDSTONE : Rock.LIMESTONE
+					: r < 0.65f ? Rock.STONE : r < 0.72f ? Rock.RED_SANDSTONE : Rock.LIMESTONE;
+			};
+		} else {
+			rock = switch (c.basin) {
+				case MARINE -> r < 0.4f ? Rock.SHALE : r < 0.55f ? Rock.CHALK : Rock.STONE;
+				case CLASTIC -> c.desert || r < 0.4f ? Rock.SHALE : Rock.STONE;
+				case COAL -> r < 0.45f ? Rock.SHALE : Rock.STONE;
+				case EVAPORITE -> c.desert ? r < 0.45f ? Rock.SHALE : Rock.ROCK_SALT
+					: r < 0.35f ? Rock.SHALE : r < 0.55f ? Rock.ROCK_SALT : Rock.STONE;
+			};
+		}
 		if (c.fold > 0.25f) {
 			// Buried and squeezed: mudstone becomes slate, then schist; limestone becomes marble.
 			double depthMeters = metersUnder(c.meanSurfaceY, y);
@@ -674,6 +713,11 @@ public final class Geology {
 
 	private int bed(Column c, int y) {
 		return bedAt[Math.floorMod((int) Math.floor(y + c.warp), PERIOD)];
+	}
+
+	/** Whether the bed of the cover at {@code y} holds up ledges; see {@link #hardBeds}. */
+	boolean hardBed(Column c, int y) {
+		return bedHard[bed(c, y)];
 	}
 
 	/** The height {@code meters} of rock below a mean surface, at the world's scale down to the sea and below it. */
