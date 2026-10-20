@@ -101,7 +101,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	 * The world's seed: a coastal spawn with rivers, cliffs and Grand Hollows near it. {@code -Pdiffusicraft.seed=...}
 	 * picks another, to see the biomes of other climates.
 	 */
-	private static final String SEED = System.getProperty("diffusicraft.seed", "20261029");
+	private static final String SEED = System.getProperty("diffusicraft.seed", "20261052");
 	/** Map size in pixels, and blocks per pixel. */
 	private static final int MAP_SIZE = 256;
 	private static final int MAP_STRIDE = 8;
