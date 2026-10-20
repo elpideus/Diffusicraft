@@ -16,6 +16,7 @@ import java.util.concurrent.Future;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RiversTest {
@@ -43,6 +44,11 @@ class RiversTest {
 			return elevation(i, j);
 		}
 
+		/** Annual mean temperature everywhere, °C. */
+		float temperature() {
+			return 10f;
+		}
+
 		@Override
 		public TerrainSample sample(int i0, int j0, int i1, int j1) {
 			int h = i1 - i0, w = j1 - j0, plane = h * w;
@@ -52,7 +58,7 @@ class RiversTest {
 				for (int c = 0; c < w; c++) {
 					int px = r * w + c;
 					elevation[px] = height(i0 + r + 0.5, j0 + c + 0.5);
-					climate[TerrainSample.TEMPERATURE * plane + px] = 10f;
+					climate[TerrainSample.TEMPERATURE * plane + px] = temperature();
 					climate[TerrainSample.TEMPERATURE_SEASONALITY * plane + px] = 600f;
 					climate[TerrainSample.PRECIPITATION * plane + px] = 1500f;
 					climate[TerrainSample.PRECIPITATION_SEASONALITY * plane + px] = 30f;
@@ -77,7 +83,7 @@ class RiversTest {
 					float mean = height((ci0 + r + 0.5) * TILE, (cj0 + c + 0.5) * TILE);
 					out[COARSE_ELEVATION * plane + px] = mean;
 					out[COARSE_LOW_ELEVATION * plane + px] = mean - 30f;
-					out[COARSE_TEMPERATURE * plane + px] = 10f;
+					out[COARSE_TEMPERATURE * plane + px] = temperature();
 					out[COARSE_TEMPERATURE_SEASONALITY * plane + px] = 600f;
 					out[COARSE_PRECIPITATION * plane + px] = 1500f;
 					out[COARSE_PRECIPITATION_SEASONALITY * plane + px] = 30f;
@@ -170,6 +176,58 @@ class RiversTest {
 			}
 		}
 		assertEquals(0, pits);
+	}
+
+	/**
+	 * The valley with the coarse 5th percentile of cell {@code (ci, cj)} set to {@code low}, at {@code temperature} °C.
+	 */
+	private static TerrainSource withLow(int ci, int cj, float low, float temperature) {
+		return new ValleySource() {
+			@Override
+			float temperature() {
+				return temperature;
+			}
+
+			@Override
+			public float[] coarse(int ci0, int cj0, int ci1, int cj1) {
+				float[] out = super.coarse(ci0, cj0, ci1, cj1);
+				int w = cj1 - cj0, plane = (ci1 - ci0) * w;
+				if (ci0 <= ci && ci < ci1 && cj0 <= cj && cj < cj1) {
+					out[COARSE_LOW_ELEVATION * plane + (ci - ci0) * w + cj - cj0] = low;
+				}
+				return out;
+			}
+		};
+	}
+
+	@Test
+	void riversEndInAFjordUpTheValleyRatherThanBreachThroughToTheCoast() {
+		// A fjord the ice drowned far up the valley, below the sea under mountains on every side.
+		RiverNetwork network = new RiverNetwork(new TerrainField(1, withLow(6, VALLEY, -150f, 10f)));
+		assertEquals(RiverNetwork.MOUTH, network.direction(6, VALLEY));
+		CellFlows fjord = network.flows(6, VALLEY);
+		assertFalse(fjord.inflows.isEmpty(), "the rivers of the valley run into the fjord");
+		for (CellFlows.Inflow inflow : fjord.inflows) {
+			assertEquals(CellFlows.SEA, inflow.target(), "a river ends in the fjord");
+		}
+		for (int side = 0; side < 4; side++) {
+			assertTrue(Float.isNaN(fjord.outLevel[side]), "no river leaves the fjord");
+		}
+		for (int ci = 0; ci < 6; ci++) {
+			// Between the fjord and the coast the valley keeps its floor, instead of being cut to the sea.
+			float low = ValleySource.elevation((ci + 0.5) * TILE, (VALLEY + 0.5) * TILE) - 30f;
+			assertEquals(low, network.level(ci, VALLEY), 1e-3f, "the level at " + ci);
+		}
+	}
+
+	@Test
+	void theWayOutOfALakeByTheCoastFallsToTheSeaNotItsFloor() {
+		// A hollow one cell up a valley too warm for glaciers, 15 m above the sea: a lake that spills over the coast.
+		RiverNetwork network = new RiverNetwork(new TerrainField(1, withLow(1, VALLEY, 15f, 20f)));
+		assertNotNull(network.lakeAt(1, VALLEY));
+		assertTrue(network.level(0, VALLEY) > 0f, "the coast is cut to " + network.level(0, VALLEY) + " m");
+		float out = network.flows(1, VALLEY).outLevel[0];
+		assertTrue(out > 0f, "the river leaves the lake at " + out + " m");
 	}
 
 	@Test

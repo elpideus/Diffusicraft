@@ -31,6 +31,12 @@ import java.util.function.Supplier;
  * depends only on the map within a few radii, so every part of the network can be computed on its own, in any order,
  * on any thread, and comes out the same. Pits with no way out stay: their rivers end in a pond.
  *
+ * <p>Water that reaches the sea is at sea level, so the way out of a lake or a pit falls to the sea, not to the floor
+ * of the sea or of a fjord, and a land cell whose 5th percentile lies below the sea is never a pit: a twentieth of it
+ * is sea, on a coast or in a fjord the ice drowned (see Glaciation), and the rivers that reach it end there
+ * ({@link #MOUTH}), unless its steepest descent leads straight into the ocean. Otherwise a fjord far up a valley would
+ * be breached to the coast, and the rivers would run on at sea level through the mountains between.
+ *
  * <p>The discharge of a cell is the runoff of every cell upstream of it, summed exactly. Runoff is the precipitation
  * less a simple evapotranspiration that grows with temperature. A cell carries a river when its discharge reaches
  * {@value #MIN_DISCHARGE} m³/s. Rivers cross from cell to cell through the four sides only: a diagonal step goes
@@ -54,6 +60,8 @@ final class RiverNetwork {
 	static final int OCEAN = -2;
 	/** Flow direction of a pit that could not be breached. */
 	static final int PIT = -1;
+	/** Flow direction of a land cell whose 5th percentile lies below the sea, where rivers end in its sea. */
+	static final int MOUTH = -3;
 	/** Neighbour offsets: the four sides (north, south, west, east, as {@link CellFlows} numbers them), then corners. */
 	static final int[] DI = {-1, 1, 0, 0, -1, -1, 1, 1};
 	static final int[] DJ = {0, 0, -1, 1, -1, 1, -1, 1};
@@ -103,7 +111,7 @@ final class RiverNetwork {
 		return (float) (meters / 1000.0 * CELL_METERS * CELL_METERS / SECONDS_PER_YEAR);
 	}
 
-	/** Flow direction of a cell: an index into {@link #DI}, {@link #OCEAN} or {@link #PIT}. */
+	/** Flow direction of a cell: an index into {@link #DI}, {@link #OCEAN}, {@link #MOUTH} or {@link #PIT}. */
 	int direction(int ci, int cj) {
 		Region r = region(ci, cj);
 		return r.direction[r.index(ci, cj)];
@@ -120,6 +128,12 @@ final class RiverNetwork {
 
 	boolean ocean(int ci, int cj) {
 		return direction(ci, cj) == OCEAN;
+	}
+
+	/** Whether rivers end in cell {@code (ci, cj)}: the ocean, or the sea of a {@link #MOUTH}. */
+	private boolean endsRivers(int ci, int cj) {
+		int direction = direction(ci, cj);
+		return direction == OCEAN || direction == MOUTH;
 	}
 
 	/** The lake on cell {@code (ci, cj)}, or null. */
@@ -246,7 +260,7 @@ final class RiverNetwork {
 			} else if (leg.toI == ci && leg.toJ == cj) {
 				int side = side(leg.fromI - ci, leg.fromJ - cj);
 				int target;
-				if (direction == OCEAN) {
+				if (direction == OCEAN || direction == MOUTH) {
 					target = CellFlows.SEA;
 				} else if (leg.continueSide >= 0) {
 					target = leg.continueSide;
@@ -331,7 +345,7 @@ final class RiverNetwork {
 		boolean vertical = crossesVertically(ci, cj, direction);
 		int mi = vertical ? di : ci, mj = vertical ? cj : dj;
 		float drop = from - to;
-		boolean sea = ocean(mi, mj);
+		boolean sea = endsRivers(mi, mj);
 		if (touches(ci, cj, mi, mj, xi, xj)) {
 			float level = water(source, target, ci, cj, mi, mj, Math.max(0f, from - drop / 3f));
 			out.add(new Leg(ci, cj, mi, mj, level, q, sea ? -1 : side(di - mi, dj - mj)));
@@ -515,7 +529,7 @@ final class RiverNetwork {
 			Arrays.fill(fill, Float.NaN);
 			for (int a = lo; a < hi; a++) {
 				for (int b = lo; b < hi; b++) {
-					if (mean[a * size + b] > 0f && isPit(low, size, a, b)) {
+					if (mean[a * size + b] > 0f && low[a * size + b] > 0f && isPit(low, size, a, b)) {
 						Depression d = depression(a, b);
 						if (d != null) {
 							found.add(d);
@@ -661,7 +675,8 @@ final class RiverNetwork {
 		/**
 		 * Lowers the way out of every lake: the cells on the path of its first pit's flood after the lake, down to
 		 * where the path reaches lower ground, the sea or another lake. They fall evenly from the floor of the lake, or
-		 * from halfway down to a target above the floor, to the target. Lake cells are never lowered.
+		 * from halfway down to a target above the floor, to the target, which is never below the sea. Lake cells are
+		 * never lowered.
 		 */
 		void lowerOutlets() {
 			for (int l = 0; l < lakes.size(); l++) {
@@ -678,15 +693,8 @@ final class RiverNetwork {
 					s++;
 				}
 				int stop = path[s];
-				double target;
-				if (lake[stop] >= 0) {
-					target = lakes.get(lake[stop]).level;
-				} else if (mean[stop] <= 0f) {
-					target = Math.min(low[stop], d.floor - 1.0);
-					z[stop] = Math.min(z[stop], target);
-				} else {
-					target = low[stop];
-				}
+				// Water that reaches the sea, or a cell with sea in it, is at sea level.
+				double target = lake[stop] >= 0 ? lakes.get(lake[stop]).level : Math.max(0.0, low[stop]);
 				double top = target < d.floor ? d.floor : 0.5 * (d.level + target);
 				int m = s - o - 1;
 				for (int k = 1; k <= m; k++) {
@@ -697,8 +705,8 @@ final class RiverNetwork {
 		}
 
 		/**
-		 * Breaches every land cell within a radius and a cell of the region that the lakes and their ways out still
-		 * leave a pit. The shores of a lake higher than the pit hold its flood; a lower lake is a way out.
+		 * Breaches every land cell above the sea within a radius and a cell of the region that the lakes and their ways
+		 * out still leave a pit. The shores of a lake higher than the pit hold its flood; a lower lake is a way out.
 		 */
 		void breachPits() {
 			double[] before = z.clone();
@@ -706,7 +714,7 @@ final class RiverNetwork {
 			for (int a = lo; a < hi; a++) {
 				for (int b = lo; b < hi; b++) {
 					int w = a * size + b;
-					if (mean[w] > 0f && lake[w] < 0 && isPit(before, a, b)) {
+					if (mean[w] > 0f && before[w] > 0.0 && lake[w] < 0 && isPit(before, a, b)) {
 						breach(before, a, b);
 					}
 				}
@@ -715,7 +723,8 @@ final class RiverNetwork {
 
 		/**
 		 * Floods out from the pit at window cell {@code (pa, pb)} by the levels {@code before} until it reaches a lower
-		 * cell or the sea, then lowers the cells on the way so that they drain the pit. Gives up past the breach radius.
+		 * cell or the sea, then lowers the cells on the way so that they drain the pit, to no lower than the sea. Gives
+		 * up past the breach radius.
 		 */
 		private void breach(double[] before, int pa, int pb) {
 			int r = BREACH_RADIUS, side = 2 * r + 1, centre = r * side + r, origin = (pa - r) * size + pb - r;
@@ -753,11 +762,7 @@ final class RiverNetwork {
 				steps++;
 			}
 			int endW = origin + end / side * size + end % side;
-			double target = before[endW];
-			if (mean[endW] <= 0f) {
-				target = Math.min(target, pit - 1.0);
-				z[endW] = Math.min(z[endW], target);
-			}
+			double target = Math.max(0.0, before[endW]);
 			// Cells on the path, from the one before the end back to the one after the pit.
 			int n = steps + 1, step = steps;
 			for (int k = parent[end]; k != centre; k = parent[k], step--) {
@@ -795,7 +800,7 @@ final class RiverNetwork {
 						region.lake[k] = (short) index[l];
 						region.direction[k] = (byte) trees.get(index[l])[c];
 					} else {
-						region.direction[k] = (byte) steepest(w, z);
+						region.direction[k] = (byte) (low[w] <= 0f && !intoOcean(w) ? MOUTH : steepest(w, z));
 					}
 				}
 			}
@@ -896,6 +901,18 @@ final class RiverNetwork {
 				}
 			}
 			return best;
+		}
+
+		/**
+		 * Whether the steepest descent from window cell {@code w} leads straight into the ocean: into an ocean cell
+		 * across a side, or across a corner with an ocean cell beside it, through which the river crosses.
+		 */
+		private boolean intoOcean(int w) {
+			int d = steepest(w, z);
+			if (d < 0 || mean[w + DI[d] * size + DJ[d]] > 0f) {
+				return false;
+			}
+			return d < 4 || mean[w + DI[d] * size] <= 0f || mean[w + DJ[d]] <= 0f;
 		}
 
 		private boolean isPit(double[] level, int a, int b) {

@@ -468,22 +468,25 @@ the same. Each thread keeps the columns of the chunk it is working on. A thread 
 generation work, which asks about another chunk; that work gets columns of its own, so the ones being computed stay in
 place.
 
-- **Network.** `RiverNetwork` routes water over the coarse map, one cell per tile (7.7 km). Each land cell drains to
-  its steepest lower neighbour, judged by its 5th-percentile elevation, which follows the valley floors. Where that
-  leaves a pit, a priority flood within 8 cells finds the level at which it spills. The depression holds a lake when
-  the cells joined to the pit below that level are at most 16, within 8 cells either way, at least 2 m deep, and the
-  runoff of the cells that drain into them outweighs what the lake's surface evaporates: 1.3 times the
-  evapotranspiration, less the rain. Of nested depressions the outermost that holds a lake wins. The lake's cells take
-  the level at which it spills, and the water crosses them to the cell it spills from and on into the cell it spills
-  into. That cell and the ones after it on the flood's path are lowered evenly until the water reaches lower ground,
-  the sea or another lake. Any other pit is breached: a priority flood within 8 cells finds the cheapest way out, and
-  the cells on it are lowered just enough to drain. A lake's shores hold the flood of a pit higher than it; a lower
-  lake is a way out. Pits with no way out keep their rivers in a pond. The discharge of a cell is the runoff of
-  everything upstream, the precipitation less an evapotranspiration that grows with temperature. A river starts at
-  4 m³/s. The network is computed in regions of 32 by 32 cells, each from the map 50 cells around it, which holds
-  every lake and breach its cells depend on, so the regions agree on every lake without looking at each other. The
-  first region of a world takes some 8 s on the CPU, most of it the coarse stage over the 1,200 km around it, and
-  each further one about 2 s.
+- **Network.** `RiverNetwork` routes water over the coarse map, one cell per tile (7.7 km). Each land cell drains to its
+  steepest lower neighbour, judged by its 5th-percentile elevation, which follows the valley floors. Where that leaves a
+  pit, a priority flood within 8 cells finds the level at which it spills. The depression holds a lake when the cells
+  joined to the pit below that level are at most 16, within 8 cells either way, at least 2 m deep, and the runoff of the
+  cells that drain into them outweighs what the lake's surface evaporates: 1.3 times the evapotranspiration, less the
+  rain. Of nested depressions the outermost that holds a lake wins. The lake's cells take the level at which it spills,
+  and the water crosses them to the cell it spills from and on into the cell it spills into. That cell and the ones
+  after it on the flood's path are lowered evenly until the water reaches lower ground, the sea or another lake. Any
+  other pit is breached: a priority flood within 8 cells finds the cheapest way out, and the cells on it are lowered
+  just enough to drain. Water that reaches the sea is at sea level, so these ways out fall to the sea rather than to its
+  floor, and a land cell whose 5th percentile lies below the sea is never a pit: a twentieth of it is sea, on a coast or
+  in a fjord the ice drowned, and the rivers that reach it end there, unless its steepest descent leads straight into
+  the ocean. Breached through to the coast, a fjord far up a valley would carry its rivers on at sea level under the
+  mountains between. A lake's shores hold the flood of a pit higher than it; a lower lake is a way out. Pits with no way
+  out keep their rivers in a pond. The discharge of a cell is the runoff of everything upstream, the precipitation less
+  an evapotranspiration that grows with temperature. A river starts at 4 m³/s. The network is computed in regions of 32
+  by 32 cells, each from the map 50 cells around it, which holds every lake and breach its cells depend on, so the
+  regions agree on every lake without looking at each other. The first region of a world takes some 8 s on the CPU, most
+  of it the coarse stage over the 1,200 km around it, and each further one about 2 s.
 - **Paths.** `CellRivers` draws the rivers inside a tile. A river crosses a side of the tile at that side's lowest
   point, running straight across, so the tiles on both sides agree without looking at each other. Inside, it follows the
   cheapest path, where low ground is cheap, and tributaries merge into a tree. On level ground the cost carries noise,
@@ -559,7 +562,10 @@ place.
   drowned, its floor below the sea, the sea's water stays in it at sea level, as a fjord. A depression of the coarse map
   larger than 16 cells, or wider than 8 cells (60 km), is breached rather than filled, so the largest lakes of the real
   world stay dry. The hollows of a great lake's tiles that do not hold water at its level stay dry, and so do those
-  whose water spills past the padding of its tiles.
+  whose water spills past the padding of its tiles. The coarse map cannot tell a fjord open to the sea from a valley the
+  ice drowned behind a step: a cell whose 5th percentile lies below the sea ends its rivers either way, so where its
+  tile has no sea, only such a trough, the river ends in the trough's lake, which has no way out. Three of the 144 cells
+  of seed 42's most glaciated coast do.
 
 ### Coasts
 
@@ -1088,10 +1094,12 @@ Other searches still read the full terrain and can take a while on new land:
   caverns.
 - `RiversTest` runs the river model over an analytic valley. It checks that water runs down to the sea, that the
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
-  river meets itself across tile borders, that the banks hold the water where it steps down, in the river and in the
-  lakes it fills along its valley, that lakes fill the hollows between the hills and their shores hold them, that a
-  dry climate leaves the hollows dry, that every thread gets the same rivers, that a thread asked about another
-  chunk while it computes a column keeps that column's chunk, and that the width grows with the discharge.
+  fjord up the valley ends its rivers instead of being breached to the coast, that the way out of a lake by the coast
+  stays above the sea, that a river meets itself across tile borders, that the banks hold the water where it steps down,
+  in the river and in the lakes it fills along its valley, that lakes fill the hollows between the hills and their
+  shores hold them, that a dry climate leaves the hollows dry, that every thread gets the same rivers, that a thread
+  asked about another chunk while it computes a column keeps that column's chunk, and that the width grows with the
+  discharge.
 - `GreatLakeTest` sinks a bowl 500 m deep into the slope of the analytic valley, on the coarse map and the fine
   terrain alike, astride the border of two regions. It checks that both regions see the same lake, that its cells drain
   through its outlet, that no pit remains, that the rivers cross it at the level of its water and never climb, that
