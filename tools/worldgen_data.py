@@ -48,14 +48,76 @@ def gradient(y0, v0, y1, v1):
             "from_coordinate": y0, "from_value": v0, "to_coordinate": y1, "to_value": v1}
 
 
-def final_density(scale, min_y, top):
-    """Vanilla's overworld final density with our terrain in place of sloped_cheese, the Hollows, the sea cliffs and
-    the rivers.
+# Caves. Vanilla's own open about 8% of the ground under the surface (cheese caverns most, then the carvers and the
+# spaghetti tunnels); Diffusicraft's open a little over a third of that, the largest part of it in noodles.
+# How far the cheese noise must fall below zero to open a cavern; vanilla's 0.27 opens one at every other step.
+CHEESE_OFFSET = 0.55
+# Spaghetti tunnels run only where their gate noise reaches this, which leaves about a quarter of vanilla's 3D tunnels
+# and under a fifth of its 2D ones, as whole networks rather than shorter tunnels.
+ENTRANCE_GATE = 0.2
+SPAGHETTI_2D_GATE = 0.3
+# A tunnel closes over this much of its gate noise below the threshold.
+GATE_RAMP = 4.0
+# Noodles run where the noodle noise reaches this (vanilla: 0), and are wider than vanilla's: half width in ridge
+# noise, spread by the thickness noise (vanilla: 0.075 and 0.025).
+NOODLE_TOGGLE = -0.25
+NOODLE_THICKNESS = 0.09
+NOODLE_THICKNESS_SPREAD = 0.025
 
-    Caves, cave entrances, noodles, pillars, blending and structures (the beardifier) are vanilla's own functions.
-    The Hollows join the caves deep underground, where vanilla's caves are, too. The sea cliffs and then the rivers
-    come last, so a cliff stays whole down to the ground around it and a river cuts its way through a cliff to the
-    sea; their beds seal any cave below them.
+
+def noise(name, xz_scale=1.0, y_scale=1.0):
+    return {"type": "minecraft:noise", "noise": name, "xz_scale": xz_scale, "y_scale": y_scale}
+
+
+def gated(function, gate, threshold):
+    """`function` where the noise `gate` reaches `threshold`; elsewhere it closes, within a little of the threshold."""
+    return {"type": "minecraft:add", "left": function, "right": {"type": "minecraft:clamp", "min": 0.0, "max": 1.0,
+            "input": {"type": "minecraft:mul", "left": {"type": "minecraft:add", "left": noise(gate),
+                                                        "right": -threshold}, "right": -GATE_RAMP}}}
+
+
+def cheese(scale):
+    """Vanilla's cheese caverns, rarer and smaller: the same noises with a higher offset. They close towards the
+    surface, as vanilla's do."""
+    return {"type": "minecraft:add",
+            "left": {"type": "minecraft:mul", "left": {"type": "minecraft:square", "input": noise(
+                "minecraft:cave_layer", 1.0, 8.0)}, "right": 4.0},
+            "right": {"type": "minecraft:add",
+                      "left": {"type": "minecraft:clamp", "min": -1.0, "max": 1.0, "input": {
+                          "type": "minecraft:add", "left": noise("minecraft:cave_cheese", 1.0, 0.6666666666666666),
+                          "right": CHEESE_OFFSET}},
+                      "right": {"type": "minecraft:clamp", "min": 0.0, "max": 0.5, "input": {
+                          "type": "minecraft:add", "left": {"type": "minecraft:mul", "left": ref(scale, "terrain"),
+                                                            "right": -0.64}, "right": 1.5}}}}
+
+
+def noodle(min_y, top):
+    """Vanilla's noodle caves, in more of the ground, wider and from the bottom of the world to the top."""
+    def ranged(inside, outside):
+        return {"type": "minecraft:interpolated", "cell_size_xz": 4, "cell_size_y": 8, "input": {
+            "type": "minecraft:range_choice", "input": "minecraft:y", "min_inclusive": float(min_y + 4),
+            "max_exclusive": float(top + 1), "when_in_range": inside, "when_out_of_range": outside}}
+    ridge = 2.6666666666666665
+    thickness = ranged({"type": "minecraft:add", "left": {"type": "minecraft:mul",
+                        "left": noise("minecraft:noodle_thickness"), "right": -NOODLE_THICKNESS_SPREAD},
+                        "right": -NOODLE_THICKNESS}, 0.0)
+    ridges = {"type": "minecraft:mul", "right": 1.5, "left": {
+        "type": "minecraft:max",
+        "left": {"type": "minecraft:abs", "input": ranged(noise("minecraft:noodle_ridge_a", ridge, ridge), 0.0)},
+        "right": {"type": "minecraft:abs", "input": ranged(noise("minecraft:noodle_ridge_b", ridge, ridge), 0.0)}}}
+    return {"type": "minecraft:range_choice", "input": ranged(noise("minecraft:noodle"), -1.0),
+            "min_inclusive": -1000000.0, "max_exclusive": NOODLE_TOGGLE, "when_in_range": 64.0,
+            "when_out_of_range": {"type": "minecraft:add", "left": thickness, "right": ridges}}
+
+
+def final_density(scale, min_y, top):
+    """Vanilla's overworld final density with our terrain in place of sloped_cheese, our caves (see cheese, noodle
+    and the gates above), the Hollows, the sea cliffs and the rivers.
+
+    Pillars, blending and structures (the beardifier) are vanilla's own functions. The Hollows join the caves deep
+    underground, where vanilla's caves are, too. The sea cliffs and then the rivers come last, so a cliff stays whole
+    down to the ground around it and a river cuts its way through a cliff to the sea; their beds seal any cave below
+    them.
     The bottom of the world fades to solid and everything above the highest possible surface fades to air.
     """
     terrain = ref(scale, "terrain")
@@ -64,33 +126,9 @@ def final_density(scale, min_y, top):
         "type": "minecraft:max",
         "left": {
             "type": "minecraft:min",
-            "left": {
-                "type": "minecraft:min",
-                "left": {
-                    "type": "minecraft:add",
-                    "left": {
-                        "type": "minecraft:mul",
-                        "left": {"type": "minecraft:square", "input": {
-                            "type": "minecraft:noise", "noise": "minecraft:cave_layer", "xz_scale": 1.0, "y_scale": 8.0}},
-                        "right": 4.0,
-                    },
-                    "right": {
-                        "type": "minecraft:add",
-                        "left": {"type": "minecraft:clamp", "min": -1.0, "max": 1.0, "input": {
-                            "type": "minecraft:add",
-                            "left": {"type": "minecraft:noise", "noise": "minecraft:cave_cheese",
-                                     "xz_scale": 1.0, "y_scale": 0.6666666666666666},
-                            "right": 0.27}},
-                        "right": {"type": "minecraft:clamp", "min": 0.0, "max": 0.5, "input": {
-                            "type": "minecraft:add",
-                            "left": {"type": "minecraft:mul", "left": terrain, "right": -0.64},
-                            "right": 1.5}},
-                    },
-                },
-                "right": caves + "entrances",
-            },
-            "right": {"type": "minecraft:add", "left": caves + "spaghetti_2d",
-                      "right": caves + "spaghetti_roughness_function"},
+            "left": {"type": "minecraft:min", "left": ref(scale, "caves/cheese"),
+                     "right": ref(scale, "caves/entrances")},
+            "right": ref(scale, "caves/spaghetti_2d"),
         },
         "right": {"type": "minecraft:range_choice", "input": caves + "pillars",
                   "min_inclusive": -1000000.0, "max_exclusive": 0.03,
@@ -101,8 +139,8 @@ def final_density(scale, min_y, top):
     lowland = {"type": "minecraft:clamp", "min": 0.0, "max": 3.0, "input": {
         "type": "minecraft:mul", "left": {"type": "minecraft:add", "left": ref(scale, "surface"),
                                           "right": -float(SEA_LEVEL + 8)}, "right": -0.5}}
-    entrances = {"type": "minecraft:add", "left": {"type": "minecraft:mul", "left": caves + "entrances", "right": 5.0},
-                 "right": lowland}
+    entrances = {"type": "minecraft:add", "left": {"type": "minecraft:mul", "left": ref(scale, "caves/entrances"),
+                                                   "right": 5.0}, "right": lowland}
     shaped = {
         "type": "minecraft:range_choice",
         "input": terrain,
@@ -126,7 +164,7 @@ def final_density(scale, min_y, top):
             "input": {"type": "minecraft:mul",
                       "left": {"type": "minecraft:blend_density", "input": faded},
                       "right": 0.64}}},
-        "right": caves + "noodle",
+        "right": ref(scale, "caves/noodle"),
     }
     # Sea cliffs, then rivers, build the ground up where it lies lower, then cut it down, block by block (outside
     # the interpolation, so cliff faces, banks and beds stay sharp).
@@ -285,6 +323,14 @@ def main():
             "when_in_range": {"type": "minecraft:min", "left": ref(scale, "surface"), "right": float(SEA_LEVEL - 12)},
             "when_out_of_range": ref(scale, "surface")})
         write(f"{functions}/hollows.json", {"type": f"{NS}:hollows", "scale": scale, "min_y": min_y})
+        write(f"{functions}/caves/cheese.json", cheese(scale))
+        write(f"{functions}/caves/entrances.json",
+              gated("minecraft:overworld/caves/entrances", f"{NS}:entrance_gate", ENTRANCE_GATE))
+        write(f"{functions}/caves/spaghetti_2d.json", gated(
+            {"type": "minecraft:add", "left": "minecraft:overworld/caves/spaghetti_2d",
+             "right": "minecraft:overworld/caves/spaghetti_roughness_function"},
+            f"{NS}:spaghetti_2d_gate", SPAGHETTI_2D_GATE))
+        write(f"{functions}/caves/noodle.json", noodle(min_y, top))
         for mode in ("carve", "fill"):
             write(f"{functions}/river_{mode}.json", {"type": f"{NS}:river", "scale": scale, "mode": mode})
             write(f"{functions}/coast_{mode}.json", {"type": f"{NS}:coast", "scale": scale, "mode": mode})
@@ -294,6 +340,9 @@ def main():
         write(f"{NS}/worldgen/world_preset/{scale}.json", world_preset(scale, dim_type))
         if clouds is not None:
             write(f"{NS}/dimension_type/{scale}.json", dimension_type(min_y, height, clouds))
+    # Single octaves, as vanilla's noodle toggle, about 250 blocks across.
+    for gate in ("entrance_gate", "spaghetti_2d_gate"):
+        write(f"{NS}/worldgen/noise/{gate}.json", {"base_amplitude": 0.955388882960065, "base_octave": -8})
     write("minecraft/tags/worldgen/world_preset/normal.json",
           {"replace": False, "values": [f"{NS}:{scale}" for scale in SCALES]})
 

@@ -424,22 +424,38 @@ templates from the Minecraft jar Loom unpacked.
 
 ### Density and caves
 
-The settings set `final_density` to vanilla's overworld density, with two changes:
+The settings set `final_density` to vanilla's overworld density, with these changes:
 
 - vanilla's `sloped_cheese` terrain is replaced by `diffusicraft:<scale>/terrain`, which is `(surface − y) / 16`.
   Its `y` is a gradient over the whole world, not vanilla's `minecraft:y`, which stops at y = 4062 and would leave
   the mountains of Earth 1:1 solid up to the top of the world;
-- deeper than 25 blocks below the surface, the density is the minimum of vanilla's caves and
+- the caves are vanilla's, but fewer, with more of them noodles (below);
+- deeper than 25 blocks below the surface, the density is the minimum of the caves and
   [the Hollows](#the-hollows);
 - [the sea cliffs and stacks](#coasts) are set block by block: `diffusicraft:<scale>/coast_fill` and `coast_carve`;
 - [the rivers](#rivers) come last: `diffusicraft:<scale>/river_fill` builds the ground up under them and
   `river_carve` cuts it down to their water, so their beds seal any cave below.
 
-Everything else is vanilla, so worlds keep:
+Everything else is vanilla, so worlds keep cave entrances, pillars, aquifers, the deep dark and structure blending
+(the beardifier).
 
-- cheese, spaghetti and noodle caves;
-- cave entrances, pillars, aquifers and the deep dark;
-- structure blending (the beardifier).
+**Caves.** Vanilla's caves open about 8 % of the ground under the surface, most of it in cheese caverns, so a
+Diffusicraft world's ground was as full of holes as vanilla's, and more with the Hollows. Its caves now open a little
+over a third as much: 3.1 % rather than 8.5 % of the ground more than 6 blocks down, around the spawn of seed 20261029.
+Noodles are the largest part of that, two fifths, where they were a twentieth; cheese caverns, a third before, are
+now a few hundredths. The caves are vanilla's own noises, in `diffusicraft:<scale>/caves/…`, which
+`tools/worldgen_data.py` writes:
+
+| Cave | Change from vanilla |
+|---|---|
+| Cheese caverns (`cheese`) | The cheese noise must fall to −0.55 rather than −0.27 to open, so they are rare and smaller |
+| 3D spaghetti and entrances (`entrances`) | Only where the noise `diffusicraft:entrance_gate` is above 0.2: whole tunnel networks in about a quarter of the ground, none elsewhere |
+| 2D spaghetti (`spaghetti_2d`) | Only where `diffusicraft:spaghetti_2d_gate` is above 0.3, in under a fifth of the ground |
+| Noodles (`noodle`) | In more of the ground (the noodle noise above −0.25 rather than 0), a little wider, and from the bottom of the world to the top rather than from −60 to 320 |
+| Carved caves (`minecraft:cave`, `cave_extra_underground`) | One in six start (`NoiseBasedChunkGeneratorMixin`); ravines all start |
+
+The gates are noises of their own with a wavelength of 256 blocks, and a tunnel closes within a quarter of a unit of
+its gate's threshold, so the tunnels that are left are whole networks and the ground between them is solid.
 
 The top of the column fades to air 16 blocks above the highest possible surface.
 

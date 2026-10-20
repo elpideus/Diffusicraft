@@ -14,6 +14,7 @@ import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
@@ -29,6 +30,8 @@ import net.minecraft.world.level.levelgen.NoiseSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.WorldGenerationContext;
 import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.world.level.levelgen.carver.CaveWorldCarver;
+import net.minecraft.world.level.levelgen.carver.WorldCarver;
 import net.minecraft.world.level.levelgen.material.rule.MaterialRule;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.levelgen.structure.TerrainAdjustment;
@@ -43,12 +46,16 @@ import java.util.function.Function;
 /**
  * Puts the lava level of Diffusicraft worlds ten blocks above the bottom, where vanilla has it in its own height.
  * Vanilla fixes it at y=-54, which in a world that goes down to y=-256 would flood every cave in 200 blocks of lava.
- * Also keeps carvers under a roof where their holes would fill with water (see {@link CarverRoof}) and under sand and
- * gravel, which would hang over them. And fills chunks, and the columns structures ask about, only up to the highest
- * block their ground can reach; see {@link TerrainCeiling}.
+ * Also starts only one in six of vanilla's cave carvers, which with its noise caves would leave the ground as full
+ * of holes as vanilla's, and keeps carvers under a roof where their holes would fill with water (see
+ * {@link CarverRoof}) and under sand and gravel, which would hang over them. And fills chunks, and the columns
+ * structures ask about, only up to the highest block their ground can reach; see {@link TerrainCeiling}.
  */
 @Mixin(NoiseBasedChunkGenerator.class)
 abstract class NoiseBasedChunkGeneratorMixin {
+	/** The share of vanilla's cave carvers that start in Diffusicraft worlds. Ravines all start, as rare as they are. */
+	private static final float CAVE_CARVERS_KEPT = 1 / 6f;
+
 	@Inject(method = "createFluidPicker", at = @At("HEAD"), cancellable = true)
 	private static void diffusicraft$lavaAboveBottom(NoiseGeneratorSettings settings,
 													 CallbackInfoReturnable<Aquifer.FluidPicker> cir) {
@@ -112,6 +119,18 @@ abstract class NoiseBasedChunkGeneratorMixin {
 	private static NoiseSettings narrowed(NoiseSettings noise, int top) {
 		int height = Math.max(16, Math.ceilDiv(top + 1 - noise.minY(), 16) * 16);
 		return height < noise.height() ? new NoiseSettings(noise.minY(), height) : noise;
+	}
+
+	@WrapOperation(method = "generateCarvers", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/"
+		+ "carver/WorldCarver;isStartChunk(Lnet/minecraft/util/RandomSource;)Z"))
+	private boolean diffusicraft$fewerCaveCarvers(WorldCarver carver, RandomSource random, Operation<Boolean> original) {
+		boolean start = original.call(carver, random);
+		if (!start || !(carver instanceof CaveWorldCarver)
+			|| !DiffusicraftWorldgen.isDiffusicraft(((NoiseBasedChunkGenerator) (Object) this).generatorSettings().value())) {
+			return start;
+		}
+		// The random is seeded for this carver and chunk just before, so the same carvers start every time.
+		return random.nextFloat() < CAVE_CARVERS_KEPT;
 	}
 
 	@WrapOperation(method = "generateCarvers", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/"

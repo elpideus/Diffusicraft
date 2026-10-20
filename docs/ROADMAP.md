@@ -90,6 +90,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   flowing into them outweighs what they evaporate. Their water stands at one level over all their tiles, and the rivers
   cross them at that level and flow on out. See [WORLDGEN.md](WORLDGEN.md#rivers).
 - **The Hollows.** Caverns larger the deeper they lie: Hollows, Deep Hollows, Grand Hollows with pillars and lit
+- **Caves.** Vanilla's caves, opening a little over a third as much of the ground, most of it in noodle tunnels: rare
+  cheese caverns, spaghetti tunnels in networks with solid ground between them, and a sixth of the carved caves.
+  See [WORLDGEN.md](WORLDGEN.md#density-and-caves).
   ceilings, Ancient Grand Hollows, Deep Grand Hollows over lava seas, and deep noodle caverns. See
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
 - **Life in the Hollows.** Each Grand Hollow is one cave biome, from the climate over it: lush caves under the wet

@@ -33,7 +33,7 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
     `NoiseBasedChunkGenerator.createFluidPicker` and `createNoiseChunk`, the call to `clampToHeightAccessor` in
-    `NoiseBasedChunkGenerator.iterateNoiseColumn`, the call to `applyCarvingMask` in
+    `NoiseBasedChunkGenerator.iterateNoiseColumn`, the calls to `WorldCarver.isStartChunk` and `applyCarvingMask` in
     `NoiseBasedChunkGenerator.generateCarvers`, the call to `FeaturePlacer.placeWithBiomeCheck` in
     `ChunkGenerator.applyBiomeDecoration`, `NoiseChunk.<init>` (its `aquifer` field, which every caller reads
     through `aquifer()`), `RandomState.create` and `createClimateSampler`, the interface added
