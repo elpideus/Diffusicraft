@@ -1,13 +1,17 @@
 {
 	"required": true,
 	"package": "io.github.elpideus.diffusicraft.client.mixin",
+	"plugin": "io.github.elpideus.diffusicraft.mixin.DiffusicraftMixinPlugin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
 		"CreateWorldScreenMixin",
 		"CreateWorldScreenMoreTabMixin",
 		"GuiMixin",
 		"WorldCreationUiStateMixin",
-		"height.RenderGridMixin"
+		"height.RenderGridMixin",
+		"sodium.AbstractSectionVisitorMixin",
+		"sodium.DeferredTaskListMixin",
+		"sodium.TaskCollectingTreeMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

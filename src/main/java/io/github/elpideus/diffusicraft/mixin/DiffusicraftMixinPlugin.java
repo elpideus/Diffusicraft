@@ -6,19 +6,29 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-/** Gates optional mixins: those into other mods apply only when the mod is installed. */
+/**
+ * Gates optional mixins: those into other mods apply only when the mod is installed. Both mixin configs, the common
+ * one and the client's, use it.
+ */
 public final class DiffusicraftMixinPlugin implements IMixinConfigPlugin {
-	private static final String DISTANT_HORIZONS = DiffusicraftMixinPlugin.class.getPackageName() + ".dh.";
+	private static final String PACKAGE = "io.github.elpideus.diffusicraft.";
+	/** Mixin packages into other mods, and the mod each needs. */
+	private static final Map<String, String> MODS = Map.of(
+		PACKAGE + "mixin.dh.", "distanthorizons",
+		PACKAGE + "client.mixin.sodium.", "sodium");
 
 	@Override public void onLoad(String mixinPackage) { }
 	@Override public String getRefMapperConfig() { return null; }
 
 	@Override
 	public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-		if (mixinClassName.startsWith(DISTANT_HORIZONS)) {
-			return FabricLoader.getInstance().isModLoaded("distanthorizons");
+		for (Map.Entry<String, String> entry : MODS.entrySet()) {
+			if (mixinClassName.startsWith(entry.getKey())) {
+				return FabricLoader.getInstance().isModLoaded(entry.getValue());
+			}
 		}
 		return true;
 	}

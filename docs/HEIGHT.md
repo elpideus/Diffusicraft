@@ -151,7 +151,9 @@ Diffusicraft gives the grid a window of rows around the camera
 horizontally. Dimensions no taller than the window keep vanilla's grid.
 
 **With Sodium** the window does nothing. Sodium replaces vanilla's grid with its own, which keeps render data for
-every section of every loaded chunk, so its memory still grows with the height of the dimension.
+every section of every loaded chunk, so its memory still grows with the height of the dimension. Sodium also counted
+the heights of the sections it builds from y = −2048 in 10 bits, which never built anything above y = 14,335;
+Diffusicraft counts them from below the camera instead (see [COMPATIBILITY.md](COMPATIBILITY.md#sodium)).
 
 ## Compatibility
 
@@ -171,8 +173,11 @@ every section of every loaded chunk, so its memory still grows with the height o
 - **Distant Horizons** stores heights in 12 bits, so its LODs hold 4096 blocks above the bottom of the level. Taller
   levels are cut off there in the LODs instead of coming out garbled: in Earth 1:1 they stop at y = 3838, and higher
   ground shows flat in the far terrain (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
-- **Untested:** Sodium, Iris, Voxy, Lithium, FerriteCore, Moonrise and C2ME. Sodium and the LOD mods keep their own
-  per-section data and may assume a 4064-block world. Test each of them in a tall dimension before relying on it.
+- **Sodium** built no section above y = 14,335 or below y = −2048, so the tallest dimensions showed nothing at
+  their top or bottom. Diffusicraft lets it build sections at every height (see
+  [COMPATIBILITY.md](COMPATIBILITY.md#sodium)); the tall-dimension game test runs with it.
+- **Untested:** Iris, Voxy, Lithium, FerriteCore, Moonrise and C2ME in a tall dimension. Test each of them in one
+  before relying on it.
 
 ## Costs
 
@@ -285,7 +290,8 @@ chunk's time goes to the rest of its generation.
   - the same on a dedicated server, whose packets go over a socket in compressed frames: blocks at both ends and at
     the top of the world, changes in both directions, light, heightmaps and the dense column.
 
-  It saves screenshots of the top, the bottom and the dense column, and of the dense column on the dedicated server.
+  It saves screenshots of the top, the bottom and the dense column, and of the dense column on the dedicated server,
+  each once the section of a block in view is built. It passes with Sodium too (`-PdevMods=sodium`).
 - [`TerrainCeilingTest`](../src/test/java/io/github/elpideus/diffusicraft/worldgen/river/TerrainCeilingTest.java)
   checks that the ceiling of each column is under its chunk's and above its rivers, lakes and the sea.
 - [`EarthWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/EarthWorldGameTest.java)
@@ -317,6 +323,9 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `diffusicraft.classtweaker` | `PalettedContainer$Data` | the record and its constructor |
 | `NoiseBasedChunkGeneratorMixin` | `NoiseBasedChunkGenerator.createNoiseChunk`, the `clampToHeightAccessor` call in `iterateNoiseColumn` | `createNoiseChunk` taking the `NoiseSettings` the chunk is filled with, and being called only from `fillFromNoise`'s worker |
 | `dh.ChunkWrapperMixin` (Distant Horizons) | `ChunkWrapper.getExclusiveMaxBuildHeight()`, `getMaxNonEmptyHeight`, `getSolidHeightMapValue`, `getLightBlockingHeightMapValue` | Distant Horizons building LODs from these four; check it on every Distant Horizons update too |
+| `sodium.TaskCollectingTreeMixin` (client, Sodium) | `TaskCollectingTree.addPendingSection`, `getPendingTaskLists` | `SECTION_Y_MIN` (−128) inlined once in `addPendingSection`; `getPendingTaskLists` returning the `DeferredTaskList` its tasks go to; check it on every Sodium update too |
+| `sodium.DeferredTaskListMixin` (client, Sodium) | `DeferredTaskList.dequeueNextSectionPos` | `SECTION_Y_MIN` (−128) inlined once, to unpack the height |
+| `sodium.AbstractSectionVisitorMixin` (client, Sodium) | `AbstractSectionVisitor` | the `baseOffsetY` field, the lowest section of the search, which `TaskCollectingTree` inherits |
 | `RenderGridMixin` (client) | `ViewArea.<init>`, `SectionUpdateTracker.<init>` | `new RotatingSectionStorage(radius, minSectionY, maxSectionY, …)`; the `RotatingSectionStorage` methods that `WindowedSectionStorage` overrides |
 
 Also search the new version for other uses of `30000000`, `3.0E7` and `29999984`, and for code that packs positions
@@ -325,8 +334,8 @@ without `BlockPos.asLong`.
 ## Next steps
 
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
-- **Compatibility.** Test Sodium and Voxy. Distant Horizons could hold all of Earth 1:1 by drawing its LODs from a
-  raised bottom, at the cost of the deepest underground.
+- **Compatibility.** Test Voxy. Distant Horizons could hold all of Earth 1:1 by drawing its LODs from a raised
+  bottom, at the cost of the deepest underground.
 - **Only nearby heights on the wire (not for now).** The server would send each client only the sections near the
   player, as Cubic Chunks does, so a client's memory and bandwidth would follow what it sees instead of the height of
   the dimension. Every mod that expects whole columns on the client would break. If it is ever done it will be opt-in,

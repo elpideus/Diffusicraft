@@ -27,7 +27,8 @@ project directly, and Loom generates run configurations.
   [`gradle/dev-mods.gradle`](../gradle/dev-mods.gradle), pinned by Modrinth version id.
 - **Licensing.** Dev mods are `localRuntime` only: never compiled against, never bundled, never a dependency. Some
   are All Rights Reserved and can only ever be used this way. The optional integrations, Mod Menu and the Distant
-  Horizons API (LGPL), are separate `compileOnly` dependencies: compiled against, never bundled.
+  Horizons API (LGPL), are separate `compileOnly` dependencies: compiled against, never bundled. Mixins into other
+  dev mods name their classes and never compile against them.
 - **Without the modpack.** Add `-PnoDevMods` to start without it, for example when a dev mod has not caught up with a
   Minecraft update.
 - **Part of the modpack.** `-PdevMods=slug,slug` starts with only those mods, for example

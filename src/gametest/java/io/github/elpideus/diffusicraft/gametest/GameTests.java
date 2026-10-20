@@ -1,6 +1,9 @@
 package io.github.elpideus.diffusicraft.gametest;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
+import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
+import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,5 +31,15 @@ final class GameTests {
 		}
 		LOGGER.info("Skipping {}: not in diffusicraft.gametests", name);
 		return true;
+	}
+
+	/**
+	 * Waits until the section holding {@code shown} has been built, then until nothing is left to build. Fabric's
+	 * {@code waitForChunksRender} alone returns at once under Sodium, which counts its terrain as rendered whenever
+	 * nothing is queued, including before it queues the first section. Pick a block that is not air.
+	 */
+	static void waitForRender(ClientGameTestContext context, TestServerConnection connection, BlockPos shown) {
+		context.waitFor(mc -> mc.levelRenderer.isSectionCompiledAndVisible(shown, 0));
+		connection.waitForChunksRender();
 	}
 }

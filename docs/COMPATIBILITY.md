@@ -14,7 +14,8 @@ for each mod, and what is still open.
 | C2ME 0.4.2-alpha.0.106+26.3 | Works, checked in game | Nothing: the terrain pipeline is thread-safe. The client game test passes with it (`-PdevMods=c2me-fabric`), LODs, rivers and lakes included, in well under half the time |
 | [Tech Reborn](#tech-mods) 6.2.0 | Works, checked in game | The geology's ore bodies hold its tin, lead, silver, uranium, rubies, sapphires and the rest in their host rocks, and its bauxite lies in tropical laterite |
 | Create, Mekanism, other tech mods | Should work: not checked | The same for any ore under the common tags `c:ores/<metal>` |
-| Sodium, Iris, shader packs | Works | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
+| [Sodium](#sodium) 0.9.3-beta.1 | Works, checked in game | Lets it build sections at every height of a tall dimension; inference leaves it GPU memory |
+| Iris, shader packs | Works | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
 | Structure mods | Works | Structures are placed by the vanilla generator |
 
 ## Distant Horizons
@@ -93,6 +94,27 @@ that a far LOD computes no terrain tile, and saves maps of both; see
 
 **Licensing.** Distant Horizons is LGPL-3.0. Diffusicraft compiles against its API (`compileOnly`) and never bundles
 it; the integration loads only when Distant Horizons is installed.
+
+## Sodium
+
+Sodium replaces the client's chunk renderer. In a dimension taller than vanilla's it differs from vanilla twice:
+
+- **Building sections.** Sodium packs the position of each section waiting to be built into 10 bits a coordinate and
+  counted heights from y = −2048, so it reached only up to y = 14,335. Sections outside that range came back at the
+  wrong height and were never built: at y = ±16,000 it drew nothing. Grand and Earth 1:1 fit in that range; the
+  tallest dimensions do not. The mixins in `client.mixin.sodium`, applied only when Sodium is installed, count the
+  heights from below the camera's search area instead (`client.compat.sodium.SodiumTaskHeights`), so every section
+  Sodium looks at is built, at any height. In levels within Sodium's range the sections built are the same.
+- **Memory.** Sodium keeps render data for every section of every loaded chunk, so Diffusicraft's window of rows
+  around the camera does nothing with it (see [HEIGHT.md](HEIGHT.md#the-clients-render-grid)).
+
+**Checking it.** The client game test for tall dimensions, run with Sodium (`-PdevMods=sodium`), draws the platforms
+at y = ±16,000 and a chunk of mixed blocks at y = 16,340. Under Sodium, Fabric's `waitForChunksRender` returns at
+once, before Sodium has queued anything, so the game tests first wait for the section of a block they look at to be
+built (`GameTests.waitForRender`).
+
+**Licensing.** Sodium is under the PolyForm Shield license. It is a dev mod (`localRuntime`); Diffusicraft's mixins
+name its classes and never compile against it.
 
 ## Biome mods
 

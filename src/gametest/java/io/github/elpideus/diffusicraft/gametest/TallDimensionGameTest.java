@@ -108,7 +108,7 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 			screenshot(context, "tall-top");
 
 			// The bottom.
-			enter(context, server, world.getConnection(), BOTTOM, 135, 20);
+			enter(context, server, world.getConnection(), BOTTOM, BOTTOM.below(), 135, 20);
 			checkBlock(context, BOTTOM.below(), Blocks.GOLD_BLOCK);
 			checkLight(context, BOTTOM.offset(-2, 1, -2), LightLayer.BLOCK, 14);
 			screenshot(context, "tall-bottom");
@@ -157,7 +157,7 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 			server.runOnServer(TallDimensionGameTest::build);
 			server.runCommand("gamemode creative @a");
 			checkTop(context, server, connection);
-			enter(context, server, connection, BOTTOM, 135, 20);
+			enter(context, server, connection, BOTTOM, BOTTOM.below(), 135, 20);
 			checkBlock(context, BOTTOM.below(), Blocks.GOLD_BLOCK);
 			checkBlock(context, BOTTOM.offset(-2, 0, -2), Blocks.GLOWSTONE);
 			visitDense(context, server, connection);
@@ -171,7 +171,7 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 	 * wire layout, and the client breaks a block.
 	 */
 	private static void checkTop(ClientGameTestContext context, TestServerContext server, TestServerConnection connection) {
-		enter(context, server, connection, TOP, -45, 30);
+		enter(context, server, connection, TOP, TOP.below(), -45, 30);
 		check(context.computeOnClient(mc -> mc.level.getMinY() == MIN_Y && mc.level.getHeight() == MAX_Y - MIN_Y + 1),
 			"the client sees the tall dimension");
 		checkBlock(context, TOP.below(), Blocks.GOLD_BLOCK);
@@ -213,7 +213,8 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 			deflated(bytes) >> 10);
 		check(bytes.length > 2 << 20, "the dense chunk needs more than vanilla's 2 MiB");
 		server.runCommand("gamemode spectator @a");
-		enter(context, server, connection, new BlockPos(DENSE.getMiddleBlockX() + 20, 16340, DENSE.getMiddleBlockZ()), 90, 25);
+		enter(context, server, connection, new BlockPos(DENSE.getMiddleBlockX() + 20, 16340, DENSE.getMiddleBlockZ()),
+			new BlockPos(DENSE.getMiddleBlockX(), 16330, DENSE.getMiddleBlockZ()), 90, 25);
 		checkDense(context);
 	}
 
@@ -333,14 +334,17 @@ public class TallDimensionGameTest implements FabricClientGameTest {
 		});
 	}
 
-	/** Teleports the player into the tall dimension and waits until everything around has rendered. */
+	/**
+	 * Teleports the player into the tall dimension and waits until everything around, {@code shown} first, has
+	 * rendered.
+	 */
 	private static void enter(ClientGameTestContext context, TestServerContext server, TestServerConnection connection,
-			BlockPos feet, float yaw, float pitch) {
+			BlockPos feet, BlockPos shown, float yaw, float pitch) {
 		long start = System.nanoTime();
 		server.runCommand("execute in " + TALL.identifier() + " run tp @a " + (feet.getX() + 0.5) + " " + feet.getY() + " "
 			+ (feet.getZ() + 0.5) + " " + yaw + " " + pitch);
 		context.waitFor(mc -> mc.level != null && mc.level.dimension() == TALL && mc.player.blockPosition().closerThan(feet, 2));
-		connection.waitForChunksRender();
+		GameTests.waitForRender(context, connection, shown);
 		LOGGER.info("Tall dimension: {} loaded and rendered in {} ms (heap {} MiB)", feet,
 			(System.nanoTime() - start) / 1_000_000, usedHeapMiB());
 	}
