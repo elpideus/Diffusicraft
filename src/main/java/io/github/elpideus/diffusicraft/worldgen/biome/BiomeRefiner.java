@@ -18,8 +18,8 @@ import java.util.Set;
  *   <li><b>Fjord</b>: the drowned valleys that {@link Glaciation} carves into cold mountain coasts, where vanilla
  *       puts an ocean, cold or not. Frozen oceans stay frozen, as in Greenland's fjords.</li>
  *   <li>Wetlands, from vanilla's swamp band: <b>mangroves</b> on tropical coasts, páramo on tropical mountains,
- *       <b>bogs</b> where the summers stay cooler than {@value #BOG_WARMEST} °C, tundra beyond the tree line, swamps
- *       elsewhere.</li>
+ *       <b>bogs</b> where the summers stay cooler than {@value #BOG_WARMEST} °C and are not dry, tundra beyond the
+ *       tree line, swamps elsewhere.</li>
  *   <li><b>Cloud forest</b>: tropical mountainsides (little seasonality) between 1000 and 3500 m, 10 to 20 °C, at
  *       least 1500 mm of rain.</li>
  *   <li>Snow and ice are vanilla's where the warmest month stays below {@value #ICE_WARMEST} °C or the year averages
@@ -45,8 +45,8 @@ import java.util.Set;
  *   <li><b>Moorland</b>: rolling uplands from {@value #MOOR_ELEVATION} m with cool summers (warmest month below
  *       {@value #MOOR_WARMEST} °C), mild winters and at least 800 mm of rain, as on Dartmoor or in the Pennines.</li>
  *   <li><b>Bog</b>: the flattest land with cool summers and at least twice the rain it needs, as in Finland, the
- *       West Siberian Plain or the Hudson Bay Lowlands. Vanilla only puts swamps on low ground; bogs grow on flat
- *       land at any height below the mountains.</li>
+ *       West Siberian Plain or the Hudson Bay Lowlands, but not in the dry summers of a Mediterranean climate.
+ *       Vanilla only puts swamps on low ground; bogs grow on flat land at any height below the mountains.</li>
  *   <li><b>Temperate rainforest</b>: mild oceanic climates (4 to 14 °C, coldest month above -3 °C) with at least
  *       1600 mm of rain.</li>
  *   <li><b>Maquis</b>: Mediterranean scrub, 12 to 21 °C with mild winters, 250 to 1000 mm of strongly seasonal
@@ -281,16 +281,17 @@ public final class BiomeRefiner {
 		if (warmest < TREE_LINE) {
 			return TUNDRA;
 		}
-		return warmest < BOG_WARMEST ? BOG : SWAMP;
+		return warmest < BOG_WARMEST && !maquis(c) ? BOG : SWAMP;
 	}
 
 	static boolean fjord(BiomeClimate c) {
 		return c.iceCut >= FJORD_CUT && Glaciation.drowned(c.elevation, c.iceCut);
 	}
 
+	/** Peat grows only where the ground stays wet all summer, so a Mediterranean climate, where maquis grows, has none. */
 	static boolean bog(BiomeClimate c, float aridity) {
 		return c.relief < BOG_RELIEF && c.elevation < MOUNTAIN_ELEVATION && c.warmestMonth() < BOG_WARMEST
-			&& aridity >= BOG_ARIDITY;
+			&& aridity >= BOG_ARIDITY && !maquis(c);
 	}
 
 	static boolean cloudForest(BiomeClimate c) {

@@ -252,5 +252,9 @@ class BiomeRefinerTest {
 		assertNull(BiomeRefiner.refine("minecraft:plains", climate(10f, 10f, 950f, 30f, 200f, 3f)));
 		// Hills and slopes are not land the bog takes.
 		assertNull(BiomeRefiner.refine("minecraft:grove", finland));
+		// Flat land around San Francisco Bay has cool summers and rain enough, but the summers are dry: no peat grows.
+		BiomeClimate bay = climate(14f, 2f, 900f, 70f, 20f, 3f);
+		assertEquals(BiomeRefiner.MAQUIS, BiomeRefiner.refine("minecraft:plains", bay));
+		assertEquals("minecraft:swamp", BiomeRefiner.wetland(bay));
 	}
 }
