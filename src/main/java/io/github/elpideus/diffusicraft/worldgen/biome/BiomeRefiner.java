@@ -65,6 +65,12 @@ import java.util.Set;
  *       rain.</li>
  *   <li><b>Heath</b>: patches of oceanic lowland, 6 to 12 °C with 550 to 1100 mm of rain, as on the Lüneburg
  *       Heath or in Jutland.</li>
+ *   <li><b>Forest-tundra</b>: from the tree line to where the warmest month reaches {@value #FOREST_TUNDRA_WARMEST}
+ *       °C, on ground humid enough for trees. The closed taiga thins out there over a hundred kilometres or more into
+ *       clumps of stunted black spruce and crooked birch on lichen and moss, as along Hudson Bay, in northern Quebec
+ *       and Labrador and on the Kola Peninsula; the mountain birches of northern Norway and Iceland grow the same way.
+ *       Vanilla puts its taigas, forests and snowy plains there. On a mountainside it is the belt of wind-bent,
+ *       scattered trees just below the tree line.</li>
  *   <li><b>Forest-steppe</b> and <b>steppe</b> where the summers are too dry for closed woods, on land humid enough
  *       by the year's rain: where the warmest month reaches {@value #STEPPE_SUMMER} °C and the year averages
  *       {@value #PERMAFROST} to 18 °C, the summer's rain decides (see {@link BiomeClimate#summerMoisture}). With less
@@ -110,6 +116,7 @@ public final class BiomeRefiner {
 	public static final String LARCH_TAIGA = "diffusicraft:larch_taiga";
 	public static final String MIXED_FOREST = "diffusicraft:mixed_forest";
 	public static final String FOREST_STEPPE = "diffusicraft:forest_steppe";
+	public static final String FOREST_TUNDRA = "diffusicraft:forest_tundra";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
 	public static final String FOREST = "minecraft:forest";
@@ -121,8 +128,8 @@ public final class BiomeRefiner {
 	/** Every biome {@link #refine} can return. */
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
-		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST,
-		TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
+		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, FOREST_TUNDRA, SWAMP, MANGROVE_SWAMP, FOREST,
+		BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -135,6 +142,8 @@ public final class BiomeRefiner {
 	static final float POLAR_TEMPERATURE = -10f;
 	/** The tree line: no forest grows where the warmest month stays below this, °C. */
 	static final float TREE_LINE = 10f;
+	/** Warmest month from which the forest-tundra closes into taiga, °C: the northern edge of the closed forest. */
+	static final float FOREST_TUNDRA_WARMEST = 13f;
 	/** Seasonality below which a climate is tropical, °C: the months differ less than the days and nights. */
 	static final float TROPICAL_SEASONALITY = 2.5f;
 	/** Tropical mountains are alpine from this elevation, in meters, where they are cold enough. */
@@ -320,7 +329,10 @@ public final class BiomeRefiner {
 			return null;
 		}
 		if (kind == Kind.SNOWY) {
-			return larchTaiga(c, aridity) ? LARCH_TAIGA : null;
+			if (larchTaiga(c, aridity)) {
+				return LARCH_TAIGA;
+			}
+			return forestTundra(c, aridity) ? FOREST_TUNDRA : null;
 		}
 		boolean meadow = biome.equals("minecraft:meadow");
 		if ((kind == Kind.LAND || kind == Kind.HILLS || meadow) && moorland(c)) {
@@ -346,6 +358,9 @@ public final class BiomeRefiner {
 		}
 		if (kind == Kind.LAND && heath(c)) {
 			return HEATH;
+		}
+		if (kind == Kind.LAND && forestTundra(c, aridity)) {
+			return FOREST_TUNDRA;
 		}
 		if (kind == Kind.LAND && aridity >= 1f) {
 			String open = drySummer(c);
@@ -432,6 +447,11 @@ public final class BiomeRefiner {
 	/** The summers are warm enough for trees wherever this is asked. */
 	static boolean larchTaiga(BiomeClimate c, float aridity) {
 		return c.coldestMonth() < LARCH_COLDEST && aridity >= 1f;
+	}
+
+	/** Whether the summers are warm enough for scattered trees only. Its callers check that they are for trees at all. */
+	static boolean forestTundra(BiomeClimate c, float aridity) {
+		return c.warmestMonth() < FOREST_TUNDRA_WARMEST && aridity >= 1f;
 	}
 
 	/** Steppe or forest-steppe where the summers are too dry for closed woods, or {@code null}. */

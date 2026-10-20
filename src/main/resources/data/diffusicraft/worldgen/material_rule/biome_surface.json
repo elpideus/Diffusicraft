@@ -369,7 +369,8 @@
               "if_true": {
                 "type": "minecraft:biome",
                 "biome_is": [
-                  "diffusicraft:tundra"
+                  "diffusicraft:tundra",
+                  "diffusicraft:forest_tundra"
                 ]
               },
               "then_run": {
@@ -901,6 +902,7 @@
                     "biome_is": [
                       "diffusicraft:moorland",
                       "diffusicraft:tundra",
+                      "diffusicraft:forest_tundra",
                       "diffusicraft:paramo"
                     ]
                   },

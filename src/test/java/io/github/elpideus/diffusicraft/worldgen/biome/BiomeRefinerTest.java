@@ -261,8 +261,9 @@ class BiomeRefinerTest {
 		// The beeches of Copenhagen, where the winters stay mild, and the broadleaf forest around Berlin.
 		assertNull(BiomeRefiner.refine("minecraft:forest", climate(8.8f, 5.8f, 600f, 20f, 10f, 20f)));
 		assertNull(BiomeRefiner.refine("minecraft:forest", climate(10f, 6.9f, 580f, 20f, 40f, 20f)));
-		// Summers too cool for the oak, as in Iceland, and the southern taiga around Kirov.
-		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(5f, 4.3f, 870f, 20f, 30f, 40f)));
+		// Summers too cool for the oak: Iceland, where only stunted birches grow, and the southern taiga around Kirov.
+		assertEquals(BiomeRefiner.FOREST_TUNDRA,
+			BiomeRefiner.refine("minecraft:taiga", climate(5f, 4.3f, 870f, 20f, 30f, 40f)));
 		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(2.6f, 10f, 640f, 25f, 160f, 30f)));
 	}
 
@@ -302,9 +303,11 @@ class BiomeRefinerTest {
 
 	@Test
 	void theTreeLineClimbsHigherOnTheSunnySide() {
-		// 1900 m in the Alps, just under the tree line: July around 10.5 °C on flat ground.
-		assertNull(BiomeRefiner.refine("minecraft:taiga", onSlope(0, 2f, 6f, 1200f, 25f, 1900f, 200f)));
-		assertNull(BiomeRefiner.refine("minecraft:taiga", onSlope(1, 2f, 6f, 1200f, 25f, 1900f, 200f)));
+		// 1900 m in the Alps, just under the tree line: July around 10.5 °C on flat ground, where the forest thins out.
+		assertEquals(BiomeRefiner.FOREST_TUNDRA,
+			BiomeRefiner.refine("minecraft:taiga", onSlope(0, 2f, 6f, 1200f, 25f, 1900f, 200f)));
+		assertEquals(BiomeRefiner.FOREST_TUNDRA,
+			BiomeRefiner.refine("minecraft:taiga", onSlope(1, 2f, 6f, 1200f, 25f, 1900f, 200f)));
 		assertEquals(BiomeRefiner.ALPINE_TUNDRA,
 			BiomeRefiner.refine("minecraft:taiga", onSlope(-1, 2f, 6f, 1200f, 25f, 1900f, 200f)));
 	}
@@ -367,7 +370,7 @@ class BiomeRefinerTest {
 		// Its slopes stay vanilla's.
 		assertNull(BiomeRefiner.refine("minecraft:grove", yakutsk));
 		// Milder winters keep the spruce: the snowy taiga of Labrador, and the taiga around Arkhangelsk.
-		assertNull(BiomeRefiner.refine("minecraft:snowy_taiga", climate(-5.5f, 12f, 800f, 25f, 400f, 40f)));
+		assertNull(BiomeRefiner.refine("minecraft:snowy_taiga", climate(-5f, 13f, 800f, 25f, 400f, 40f)));
 		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(1.5f, 10.5f, 600f, 30f, 20f, 20f)));
 		// Verkhoyansk and Oymyakon: the coldest winters of the north, a year of -15 °C, and summers of 15 °C.
 		assertEquals(BiomeRefiner.LARCH_TAIGA,
@@ -378,6 +381,37 @@ class BiomeRefinerTest {
 		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-8f, 20f, 100f, 55f, 100f, 30f)));
 		// The mires of the frozen lowlands stay bogs.
 		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:taiga", climate(-4f, 16f, 450f, 70f, 50f, 2f)));
+	}
+
+	@Test
+	void theTaigaThinsIntoForestTundraBelowTheTreeLine() {
+		// Kuujjuarapik on Hudson Bay, Nain in Labrador and Murmansk: summers of 11 to 13 °C.
+		BiomeClimate hudsonBay = climate(-4.4f, 10.9f, 650f, 35f, 20f, 30f);
+		assertEquals(BiomeRefiner.FOREST_TUNDRA, BiomeRefiner.refine("minecraft:taiga", hudsonBay));
+		assertEquals(BiomeRefiner.FOREST_TUNDRA, BiomeRefiner.refine("minecraft:forest", hudsonBay));
+		assertEquals(BiomeRefiner.FOREST_TUNDRA,
+			BiomeRefiner.refine("minecraft:old_growth_spruce_taiga", climate(-2.4f, 9.7f, 900f, 25f, 50f, 60f)));
+		assertEquals(BiomeRefiner.FOREST_TUNDRA,
+			BiomeRefiner.refine("minecraft:taiga", climate(0.6f, 8.6f, 480f, 35f, 50f, 40f)));
+		// Vanilla's frozen band: the snowy taiga and snowy plains of the Ungava Peninsula, a year of -6 °C.
+		BiomeClimate ungava = climate(-6f, 12f, 500f, 40f, 150f, 30f);
+		assertEquals(BiomeRefiner.FOREST_TUNDRA, BiomeRefiner.refine("minecraft:snowy_taiga", ungava));
+		assertEquals(BiomeRefiner.FOREST_TUNDRA, BiomeRefiner.refine("minecraft:snowy_plains", ungava));
+		// Akureyri in Iceland, whose mild winters grow mountain birch.
+		assertEquals(BiomeRefiner.FOREST_TUNDRA,
+			BiomeRefiner.refine("minecraft:taiga", climate(3.6f, 5.2f, 500f, 30f, 30f, 40f)));
+		// A mountainside just below the tree line.
+		assertEquals(BiomeRefiner.FOREST_TUNDRA,
+			BiomeRefiner.refine("minecraft:taiga", climate(1f, 7f, 1200f, 25f, 1900f, 300f)));
+		// Rovaniemi, on the Arctic Circle, has summers of 15 °C, and closed taiga.
+		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(0.9f, 10.2f, 550f, 30f, 100f, 40f)));
+		// Too dry for trees: vanilla's snow. Colder winters grow larches, and flat, wet ground bogs.
+		assertNull(BiomeRefiner.refine("minecraft:snowy_plains", climate(-7f, 12.5f, 120f, 50f, 100f, 30f)));
+		assertEquals(BiomeRefiner.LARCH_TAIGA,
+			BiomeRefiner.refine("minecraft:snowy_taiga", climate(-9f, 14f, 300f, 50f, 100f, 30f)));
+		assertEquals(BiomeRefiner.BOG, BiomeRefiner.refine("minecraft:taiga", climate(-4.4f, 10.9f, 650f, 35f, 20f, 3f)));
+		// Its slopes stay vanilla's.
+		assertNull(BiomeRefiner.refine("minecraft:grove", hudsonBay));
 	}
 
 	@Test

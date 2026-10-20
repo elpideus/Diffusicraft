@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:bog_spruce_checked",
+  "features": [
+    {
+      "chance": 0.3,
+      "feature": "diffusicraft:mountain_birch_checked"
+    },
+    {
+      "chance": 0.12,
+      "feature": "diffusicraft:krummholz_checked"
+    },
+    {
+      "chance": 0.08,
+      "feature": "minecraft:spruce_checked"
+    },
+    {
+      "chance": 0.01,
+      "feature": "minecraft:fallen_spruce_tree"
+    }
+  ]
+}

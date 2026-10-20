@@ -255,6 +255,12 @@ FEATURES = {
     "larch": tree("spruce_log", straight(9, 3, 2), "oak_leaves",
                   {"type": "minecraft:spruce_foliage_placer", "radius": 2, "offset": uniform(0, 1),
                    "trunk_height": uniform(4, 6)}, two_layers(2, 0, 2)),
+    # Mountain birch: low, crooked and often many-stemmed, bent by the wind and the weight of the snow.
+    "mountain_birch": tree("birch_log", {"type": "minecraft:bending_trunk_placer", "base_height": 3,
+                                         "height_rand_a": 1, "height_rand_b": 0, "bend_length": uniform(1, 2),
+                                         "min_height_for_leaves": 2},
+                           "birch_leaves", {"type": "minecraft:random_spread_foliage_placer", "radius": 2, "offset": 0,
+                                            "foliage_height": 2, "leaf_placement_attempts": 40}, two_layers()),
     # Young larches, and old ones stunted where the frozen ground leaves them a hand's depth of soil.
     "stunted_larch": tree("spruce_log", straight(4, 2, 0), "oak_leaves",
                           {"type": "minecraft:spruce_foliage_placer", "radius": 1, "offset": uniform(0, 1),
@@ -369,6 +375,8 @@ PLACED = {
     "cypress_checked": checked(ours("cypress"), "spruce_sapling"),
     "maquis_shrub_checked": checked(ours("maquis_shrub"), "oak_sapling"),
     "bog_spruce_checked": checked(ours("bog_spruce"), "spruce_sapling"),
+    "mountain_birch_checked": checked(ours("mountain_birch"), "birch_sapling"),
+    "krummholz_checked": checked(ours("krummholz"), "spruce_sapling"),
     "larch_checked": checked(ours("larch"), "spruce_sapling"),
     "stunted_larch_checked": checked(ours("stunted_larch"), "spruce_sapling"),
     "teak_checked": checked(ours("teak"), "jungle_sapling"),
@@ -404,6 +412,9 @@ PLACED = {
     "trees_mixed_forest": trees(ours("trees_mixed_forest"), {10: 9, 11: 1}, "spruce_sapling"),
     "trees_forest_steppe": groves(ours("trees_forest_steppe"), 16, "birch_sapling"),
     "lone_trees_forest_steppe": trees(ours("trees_forest_steppe"), {0: 3, 1: 1}, "birch_sapling"),
+    # Clumps of trees where the snow drifts deepest and shelters them, with open tundra between.
+    "trees_forest_tundra": groves(ours("trees_forest_tundra"), 12, "spruce_sapling", size=24, offset=-0.2),
+    "lone_trees_forest_tundra": trees(ours("trees_forest_tundra"), {0: 2, 1: 2, 2: 1}, "spruce_sapling"),
     "patch_tundra_grass": patch(ours("tundra_ground_cover"), 24, count=3),
     "tundra_moss": scattered(ours("tundra_moss_patch"), chance=2),
     "rainforest_moss": scattered("minecraft:moss_patch", count=1),
@@ -525,6 +536,13 @@ FEATURES["trees_forest_steppe"] = {"type": "minecraft:random_selector", "default
                                                 {"chance": 0.08, "feature": "minecraft:fancy_oak_leaf_litter"},
                                                 {"chance": 0.05, "feature": "minecraft:pine_checked"},
                                                 {"chance": 0.02, "feature": "minecraft:fallen_birch_tree"}]}
+# Black spruce, thin and spindly, with crooked birches and wind-bent mats of spruce, and a taller white spruce in the
+# shelter of a clump. Now and then a fallen trunk.
+FEATURES["trees_forest_tundra"] = {"type": "minecraft:random_selector", "default": ours("bog_spruce_checked"),
+                                   "features": [{"chance": 0.3, "feature": ours("mountain_birch_checked")},
+                                                {"chance": 0.12, "feature": ours("krummholz_checked")},
+                                                {"chance": 0.08, "feature": "minecraft:spruce_checked"},
+                                                {"chance": 0.01, "feature": "minecraft:fallen_spruce_tree"}]}
 FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
@@ -811,6 +829,27 @@ BIOMES = {
                  "minecraft:has_structure/village_taiga", "minecraft:is_overworld", "minecraft:is_taiga",
                  "minecraft:spawns_cold_variant_farm_animals", "minecraft:stronghold_biased_to"],
     },
+    # The forest-tundra, where the taiga thins out towards the tree line: clumps of stunted black spruce and crooked
+    # birch, with open tundra of lichen, moss, dwarf birch, Labrador tea and lingonberries between them, as along
+    # Hudson Bay, in northern Quebec and Labrador and on the Kola Peninsula. Reindeer (sheep) winter on the lichen;
+    # foxes, wolves and rabbits.
+    "forest_tundra": {
+        "template": "taiga", "temperature": 0.2, "downfall": 0.5,
+        "effects": {"grass_color": "#8a9e5c", "foliage_color": "#74904a", "dry_foliage_color": "#8a6b45"},
+        "creatures": [spawn("rabbit", 10, 2, 3), spawn("fox", 6, 2, 4), spawn("wolf", 4, 2, 4), spawn("sheep", 4, 4)],
+        "local": ["boulders_rare"],
+        "vegetation": ["minecraft:glow_lichen", "trees_forest_tundra", "lone_trees_forest_tundra", "trees_tundra",
+                       "patch_tundra_grass", "patch_larch_ground_cover", "lichen", "tundra_moss",
+                       "patch_lingonberries", "minecraft:brown_mushroom_taiga", "minecraft:red_mushroom_taiga"],
+        "tags": ["c:is_cold/overworld", "c:is_sparse_vegetation/overworld", "c:is_tree/coniferous",
+                 "c:is_tree/deciduous", "c:primary_wood_type/spruce", "minecraft:has_structure/abandoned_camp_taiga",
+                 "minecraft:has_structure/igloo", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/pillager_outpost", "minecraft:has_structure/ruined_portal_standard",
+                 "minecraft:has_structure/trail_ruins", "minecraft:has_structure/trial_chambers",
+                 "minecraft:has_structure/village_taiga", "minecraft:is_overworld", "minecraft:is_taiga",
+                 "minecraft:spawns_cold_variant_farm_animals", "minecraft:spawns_cold_variant_frogs",
+                 "minecraft:stronghold_biased_to"],
+    },
     # The hemiboreal forest between the taiga and the broadleaf woods: southern Finland and Sweden, the Baltic, the
     # forests around Moscow, the Great Lakes and New England, Manchuria and Hokkaido. Ferns, bilberries and lilies of
     # the valley under the trees, and mushrooms in the moss. The taiga's wolves, foxes and rabbits.
@@ -941,7 +980,7 @@ SURFACE_RULE = sequence(
         when(biome_is("desert_scrub"), sequence(
             when("minecraft:on_ceiling", block("coarse_dirt")), when(noise(0.2), block("sand")),
             when(noise(hi=-0.45), block("gravel")), block("coarse_dirt"))),
-        when(biome_is("tundra"), sequence(
+        when(biome_is("tundra", "forest_tundra"), sequence(
             when(noise(0.4), block("coarse_dirt")), when(noise(hi=-0.45), block("podzol")), block("grass_block"))),
         # Needle litter, and ground churned bare by the frost.
         when(biome_is("larch_taiga"), sequence(
@@ -976,7 +1015,7 @@ SURFACE_RULE = sequence(
         # Peat all the way down to the rock.
         when(biome_is("bog"), block(ours("peat"))),
         when(SUBSOIL, sequence(
-            when(biome_is("moorland", "tundra", "paramo"), block(ours("peat"))),
+            when(biome_is("moorland", "tundra", "forest_tundra", "paramo"), block(ours("peat"))),
             when(biome_is("maquis"), block(ours("terra_rossa"))),
             when(biome_is("steppe"), block(ours("loess"))),
             when(biome_is(*TROPICAL), block(ours("laterite"))))),
