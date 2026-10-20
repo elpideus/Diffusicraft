@@ -17,15 +17,15 @@ geography, climate and geology.
   warmer and drier than the shaded one. Vanilla caves, structures and biome mods keep working. See
   [WORLDGEN.md](docs/WORLDGEN.md).
 - **Rivers, coasts, rock and caverns.** Rivers drain the whole world from its rain and terrain, and fill the lakes on
-  their way, up to great lakes 60 km across. Beaches follow the coastline, and sea cliffs rise where high land meets the
-  sea, with stacks and arches off them. On cold mountain coasts the valleys drown into fjords, the longest reaching 100
-  km and more inland and branching into arms. The rock shapes the slopes: hard beds stand out of them as ledges and cliffs. Soils follow the
-  rock under them and the climate, from thin, stony ground in the cold to deep laterite in the tropics. Underground,
-  sedimentary beds, fold belts and basement rock hold ores by rock and depth, above a magma layer, and the minerals of
-  tech mods where Create, Tech Reborn or Mekanism add them: zinc and lead in limestone, tin in granite, platinum in
-  gabbro, bauxite under the tropics. Caverns grow larger the deeper they lie, down to the Grand Hollows over lava seas,
-  each a cave biome of its own: glowworm grottoes, selenite caverns, mushroom forests, lush and dripstone caves, with
-  lakes in their floors under wet land.
+  their way, up to great lakes 123 km across. Beaches follow the coastline, and sea cliffs rise where high land meets
+  the sea, with stacks and arches off them. On cold mountain coasts the valleys drown into fjords, the longest reaching
+  100 km and more inland and branching into arms. The rock shapes the slopes: hard beds stand out of them as ledges and
+  cliffs. Soils follow the rock under them and the climate, from thin, stony ground in the cold to deep laterite in the
+  tropics. Underground, sedimentary beds, fold belts and basement rock hold ores by rock and depth, above a magma layer,
+  and the minerals of tech mods where Create, Tech Reborn or Mekanism add them: zinc and lead in limestone, tin in
+  granite, platinum in gabbro, bauxite under the tropics. Caverns grow larger the deeper they lie, down to the Grand
+  Hollows over lava seas, each a cave biome of its own: glowworm grottoes, selenite caverns, mushroom forests, lush and
+  dripstone caves, with lakes in their floors under wet land.
 - **Real-world biomes.** Tundra, cloud forest, monsoon forest, laurel forest, páramo, puna, temperate rainforest,
   maquis, moorland, heath, bogs, fjords, salt flats, steppe and more, with their own trees, plants and soils.
 - **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m

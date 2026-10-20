@@ -470,23 +470,25 @@ place.
 
 - **Network.** `RiverNetwork` routes water over the coarse map, one cell per tile (7.7 km). Each land cell drains to its
   steepest lower neighbour, judged by its 5th-percentile elevation, which follows the valley floors. Where that leaves a
-  pit, a priority flood within 8 cells finds the level at which it spills. The depression holds a lake when the cells
-  joined to the pit below that level are at most 16, within 8 cells either way, at least 2 m deep, and the runoff of the
-  cells that drain into them outweighs what the lake's surface evaporates: 1.3 times the evapotranspiration, less the
-  rain. Of nested depressions the outermost that holds a lake wins. The lake's cells take the level at which it spills,
-  and the water crosses them to the cell it spills from and on into the cell it spills into. That cell and the ones
-  after it on the flood's path are lowered evenly until the water reaches lower ground, the sea or another lake. Any
-  other pit is breached: a priority flood within 8 cells finds the cheapest way out, and the cells on it are lowered
-  just enough to drain. Water that reaches the sea is at sea level, so these ways out fall to the sea rather than to its
-  floor, and a land cell whose 5th percentile lies below the sea is never a pit: a twentieth of it is sea, on a coast or
-  in a fjord the ice drowned, and the rivers that reach it end there, unless its steepest descent leads straight into
-  the ocean. Breached through to the coast, a fjord far up a valley would carry its rivers on at sea level under the
-  mountains between. A lake's shores hold the flood of a pit higher than it; a lower lake is a way out. Pits with no way
-  out keep their rivers in a pond. The discharge of a cell is the runoff of everything upstream, the precipitation less
-  an evapotranspiration that grows with temperature. A river starts at 4 m³/s. The network is computed in regions of 32
-  by 32 cells, each from the map 50 cells around it, which holds every lake and breach its cells depend on, so the
-  regions agree on every lake without looking at each other. The first region of a world takes some 8 s on the CPU, most
-  of it the coarse stage over the 1,200 km around it, and each further one about 2 s.
+  pit, a priority flood within 16 cells finds the level at which it spills. The depression holds a lake when the cells
+  joined to the pit below that level are at most 64, within 16 cells (123 km) either way, at least 2 m deep, and the
+  runoff of the cells that drain into them outweighs what the lake's surface evaporates: 1.3 times the
+  evapotranspiration, less the rain. Of nested depressions the outermost that holds a lake wins. The lake's cells take
+  the level at which it spills, and the water crosses them to the cell it spills from and on into the cell it spills
+  into. That cell and the ones after it on the flood's path are lowered evenly until the water reaches lower ground, the
+  sea or another lake. Any other pit is breached: a priority flood within 8 cells finds the cheapest way out, and the
+  cells on it are lowered just enough to drain. Water that reaches the sea is at sea level, so these ways out fall to
+  the sea rather than to its floor, and a land cell whose 5th percentile lies below the sea is never a pit: a twentieth
+  of it is sea, on a coast or in a fjord the ice drowned, and the rivers that reach it end there, unless its steepest
+  descent leads straight into the ocean. Breached through to the coast, a fjord far up a valley would carry its rivers
+  on at sea level under the mountains between. A lake's shores hold the flood of a pit higher than it; a lower lake is a
+  way out. Pits with no way out keep their rivers in a pond. The discharge of a cell is the runoff of everything
+  upstream, the precipitation less an evapotranspiration that grows with temperature. A river starts at 4 m³/s. The
+  network is computed in regions of 32 by 32 cells, each from the map 82 cells around it, which holds every lake and
+  breach its cells depend on, so the regions agree on every lake without looking at each other: a map 48 cells wider
+  changes no cell of the 64 regions around the origin of seed 42. The first region of a world takes some 43 s on the CPU
+  and 9 s on the GPU, most of it the coarse stage over the 1,700 km around it, 7 and 2 s more than the 50 cells that
+  lakes of up to 16 cells needed. The network of a region itself takes some 20 ms.
 - **Paths.** `CellRivers` draws the rivers inside a tile. A river crosses a side of the tile at that side's lowest
   point, running straight across, so the tiles on both sides agree without looking at each other. Inside, it follows the
   cheapest path, where low ground is cheap, and tributaries merge into a tree. On level ground the cost carries noise,
@@ -544,8 +546,9 @@ place.
   level, and a tile takes it where it is higher than its own lakes. The rivers of the coarse map run across the lake at
   the level of its water and leave it level with it, so the lake is fed and its outlet is cut down from its surface. The
   rivers see the lake as they see the lakes of a block. The lake is found once, for the first tile in it or next to it,
-  which waits for the terrain of all its tiles; the prefetcher computes them as soon as one of them is in its plan, then
-  the water from them.
+  which waits for the terrain of all its tiles: 23 to 27 s on the GPU for the three largest within 128 cells of the
+  origin of seed 42, of 52 to 59 cells, and at 5 s a tile some five minutes on the CPU. The flood itself takes under a
+  second. The prefetcher computes the tiles as soon as one of them is in its plan, then the water from them.
 - **Lake columns.** A column is in a lake where one of the four pixels around it is and its ground is below the water.
   The lake decides such a column even within a river's reach, so the river flows into the lake and out again. The water
   of a lake the rain fills stops at the last whole block below the lake's level, so it never stands above the rim of its
@@ -557,7 +560,7 @@ place.
   still lies below the water, it rises into a bank as the rivers' banks do.
 - **Limits.** Where the fine terrain has no valley along the coarse drainage, the river runs on a built-up ridge like an
   embankment. Where a ridge of the fine terrain lies across it, the river cuts a gorge through: the coarse map, at
-  7.7 km a cell, cannot see the passes between the fine valleys, and its breaches drain basins too large to be lakes
+  7.7 km a cell, cannot see the passes between the fine valleys, and its breaches drain basins too large to be lakes
   through the ranges around them. In three windows of 12 by 12 cells in the mountains of seed 42, the lowest way across
   a river cell, from the side where its river enters to the side where it leaves, rises a median 220 m above the water,
   and more than 250 m in nearly half of them. One breach there runs 60 km through a range, as much as 650 m below the
@@ -568,16 +571,19 @@ place.
   that reaches past a block's edge, 15 km, stays dry unless it lies in a lake of the coarse map, and a river crosses it
   as it crosses any other ground. Where a basin that stays dry for one of these reasons lies in a valley the ice
   drowned, its floor below the sea, the sea's water stays in it at sea level, as a fjord. A depression of the coarse map
-  larger than 16 cells, or wider than 8 cells (60 km), is breached rather than filled, so the largest lakes of the real
-  world stay dry. Filling such a depression only as far as a lake of 16 cells, and cutting its way out through the rest,
-  was tried and dropped: in the mountains of seed 42 the way out ran as a canyon through the rim and the ranges past it,
-  rivers beside the lake ran up to 300 m above the ground, and where the lake's level met the spill of a lake beside it
-  the two drained into each other, a loop the discharge never leaves. In three other windows of 12 by 12 tiles it
-  changed nothing. The hollows of a great lake's tiles that do not hold water at its level stay dry, and so do those
-  whose water spills past the padding of its tiles. The coarse map cannot tell a fjord open to the sea from a valley the
-  ice drowned behind a step: a cell whose 5th percentile lies below the sea ends its rivers either way, so where its
-  tile has no sea, only such a trough, the river ends in the trough's lake, which has no way out. Three of the 144 cells
-  of seed 42's most glaciated coast do.
+  larger than 64 cells, or wider than 16 cells (123 km), is breached rather than filled, so the largest lakes of the
+  real world, like the Caspian or Lake Superior, stay dry: a lake waits for the terrain of all its tiles. Within 256
+  cells of the origin of seed 42, at least six depressions that would hold a lake are larger than 64 cells, one of them
+  153 cells, which would take more than a minute on the GPU and some 13 minutes on the CPU; within 128 cells, 31 of the
+  570 lakes are larger than 16 cells. Filling such a depression only as far as a lake of 16 cells, and cutting its way
+  out through the rest, was tried and dropped: in the mountains of seed 42 the way out ran as a canyon through the rim
+  and the ranges past it, rivers beside the lake ran up to 300 m above the ground, and where the lake's level met the
+  spill of a lake beside it the two drained into each other, a loop the discharge never leaves. In three other windows
+  of 12 by 12 tiles it changed nothing. The hollows of a great lake's tiles that do not hold water at its level stay
+  dry, and so do those whose water spills past the padding of its tiles. The coarse map cannot tell a fjord open to the
+  sea from a valley the ice drowned behind a step: a cell whose 5th percentile lies below the sea ends its rivers either
+  way, so where its tile has no sea, only such a trough, the river ends in the trough's lake, which has no way out.
+  Three of the 144 cells of seed 42's most glaciated coast do.
 
 ### Coasts
 

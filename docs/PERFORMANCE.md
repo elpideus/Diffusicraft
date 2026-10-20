@@ -131,14 +131,16 @@ generation asks for them:
   tiles takes about 27 ms on one core, and there is one block per tile. Where the rain would fill one of its basins, the
   block draws the rivers of the tiles the water reaches, some 12 ms a tile with rivers, to tell whether one drains it;
   that adds 2 to 4 ms a tile on average. A tile in or next to a lake of the coarse map also waits for all the lake's
-  tiles, up to 16, which the prefetcher computes right after the lake's first tile in the plan, then the lake's water
-  from them.
+  tiles, up to 64, which the prefetcher computes right after the lake's first tile in the plan, then the lake's water
+  from them. The largest lakes take 23 to 27 s on the GPU, all but a second of it for their tiles, and some five minutes
+  on the CPU.
 - **In the background.** One thread at the lowest priority computes the planned tiles one at a time, and switches to
   a newer plan as soon as one arrives. Model runs take turns, so a tile that chunk generation needs right away takes
   up to twice as long while the prefetcher works. Planning the earliest tiles first keeps that rare.
-- **Out of the way of the cache.** A plan covers at most a quarter of a field's 96 tiles, so prefetching never evicts
-  the tiles in use. A tile that chunk generation reaches first is computed there, as before, and the prefetcher
-  skips it.
+- **Out of the way of the cache.** A plan covers at most a quarter of a field's 96 tiles, so the plan never evicts the
+  tiles in use. The tiles of a lake come on top, up to 64, and may push some of those out; the lake needs its own only
+  until it has found its water. A tile that chunk generation reaches first is computed there, as before, and the
+  prefetcher skips it.
 - **Quiet failures.** If inference fails, for example because the models are missing, the prefetcher leaves that
   world alone for a minute. Chunk generation reports the error as before.
 - **An off switch.** [`generateAhead`](CONFIG.md#generateahead) in the config.

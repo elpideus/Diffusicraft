@@ -20,11 +20,12 @@ import java.util.function.Supplier;
  * elevation, which follows the valley floors. Where that leaves a pit, there are two ways out.
  *
  * <p>A depression that the water flowing into it can fill becomes a lake: the cells joined to the pit below the level
- * at which it spills, if there are at most {@value #MAX_LAKE_CELLS} of them within {@value #MAX_LAKE_SPAN} cells
- * either way, it is at least {@value #MIN_LAKE_DEPTH} m deep and the runoff of the cells draining into it outweighs
- * what its surface loses to evaporation. A lake's cells take its level, the water crosses it towards its outlet, and
- * leaves over the cell it spills into, which is lowered with the cells after it until the water reaches lower ground,
- * the sea or another lake. Of nested depressions the outermost that holds a lake wins, so lakes never touch.
+ * at which it spills, found by a priority flood within {@value #LAKE_RADIUS} cells, if there are at most
+ * {@value #MAX_LAKE_CELLS} of them within {@value #MAX_LAKE_SPAN} cells either way, it is at least
+ * {@value #MIN_LAKE_DEPTH} m deep and the runoff of the cells draining into it outweighs what its surface loses to
+ * evaporation. A lake's cells take its level, the water crosses it towards its outlet, and leaves over the cell it
+ * spills into, which is lowered with the cells after it until the water reaches lower ground, the sea or another
+ * lake. Of nested depressions the outermost that holds a lake wins, so lakes never touch.
  *
  * <p>Any other pit is breached: a priority flood within {@value #BREACH_RADIUS} cells finds the cheapest way to a
  * lower cell, and the cells on that path are lowered just enough to drain through it. What a pit or a lake does
@@ -48,12 +49,14 @@ final class RiverNetwork {
 	static final int REGION = 32;
 	/** How far, in cells, a pit may look for a way out. */
 	static final int BREACH_RADIUS = 8;
+	/** How far, in cells, a pit looks for the level at which it spills, which holds every cell of its lake. */
+	static final int LAKE_RADIUS = 16;
 	/** The smallest discharge that makes a river, m³/s. */
 	static final float MIN_DISCHARGE = 4f;
 	/** Most cells a lake covers; larger depressions are breached. */
-	static final int MAX_LAKE_CELLS = 16;
-	/** Most cells a lake reaches across, along either axis. */
-	static final int MAX_LAKE_SPAN = 8;
+	static final int MAX_LAKE_CELLS = 64;
+	/** Most cells a lake reaches across, along either axis: its cells stay within the lake radius of its pit. */
+	static final int MAX_LAKE_SPAN = LAKE_RADIUS;
 	/** Shallowest depression that holds a lake, from its pit to where it spills, in meters. */
 	static final float MIN_LAKE_DEPTH = 2f;
 	/** Flow direction of an ocean cell, where rivers end. */
@@ -70,11 +73,13 @@ final class RiverNetwork {
 
 	/**
 	 * Window around a region holding everything its network depends on. The flow of the cells next to the region
-	 * depends on the pits within a radius of them, which flood a radius further; their levels on the ways out of the
-	 * lakes within a radius of those; and a way out on which cells, up to a radius from the lake's pit, lie in other
-	 * lakes, found by the pits a radius around them, which look a radius and a cell further.
+	 * depends on the pits within a breach radius of them, which flood a breach radius further. The levels there depend
+	 * on the lakes and the ways out of lakes whose pits lie within a lake radius of those cells. Whether such a lake is
+	 * the outermost depends on the depressions of the pits within a lake radius of its pit, and where its way out ends
+	 * on the lakes of the cells on it, up to a lake radius from its pit, found from the pits a lake radius around them,
+	 * which look a lake radius and a cell further.
 	 */
-	private static final int MARGIN = 6 * BREACH_RADIUS + 2;
+	static final int MARGIN = 2 * BREACH_RADIUS + 4 * LAKE_RADIUS + 2;
 	/** How much more than the land around it open water evaporates. */
 	private static final double OPEN_WATER = 1.3;
 	private static final double CELL_METERS = TerrainField.TILE * WorldScale.METERS_PER_PIXEL;
@@ -83,15 +88,25 @@ final class RiverNetwork {
 	private static final Lake[] NO_LAKES = {};
 
 	private final TerrainField field;
+	private final int margin;
 	private final Map<Long, CompletableFuture<float[]>> data = new ConcurrentHashMap<>();
 	private final Map<Long, CompletableFuture<Region>> regions = new ConcurrentHashMap<>();
 	private final Map<Long, CompletableFuture<GreatLake>> greatLakes = new ConcurrentHashMap<>();
 
 	RiverNetwork(TerrainField field) {
+		this(field, MARGIN);
+	}
+
+	/** A network that looks {@code margin} cells around each region, which must find the same one past the margin. */
+	RiverNetwork(TerrainField field, int margin) {
 		if (field.coarseScale() != TerrainField.TILE) {
 			throw new IllegalArgumentException("Rivers need one coarse pixel per tile, not " + field.coarseScale());
 		}
+		if (margin < MARGIN) {
+			throw new IllegalArgumentException("A region needs " + MARGIN + " cells around it, not " + margin);
+		}
 		this.field = field;
+		this.margin = margin;
 	}
 
 	/** Annual evapotranspiration in mm at an annual mean temperature in °C. */
@@ -416,7 +431,7 @@ final class RiverNetwork {
 	}
 
 	private Region computeRegion(int ri, int rj) {
-		Window window = new Window(ri * REGION - MARGIN, rj * REGION - MARGIN, REGION + 2 * MARGIN);
+		Window window = new Window(ri * REGION - margin, rj * REGION - margin, margin);
 		int size = window.size, n = REGION * REGION;
 		for (int bi = Math.floorDiv(window.i0, REGION); bi <= Math.floorDiv(window.i0 + size - 1, REGION); bi++) {
 			for (int bj = Math.floorDiv(window.j0, REGION); bj <= Math.floorDiv(window.j0 + size - 1, REGION); bj++) {
@@ -483,14 +498,17 @@ final class RiverNetwork {
 	}
 
 	/**
-	 * The map around a region, {@link #MARGIN} cells each way, in which its lakes are found and its pits breached.
-	 * Cells are numbered by rows, which orders them as the world does, so every region takes them in the same order.
+	 * The map around a region, at least {@link #MARGIN} cells each way, in which its lakes are found and its pits
+	 * breached. Cells are numbered by rows, which orders them as the world does, so every region takes them in the same
+	 * order.
 	 */
 	private static final class Window {
 		static final int CHANNELS = 4;
 
 		final int i0;
 		final int j0;
+		/** Cells around the region on each side, and across the window. */
+		final int margin;
 		final int size;
 		final float[] mean;
 		final float[] low;
@@ -502,10 +520,11 @@ final class RiverNetwork {
 		final int[] lake;
 		final List<Depression> lakes = new ArrayList<>();
 
-		Window(int i0, int j0, int size) {
+		Window(int i0, int j0, int margin) {
 			this.i0 = i0;
 			this.j0 = j0;
-			this.size = size;
+			this.margin = margin;
+			this.size = REGION + 2 * margin;
 			int cells = size * size;
 			mean = new float[cells];
 			low = new float[cells];
@@ -525,11 +544,12 @@ final class RiverNetwork {
 		}
 
 		/**
-		 * Finds the depressions of every pit within five radii and a cell of the region that hold a lake, and keeps the
-		 * outermost: those whose pit no larger one covers. Each lake is found from the first of its pits.
+		 * Finds the depressions that hold a lake of every pit whose flood the window holds, at least two breach radii,
+		 * three lake radii and a cell from the region, and keeps the outermost: those whose pit no larger one covers.
+		 * Each lake is found from the first of its pits.
 		 */
 		void findLakes() {
-			int r = BREACH_RADIUS, lo = MARGIN - 5 * r - 1, hi = MARGIN + REGION + 5 * r + 1;
+			int lo = LAKE_RADIUS + 1, hi = size - LAKE_RADIUS - 1;
 			List<Depression> found = new ArrayList<>();
 			float[] fill = new float[size * size];
 			Arrays.fill(fill, Float.NaN);
@@ -565,12 +585,12 @@ final class RiverNetwork {
 
 		/**
 		 * The depression of the pit at window cell {@code (pa, pb)}, if it holds a lake, else null. A priority flood
-		 * within the breach radius finds the level at which the pit spills to lower ground or the sea; the cells below
+		 * within the lake radius finds the level at which the pit spills to lower ground or the sea; the cells below
 		 * that level joined to the pit must make a lake small enough, and the cells of the radius whose steepest
 		 * descent leads into them must bring more water than it loses to evaporation.
 		 */
 		private Depression depression(int pa, int pb) {
-			int r = BREACH_RADIUS, side = 2 * r + 1, centre = r * side + r, origin = (pa - r) * size + pb - r;
+			int r = LAKE_RADIUS, side = 2 * r + 1, centre = r * side + r, origin = (pa - r) * size + pb - r;
 			float pit = low[pa * size + pb];
 			int[] parent = new int[side * side];
 			Arrays.fill(parent, -2);
@@ -657,7 +677,7 @@ final class RiverNetwork {
 			for (int u = 0; u < side && sum < enough; u++) {
 				for (int v = 0; v < side; v++) {
 					int cu = u, cv = v;
-					for (int steps = 0; steps < 64; steps++) {
+					for (int steps = 0; steps < 4 * side; steps++) {
 						if (in[cu * side + cv]) {
 							sum += runoff[origin + u * size + v];
 							break;
@@ -716,7 +736,7 @@ final class RiverNetwork {
 		 */
 		void breachPits() {
 			double[] before = z.clone();
-			int lo = MARGIN - BREACH_RADIUS - 1, hi = MARGIN + REGION + BREACH_RADIUS + 1;
+			int lo = margin - BREACH_RADIUS - 1, hi = margin + REGION + BREACH_RADIUS + 1;
 			for (int a = lo; a < hi; a++) {
 				for (int b = lo; b < hi; b++) {
 					int w = a * size + b;
@@ -786,7 +806,7 @@ final class RiverNetwork {
 			List<int[]> trees = new ArrayList<>();
 			for (int a = 0; a < REGION; a++) {
 				for (int b = 0; b < REGION; b++) {
-					int w = (a + MARGIN) * size + b + MARGIN, k = a * REGION + b;
+					int w = (a + margin) * size + b + margin, k = a * REGION + b;
 					region.level[k] = (float) z[w];
 					region.runoff[k] = runoff[w];
 					int l = lake[w];

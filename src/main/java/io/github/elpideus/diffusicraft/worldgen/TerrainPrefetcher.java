@@ -20,14 +20,14 @@ import java.util.concurrent.atomic.LongAdder;
  * how fast they move, the prefetcher plans the tiles their view will reach within {@value #HORIZON_SECONDS} s, the
  * earliest first, and one background thread computes them one at a time. The rivers and lakes of a tile need the
  * terrain of the eight tiles around it, so the plan takes in a ring of tiles around the view. A tile in a lake of the
- * coarse map needs all the lake's tiles, up to 16, which can lie beyond the ring: the prefetcher computes them right
+ * coarse map needs all the lake's tiles, up to 64, which can lie beyond the ring: the prefetcher computes them right
  * after the tile, then the lake's water from them. A tile that chunk generation needs before the prefetcher gets to
  * it is computed by chunk generation as before, and the prefetcher skips it.
  *
  * <p>Model runs take turns, so such a tile takes longer while a prefetch runs beside it. Planning the earliest tiles
  * first keeps that rare. A plan covers at most a quarter of each field's tile cache, so prefetching does not evict the
- * tiles in use; the lakes on it add their tiles, seldom more than a few, which nothing needs once the lake's water is
- * found.
+ * tiles in use; the lakes on it add their tiles, seldom more than a few and at most 64, which nothing needs once the
+ * lake's water is found.
  */
 public final class TerrainPrefetcher implements AutoCloseable {
 	/** How far ahead of the players to plan, in seconds. */
