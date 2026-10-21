@@ -43,6 +43,10 @@ project directly, and Loom generates run configurations.
 - **Shader packs.** Named in `-PdevMods` as well, the packs under `devShaderPacks`, such as Bliss
   (`-PdevMods=sodium,iris,bliss-shader`), go into the client's `shaderpacks` folder as `<slug>.zip`. Like the mods,
   they are pinned by Modrinth version id and never leave the dev runtime.
+- **On Vulkan.** The full modpack does not start on Vulkan. Iris is in it, so Distant Horizons switches itself to
+  OpenGL and then stops the game (see [COMPATIBILITY.md](COMPATIBILITY.md#vulkan)). Pick mods without Iris, such as
+  `-PdevMods=sodium,distanthorizons` or `-PdevMods=sodium,sulkan`. The game stops before its menus, so to go back to
+  OpenGL set `preferredGraphicsBackend:"default"` in `run/options.txt`.
 - **Adding or updating a mod.** Find the version id on the mod's Modrinth *Versions* page (the last part of the
   version URL) and add `'<slug>': '<version id>'`. If it fails to start, add the mod's required dependencies too.
 

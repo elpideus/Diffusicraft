@@ -18,7 +18,7 @@ for each mod, and what is still open.
 | Create, Mekanism, other tech mods | Should work: not checked | The same for any ore under the common tags `c:ores/<metal>` |
 | [Sodium](#sodium) 0.9.3-beta.1 | Works, checked in game | Lets it build sections at every height of a tall dimension; inference leaves it GPU memory |
 | [Iris](#shaders) 1.11.7 with Bliss 2.1.2, other shader packs | Works, checked in game | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
-| [Minecraft's Vulkan renderer](#vulkan) | Works, checked in game | Nothing: Diffusicraft draws through neither OpenGL nor Vulkan itself |
+| [Minecraft's Vulkan renderer](#vulkan) | Works, checked in game; Distant Horizons with Iris stops it at launch | Nothing: Diffusicraft draws through neither OpenGL nor Vulkan itself |
 | [Sulkan](#vulkan) 0.6.0, shaders on Vulkan | Works, checked in game; hides Distant Horizons' far terrain | Inference leaves GPU memory for it, as for Iris |
 | Structure mods | Works | Structures are placed by the vanilla generator |
 
@@ -276,7 +276,8 @@ The mods that draw differ:
   to OpenGL.
 - **Distant Horizons** 3.3.4 draws through Minecraft's own renderer by default, which supports Vulkan, and draws
   Diffusicraft's far terrain there as on OpenGL. Sulkan 0.6.0 does not know it, though: with both, the far terrain
-  does not show.
+  does not show. With Iris installed, Distant Horizons switches itself to its OpenGL renderer so that Iris can shade
+  its far terrain, and on Vulkan it then stops the game as it starts. So leave Iris out on Vulkan.
 
 **Checking it.** `-Pdiffusicraft.graphicsBackend=vulkan` runs the game tests on Vulkan (see
 [DEVELOPMENT.md](DEVELOPMENT.md#client-game-tests)). Without a display only Mesa's drivers can show Vulkan, so these
