@@ -650,6 +650,48 @@ stand of them.
 
 The LOD mods draw the giants too (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
 
+### Waterfalls
+
+`diffusicraft:waterfall` (`WaterfallFeature`) runs streams over the edges of steep faces, mountainsides, scarps and
+sea cliffs, and lets them fall to the foot down the head of a gorge they have cut. `Waterfall` lays one out from the
+heights of the ground alone, as the chunk's heightmaps have them before the plants grow:
+
+- **The face.** It tries 24 columns of the chunk for the edge of a face: ground that falls from the next column out,
+  never rises, and drops at least 8 blocks within 12, at one and a half blocks or more for every block out. The foot
+  is the column that scores best, two points for each block of drop less one for each block out, so that a fall
+  stands at the edge rather than back across a bench; water ends the face. The four best edges are tried in turn.
+  The land 4 and 8 blocks behind the edge must lie no lower than it less a block, as on a bench or the step of a
+  valley, so no stream springs from a crest or a fin. Sheer cliffs are rare in the real terrain, whose steepest
+  mountainsides fall a block or two at a time: at 1:1 a chunk in six or so has such a face, against one in two
+  hundred with a single drop of 8 blocks.
+- **The stream.** One to three blocks wide, running one to six blocks back from the edge, sunk into the ground (up to
+  3 blocks of it cut away) between banks that hold it, and ending against ground that holds it too. A lip that the
+  ground beside would let the water out of is left out, as the bank.
+- **The gorge.** Where the face slopes, every column between the edge and the foot is cut down to the foot's level,
+  a block wider than the falls on either side where the ground lets it: a slot whose walls are as tall as the fall at
+  its head and die away at its mouth. No line of it may hold water, rise more than 3 blocks over the stream, or lie
+  lower than its floor next to the falls.
+- **The falls.** The water spills a block out from each lip and falls straight down to the floor. On dry ground it
+  digs a plunge pool there, two or three blocks deep and 5 to 9 across, wider under a higher fall, which keeps only
+  the columns whose sides hold the water. Into the sea, a lake or a river at the foot of a sheer cliff it falls
+  straight. Where the floor holds no pool, the water lands on it and runs off as a spring's does. No ground is cut
+  away beside water higher than the cut, which would pour in.
+
+The water is placed whole, from the lips to the foot, so that the falls stand in the world from the start rather than
+pouring down once the chunk is loaded, which takes a block every five ticks. The ticks scheduled at the lips and at
+the foot let the game's water take over from there. The heightmaps know nothing of caves or of what is built, so the
+feature checks the world first: no waterfall where a structure on the surface (a village, say) reaches into a chunk
+it would change, where the ground it cuts away has a fluid beside or over it (a cave's water or lava, or a spring),
+or where anything the water would run into lies beside or under the still water or under the foot of a fall.
+
+**Where.** In wet lands: none below 600 mm of rain a year, one chunk in four of those that have such a face from 2000
+mm, and in proportion between: in steep, wet mountains, a waterfall every ten chunks or so. None where the stream would
+freeze. Only in Diffusicraft worlds, whose climate the feature reads: `ChunkGeneratorMixin` places the waterfalls right
+after vanilla's water springs (`spring_water`), which nearly every land biome has, vanilla's, Diffusicraft's and other
+mods' (`DiffusicraftWorldgen.waterfallsAfter`). Added to the biomes instead, they would need a place in the order of
+features that every mod's biomes agree with. A biome without vanilla's springs has no waterfalls. The LOD mods do not
+draw them.
+
 ### Density and caves
 
 The settings set `final_density` to vanilla's overworld density, with these changes:
@@ -1290,11 +1332,11 @@ Other searches still read the full terrain and can take a while on new land:
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
 | `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
+| `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the vanilla features Diffusicraft worlds leave out and the waterfalls they add after vanilla's water springs, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
@@ -1412,6 +1454,12 @@ Other searches still read the full terrain and can take a while on new land:
   least 97% of its leaves live on the wood, that redwoods stand bare under their crowns and kapoks on buttresses under
   an umbrella, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks that the LODs draw a
   biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of detail farther out.
+- `WaterfallTest` lays out waterfalls over a straight cliff, into a pool of their own on level ground and into the sea,
+  down the head of a gorge cut into a steep face, never below its floor, and none on slopes of one block a block,
+  fins, ridges and peaks. On rough ground of plateaus and down the steep sides of mesas, with the sea at their foot
+  or not, it checks that every waterfall's still water is held on every side and from below, that the falls run down
+  through the air to their foot, that no ground is cut away from water beside it, that the drop is high enough, and
+  that the waterfall reads and writes only the chunks a feature may. The same draw lays out the same one.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

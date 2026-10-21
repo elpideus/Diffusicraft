@@ -151,6 +151,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   rising over the jungle canopy on buttresses, in groves of their own on level land (redwood forests, ancient
   woodlands, old-growth jungle) and alone here and there in forests, taigas, jungles and on the plains. The LOD mods
   draw them too. See [WORLDGEN.md](WORLDGEN.md#giant-trees).
+- **Waterfalls.** Streams one to three blocks wide run over the edges of steep faces in wet lands and fall straight
+  down the heads of gorges they have cut, to plunge pools of their own or the water below, placed whole so that tall
+  falls stand from the start. See [WORLDGEN.md](WORLDGEN.md#waterfalls).
 - **Half-precision decoder.** On NVIDIA GPUs the decoder runs in fp16, which makes terrain 1.2× faster and moves it
   by 5 cm RMS. See [PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 
@@ -161,7 +164,7 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
 drama on top, at every size:
 
-- **Features.** Waterfalls; denser jungles; boulders.
+- **Features.** Denser jungles; boulders.
 - **Great trees.** Broadleaf giants a hundred blocks tall and more, whose crowns would reach past the 3×3 chunks a
   feature may write to: they would need a structure, written chunk by chunk.
 

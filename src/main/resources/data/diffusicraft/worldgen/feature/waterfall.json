@@ -1,0 +1,5 @@
+{
+  "type": "diffusicraft:waterfall",
+  "min_drop": 8,
+  "chance": 0.25
+}

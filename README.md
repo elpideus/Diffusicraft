@@ -32,7 +32,8 @@ geography, climate and geology.
   maquis, moorland, heath, bogs, fjords, salt flats, steppe and more, with their own trees, plants and soils. Each
   breaks into patches of its siblings a few hundred blocks across: birch stands and glades in the woods, bogs in the
   hollows of the taiga, pines on its rises. Giant trees stand in groves on level land: redwoods up to 230 blocks
-  tall, ancient oaks and kapoks over the jungle canopy, and lone ones on the plains and in the forests.
+  tall, ancient oaks and kapoks over the jungle canopy, and lone ones on the plains and in the forests. Waterfalls
+  pour off the steep faces of wet lands, down gorges they have cut, into plunge pools.
 - **The full Terrain Diffusion pipeline, in Java.** Infinite, seamless, deterministic elevation and climate at 30 m
   per pixel. It is thread-safe for parallel chunk generation and cached in memory and on disk.
 - **CPU, NVIDIA and AMD.**

@@ -411,6 +411,9 @@ FEATURES["redwood"] = giant("redwood", "mangrove_wood", "spruce_leaves", 110, 23
 FEATURES["giant_oak"] = giant("oak", "oak_wood", "oak_leaves", 40, 64)
 FEATURES["kapok"] = giant("kapok", "jungle_wood", "jungle_leaves", 80, 130)
 
+# Waterfalls down the steep faces of wet lands, in a chunk of four at most (see WaterfallFeature.java).
+FEATURES["waterfall"] = {"type": f"{NS}:waterfall", "min_drop": 8, "chance": 0.25}
+
 # Placed features, in the order they run within a step.
 PLACED = {
     "giant_spruce_checked": checked(ours("giant_spruce"), "spruce_sapling"),
@@ -540,6 +543,9 @@ PLACED = {
     "lone_giant_oak": giants(ours("giant_oak"), chance=24, lone=True),
     "lone_redwood": giants(ours("redwood"), chance=16, lone=True),
     "lone_kapok": giants(ours("kapok"), chance=10, lone=True),
+    # In no biome: Java places them after vanilla's water springs in Diffusicraft worlds (see
+    # DiffusicraftWorldgen.waterfallsAfter). The feature picks its face in the chunk itself.
+    "waterfalls": placed(ours("waterfall"), []),
 }
 FEATURES["trees_temperate_rainforest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
                                           "features": [
