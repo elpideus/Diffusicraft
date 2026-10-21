@@ -55,9 +55,10 @@ their presets are gone, and Grand changed its scale.
 `WorldScale` holds the numbers.
 
 **Horizontally**, a block covers a fixed number of meters. The model's 30 m pixels are interpolated with Catmull-Rom
-splines, so the surface stays smooth at any size. Finer detail comes from the rock: in every world the hard beds of
-the sedimentary cover stand out of steep slopes as [ledges](#ledges), and at 1:4 and larger [gullies](#gullies) cut
-the slopes more finely than the pixels.
+splines, so the surface stays smooth at any size. Finer detail is added on top: from 1:8 up the ground's
+[roughness](#roughness) adds knolls and, from 1:4, small scarps; in every world the hard beds of the sedimentary cover
+stand out of steep slopes as [ledges](#ledges); and at 1:4 and larger [gullies](#gullies) cut the slopes more finely
+than the pixels.
 
 **Vertically**, elevation maps linearly up to a knee, then eases towards a ceiling:
 
@@ -111,7 +112,8 @@ Uplift: raises the mountains over their valley floors
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate, and the distance to the coastline
    ▼
-TerrainSurface: the ground in blocks for one scale, with ledges, sea cliffs and stacks, and gullies at 1:4 and up
+TerrainSurface: the ground in blocks for one scale, with roughness from 1:8 up, ledges, sea cliffs and stacks,
+   │            and gullies at 1:4 and up
    ▼
 density functions: diffusicraft:surface, diffusicraft:climate,
    │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model),
@@ -226,6 +228,35 @@ Tiles are computed once, by the first thread that needs them; other threads wait
 used tiles stay in memory, about 40 MB, plus 134 KB for each tile with a coast: up to 13 MB more along the sea. The
 terrain seed is derived from the world seed, so worlds with the same seed match.
 
+### Roughness
+
+Between the model's pixels the spline is smooth, so at 1:1 level ground would lie as smooth as a sheet for dozens of
+blocks, and the gullies cut only the slopes. `Roughness` adds relief finer than the pixels to all land:
+
+- **Knolls and hollows.** Octaves of gradient noise 240, 120, 60 and 30 m across. The widest rises and falls by up to
+  4% of its width, and each finer one is two-thirds as high as the last, so the finer ones still show. At 1:1 they
+  rise and fall by 2 blocks (standard deviation) on plains and 3 on rugged land, 19 at most. Each octave is turned by
+  37° from the last, so their lattices do not line up.
+- **Ridges.** On bare ground, dry or frozen, 70% of each octave is ridged: sharp crests along the noise's zero
+  contours with rounded hollows between them. Under soil and plants, the knolls are round.
+- **Scarps.** Small cliffs along the contours of a noise 800 m across, about every 230 m: 3.5 m high (5 blocks at 1:1,
+  2 at least), their faces some 3 blocks wide. Behind each crest the ground falls gently away to the foot of the
+  next, as on a cuesta, so the scarps lower the ground as much as they lift it. Under a full cover of soil and plants
+  they are 60% as high.
+- **Where.** Noise 4 km across makes some country rougher than the rest, from 30% of the roughest to all of it, and
+  puts the scarps on about two fifths of the land, at full height on a tenth. Rugged land, with a relief of 150 m or
+  more, is 1.3 times as rough as usual, and plains, 10 m or less, 0.8 times.
+- **Near the sea.** The roughness grows in over the 8 blocks above the sea and over the 60 m inland of the strip of
+  [sea cliffs](#coasts), so the beaches stay smooth. It never lowers the ground to less than a block above the sea,
+  so no pond opens behind a beach.
+
+The heights are in blocks, as shares of the widest wavelength in blocks, so the knolls keep their shape at every
+size. Octaves narrower than 16 blocks are left out, since the density is interpolated over cells 4 blocks wide: all
+four at Ultra, three at Extreme, two at Grand and one at Large, and none at Medium or Vanilla, whose blocks are 16 m
+wide or more and show the model's own detail. The scarps need their noise 200 blocks across or more: from Grand up.
+The roughness costs about 0.1 µs a column, and the rivers, the lakes and the shores read the ground with it, so the
+banks hold the water where a hollow comes near (see [Rivers](#rivers)).
+
 ### Gullies
 
 Nothing narrower than two of the model's 30 m pixels survives, so at 1:1 a mountainside would be a smooth sheet
@@ -264,11 +295,13 @@ Octaves narrower than 12 blocks are left out: the density is interpolated over c
 into zigzags. That keeps all three at Ultra (1:1), two at Extreme and one at Grand, and none in the smaller sizes, whose
 blocks are 8 m or more wide.
 
-`TerrainSurface` puts the gullies on the terrain, then the [ledges](#ledges), and everything that needs the ground
+`TerrainSurface` puts the [roughness](#roughness) on the terrain, then the gullies, then the [ledges](#ledges), so
+the ledges follow the beds through the knolls and the gullies. Everything that needs the ground
 reads it there: the density, the ceiling of each chunk, the rivers and lakes, the Hollows, the materials (so the sides
 of the gullies can bare the rock, see [The ground](#the-ground)) and the LODs whose columns are at most 4 blocks apart.
-The biomes and the climate keep the smooth elevation; gullies and ledges are too small to change them. The slope comes
-from the spline's own derivative, so gentle ground costs one sample. Steep ground costs about 0.2 µs more for the rock,
+The biomes and the climate keep the smooth elevation; the roughness, the gullies and the ledges are too small to change
+them. The gullies and the ledges take the slope from the spline's own derivative, so gentle ground costs one sample
+and the roughness. Steep ground costs about 0.2 µs more for the rock,
 the climate and the ledges, and 0.6 µs at 1:1 with the gullies. The rocks come from the geology seed, which
 `TerrainFields` gives each field next to the terrain seed, so the gullies and the ledges follow the same rocks the
 world shows.
@@ -1129,13 +1162,13 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
-| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, and `SeleniteBeamFeature` (`diffusicraft:selenite_beam`) |
-| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Gullies`, `GeoNoise` |
+| `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
@@ -1174,7 +1207,9 @@ Other searches still read the full terrain and can take a while on new land:
   `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs, in a folder per seed.
 - `UpliftTest` checks that the lift grows in from the valley floor and never faster than its gain, that the floors and
   the sea keep their levels and raised ground cools by the lapse rate, that windows agree to the bit, and that the
-  coarse map's mean rises while its 5th percentile stays.
+  coarse map's mean rises while its 5th percentile stays. `RoughnessTest` checks that the sizes below 1:8 have none
+  and those below 1:4 no scarps, that the roughness averages out and stays within 30 blocks, that rugged land is
+  rougher than plains, that bare ground has small cliffs that a cover of soil lowers, and that it is set by the seed.
 - `GulliesTest` checks that only the sizes from 1:4 up are fine enough for gullies, that gentle ground stays smooth,
   that steeper slopes are cut deeper but never past the deepest a gully can go for any rock and climate, that the ground
   changes about three times as much across a slope as down it, that cover rounds the ground off and hard rock is cut

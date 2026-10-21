@@ -12,10 +12,10 @@ geography, climate and geology.
 ## What works today
 
 - **A world generator.** Diffusicraft is the default world type, in six sizes from the real Earth's (1:1) down to 1:32.
-  It is inspired by real terrain, not a simulation of it, so the heights are exaggerated and the mountains stand taller
-  over their valleys than real ones: at 1:1 Everest stands at y = 14,900 in a world 16,624 blocks tall. Biomes follow
-  the real climate: snow only where it is cold, deserts only where it is hot and dry, and the sunny side of a valley is
-  warmer and drier than the shaded one. Vanilla caves, structures and biome mods keep working. See
+  It is inspired by real terrain, not a simulation of it, so the mountains stand taller over their valleys than real
+  ones and the ground is rougher up close: at 1:1 Everest stands at y = 14,900 in a world 16,624 blocks tall. Biomes
+  follow the real climate: snow only where it is cold, deserts only where it is hot and dry, and the sunny side of a
+  valley is warmer and drier than the shaded one. Vanilla caves, structures and biome mods keep working. See
   [WORLDGEN.md](docs/WORLDGEN.md).
 - **Rivers, coasts, rock and caverns.** Rivers drain the whole world from its rain and terrain, and fill the lakes on
   their way, up to great lakes 123 km across. Beaches follow the coastline, and sea cliffs rise where high land meets

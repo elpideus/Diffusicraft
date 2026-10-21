@@ -4,21 +4,25 @@ import io.github.elpideus.diffusicraft.worldgen.geology.Erosion;
 import io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise;
 import io.github.elpideus.diffusicraft.worldgen.geology.Geology;
 import io.github.elpideus.diffusicraft.worldgen.geology.Gullies;
+import io.github.elpideus.diffusicraft.worldgen.geology.Roughness;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The height of the ground, in blocks: the terrain's elevation through the world's {@link WorldScale}, with the
- * {@link Gullies} cut into its slopes, the {@link Geology#ledge ledges} of the sedimentary beds standing out of
- * them, and cliffs along the sea. The density, the materials, the rivers, the Hollows, the ceiling of each chunk and
- * the levels of detail all read the ground here, so they agree on where it is. The climate and the biomes keep the
- * smooth elevation, except on the coast: the other details are too small to change them.
+ * knolls and small scarps of its {@link Roughness}, the {@link Gullies} cut into its slopes, the
+ * {@link Geology#ledge ledges} of the sedimentary beds standing out of them, and cliffs along the sea. The density, the
+ * materials, the rivers, the Hollows, the ceiling of each chunk and the levels of detail all read the ground here, so
+ * they agree on where it is. The climate and the biomes keep the smooth elevation, except on the coast: the other
+ * details are too small to change them.
  *
- * <p>Both take their character from the rock under the slope, as the world's {@link Geology} has it, and from how much
- * soil and plants cover it, which the climate decides: it takes rain (by the same aridity the biomes use) and warmth.
- * Deserts, tundra and the ground above the tree line are bare. Ledges stand out most on bare, steep slopes; soil
- * creeping down the slope rounds them off.
+ * <p>They take their character from how much soil and plants cover the ground, which the climate decides: it takes
+ * rain (by the same aridity the biomes use) and warmth. Deserts, tundra and the ground above the tree line are bare.
+ * The gullies and the ledges take it from the rock under the slope too, as the world's {@link Geology} has it. Ledges
+ * stand out most on bare, steep slopes; soil creeping down the slope rounds them off. The roughness grows in from
+ * {@value #ROUGH_SHORE} blocks above the sea and from the inland end of the strip of cliffs, so the beaches stay
+ * smooth, and it never lowers the ground to less than a block above the sea.
  *
  * <p>The terrain comes in pixels 30 m wide, too coarse for a cliff: its coasts are gentle slopes. Where the land
  * stands high a short way inland, on some stretches of coast, the rise is gathered into a cliff. The strip along the
@@ -51,6 +55,10 @@ public final class TerrainSurface implements Erosion.Surface {
 	private static final double LEDGE_SLOPE = 0.5;
 	/** The share of the ledges left under a full cover of soil and plants. */
 	private static final double COVERED_LEDGES = 0.4;
+	/** Height above the sea over which the roughness grows in, in blocks. */
+	private static final double ROUGH_SHORE = 8;
+	/** Distance inland of the strip of cliffs over which the roughness grows in, in pixels: 60 m. */
+	private static final double ROUGH_COAST = 2;
 	/** Real width of the strip along the coastline that cliffs reshape, in meters. */
 	private static final double CLIFF_ZONE = 60;
 	/** Narrowest that strip gets, in blocks, so that the smaller scales still have cliffs. */
@@ -131,6 +139,7 @@ public final class TerrainSurface implements Erosion.Surface {
 	private final TerrainField field;
 	private final WorldScale scale;
 	private final Gullies gullies;
+	private final Roughness roughness;
 	private final Geology geology;
 	private final double pixelsPerBlock;
 	private final double lowest;
@@ -159,6 +168,7 @@ public final class TerrainSurface implements Erosion.Surface {
 		this.field = field;
 		this.scale = scale;
 		this.gullies = new Gullies(field.seed(), scale.metersPerBlock());
+		this.roughness = new Roughness(field.seed(), scale.metersPerBlock(), scale.verticalMetersPerBlock());
 		// Only the deep layers depend on the bottom of the world, and the shape of the slopes reads none of them.
 		this.geology = new Geology(field.geologySeed(), 0, scale.metersPerBlock(), scale.verticalMetersPerBlock());
 		this.pixelsPerBlock = scale.pixelsPerBlock();
@@ -208,12 +218,25 @@ public final class TerrainSurface implements Erosion.Surface {
 		double gx = gradient[1] * rate, gz = gradient[0] * rate;
 		double y = scale.surfaceY(elevation);
 		double slope = Math.sqrt(gx * gx + gz * gz);
-		if (slope > SMOOTH_SLOPE) {
-			TerrainField.Column column = new TerrainField.Column();
+		float coast = field.coast(i, j);
+		TerrainField.Column column = null;
+		double cover = 0;
+		if (roughness.any() && elevation > 0f && coast > zone) {
+			column = new TerrainField.Column();
 			field.column(i, j, column);
+			cover = cover(column);
+			double rough = roughness.height(x, z, cover, column.relief)
+				* GeoNoise.smoothstep(zone, zone + ROUGH_COAST, coast) * GeoNoise.smoothstep(sea, sea + ROUGH_SHORE, y);
+			y = Math.max(y + rough, Math.min(y, sea + 1));
+		}
+		if (slope > SMOOTH_SLOPE) {
+			if (column == null) {
+				column = new TerrainField.Column();
+				field.column(i, j, column);
+				cover = cover(column);
+			}
 			Geology.Site site = geology.site(x, z, scale.surfaceY(column.meanElevation), column.meanElevation,
 				column.relief);
-			double cover = cover(column);
 			if (gullies.cuts(gx, gz)) {
 				y += gullies.depth(x, z, gx, gz, geology.hardness(site, y), cover);
 			}
@@ -225,7 +248,7 @@ public final class TerrainSurface implements Erosion.Surface {
 				y = Math.min(y, sea - 1);
 			}
 		}
-		return Math.clamp(shore(x, z, i, j, elevation, y, hole), lowest, highest);
+		return Math.clamp(shore(x, z, i, j, coast, elevation, y, hole), lowest, highest);
 	}
 
 	/**
@@ -235,18 +258,18 @@ public final class TerrainSurface implements Erosion.Surface {
 	public float shore(int x, int z) {
 		double cx = x + 0.5, cz = z + 0.5, i = cz * pixelsPerBlock, j = cx * pixelsPerBlock;
 		float elevation = field.elevation(i, j);
-		return (float) Math.clamp(shore(cx, cz, i, j, elevation, scale.surfaceY(elevation), null), lowest, highest);
+		double y = scale.surfaceY(elevation);
+		return (float) Math.clamp(shore(cx, cz, i, j, field.coast(i, j), elevation, y, null), lowest, highest);
 	}
 
 	/**
-	 * The ground {@code y} at a point of the given elevation, with the sea cliffs, the profile of the sea floor and the
-	 * stacks, and the opening of an arch in {@code hole} if one is given.
+	 * The ground {@code y} at a point of the given elevation, {@code coast} pixels from the coastline, with the sea
+	 * cliffs, the profile of the sea floor and the stacks, and the opening of an arch in {@code hole} if one is given.
 	 */
-	private double shore(double x, double z, double i, double j, float elevation, double y, float[] hole) {
+	private double shore(double x, double z, double i, double j, float coast, float elevation, double y, float[] hole) {
 		if (hole != null) {
 			hole[0] = hole[1] = Float.NaN;
 		}
-		float coast = field.coast(i, j);
 		if (coast > 0f && coast < zone) {
 			y = sharpen(x, z, i, j, coast, y);
 		} else if (coast < 0f && elevation < 0f && shoreface) {

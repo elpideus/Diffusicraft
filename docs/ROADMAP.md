@@ -86,6 +86,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   branch, deeper on steeper ground; gentle ground stays smooth. The rock and the climate shape them: crags in hard
   rock, badlands in bare soft rock, rounded hills where soil and plants cover soft rock. See
   [WORLDGEN.md](WORLDGEN.md#gullies).
+- **Roughness.** From 1:8 up all land undulates in knolls and hollows finer than the model's pixels, sharp-crested on
+  bare ground and round under soil, and from 1:4 up small scarps run across some country. See
+  [WORLDGEN.md](WORLDGEN.md#roughness).
 - **Ledges.** Where a slope cuts through the sedimentary cover, its hard beds of stone, limestone and sandstone stand
   out as cliffs and the soft beds between them recede into benches, as in the Grand Canyon, in every world. See
   [WORLDGEN.md](WORLDGEN.md#ledges).
@@ -150,7 +153,6 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
 drama on top, at every size:
 
-- **Small-scale relief.** Small cliffs, ridges and knolls on ground that is now too level up close.
 - **Sub-biomes and smaller biomes.** Variations of a biome within its area, as real land has.
 - **Features.** Giant trees hundreds of blocks tall, most common in forests on big plains; waterfalls; denser jungles;
   boulders.

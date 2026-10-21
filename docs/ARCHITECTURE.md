@@ -156,9 +156,10 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
   raises the mountains over their valley floors, and `Glaciation`, which drowns the valleys of cold mountain coasts
   into fjords and cuts the long fjords and their arms that `Fjords` traces on the coarse map. It is thread-safe and
   computes each tile once.
-- **`TerrainSurface`.** The height of the ground in blocks for one scale, with the hard beds standing out of steep
-  slopes as ledges and, from 1:4 up, the gullies cut into them, both shaped by the rock and the climate, and with sea
-  cliffs where high land meets the sea. Everything that needs the ground reads it there, so the density, rivers, caves,
+- **`TerrainSurface`.** The height of the ground in blocks for one scale: from 1:8 up with knolls and, from 1:4,
+  small scarps (`Roughness`), with the hard beds standing out of steep slopes as ledges and, from 1:4 up, the gullies
+  cut into them, all shaped by the climate and the last two by the rock, and with sea cliffs where high land meets the
+  sea. Everything that needs the ground reads it there, so the density, rivers, caves,
   materials and LODs agree.
 - **`TerrainFields`.** It holds one field per seed, which also carries the world's geology seed for the gullies and
   the ledges. The models load on the first chunk and are freed when the server stops. Pipeline windows are cached in
