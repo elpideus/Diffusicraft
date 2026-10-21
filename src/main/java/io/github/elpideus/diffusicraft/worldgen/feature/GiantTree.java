@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.feature;
 
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -24,6 +25,12 @@ final class GiantTree {
 	static final int LEAF_REACH = 6;
 	/** Clumps of leaves wider than this hold twigs, in blocks of radius. */
 	private static final double TWIGGED = 3.5;
+	/**
+	 * How fast the giants shrink with the world: each halving of its size takes this power of two off their height,
+	 * about a sixth, so that at 1:32 they stand at 42% of their height at 1:1. The land shrinks some sixteen times
+	 * over the same sizes, so the giants of a small world are still large for it, and those of a large one enormous.
+	 */
+	private static final double SHRINK = 0.25;
 
 	final LongOpenHashSet wood = new LongOpenHashSet();
 	final LongOpenHashSet leaves = new LongOpenHashSet();
@@ -40,6 +47,11 @@ final class GiantTree {
 	private GiantTree(int reach, RandomSource random) {
 		this.reach = Math.clamp(reach, 4, MAX_REACH);
 		this.random = random;
+	}
+
+	/** The share of their height at 1:1 that the giants grow to in a world of {@code scale}. */
+	static double size(WorldScale scale) {
+		return Math.pow(scale.ratio(), -SHRINK);
 	}
 
 	/** Grows a tree of {@code form} about {@code height} blocks tall, none of it farther than {@code reach} out. */

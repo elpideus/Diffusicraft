@@ -1,5 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen.lod;
 
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
+import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
@@ -71,11 +73,12 @@ import java.util.function.Predicate;
  * nearest levels of detail draw whole crowns and the farther ones, which take one column from a wide square, are under
  * a canopy as often as the ground is.
  *
- * <p>Giant trees, whose crowns reach farther than {@value #GIANT_REACH} blocks, are scattered on a grid of their own,
- * with cells as wide as their own share of the ground: on the small trees' grid each column would look over hundreds of
- * cells for them. As in the world, which places them after the small trees and grows them through their crowns, the
- * small trees do not shade them, nor they the small trees; only another giant keeps one from growing. Their trunks show
- * in the farther levels of detail too, as far as they are wide.
+ * <p>Giant trees, Diffusicraft's and other mods' trees whose crowns reach farther than {@value #GIANT_REACH} blocks,
+ * are scattered on a grid of their own, with cells as wide as their own share of the ground: on the small trees' grid
+ * each column would look over hundreds of cells for them. As in the world, which places them after the small trees
+ * and grows them through their crowns, the small trees do not shade them, nor they the small trees; only another giant
+ * keeps one from growing. Their trunks show in the farther levels of detail too, as far as they are wide.
+ * Diffusicraft's giants are drawn at the height they grow to in a world of the cover's size.
  */
 final class TreeCover {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TreeCover.class);
@@ -274,8 +277,10 @@ final class TreeCover {
 		return z ^ (z >>> 31);
 	}
 
-	/** The tree cover of a biome, which is empty if it grows no trees that can be seen. */
-	static TreeCover of(Holder<Biome> biome) {
+	/**
+	 * The tree cover of a biome in a world of {@code scale}, which is empty if it grows no trees that can be seen.
+	 */
+	static TreeCover of(Holder<Biome> biome, WorldScale scale) {
 		List<HolderSet<PlacedFeature>> steps = biome.value().getGenerationSettings().features();
 		int step = GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
 		if (steps.size() <= step) {
@@ -295,9 +300,10 @@ final class TreeCover {
 		Map<Kind, Double> small = new LinkedHashMap<>();
 		Map<Kind, Double> giant = new LinkedHashMap<>();
 		for (Map.Entry<Feature, Double> entry : counts.entrySet()) {
-			Kind kind = kind(entry.getKey(), random);
+			Kind kind = kind(entry.getKey(), random, scale);
 			if (kind != null) {
-				boolean wide = Arrays.stream(kind.shapes).anyMatch(shape -> shape.reach > GIANT_REACH);
+				boolean wide = entry.getKey() instanceof GiantTreeFeature
+					|| Arrays.stream(kind.shapes).anyMatch(shape -> shape.reach > GIANT_REACH);
 				(wide ? giant : small).merge(kind, entry.getValue(), Double::sum);
 			}
 		}
@@ -431,9 +437,12 @@ final class TreeCover {
 		return sum / DRAWS;
 	}
 
-	/** Draws {@value #DRAWS} trees of a feature, or returns {@code null} if it grows none that can be drawn. */
-	private static @Nullable Kind kind(Feature feature, RandomSource random) {
-		return feature instanceof TreeFeature tree ? kind(tree, random) : placed(feature, random);
+	/**
+	 * Draws {@value #DRAWS} trees of a feature in a world of {@code scale}, or returns {@code null} if it grows none
+	 * that can be drawn.
+	 */
+	private static @Nullable Kind kind(Feature feature, RandomSource random, WorldScale scale) {
+		return feature instanceof TreeFeature tree ? kind(tree, random) : placed(feature, random, scale);
 	}
 
 	/** Draws {@value #DRAWS} trees of a kind: by its placers if they grow on the stand-in, as discs if not. */
@@ -459,14 +468,14 @@ final class TreeCover {
 	 * places leaves. A draw that places none, as a tree that fails now and then does, grows nothing. The leaves and logs
 	 * are those it places most.
 	 */
-	private static @Nullable Kind placed(Feature feature, RandomSource random) {
+	private static @Nullable Kind placed(Feature feature, RandomSource random, WorldScale scale) {
 		Shape[] shapes = new Shape[DRAWS];
 		Map<Block, Integer> leaves = new HashMap<>();
 		Map<Block, Integer> logs = new HashMap<>();
 		try {
 			for (int i = 0; i < DRAWS; i++) {
 				StandIn standIn = new StandIn(Blocks.GRASS_BLOCK.defaultBlockState());
-				shapes[i] = standIn.place(feature, random);
+				shapes[i] = standIn.place(feature, random, scale);
 				for (BlockState state : standIn.blocks.values()) {
 					if (state.getBlock() instanceof LeavesBlock) {
 						leaves.merge(state.getBlock(), 1, Integer::sum);
@@ -574,11 +583,18 @@ final class TreeCover {
 			return shape(state -> true);
 		}
 
-		/** Places a whole feature at the origin, on the ground, as the world places it on the highest block. */
-		Shape place(Feature feature, RandomSource random) {
+		/**
+		 * Places a whole feature at the origin, on the ground, as the world places it on the highest block: a giant at
+		 * its height in a world of {@code scale}, which the stand-in cannot tell it.
+		 */
+		Shape place(Feature feature, RandomSource random, WorldScale scale) {
 			this.random = random;
 			this.origin = ORIGIN;
-			feature.place(level, null, random, ORIGIN);
+			if (feature instanceof GiantTreeFeature giant) {
+				giant.place(level, random, ORIGIN, scale);
+			} else {
+				feature.place(level, null, random, ORIGIN);
+			}
 			blocks.forEach((pos, state) -> {
 				if (state.getBlock() instanceof LeavesBlock) {
 					leaves.add(pos);

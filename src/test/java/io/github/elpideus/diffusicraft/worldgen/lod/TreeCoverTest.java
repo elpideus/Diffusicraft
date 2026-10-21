@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.lod;
 
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.Holder;
@@ -56,7 +57,7 @@ class TreeCoverTest {
 
 	@Test
 	void giantsAreDrawnWholeWithTheirTrunksFarOut() {
-		TreeCover cover = TreeCover.of(kapoks());
+		TreeCover cover = TreeCover.of(kapoks(), WorldScale.ULTRA);
 		TreeCover.Crown crown = new TreeCover.Crown();
 		int columns = 0, covered = 0, tall = 0, trunks = 0, farTrunks = 0;
 		for (int z = 0; z < 512; z++) {
@@ -79,5 +80,29 @@ class TreeCoverTest {
 		assertTrue(share > 0.2f && share < 0.9f, "the kapoks cover " + share + " of the ground");
 		assertTrue(tall > covered * 0.8f, tall + " of " + covered + " columns under a crown high up");
 		assertTrue(trunks > 0 && farTrunks > 0, trunks + " trunks, " + farTrunks + " a level of detail farther");
+	}
+
+	@Test
+	void giantsAreDrawnAsTallAsTheyGrowInAWorldOfTheirSize() {
+		TreeCover.Crown crown = new TreeCover.Crown();
+		int smaller = 0;
+		// From the smallest world to the largest.
+		for (WorldScale scale : WorldScale.values()) {
+			TreeCover cover = TreeCover.of(kapoks(), scale);
+			int highest = 0;
+			for (int z = 0; z < 256; z++) {
+				for (int x = 0; x < 256; x++) {
+					if (cover.crown(42, x, z, 1, crown)) {
+						highest = Math.max(highest, crown.high);
+					}
+				}
+			}
+			// The kapoks grow 80 to 130 blocks tall at 1:1, and less than half as tall at 1:32.
+			assertTrue(highest > smaller, scale + ": the kapoks reach " + highest + " blocks, as in a smaller world");
+			assertTrue(scale != WorldScale.ULTRA || highest >= 80 && highest <= 133, "at 1:1 they reach " + highest);
+			assertTrue(scale != WorldScale.VANILLA || highest >= 30 && highest <= 130 / 2, "at 1:32 they reach "
+				+ highest);
+			smaller = highest;
+		}
 	}
 }

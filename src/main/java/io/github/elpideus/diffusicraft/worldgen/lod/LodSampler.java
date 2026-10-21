@@ -295,7 +295,8 @@ public final class LodSampler {
 						column.waterDepth(water - top);
 					} else {
 						if (surface[0].is(BlockTags.SUPPORTS_VEGETATION)
-							&& trees.computeIfAbsent(biome[0], TreeCover::of).crown(seed, x, z, step, crown)) {
+							&& trees.computeIfAbsent(biome[0], holder -> TreeCover.of(holder, scale))
+								.crown(seed, x, z, step, crown)) {
 							int crownTop = Math.min(maxY - 1, top + crown.high);
 							int crownBottom = Math.max(top + 1, Math.min(crownTop, top + crown.low));
 							column.add(crown.holdsTrunk ? crown.trunk : AIR, top + 1, crownBottom);

@@ -477,9 +477,9 @@ the colours:
 | Alpine tundra | Meadow | Knee-high krummholz spruce, alpine flowers, moss, boulders | Grass broken by gravel scree and bare rock |
 | Cloud forest | Jungle | Vine-hung canopy trees, gnarled oaks, ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
 | Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, now and then a redwood, ferns, moss, mushrooms; light fog | Grass and podzol |
-| Redwood forest | Old-growth spruce taiga | [Redwoods](#giant-trees) 110 to 230 blocks tall, one or two in most chunks, over spruces, mega spruces and fallen trunks, large ferns, moss, mushrooms, berries; fog (256 blocks) | Grass with deep needle litter (podzol) and coarse dirt |
-| Ancient woodland | Forest | [Ancient oaks](#giant-trees) 40 to 64 blocks tall in every other chunk, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
-| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, with vines, melons and moss | Grass, red laterite below |
+| Redwood forest | Old-growth spruce taiga | [Redwoods](#giant-trees) 110 to 230 blocks tall at 1:1, one or two in most chunks, over spruces, mega spruces and fallen trunks, large ferns, moss, mushrooms, berries; fog (256 blocks) | Grass with deep needle litter (podzol) and coarse dirt |
+| Ancient woodland | Forest | [Ancient oaks](#giant-trees) 40 to 64 blocks tall at 1:1 in every other chunk, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
+| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1 in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, with vines, melons and moss | Grass, red laterite below |
 | Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass and terra rossa on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
@@ -626,6 +626,22 @@ giants, in three forms. Each is a trunk that tapers from a flared foot, and limb
   dome, the lower limbs reaching out wide and nearly level, the upper ones climbing into the top of the dome.
 - **Kapoks**, 80 to 130 blocks tall, of jungle wood: the emergents of the rainforest, a pale, unbranched column on
   plank buttresses that rises over the canopy to a flat umbrella some 35 blocks across.
+
+These are their heights at 1:1. The smaller the world, the smaller the giants, though far less than the land, which
+is some sixteen times lower at 1:32 than at 1:1: each halving of the world takes about a sixth off their height
+(`GiantTree.size`), so that they stand enormous over a 1:1 world and are merely big in a Vanilla one. The
+shapes follow the height, so a smaller giant is a smaller tree of the same build:
+
+| Size | Of the height at 1:1 | Redwoods | Ancient oaks | Kapoks |
+|---|---|---|---|---|
+| Ultra (1:1) | 100% | 110 to 230 | 40 to 64 | 80 to 130 |
+| Extreme (1:2) | 84% | 92 to 193 | 34 to 54 | 67 to 109 |
+| Grand (1:4) | 71% | 78 to 163 | 28 to 45 | 57 to 92 |
+| Large (1:8) | 59% | 65 to 137 | 24 to 38 | 48 to 77 |
+| Medium (1:16) | 50% | 55 to 115 | 20 to 32 | 40 to 65 |
+| Vanilla (1:32) | 42% | 46 to 97 | 17 to 27 | 34 to 55 |
+
+Outside a Diffusicraft world, as on the superflat world of `TreesGameTest`, they grow to their height at 1:1.
 
 The clumps keep within six blocks of the wood, as leaves must to live, and large ones hold twigs of their own; the few
 leaves still farther out are placed persistent so that they do not decay. A giant grows after the smaller trees of its
@@ -1449,11 +1465,12 @@ Other searches still read the full terrain and can take a while on new land:
   summers, that pines keep to the rises and old spruce to the valleys, that no trees grow in patches beyond the tree
   line, that other biomes and columns outside the patches stay, and that the seed sets the patches. The groves of
   giants keep to level land, and redwoods to mild, wet climates.
-- `GiantTreeTest` grows every form of giant tree at its least and most height and checks that it keeps within its
-  reach and height, that the same draw grows the same tree, that all its wood hangs together from the foot, that at
-  least 97% of its leaves live on the wood, that redwoods stand bare under their crowns and kapoks on buttresses under
-  an umbrella, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks that the LODs draw a
-  biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of detail farther out.
+- `GiantTreeTest` grows every form of giant tree at its least and most height, at 1:1 and at 1:32, and checks that it
+  keeps within its reach and height, that the same draw grows the same tree, that all its wood hangs together from
+  the foot, that at least 97% of its leaves live on the wood, that redwoods stand bare under their crowns and kapoks
+  on buttresses under an umbrella, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks
+  that the LODs draw a biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of
+  detail farther out, and as tall as the kapoks grow in a world of each size.
 - `WaterfallTest` lays out waterfalls over a straight cliff, into a pool of their own on level ground and into the sea,
   down the head of a gorge cut into a steep face, never below its floor, and none on slopes of one block a block,
   fins, ridges and peaks. On rough ground of plateaus and down the steep sides of mesas, with the sea at their foot
@@ -1504,8 +1521,8 @@ Other searches still read the full terrain and can take a while on new land:
   silver, uranium, rubies, sapphires and bauxite, and not its Nether sphalerite. It generates on the CPU unless
   `-Pdiffusicraft.device` names another device.
 - `TreesGameTest`, a client game test that needs no models, plants three of each of Diffusicraft's trees on a
-  superflat world, the giants too, each in its own biome for the colours of its leaves, and saves a view of each. A
-  tree that never grows on open grass fails it.
+  superflat world, the giants too, each in its own biome for the colours of its leaves, and saves a view of each. The
+  giants grow twice, at their full height and as in a Vanilla world. A tree that never grows on open grass fails it.
 - `BiomesGameTest`, a client game test that needs no models, lays out a plot of each of Diffusicraft's surface biomes
   on a superflat world, grows its plants and trees there as world generation would, and saves a view of each. The
   ground stays superflat grass, so the biomes' own ground and the plants that need sand are missing.

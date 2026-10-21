@@ -79,7 +79,7 @@ any in the world:
   column would look over hundreds of cells for them, so they are scattered on a grid of their own, whose cells are as
   wide as their own share of the ground. A column under both is under the giant's crown; the small trees under it are
   not drawn, as the LODs keep one crown a column. Their trunks, several blocks wide, are drawn one or two levels of
-  detail farther out than a small tree's.
+  detail farther out than a small tree's. They are drawn as tall as they grow in a world of that size.
 
 **Trees of biome mods.** Biome mods often grow trees with features of their own rather than Minecraft's tree feature;
 Biomes O' Plenty does for nearly all of its trees. Those features are placed whole on the same stand-in, standing on

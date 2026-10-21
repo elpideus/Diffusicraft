@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.gametest;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.TreeFeature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +37,8 @@ import java.util.Set;
 /**
  * Plants every tree of Diffusicraft's data pack on a superflat world, the giants too, three of each in the biome it
  * grows in, and takes a screenshot of each: {@code diffusicraft-world-tree-<name>} in
- * {@code build/run/clientGameTest/screenshots}. It fails if a tree never grows on open grass, as happens when its
+ * {@code build/run/clientGameTest/screenshots}. The giants grow twice: at their full height, as in a 1:1 world, and
+ * as in a Vanilla one ({@code tree-<name>-vanilla}). It fails if a tree never grows on open grass, as happens when its
  * trunk, foliage or decorators are set up wrongly. It needs no models and takes about a minute: run it alone with
  * {@code -Pdiffusicraft.gametests=Trees}.
  */
@@ -92,6 +95,10 @@ public class TreesGameTest implements FabricClientGameTest {
 	private record Plot(String name, int x, int ground, int top, int grown) {
 	}
 
+	/** A tree to plant, and the size of world it grows as in, or {@code null} for the superflat world's own. */
+	private record Planting(Holder.Reference<Feature> tree, @Nullable WorldScale scale) {
+	}
+
 	/** Plants three of each tree along X, each in a plot of the biome it grows in. */
 	private static List<Plot> plant(MinecraftServer server) {
 		ServerLevel level = server.overworld();
@@ -101,10 +108,20 @@ public class TreesGameTest implements FabricClientGameTest {
 				&& (f.value() instanceof TreeFeature || f.value() instanceof GiantTreeFeature))
 			.sorted(Comparator.comparing(f -> f.key().identifier().getPath()))
 			.toList();
+		List<Planting> plantings = new ArrayList<>();
+		for (Holder.Reference<Feature> tree : trees) {
+			plantings.add(new Planting(tree, null));
+			if (tree.value() instanceof GiantTreeFeature) {
+				// Again as in the smallest world, to see how much less the giants grow there.
+				plantings.add(new Planting(tree, WorldScale.VANILLA));
+			}
+		}
 		List<Plot> plots = new ArrayList<>();
 		int x = 0, last = 0;
-		for (Holder.Reference<Feature> tree : trees) {
+		for (Planting planting : plantings) {
+			Holder.Reference<Feature> tree = planting.tree;
 			Identifier id = tree.key().identifier();
+			String name = id.getPath() + (planting.scale == null ? "" : "-" + planting.scale.getSerializedName());
 			boolean giant = tree.value() instanceof GiantTreeFeature;
 			int plot = giant ? GIANT_PLOT : PLOT, spacing = giant ? GIANT_SPACING : SPACING, side = giant ? 32 : 16;
 			x += (last + plot) / 2;
@@ -134,14 +151,16 @@ public class TreesGameTest implements FabricClientGameTest {
 			int grown = 0, top = ground;
 			for (int k = -1; k <= 1; k++) {
 				RandomSource random = RandomSource.create(id.hashCode() * 31L + k);
-				if (tree.value().place(level, level.getChunkSource().getGenerator(), random,
-					new BlockPos(x + k * spacing, ground, 0))) {
+				BlockPos at = new BlockPos(x + k * spacing, ground, 0);
+				if (planting.scale == null ? tree.value().place(level, level.getChunkSource().getGenerator(), random, at)
+					: ((GiantTreeFeature) tree.value()).place(level, random, at, planting.scale)) {
 					grown++;
 				}
 				top = Math.max(top, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x + k * spacing, 0));
 			}
-			LOGGER.info("Tree {}: {} of 3 grew, in {}", id, grown, home == null ? "plains" : home.getRegisteredName());
-			plots.add(new Plot(id.getPath(), x, ground, top, grown));
+			LOGGER.info("Tree {}: {} of 3 grew, {} blocks tall at most, in {}", name, grown, top - ground,
+				home == null ? "plains" : home.getRegisteredName());
+			plots.add(new Plot(name, x, ground, top, grown));
 		}
 		return plots;
 	}

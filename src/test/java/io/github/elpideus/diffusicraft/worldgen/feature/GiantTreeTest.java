@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.feature;
 
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -12,8 +13,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GiantTreeTest {
 	private static final GiantTreeFeature.Form[] FORMS = GiantTreeFeature.Form.values();
-	/** The heights each form grows to in tools/biomes.py, least and most. */
+	/** The heights each form grows to in tools/biomes.py, least and most: a 1:1 world's. */
 	private static final int[][] HEIGHTS = {{110, 230}, {40, 64}, {80, 130}};
+	/** The share of those that the giants grow to in the smallest world. */
+	private static final double SMALLEST = GiantTree.size(WorldScale.VANILLA);
+
+	/** The least and most heights of a form, in the smallest world and at 1:1. */
+	private static int[] heights(GiantTreeFeature.Form form) {
+		int[] full = HEIGHTS[form.ordinal()];
+		return new int[]{(int) Math.round(full[0] * SMALLEST), (int) Math.round(full[1] * SMALLEST), full[0], full[1]};
+	}
 
 	private static GiantTree grow(GiantTreeFeature.Form form, int height, int reach, long seed) {
 		return GiantTree.grow(form, height, reach, RandomSource.create(seed));
@@ -22,7 +31,7 @@ class GiantTreeTest {
 	@Test
 	void everyFormKeepsWithinItsReachAndHeight() {
 		for (GiantTreeFeature.Form form : FORMS) {
-			for (int height : HEIGHTS[form.ordinal()]) {
+			for (int height : heights(form)) {
 				for (int reach : new int[]{GiantTree.MAX_REACH, 12}) {
 					for (long seed = 0; seed < 8; seed++) {
 						GiantTree tree = grow(form, height, reach, seed);
@@ -55,11 +64,13 @@ class GiantTreeTest {
 	@Test
 	void theWoodHangsTogetherFromTheFoot() {
 		for (GiantTreeFeature.Form form : FORMS) {
-			for (long seed = 0; seed < 6; seed++) {
-				GiantTree tree = grow(form, HEIGHTS[form.ordinal()][1], GiantTree.MAX_REACH, seed);
-				int reached = connected(tree.wood, tree.foot);
-				assertEquals(tree.wood.size(), reached, form + ", seed " + seed + ": " + reached + " of "
-					+ tree.wood.size() + " logs hang together");
+			for (int height : heights(form)) {
+				for (long seed = 0; seed < 6; seed++) {
+					GiantTree tree = grow(form, height, GiantTree.MAX_REACH, seed);
+					int reached = connected(tree.wood, tree.foot);
+					assertEquals(tree.wood.size(), reached, form + " " + height + " tall, seed " + seed + ": " + reached
+						+ " of " + tree.wood.size() + " logs hang together");
+				}
 			}
 		}
 	}
@@ -88,13 +99,16 @@ class GiantTreeTest {
 	@Test
 	void nearlyEveryLeafLivesOnTheWood() {
 		for (GiantTreeFeature.Form form : FORMS) {
-			for (long seed = 0; seed < 6; seed++) {
-				GiantTree tree = grow(form, HEIGHTS[form.ordinal()][1], GiantTree.MAX_REACH, seed);
-				Long2IntOpenHashMap distances = tree.distances();
-				float alive = distances.size() / (float) tree.leaves.size();
-				assertTrue(alive >= 0.97f, form + ", seed " + seed + ": " + alive + " of the leaves live");
-				for (int distance : distances.values()) {
-					assertTrue(distance >= 1 && distance <= GiantTree.LEAF_REACH);
+			for (int height : heights(form)) {
+				for (long seed = 0; seed < 6; seed++) {
+					GiantTree tree = grow(form, height, GiantTree.MAX_REACH, seed);
+					Long2IntOpenHashMap distances = tree.distances();
+					float alive = distances.size() / (float) tree.leaves.size();
+					assertTrue(alive >= 0.97f, form + " " + height + " tall, seed " + seed + ": " + alive
+						+ " of the leaves live");
+					for (int distance : distances.values()) {
+						assertTrue(distance >= 1 && distance <= GiantTree.LEAF_REACH);
+					}
 				}
 			}
 		}

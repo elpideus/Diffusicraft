@@ -3,6 +3,8 @@ package io.github.elpideus.diffusicraft.worldgen.feature;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
+import io.github.elpideus.diffusicraft.worldgen.biome.BiomeWorld;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -30,6 +32,9 @@ import org.jspecify.annotations.Nullable;
  * <p>A feature writes only in the 3×3 chunks around its own, so the crown reaches at most as far as the nearest edge
  * of those chunks, and {@link GiantTree#MAX_REACH} blocks: about 40 blocks across. Placed nearer the middle of its
  * chunk, a tree has more room. The height is cut to fit under the top of the world.
+ *
+ * <p>The heights of the data pack are a 1:1 world's. The smaller the world, the smaller the giants, though much less
+ * than the land: see {@link GiantTree#size}. Outside a Diffusicraft world they grow to their full height.
  */
 public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, IntProvider height) implements Feature {
 	public static final MapCodec<GiantTreeFeature> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -39,8 +44,9 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		IntProviders.POSITIVE_CODEC.fieldOf("height").forGetter(GiantTreeFeature::height)
 	).apply(instance, GiantTreeFeature::new));
 
-	/** Lowest a giant grows: less room than this under the top of the world, and it does not grow. */
+	/** Lowest a giant of full size grows: less room than this under the top of the world, and it does not grow. */
 	private static final int MIN_HEIGHT = 40;
+
 	/** Room kept free over the top of the tree, in blocks. */
 	private static final int HEADROOM = 6;
 	/** Leaves and plants over the ground through which a giant still finds it, in blocks: higher is another's crown. */
@@ -78,12 +84,25 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 	@Override
 	public boolean place(WorldGenLevel level, @Nullable ChunkGenerator generator, RandomSource random,
 						 BlockPos origin) {
+		BiomeWorld world = ((BiomeWorld.Carrier) (Object) level.getLevel().getChunkSource().randomState())
+			.diffusicraft$biomeWorld();
+		// Outside a Diffusicraft world, at the height of a 1:1 one.
+		return place(level, random, origin, world == null ? WorldScale.ULTRA : world.scale());
+	}
+
+	/**
+	 * Grows a giant at {@code origin} as it grows in a world of {@code scale}. For the LOD mods' stand-in world, which
+	 * cannot say how large the world is.
+	 */
+	public boolean place(WorldGenLevel level, RandomSource random, BlockPos origin, WorldScale scale) {
 		BlockPos base = ground(level, origin);
 		if (base == null) {
 			return false;
 		}
-		int height = Math.min(this.height.sample(random), level.getMaxY() - base.getY() - HEADROOM);
-		if (height < MIN_HEIGHT) {
+		double size = GiantTree.size(scale);
+		int height = Math.min((int) Math.round(this.height.sample(random) * size),
+			level.getMaxY() - base.getY() - HEADROOM);
+		if (height < MIN_HEIGHT * size) {
 			return false;
 		}
 		GiantTree tree = GiantTree.grow(form, height, room(origin), random);

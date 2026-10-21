@@ -400,7 +400,7 @@ FEATURES["columnar_cactus"] = {
 
 
 def giant(form, wood, foliage, lo, hi):
-    """A giant tree of `form`, `lo` to `hi` blocks tall (see GiantTreeFeature.java)."""
+    """A giant tree of `form`, `lo` to `hi` blocks tall at 1:1, less in smaller worlds (see GiantTreeFeature.java)."""
     return {"type": f"{NS}:giant_tree", "form": form, "wood": log(wood), "leaves": leaves(foliage),
             "height": uniform(lo, hi)}
 
