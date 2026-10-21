@@ -19,6 +19,8 @@ import java.nio.file.Path;
 public final class DiffusicraftConfig {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DiffusicraftConfig.class);
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+	/** Furthest a server sends far terrain, in blocks. */
+	private static final int MAX_FAR_TERRAIN_RADIUS = 65536;
 
 	/** Preferred inference device. AUTO picks the installed GPU runtime, else the CPU. */
 	public OnnxModel.Device device = OnnxModel.Device.AUTO;
@@ -52,10 +54,18 @@ public final class DiffusicraftConfig {
 	 */
 	public boolean distantHorizonsLods = true;
 	/**
-	 * Draw Voxy's far terrain in Diffusicraft worlds straight from the terrain where Voxy has not seen the chunks, in
-	 * singleplayer. Off: Voxy shows only the chunks it has loaded. Read when Voxy opens a world.
+	 * Draw Voxy's far terrain in Diffusicraft worlds straight from the terrain where Voxy has not seen the chunks: in
+	 * singleplayer from the world's own generator, on a server from the far terrain it sends. Off: Voxy shows only the
+	 * chunks it has loaded. Read when Voxy opens a world.
 	 */
 	public boolean voxyLods = true;
+	/**
+	 * On a server, send the far terrain of Diffusicraft worlds to the clients that ask for it, for Voxy to draw. Read
+	 * when the server starts.
+	 */
+	public boolean serveFarTerrain = true;
+	/** How far from a player, in blocks, a server sends far terrain. Read when the server starts. */
+	public int farTerrainRadius = 8192;
 	/**
 	 * Section rows above and below the camera that the client keeps render data for. 0 uses the render distance, which
 	 * is as far as vanilla draws vertically; smaller values save memory in tall dimensions. Read at startup.
@@ -100,6 +110,7 @@ public final class DiffusicraftConfig {
 		gpuMemoryLimitMb = Math.max(-1, gpuMemoryLimitMb);
 		cpuThreads = Math.max(0, cpuThreads);
 		verticalRenderDistance = Math.max(0, verticalRenderDistance);
+		farTerrainRadius = Math.clamp(farTerrainRadius, 0, MAX_FAR_TERRAIN_RADIUS);
 		storagePath = storagePath == null ? "" : storagePath.strip();
 		rocmNativePath = rocmNativePath == null ? "" : rocmNativePath.strip();
 		return this;

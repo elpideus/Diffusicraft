@@ -26,4 +26,9 @@ public final class Mapper {
 	public static long airWithLight(int light) {
 		throw new AssertionError();
 	}
+
+	/** Whether a voxel is air, whatever its light. */
+	public static boolean isAir(long id) {
+		throw new AssertionError();
+	}
 }

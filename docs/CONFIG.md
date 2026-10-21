@@ -17,6 +17,8 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "rocmNativePath": "",
   "distantHorizonsLods": true,
   "voxyLods": true,
+  "serveFarTerrain": true,
+  "farTerrainRadius": 8192,
   "verticalRenderDistance": 0,
   "generateAhead": true
 }
@@ -116,8 +118,22 @@ another LOD generator take over. Read at startup. See [COMPATIBILITY.md](COMPATI
 ### `voxyLods`
 
 With Voxy installed, Diffusicraft fills Voxy's far terrain in Diffusicraft worlds straight from the terrain where
-Voxy has not seen the chunks, in singleplayer. Set it to `false` to have Voxy show only the chunks it has loaded, as
-it does on a server. Read when Voxy opens a world. See [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
+Voxy has not seen the chunks: in singleplayer from the world itself, on a server that runs Diffusicraft from the far
+terrain the server sends. Set it to `false` to have Voxy show only the chunks it has loaded. Read when Voxy opens a
+world. See [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
+
+### `serveFarTerrain`
+
+On a server, or a world opened to LAN, send the far terrain of Diffusicraft worlds to the players whose clients ask
+for it, those with Diffusicraft and Voxy, so that their Voxy draws it as in singleplayer. Set it to `false` to send
+none: their Voxy then shows only the chunks it has loaded. The server samples the grids on two threads of its own, so
+they never hold up the ticks, but they do use the GPU or the CPU as chunks do. Read when the server starts. See
+[COMPATIBILITY.md](COMPATIBILITY.md#voxy).
+
+### `farTerrainRadius`
+
+How far from a player, in blocks, the server sends far terrain: up to 65536. The default, 8192, is as far as Voxy draws
+by default. Beyond it, a player's Voxy shows only the chunks it has loaded. Read when the server starts.
 
 ### `verticalRenderDistance`
 
@@ -143,3 +159,6 @@ Servers have no resource screen. At start they:
 
 The same storage rules apply. On a server, consider setting `storagePath` to a directory next to the server, so
 that it does not depend on the service user's home directory.
+
+A server sends the far terrain of its Diffusicraft worlds to the clients with Voxy and Diffusicraft that ask for it;
+[`serveFarTerrain`](#servefarterrain) and [`farTerrainRadius`](#farterrainradius) set whether and how far.

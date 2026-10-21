@@ -10,6 +10,8 @@ import me.cortex.voxy.common.world.other.Mapper;
 public final class WorldEngine {
 	/** The coarsest level of detail. */
 	public static final int MAX_LOD_LAYER = 4;
+	/** A {@link #markDirty} flag: the section's blocks have changed. */
+	public static final int UPDATE_TYPE_BLOCK_BIT = 1;
 	/** A {@link #markDirty} flag: which of the section's children hold blocks has changed. */
 	public static final int UPDATE_TYPE_CHILD_EXISTENCE_BIT = 2;
 	/** A {@link #markDirty} flag: the change is not saved. */

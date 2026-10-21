@@ -8,8 +8,8 @@ for each mod, and what is still open.
 | Mod | Status | What Diffusicraft does |
 |---|---|---|
 | [Distant Horizons](#distant-horizons) 3.3.4 | Integrated | Draws the far terrain straight from the terrain, without chunks |
-| [Voxy](#voxy) 0.2.20-beta | Works, checked in game | Keeps it within the heights it can hold; draws its far terrain straight from the terrain in singleplayer |
-| Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Both mods' far terrain comes from Diffusicraft's terrain instead, Voxy's in singleplayer |
+| [Voxy](#voxy) 0.2.20-beta | Works, checked in game | Keeps it within the heights it can hold; draws its far terrain straight from the terrain, in singleplayer and from servers that run Diffusicraft |
+| Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Both mods' far terrain comes from Diffusicraft's terrain instead |
 | [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's; their trees show in the LODs |
 | Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
 | C2ME 0.4.2-alpha.0.106+26.3 | Works, checked in game | Nothing: the terrain pipeline is thread-safe. The client game test passes with it (`-PdevMods=c2me-fabric`), LODs, rivers and lakes included, in well under half the time |
@@ -104,7 +104,7 @@ them; Diffusicraft fills them in from the terrain itself.
 
 **Far terrain.** Voxy keeps its world in sections of 32 × 32 × 32 voxels at five levels of detail, a voxel being 1 to
 16 blocks on a side, and reads each from its store when it first needs it, to draw it or to write a chunk into it.
-Where the store has never held a section, Voxy would leave it empty. In a Diffusicraft world, in singleplayer,
+Where the store has never held a section, Voxy would leave it empty. In a Diffusicraft world,
 `client.compat.voxy.VoxyTerrain` fills it from the terrain instead, through `worldgen.lod.LodGrid`, which cuts
 voxels out of the same columns Distant Horizons gets (`LodSampler`): surface blocks from the material rules, rivers,
 sea, ice, snow and tree crowns. A voxel shows the highest block in it that is not air, as it looks from above, so
@@ -112,9 +112,9 @@ water over the ground in the same voxel hides it; the sky lights the air, and wa
 its surface. Ground above y = 4095 sinks into the rock under it and stands flat there, as it does for Distant
 Horizons.
 
-- The sections filled are not saved. Voxy saves a section once the chunks it loads change it, filled blocks and
-  all, and the chunks replace the filled blocks where they lie: trees, buildings and whatever players built show as
-  they are.
+- In singleplayer the sections filled are not saved (on a server they are; see below). Voxy saves a section once
+  the chunks it loads change it, filled blocks and all, and the chunks replace the filled blocks where they lie:
+  trees, buildings and whatever players built show as they are.
 - Where the chunks have been loaded, Voxy builds its coarser levels from them itself, keeping the most opaque of
   every eight voxels. A sea shallower than a voxel then shows from afar as dry ground at sea level, as it does in Voxy
   without Diffusicraft; everywhere else it shows as sea.
@@ -126,8 +126,39 @@ Horizons.
 - Three mixins, applied only when Voxy is installed, do this: `VoxyInstanceMixin` tells Diffusicraft which level
   each of Voxy's worlds holds as Voxy opens it, `WorldEngineMixin` keeps the terrain with it, and
   `ActiveSectionTrackerMixin` fills each section the store misses.
-- On a server, Voxy's far terrain is still built from the chunks the client sees: the client has no terrain of its
-  own to fill it from. Turn [`voxyLods`](CONFIG.md#voxylods) off to have the same in singleplayer.
+- Turn [`voxyLods`](CONFIG.md#voxylods) off to have Voxy show only the chunks it has loaded.
+
+**On a server.** The client has no terrain of its own there, so the server sends it. A server that runs Diffusicraft
+tells each client with Diffusicraft, as it joins, which of its levels are Diffusicraft's and how far from the player
+it sends their far terrain ([`farTerrainRadius`](CONFIG.md#farterrainradius): 8192 blocks by default, as far as Voxy
+draws by default). The client then asks the server for each grid of columns Voxy needs (`client.lod.RemoteLods`)
+instead of sampling it, and fills the sections from it as in singleplayer. It does not wait for the answer: Voxy's
+threads, some of them Sodium's chunk builders, go on, the section stays empty, and when the grid comes the section is
+filled and Voxy draws it again, as it does with the chunks a server sends. The server's side is
+`worldgen.lod.LodFeed`. A world opened to LAN should serve its guests the same way; that has not been checked.
+
+- Unlike in singleplayer, the sections filled from a server are saved in Voxy's store, as Voxy saves the chunks a
+  server sends: Voxy lets go of sections and reads them back all the time, and would otherwise ask the server for the
+  same grids again and again. A grid then crosses the network once, and the far terrain a player has seen is there the
+  next time they join. The parents of a section whose own grid has not come are not saved, so that Voxy fills them
+  when it comes.
+- The chunks round the player reach Voxy as the server sends them, often before the grids of the sections they lie
+  in. Voxy writes each chunk section into a block of a section's voxels, 16 wide at the finest level and half as wide
+  at each coarser one. `client.mixin.voxy.WorldUpdaterMixin` tells Diffusicraft which blocks Voxy writes into a
+  section waiting for its grid, and the grid fills only the rest when it comes, so that the far terrain runs right up
+  to the chunks instead of leaving a pit round them.
+- The server samples the grids with the same `LodGrid.sample` on two threads of its own, so they never hold up the
+  ticks, and keeps the last 128 for players near each other. They use the GPU or the CPU as chunks do.
+- It refuses a grid of a level the player is not in, one further from the player than the radius, and any that
+  would leave the player more than 32 requests waiting. The client asks for no more than that at once and keeps the
+  rest waiting, sending the one nearest the player first, so that the far terrain fills in from the player out.
+  Where a grid is refused, or not answered within 10 minutes, Voxy shows what it shows without Diffusicraft until it
+  reads the section again: the chunks it has seen.
+- A grid goes over the wire as a list of its blocks and biomes, by the ids the client shares with the server, and,
+  for each column, its runs, each named by its place in that list and by how far it starts and ends from the one
+  under it (`LodGrid.STREAM_CODEC`).
+- A server without Diffusicraft, or with [`serveFarTerrain`](CONFIG.md#servefarterrain) off, sends nothing, and
+  clients without Diffusicraft are never sent anything.
 
 **Heights.** Voxy packs the height of its sections into 8 bits, so it holds y = −4096 to 4095. Grand fits. In a taller
 level, Earth 1:1 or a dimension of up to 32,736 blocks (see [HEIGHT.md](HEIGHT.md)), its renderer walked the sections

@@ -33,7 +33,7 @@ Loom's split source sets keep client-only code out of the server.
 | `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `TerrainSurface`, `TerrainPrefetcher`, `ClimateMapping`, `TerrainFields`, `density/` (density function types). See [WORLDGEN.md](WORLDGEN.md) |
 | `.../height`, `.../mixin/height` | Build height beyond 4064: `ExtendedHeight` (the numbers and the network format), `SharedContainerData` and `NoThreadingDetector` (memory per empty section), `AirSections` (empty sections left out of saves), `RenderWindow` (the rows the client renders), and the mixins that apply them. See [HEIGHT.md](HEIGHT.md) |
 | `src/main/resources/data` | World presets, noise settings, density functions and dimension types, written by `tools/worldgen_data.py` |
-| `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen); `mixin/` (launch hook, Create World button, default world type, model check on Create, render grid); `height/` (the render grid's window of rows); `compat/` (Mod Menu; the heights of Sodium's build tasks; Voxy's heights and its far terrain, filled from the terrain) |
+| `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen); `mixin/` (launch hook, Create World button, default world type, model check on Create, render grid); `height/` (the render grid's window of rows); `compat/` (Mod Menu; the heights of Sodium's build tasks; Voxy's heights and its far terrain, filled from the terrain); `lod/` (`RemoteLods`: the far terrain a server sends) |
 | `src/main/resources/diffusicraft` | `model-manifest.json`, `runtime-manifest.json`: every download, pinned by SHA-256 |
 | `src/test` | JUnit tests. Those tagged `models` need the real models and run only with `-PwithModels` |
 | `src/gametest` | Fabric client game tests: the resource screens, a Diffusicraft world with maps and screenshots, an Earth 1:1 world, a 32,736-block dimension, trees, biomes and Voxy's far terrain |
@@ -164,4 +164,7 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
 - **`TerrainPrefetcher`.** It computes tiles on a background thread where the players are heading, before chunk
   generation asks for them. `PlayerPrefetch` tells it where they are from the server tick. See
   [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
+- **Far terrain.** `worldgen.lod` samples columns of the finished surface without chunks (`LodSampler`) for Distant
+  Horizons, and cuts them into voxels for Voxy (`LodGrid`). On a server, `LodFeed` sends the grids to the clients
+  that ask for them, and `client.lod.RemoteLods` asks. See [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
 - **Scales.** `WorldScale` maps meters to blocks for the standard, grand and earth world types.

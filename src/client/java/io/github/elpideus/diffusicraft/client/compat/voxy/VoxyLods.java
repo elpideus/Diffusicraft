@@ -47,4 +47,12 @@ public final class VoxyLods {
 		VoxyTerrain terrain = ((VoxyTerrain.Carrier) (Object) engine).diffusicraft$terrain();
 		return terrain == null ? status : terrain.load(engine, section);
 	}
+
+	/** Called as Voxy writes the chunk section at {@code (x, y, z)}, counted in chunk sections, into its world. */
+	public static void writing(WorldEngine engine, int x, int y, int z) {
+		VoxyTerrain terrain = ((VoxyTerrain.Carrier) (Object) engine).diffusicraft$terrain();
+		if (terrain != null) {
+			terrain.writing(x, y, z);
+		}
+	}
 }
