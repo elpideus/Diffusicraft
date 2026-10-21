@@ -134,6 +134,10 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   only up to their ground, so the air above it is never computed. See [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground).
 - **Generating ahead.** Terrain is computed in the background where the players are heading, so chunks rarely
   wait for inference. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
+- **A relief map.** A web page the mod serves for the world that is open, shaded by its relief and drawn from the
+  terrain before any chunk is generated: the coarse map when zoomed out, the full terrain when zoomed in, kept on disk.
+  Click a place for its coordinates and a `/tp`, or search for the nearest places of a biome. It opens from the pause
+  menu or `/diffusicraft map`, and a server can share it with its players. See [MAP.md](MAP.md).
 - **Half-precision decoder.** On NVIDIA GPUs the decoder runs in fp16, which makes terrain 1.2× faster and moves it
   by 5 cm RMS. See [PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 
@@ -144,7 +148,6 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
 drama on top, at every size:
 
-- **A relief map.** A web page the mod serves for the current world, to find places and their coordinates.
 - **Dramatic mountains and small-scale relief.** Small cliffs, ridges and knolls on ground that is now too level up
   close.
 - **Sub-biomes and smaller biomes.** Variations of a biome within its area, as real land has.

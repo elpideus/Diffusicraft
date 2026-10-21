@@ -182,5 +182,15 @@
 	"biome.diffusicraft.shrub_steppe": "Shrub Steppe",
 	"biome.diffusicraft.glowworm_grotto": "Glowworm Grotto",
 	"biome.diffusicraft.selenite_caverns": "Selenite Caverns",
-	"biome.diffusicraft.mushroom_forest": "Mushroom Forest"
+	"biome.diffusicraft.mushroom_forest": "Mushroom Forest",
+
+	"diffusicraft.map.button": "Relief Map",
+	"diffusicraft.map.button.failed": "Could not start the relief map",
+	"diffusicraft.map.link": "Relief map: %s %s",
+	"diffusicraft.map.open": "Open the relief map in your browser",
+	"diffusicraft.map.copy": "Copy",
+	"diffusicraft.map.local": "It opens on the server's own machine only: see reliefMapAddress in docs/CONFIG.md to share it.",
+	"diffusicraft.map.failed": "Could not start the relief map: %s",
+	"diffusicraft.map.none": "No level of this world has Diffusicraft terrain to map.",
+	"diffusicraft.map.off": "The relief map is turned off (reliefMap in config/diffusicraft.json)."
 }

@@ -8,6 +8,7 @@
 		"CreateWorldScreenMoreTabMixin",
 		"CreateWorldScreenWorldTabMixin",
 		"GuiMixin",
+		"PauseScreenMixin",
 		"WorldCreationUiStateMixin",
 		"height.RenderGridMixin",
 		"sodium.AbstractSectionVisitorMixin",

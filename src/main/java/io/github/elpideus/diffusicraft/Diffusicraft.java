@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft;
 
 import io.github.elpideus.diffusicraft.block.DiffusicraftBlocks;
 import io.github.elpideus.diffusicraft.compat.dh.DistantHorizonsCompat;
+import io.github.elpideus.diffusicraft.map.ReliefMap;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodFeed;
@@ -25,6 +26,7 @@ public final class Diffusicraft implements ModInitializer {
 		DiffusicraftBlocks.init();
 		DiffusicraftWorldgen.init();
 		LodFeed.init();
+		ReliefMap.init();
 		if (loader.isModLoaded("distanthorizons") && resources.config().distantHorizonsLods) {
 			DistantHorizonsCompat.init();
 		}

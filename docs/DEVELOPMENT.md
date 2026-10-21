@@ -75,6 +75,11 @@ The fast tests need no downloads. Tests tagged `models` need the real models or 
 ./gradlew test -PwithModels --tests '*WorldPipelineBenchmarkTest' -Pdiffusicraft.device=CUDA
 ```
 
+```bash
+# Serve the relief map of a synthetic level, to work on the page in a browser (see MAP.md)
+./gradlew test --tests '*MapPagePreview' -Pdiffusicraft.mapPreview=/tmp/map-url
+```
+
 ### Client game tests
 
 The tests start the real game and save screenshots to `build/run/clientGameTest/screenshots/`.
@@ -233,6 +238,8 @@ that explains why.
 2. Check that the mixin targets still exist:
    - `Gui.addInitialScreens(List<Function<Runnable, Screen>>)`;
    - the constructor of `CreateWorldScreen$MoreTab` and its local `GridLayout.RowHelper`;
+   - the call to `GridLayout$RowHelper.addChild(LayoutElement, int, LayoutSettings)` in `PauseScreen.createPauseMenu`,
+     which adds the row of icon buttons;
    - the height mixins in [HEIGHT.md](HEIGHT.md#mixin-targets).
 3. Run `./gradlew build` and the client game test, and look at the screenshots.
 4. Update the dev modpack, or run with `-PnoDevMods` until the mods catch up.

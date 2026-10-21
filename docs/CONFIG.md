@@ -20,7 +20,11 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "serveFarTerrain": true,
   "farTerrainRadius": 8192,
   "verticalRenderDistance": 0,
-  "generateAhead": true
+  "generateAhead": true,
+  "reliefMap": true,
+  "reliefMapAddress": "127.0.0.1",
+  "reliefMapPort": 0,
+  "reliefMapUrl": ""
 }
 ```
 
@@ -149,6 +153,27 @@ their path for the next 20 seconds. Chunks then rarely wait for inference, even 
 the CPU) while you move, so set it to `false` on a slow machine if it gets in the way of the game more than waiting
 for terrain does. Read when a world opens. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 
+### `reliefMap`
+
+Offers the [relief map](MAP.md): the `/diffusicraft map` command and the pause menu's map button. Set it to `false` to
+offer neither and never start its web server. Read whenever someone asks for the map.
+
+### `reliefMapAddress`
+
+The address the relief map's web server listens on. The default, `127.0.0.1`, lets only this machine open the map;
+`0.0.0.0` lets every machine that can reach it, if it has a link. Read when the map starts, with its first link.
+
+### `reliefMapPort`
+
+The port the relief map's web server listens on. `0`, the default, picks a free one each time the map starts. Set one
+on a server, so that the firewall can let it through. Read when the map starts.
+
+### `reliefMapUrl`
+
+The address the map's links point to, such as `https://map.example.net` behind a reverse proxy. Empty, the default,
+means the address and port the map listens on, or the server's `server-ip` when it listens on `0.0.0.0`. Read when
+the map starts. See [MAP.md](MAP.md#on-a-server).
+
 ## Dedicated servers
 
 Servers have no resource screen. At start they:
@@ -162,3 +187,6 @@ that it does not depend on the service user's home directory.
 
 A server sends the far terrain of its Diffusicraft worlds to the clients with Voxy and Diffusicraft that ask for it;
 [`serveFarTerrain`](#servefarterrain) and [`farTerrainRadius`](#farterrainradius) set whether and how far.
+
+Operators can open the [relief map](MAP.md) with `/diffusicraft map`. It listens only on the server's own machine
+until [`reliefMapAddress`](#reliefmapaddress) and [`reliefMapUrl`](#reliefmapurl) say otherwise.

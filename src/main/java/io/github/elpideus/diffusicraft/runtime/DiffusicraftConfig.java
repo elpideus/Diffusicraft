@@ -76,6 +76,20 @@ public final class DiffusicraftConfig {
 	 * Read when a world opens.
 	 */
 	public boolean generateAhead = true;
+	/** Offer the relief map: {@code /diffusicraft map} and the pause menu's button. See docs/MAP.md. */
+	public boolean reliefMap = true;
+	/**
+	 * Address the relief map's web server listens on. The default lets only this machine open it; {@code 0.0.0.0}
+	 * lets every machine that can reach it, with a link. Read when the map starts.
+	 */
+	public String reliefMapAddress = "127.0.0.1";
+	/** Port of the relief map's web server; 0 picks a free one each time. Read when the map starts. */
+	public int reliefMapPort = 0;
+	/**
+	 * Address the links point to, such as {@code https://map.example.net} behind a reverse proxy. Empty: the address
+	 * and port the map listens on.
+	 */
+	public String reliefMapUrl = "";
 
 	public static DiffusicraftConfig load(Path file) {
 		if (Files.isRegularFile(file)) {
@@ -113,6 +127,9 @@ public final class DiffusicraftConfig {
 		farTerrainRadius = Math.clamp(farTerrainRadius, 0, MAX_FAR_TERRAIN_RADIUS);
 		storagePath = storagePath == null ? "" : storagePath.strip();
 		rocmNativePath = rocmNativePath == null ? "" : rocmNativePath.strip();
+		reliefMapAddress = reliefMapAddress == null ? "" : reliefMapAddress.strip();
+		reliefMapPort = Math.clamp(reliefMapPort, 0, 65535);
+		reliefMapUrl = reliefMapUrl == null ? "" : reliefMapUrl.strip();
 		return this;
 	}
 

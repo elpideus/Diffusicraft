@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Relief Map</title>
+<style>
+:root {
+	--bg: #101316;
+	--panel: rgba(21, 25, 30, 0.93);
+	--line: #2d353e;
+	--text: #e4e9ef;
+	--dim: #97a3b0;
+	--accent: #6cc4ff;
+	--good: #86d993;
+	--warn: #f0c36c;
+}
+* { box-sizing: border-box; }
+html, body {
+	margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text);
+	font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+canvas.dragging { cursor: grabbing; }
+.panel {
+	position: fixed; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+button, select, input { font: inherit; color: inherit; }
+button {
+	background: #252c34; border: 1px solid #36404b; border-radius: 7px; padding: 5px 10px; cursor: pointer;
+	white-space: nowrap;
+}
+button:hover { background: #2e3741; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.on { background: #24425a; border-color: #3b6c90; }
+button.icon { width: 32px; height: 32px; padding: 0; font-size: 18px; line-height: 1; }
+#top { top: 12px; left: 12px; width: min(380px, calc(100vw - 24px)); padding: 8px; }
+#bar { display: flex; gap: 6px; }
+#search {
+	flex: 1; min-width: 0; background: #0f1215; border: 1px solid #36404b; border-radius: 7px; padding: 6px 10px;
+}
+#search::placeholder { color: #6f7b88; }
+select { background: #252c34; border: 1px solid #36404b; border-radius: 7px; padding: 5px 6px; max-width: 40%; }
+#list { margin: 6px 0 0; padding: 0; list-style: none; max-height: 50vh; overflow: auto; }
+#list:empty { display: none; }
+#list li { padding: 6px 8px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+#list li:hover, #list li.sel { background: #26303a; }
+#list li .dim, .dim { color: var(--dim); }
+#list li.note { cursor: default; color: var(--dim); }
+#list li.note:hover { background: none; }
+#readout {
+	left: 12px; bottom: 12px; padding: 6px 10px; font-variant-numeric: tabular-nums; pointer-events: none;
+	white-space: pre; overflow: hidden; text-overflow: ellipsis;
+	max-width: calc(100vw - 24px);
+}
+#readout:empty { display: none; }
+#tools { right: 12px; bottom: 12px; padding: 6px; display: flex; gap: 6px; align-items: center; }
+#scale { display: flex; flex-direction: column; align-items: flex-start; padding: 0 6px; font-size: 12px; color: var(--dim); }
+#scale i { display: block; height: 6px; border: 2px solid var(--text); border-top: 0; margin-top: 2px; }
+#status { top: 12px; right: 12px; padding: 6px 10px; color: var(--dim); display: none; }
+#popup { display: none; padding: 10px 12px; min-width: 220px; max-width: calc(100vw - 24px); }
+#popup .coords { font-size: 16px; font-variant-numeric: tabular-nums; margin-right: 22px; white-space: pre; }
+#popup .row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+#popup .close { position: absolute; top: 6px; right: 6px; border: 0; background: none; color: var(--dim); font-size: 18px; padding: 0 6px; }
+#help { display: none; top: 56px; right: 12px; width: min(340px, calc(100vw - 24px)); padding: 12px 14px; }
+#help h2 { font-size: 15px; margin: 0 0 6px; }
+#help p { margin: 6px 0; color: var(--dim); }
+#help kbd { background: #252c34; border: 1px solid #36404b; border-radius: 4px; padding: 0 5px; font: 12px ui-monospace, monospace; color: var(--text); }
+#toast {
+	position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); padding: 6px 12px; border-radius: 8px;
+	background: #24425a; border: 1px solid #3b6c90; display: none;
+}
+#message { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 24px; color: var(--dim); }
+@media (max-width: 560px) {
+	#tools { left: 12px; right: 12px; bottom: 12px; justify-content: space-between; }
+	#readout { bottom: 64px; }
+	#status { top: auto; bottom: 108px; right: 12px; }
+}
+</style>
+</head>
+<body>
+<canvas id="map"></canvas>
+<div id="top" class="panel">
+	<div id="bar">
+		<input id="search" type="search" autocomplete="off" spellcheck="false"
+			placeholder="Biome, “x z”, “me” or “spawn”" aria-label="Search">
+		<select id="level" aria-label="Level" hidden></select>
+	</div>
+	<ul id="list" role="listbox"></ul>
+</div>
+<div id="status" class="panel" role="status"></div>
+<div id="readout" class="panel"></div>
+<div id="tools" class="panel">
+	<div id="scale"><span></span><i></i></div>
+	<button id="me" title="Centre on you (P)">You</button>
+	<button id="follow" title="Follow you (F)">Follow</button>
+	<button id="out" class="icon" title="Zoom out (−)" aria-label="Zoom out">−</button>
+	<button id="in" class="icon" title="Zoom in (+)" aria-label="Zoom in">+</button>
+	<button id="helpButton" class="icon" title="Help (?)" aria-label="Help">?</button>
+</div>
+<div id="popup" class="panel" role="dialog" aria-label="Place">
+	<button class="close" aria-label="Close">×</button>
+	<div class="coords"></div>
+	<div class="dim info"></div>
+	<div class="row">
+		<button data-copy="tp">Copy /tp</button>
+		<button data-copy="xyz">Copy X Y Z</button>
+		<button data-copy="xz">Copy X Z</button>
+	</div>
+</div>
+<div id="help" class="panel">
+	<h2>Relief map</h2>
+	<p>Click a place for its coordinates and a <b>/tp</b> to copy. Hover to read them as you go.</p>
+	<p>Zoomed out, the map shows the world's coarse map, which smooths the mountains, until you zoom in on a place:
+		then it draws the land as the world generates it, and keeps it sharp when you zoom out again. A place seen for
+		the first time takes a few seconds.</p>
+	<p>Search for a biome by name, or type coordinates as <kbd>x z</kbd>.</p>
+	<p><kbd>Drag</kbd> or <kbd>WASD</kbd> pan · <kbd>Wheel</kbd> <kbd>+</kbd> <kbd>−</kbd> zoom · <kbd>/</kbd> search ·
+		<kbd>P</kbd> you · <kbd>F</kbd> follow · <kbd>Esc</kbd> close</p>
+</div>
+<div id="toast" role="status"></div>
+<div id="message"></div>
+<script>
+'use strict';
+(() => {
+const BASE = location.pathname.replace(/[^/]*$/, '');
+const T = 256;
+const MAX_TILES = 160;
+const MAX_INFLIGHT = 4;
+const RETRY_MS = 8000;
+const POLL_MS = 2000;
+const MIN_ZOOM = -4;
+
+const $ = id => document.getElementById(id);
+const canvas = $('map'), ctx = canvas.getContext('2d', {alpha: false});
+const ui = {
+	search: $('search'), list: $('list'), level: $('level'), status: $('status'), readout: $('readout'),
+	scale: $('scale'), popup: $('popup'), help: $('help'), toast: $('toast'), message: $('message'),
+	follow: $('follow'),
+};
+
+let info = null, level = 0, W = 0, H = 0, dpr = 1;
+/** Blocks at the centre of the screen, and log2 of the blocks per CSS pixel. */
+const view = {x: 0, z: 0, zoom: 5};
+let revs = [];
+let player = null, spawn = null, follow = false;
+let mouse = null, marker = null, popupAt = null, fly = null;
+let drawQueued = false, hashTimer = 0;
+const tiles = new Map();
+const inflight = new Map();
+
+const lv = () => info.levels[level];
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const keyOf = (l, z, x, y) => `${l}/${z}/${x}/${y}`;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Tiles
+
+function decode(buf) {
+	const b = new Uint8Array(buf);
+	const P = T * T;
+	if (b.length !== 8 + 7 * P || b[0] !== 68 || b[1] !== 77 || b[2] !== 65 || b[3] !== 80 || b[4] !== 1) {
+		throw new Error('Not a tile');
+	}
+	const image = new ImageData(T, T), d = image.data;
+	for (let k = 0, o = 8 + 4 * P, p = 0; k < P; k++, o += 3, p += 4) {
+		d[p] = b[o]; d[p + 1] = b[o + 1]; d[p + 2] = b[o + 2]; d[p + 3] = 255;
+	}
+	const view16 = new DataView(buf, 8, 2 * P);
+	return {
+		flags: b[5], image,
+		ground: k => view16.getInt16(2 * k, true),
+		water: b.subarray(8 + 2 * P, 8 + 3 * P),
+		biome: b.subarray(8 + 3 * P, 8 + 4 * P),
+	};
+}
+
+function load(l, z, x, y) {
+	const key = keyOf(l, z, x, y);
+	const ctl = new AbortController();
+	inflight.set(key, ctl);
+	fetch(`${BASE}tile/${l}/${z}/${x}/${y}`, {signal: ctl.signal, cache: 'no-store'})
+		.then(r => {
+			if (r.status === 404) return null;
+			if (!r.ok) throw new Error(`HTTP ${r.status}`);
+			return r.arrayBuffer();
+		})
+		.then(async buf => {
+			const old = tiles.get(key);
+			if (!buf) {
+				tiles.set(key, {none: true, used: performance.now()});
+			} else {
+				const tile = decode(buf);
+				tile.bmp = await createImageBitmap(tile.image);
+				tile.image = null;
+				tile.used = performance.now();
+				tiles.set(key, tile);
+			}
+			if (old && old.bmp) old.bmp.close();
+			trim();
+			redraw();
+		})
+		.catch(e => {
+			if (e.name === 'AbortError') return;
+			const old = tiles.get(key);
+			if (old && old.bmp) {
+				old.retry = performance.now() + RETRY_MS;
+			} else {
+				tiles.set(key, {error: true, retry: performance.now() + RETRY_MS, used: performance.now()});
+			}
+			setTimeout(pump, RETRY_MS + 50);
+		})
+		.finally(() => {
+			if (inflight.get(key) === ctl) inflight.delete(key);
+			pump();
+		});
+}
+
+function trim() {
+	if (tiles.size <= MAX_TILES) return;
+	const sorted = [...tiles.entries()].sort((a, b) => a[1].used - b[1].used);
+	for (const [key, tile] of sorted.slice(0, tiles.size - MAX_TILES)) {
+		if (tile.bmp) tile.bmp.close();
+		tiles.delete(key);
+	}
+}
+
+/** The tile level drawn at the current zoom: about one tile pixel per device pixel. */
+function tileLevel() {
+	return Math.max(0, Math.min(lv().max, Math.round(view.zoom - Math.log2(dpr))));
+}
+
+function bounds() {
+	const bpp = 2 ** view.zoom;
+	return {x0: view.x - W / 2 * bpp, x1: view.x + W / 2 * bpp, z0: view.z - H / 2 * bpp, z1: view.z + H / 2 * bpp};
+}
+
+/** The tiles of level {@code z} on screen, nearest the centre first. */
+function visible(z) {
+	const span = T * 2 ** z, b = bounds(), border = lv().border;
+	const tx0 = Math.floor(Math.max(b.x0, -border) / span), tx1 = Math.floor(Math.min(b.x1, border) / span);
+	const ty0 = Math.floor(Math.max(b.z0, -border) / span), ty1 = Math.floor(Math.min(b.z1, border) / span);
+	const out = [];
+	for (let y = ty0; y <= ty1; y++) {
+		for (let x = tx0; x <= tx1; x++) {
+			const dx = (x + 0.5) * span - view.x, dz = (y + 0.5) * span - view.z;
+			out.push({z, x, y, d: dx * dx + dz * dz});
+		}
+	}
+	return out.sort((a, b) => a.d - b.d);
+}
+
+function wanted(tile, now) {
+	if (!tile) return true;
+	if (tile.retry && tile.retry > now) return false;
+	return tile.error || tile.stale || false;
+}
+
+/** Fetches the tiles the screen needs, a few at a time: a quick coarse overview first, then the detail. */
+function pump() {
+	if (!info) return;
+	const now = performance.now(), L = tileLevel(), l = level;
+	const list = [];
+	if (L <= lv().fine) {
+		// The tiles closer than the coarse map take a while: show the coarse ones meanwhile.
+		const over = Math.min(lv().max, lv().fine + 1);
+		for (const t of visible(over)) {
+			if (!covered(l, over, t.x, t.y)) list.push(t);
+		}
+	}
+	list.push(...visible(L));
+	const keep = new Set();
+	const todo = [];
+	for (const t of list) {
+		const key = keyOf(l, t.z, t.x, t.y);
+		keep.add(key);
+		if (!inflight.has(key) && wanted(tiles.get(key), now)) todo.push(t);
+	}
+	for (const [key, ctl] of inflight) {
+		if (!keep.has(key)) {
+			ctl.abort();
+			inflight.delete(key);
+		}
+	}
+	for (const t of todo) {
+		if (inflight.size >= MAX_INFLIGHT) break;
+		load(l, t.z, t.x, t.y);
+	}
+	const busy = inflight.size + Math.max(0, todo.length - MAX_INFLIGHT);
+	ui.status.style.display = busy ? 'block' : 'none';
+	ui.status.textContent = `Drawing ${busy} tile${busy === 1 ? '' : 's'}…`;
+}
+
+/** Whether a tile, or one coarser over it, is loaded. */
+function covered(l, z, x, y) {
+	for (let d = 0; z + d <= lv().max && d <= 8; d++) {
+		const t = tiles.get(keyOf(l, z + d, x >> d, y >> d));
+		if (t && (t.bmp || t.none)) return true;
+	}
+	return false;
+}
+
+/** Marks the tiles over a fine tile drawn since the page last asked, which now show it. */
+function changed(l, fine, max, list) {
+	for (const [fx, fy] of list) {
+		for (let z = fine + 1; z <= max; z++) {
+			const t = tiles.get(keyOf(l, z, fx >> (z - fine), fy >> (z - fine)));
+			if (t) t.stale = true;
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Drawing
+
+function redraw() {
+	if (!drawQueued) {
+		drawQueued = true;
+		requestAnimationFrame(draw);
+	}
+}
+
+function resize() {
+	dpr = window.devicePixelRatio || 1;
+	W = window.innerWidth;
+	H = window.innerHeight;
+	canvas.width = Math.round(W * dpr);
+	canvas.height = Math.round(H * dpr);
+	redraw();
+	pump();
+}
+
+function screenX(bx) { return (bx - view.x) / 2 ** view.zoom + W / 2; }
+function screenY(bz) { return (bz - view.z) / 2 ** view.zoom + H / 2; }
+
+function draw() {
+	drawQueued = false;
+	if (fly) step();
+	ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+	ctx.fillStyle = '#101316';
+	ctx.fillRect(0, 0, W, H);
+	if (!info) return;
+	const L = tileLevel(), now = performance.now();
+	for (const t of visible(L)) drawTile(L, t.x, t.y, now);
+	drawBorder();
+	drawMarkers();
+	if (popupAt) placePopup();
+	updateScale();
+	if (fly) redraw();
+}
+
+/** Draws a tile, or the closest tiles loaded in its place: a coarser one, cropped, under finer ones. */
+function drawTile(L, x, y, now) {
+	const l = level;
+	const own = tiles.get(keyOf(l, L, x, y));
+	if (own && own.bmp && !own.stale) {
+		blit(own, L, x, y, 0, 0, T, now);
+		return;
+	}
+	for (let d = 1; L + d <= lv().max && d <= 8; d++) {
+		const a = tiles.get(keyOf(l, L + d, x >> d, y >> d));
+		if (a && a.bmp) {
+			const size = T >> d;
+			blit(a, L, x, y, (x - ((x >> d) << d)) * size, (y - ((y >> d) << d)) * size, size, now);
+			break;
+		}
+	}
+	if (own && own.bmp) {
+		blit(own, L, x, y, 0, 0, T, now);
+		return;
+	}
+	if (L > 0) {
+		for (let q = 0; q < 4; q++) {
+			const cx = 2 * x + (q & 1), cy = 2 * y + (q >> 1);
+			const c = tiles.get(keyOf(l, L - 1, cx, cy));
+			if (c && c.bmp) blit(c, L - 1, cx, cy, 0, 0, T, now);
+		}
+	}
+}
+
+/** Draws the square {@code (sx, sy, size)} of a tile's image over tile {@code (x, y)} of level {@code L}. */
+function blit(tile, L, x, y, sx, sy, size, now) {
+	tile.used = now;
+	const span = T * 2 ** L;
+	const left = Math.round(screenX(x * span)), right = Math.round(screenX((x + 1) * span));
+	const top = Math.round(screenY(y * span)), bottom = Math.round(screenY((y + 1) * span));
+	ctx.imageSmoothingEnabled = (right - left) * dpr < size;
+	ctx.drawImage(tile.bmp, sx, sy, size, size, left, top, right - left, bottom - top);
+}
+
+function drawBorder() {
+	const border = lv().border;
+	const l = screenX(-border), r = screenX(border + 1), t = screenY(-border), b = screenY(border + 1);
+	ctx.strokeStyle = 'rgba(255, 90, 90, 0.7)';
+	ctx.lineWidth = 1;
+	ctx.strokeRect(l, t, r - l, b - t);
+}
+
+function drawMarkers() {
+	if (spawn && spawn.level === level) {
+		const x = screenX(spawn.x), y = screenY(spawn.z);
+		ctx.beginPath();
+		ctx.arc(x, y, 6, 0, 2 * Math.PI);
+		ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+		ctx.fill();
+		ctx.lineWidth = 2;
+		ctx.strokeStyle = '#d8a52a';
+		ctx.stroke();
+	}
+	if (marker) {
+		const x = screenX(marker.x + 0.5), y = screenY(marker.z + 0.5);
+		ctx.beginPath();
+		ctx.moveTo(x, y);
+		ctx.bezierCurveTo(x - 9, y - 12, x - 7, y - 22, x, y - 22);
+		ctx.bezierCurveTo(x + 7, y - 22, x + 9, y - 12, x, y);
+		ctx.fillStyle = '#ff5b5b';
+		ctx.fill();
+		ctx.lineWidth = 1.5;
+		ctx.strokeStyle = '#3a0d0d';
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.arc(x, y - 15, 3, 0, 2 * Math.PI);
+		ctx.fillStyle = '#3a0d0d';
+		ctx.fill();
+	}
+	if (player && player.level === level) {
+		const x = screenX(player.x), y = screenY(player.z);
+		// Minecraft's yaw: 0 faces south (+z), 90 west.
+		const a = player.yaw * Math.PI / 180, fx = -Math.sin(a), fz = Math.cos(a);
+		ctx.beginPath();
+		ctx.moveTo(x + fx * 12, y + fz * 12);
+		ctx.lineTo(x - fx * 7 + fz * 7, y - fz * 7 - fx * 7);
+		ctx.lineTo(x - fx * 3, y - fz * 3);
+		ctx.lineTo(x - fx * 7 - fz * 7, y - fz * 7 + fx * 7);
+		ctx.closePath();
+		ctx.fillStyle = '#6cc4ff';
+		ctx.fill();
+		ctx.lineWidth = 2;
+		ctx.strokeStyle = '#0b2233';
+		ctx.stroke();
+	}
+}
+
+function updateScale() {
+	const bpp = 2 ** view.zoom, target = 110 * bpp;
+	const pow = 10 ** Math.floor(Math.log10(target));
+	let blocks = pow;
+	for (const m of [1, 2, 5, 10]) if (m * pow <= target) blocks = m * pow;
+	const px = blocks / bpp;
+	const meters = blocks * lv().metersPerBlock;
+	const real = meters >= 1000 ? `${+(meters / 1000).toPrecision(3)} km` : `${fmt(meters)} m`;
+	ui.scale.firstChild.textContent = lv().metersPerBlock === 1 ? `${fmt(blocks)} blocks (${real})`
+		: `${fmt(blocks)} blocks · ${real} real`;
+	ui.scale.lastChild.style.width = `${Math.max(1, px)}px`;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Reading the map
+
+/** The column under a block from the finest tile loaded there, or null. */
+function sample(bx, bz) {
+	const L = tileLevel();
+	for (let z = Math.max(0, L - 1); z <= lv().max; z++) {
+		const span = T * 2 ** z;
+		const x = Math.floor(bx / span), y = Math.floor(bz / span);
+		const t = tiles.get(keyOf(level, z, x, y));
+		if (!t || !t.bmp) continue;
+		const px = Math.floor((bx - x * span) / 2 ** z), py = Math.floor((bz - y * span) / 2 ** z);
+		const k = py * T + px;
+		return {ground: t.ground(k), water: t.water[k], biome: t.biome[k], exact: z === 0, coarse: z > lv().fine && !(t.flags & 1)};
+	}
+	return null;
+}
+
+function biomeName(i) {
+	return i < lv().biomeNames.length ? lv().biomeNames[i] : '';
+}
+
+function showReadout() {
+	if (!mouse || !info) {
+		ui.readout.textContent = '';
+		return;
+	}
+	const bx = Math.floor(view.x + (mouse.x - W / 2) * 2 ** view.zoom);
+	const bz = Math.floor(view.z + (mouse.y - H / 2) * 2 ** view.zoom);
+	const s = sample(bx, bz);
+	let text = `X ${fmt(bx)}   Z ${fmt(bz)}`;
+	if (Math.abs(bx) > lv().border || Math.abs(bz) > lv().border) {
+		text += '   beyond the world border';
+	} else if (s) {
+		text += `   Y ${s.exact ? '' : '≈ '}${fmt(s.ground)}`;
+		// The tiles hold at most 255 blocks of water; the popup reads the full depth.
+		if (s.water) text += `   ${fmt(s.water)}${s.water === 255 ? '+' : ''} deep`;
+		const name = biomeName(s.biome);
+		if (name) text += `   ${name}`;
+		if (s.coarse) text += '   (coarse)';
+	}
+	ui.readout.textContent = text;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The place popup
+
+let point = null;
+
+function openPopup(bx, bz) {
+	marker = {x: bx, z: bz};
+	popupAt = {x: bx + 0.5, z: bz + 0.5};
+	point = null;
+	ui.popup.style.display = 'block';
+	ui.popup.querySelector('.coords').textContent = `X ${fmt(bx)}   Z ${fmt(bz)}`;
+	ui.popup.querySelector('.info').textContent = 'Reading the terrain…';
+	setCopyEnabled(false);
+	const l = level;
+	fetch(`${BASE}api/point?level=${l}&x=${bx}&z=${bz}`, {cache: 'no-store'})
+		.then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+		.then(p => {
+			if (!marker || marker.x !== bx || marker.z !== bz || l !== level) return;
+			if (p.ground === undefined) {
+				ui.popup.querySelector('.info').textContent = 'Beyond the world border';
+				return;
+			}
+			const standY = p.ground + p.water + 1;
+			point = {x: bx, y: standY, z: bz};
+			ui.popup.querySelector('.coords').textContent = `X ${fmt(bx)}   Y ${fmt(standY)}   Z ${fmt(bz)}`;
+			const name = biomeName(p.biome);
+			ui.popup.querySelector('.info').textContent = (name ? name : 'Unknown biome')
+				+ (p.water ? ` · ${fmt(p.water)} blocks of water` : '') + ` · ground at Y ${fmt(p.ground)}`;
+			setCopyEnabled(true);
+		})
+		.catch(() => {
+			if (marker && marker.x === bx && marker.z === bz) {
+				ui.popup.querySelector('.info').textContent = 'Could not read the terrain here';
+				point = null;
+				setCopyEnabled(true);
+			}
+		});
+	redraw();
+}
+
+function setCopyEnabled(on) {
+	for (const b of ui.popup.querySelectorAll('[data-copy]')) {
+		b.disabled = !on && b.dataset.copy !== 'xz';
+	}
+}
+
+function closePopup() {
+	ui.popup.style.display = 'none';
+	popupAt = null;
+	marker = null;
+	redraw();
+}
+
+function placePopup() {
+	const x = screenX(popupAt.x), y = screenY(popupAt.z);
+	const w = ui.popup.offsetWidth, h = ui.popup.offsetHeight;
+	let left = x + 14, top = y - h - 14;
+	if (left + w > W - 8) left = x - w - 14;
+	if (top < 8) top = y + 14;
+	ui.popup.style.left = `${Math.max(8, Math.min(W - w - 8, left))}px`;
+	ui.popup.style.top = `${Math.max(8, Math.min(H - h - 8, top))}px`;
+}
+
+function copy(text) {
+	const done = () => toast(`Copied ${text}`);
+	if (navigator.clipboard && window.isSecureContext) {
+		navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+	} else {
+		fallbackCopy(text, done);
+	}
+}
+
+function fallbackCopy(text, done) {
+	const area = document.createElement('textarea');
+	area.value = text;
+	area.style.position = 'fixed';
+	area.style.opacity = '0';
+	document.body.appendChild(area);
+	area.select();
+	try {
+		if (document.execCommand('copy')) done();
+		else toast('Select and copy: ' + text);
+	} catch (e) {
+		toast('Select and copy: ' + text);
+	}
+	area.remove();
+}
+
+let toastTimer = 0;
+function toast(text) {
+	ui.toast.textContent = text;
+	ui.toast.style.display = 'block';
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(() => ui.toast.style.display = 'none', 1800);
+}
+
+ui.popup.addEventListener('click', e => {
+	const b = e.target.closest('button');
+	if (!b) return;
+	if (b.classList.contains('close')) {
+		closePopup();
+		return;
+	}
+	const kind = b.dataset.copy;
+	if (kind === 'xz' && marker) copy(`${marker.x} ${marker.z}`);
+	else if (kind === 'xyz' && point) copy(`${point.x} ${point.y} ${point.z}`);
+	else if (kind === 'tp' && point) copy(`/tp @s ${point.x} ${point.y} ${point.z}`);
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Moving around
+
+function clampView() {
+	const border = lv().border;
+	view.zoom = Math.max(MIN_ZOOM, Math.min(lv().max + 1, view.zoom));
+	view.x = Math.max(-border, Math.min(border, view.x));
+	view.z = Math.max(-border, Math.min(border, view.z));
+}
+
+function moved() {
+	clampView();
+	redraw();
+	pump();
+	showReadout();
+	clearTimeout(hashTimer);
+	hashTimer = setTimeout(writeHash, 250);
+}
+
+function zoomAt(sx, sy, zoom) {
+	fly = null;
+	const old = 2 ** view.zoom;
+	const bx = view.x + (sx - W / 2) * old, bz = view.z + (sy - H / 2) * old;
+	view.zoom = Math.max(MIN_ZOOM, Math.min(lv().max + 1, zoom));
+	const now = 2 ** view.zoom;
+	view.x = bx - (sx - W / 2) * now;
+	view.z = bz - (sy - H / 2) * now;
+	moved();
+}
+
+function flyTo(x, z, zoom) {
+	fly = {from: {...view}, to: {x, z, zoom: zoom === undefined ? view.zoom : zoom}, start: performance.now()};
+	redraw();
+}
+
+function step() {
+	const t = Math.min(1, (performance.now() - fly.start) / 450), e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+	view.x = fly.from.x + (fly.to.x - fly.from.x) * e;
+	view.z = fly.from.z + (fly.to.z - fly.from.z) * e;
+	view.zoom = fly.from.zoom + (fly.to.zoom - fly.from.zoom) * e;
+	if (t >= 1) fly = null;
+	moved();
+}
+
+function setFollow(on) {
+	follow = on;
+	ui.follow.classList.toggle('on', on);
+	if (on && player && player.level === level) flyTo(player.x, player.z);
+}
+
+const pointers = new Map();
+let drag = null, pinch = null;
+
+canvas.addEventListener('pointerdown', e => {
+	canvas.setPointerCapture(e.pointerId);
+	pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+	if (pointers.size === 1) {
+		drag = {x: e.clientX, y: e.clientY, vx: view.x, vz: view.z, moved: false};
+	} else if (pointers.size === 2) {
+		const [a, b] = [...pointers.values()];
+		pinch = {d: Math.hypot(a.x - b.x, a.y - b.y), zoom: view.zoom};
+		drag = null;
+	}
+});
+
+canvas.addEventListener('pointermove', e => {
+	mouse = {x: e.clientX, y: e.clientY};
+	if (pointers.has(e.pointerId)) pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+	if (pinch && pointers.size === 2) {
+		const [a, b] = [...pointers.values()];
+		const d = Math.hypot(a.x - b.x, a.y - b.y);
+		if (d > 0) zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, pinch.zoom - Math.log2(d / pinch.d));
+	} else if (drag) {
+		const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+		if (!drag.moved && Math.hypot(dx, dy) > 4) {
+			drag.moved = true;
+			canvas.classList.add('dragging');
+			fly = null;
+			if (follow) setFollow(false);
+		}
+		if (drag.moved) {
+			view.x = drag.vx - dx * 2 ** view.zoom;
+			view.z = drag.vz - dy * 2 ** view.zoom;
+			moved();
+		}
+	} else {
+		showReadout();
+	}
+});
+
+function release(e) {
+	pointers.delete(e.pointerId);
+	if (pointers.size < 2) pinch = null;
+	if (drag && !drag.moved && e.type === 'pointerup') {
+		const bx = Math.floor(view.x + (e.clientX - W / 2) * 2 ** view.zoom);
+		const bz = Math.floor(view.z + (e.clientY - H / 2) * 2 ** view.zoom);
+		openPopup(bx, bz);
+	}
+	drag = null;
+	canvas.classList.remove('dragging');
+}
+
+canvas.addEventListener('pointerup', release);
+canvas.addEventListener('pointercancel', release);
+canvas.addEventListener('pointerleave', () => {
+	mouse = null;
+	showReadout();
+});
+
+canvas.addEventListener('wheel', e => {
+	e.preventDefault();
+	fly = null;
+	const delta = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+	zoomAt(e.clientX, e.clientY, view.zoom + Math.max(-1, Math.min(1, delta * 0.0025)));
+}, {passive: false});
+
+document.addEventListener('keydown', e => {
+	if (e.target === ui.search) {
+		searchKey(e);
+		return;
+	}
+	if (e.ctrlKey || e.metaKey || e.altKey) return;
+	const pan = Math.min(W, H) / 5 * 2 ** view.zoom;
+	switch (e.key) {
+		case 'ArrowLeft': case 'a': case 'A': view.x -= pan; break;
+		case 'ArrowRight': case 'd': case 'D': view.x += pan; break;
+		case 'ArrowUp': case 'w': case 'W': view.z -= pan; break;
+		case 'ArrowDown': case 's': case 'S': view.z += pan; break;
+		case '+': case '=': zoomAt(W / 2, H / 2, Math.round(view.zoom) - 1); return;
+		case '-': case '_': zoomAt(W / 2, H / 2, Math.round(view.zoom) + 1); return;
+		case '/': e.preventDefault(); ui.search.focus(); ui.search.select(); return;
+		case 'p': case 'P': centreOnPlayer(); return;
+		case 'f': case 'F': setFollow(!follow); return;
+		case '?': toggleHelp(); return;
+		case 'Escape': closePopup(); ui.help.style.display = 'none'; return;
+		default: return;
+	}
+	e.preventDefault();
+	if (follow) setFollow(false);
+	moved();
+});
+
+$('in').addEventListener('click', () => zoomAt(W / 2, H / 2, Math.round(view.zoom) - 1));
+$('out').addEventListener('click', () => zoomAt(W / 2, H / 2, Math.round(view.zoom) + 1));
+$('me').addEventListener('click', centreOnPlayer);
+ui.follow.addEventListener('click', () => setFollow(!follow));
+$('helpButton').addEventListener('click', toggleHelp);
+
+function toggleHelp() {
+	ui.help.style.display = ui.help.style.display === 'block' ? 'none' : 'block';
+}
+
+function centreOnPlayer() {
+	if (player && player.level === level) {
+		flyTo(player.x, player.z);
+	} else if (player) {
+		setLevel(player.level);
+		flyTo(player.x, player.z);
+	} else {
+		toast(info && info.player ? 'You are not in the game' : 'This map belongs to the server console');
+	}
+}
+
+window.addEventListener('resize', resize);
+
+// ---------------------------------------------------------------------------------------------------------------
+// Search
+
+let choices = [], chosen = -1;
+
+ui.search.addEventListener('input', suggest);
+ui.search.addEventListener('focus', suggest);
+
+function suggest() {
+	const q = ui.search.value.trim().toLowerCase();
+	choices = [];
+	chosen = -1;
+	if (q && !/^[-+\d\s,.]+$/.test(q)) {
+		const names = lv().biomeNames;
+		names.forEach((name, i) => {
+			const at = name.toLowerCase().indexOf(q), id = lv().biomes[i];
+			if (at >= 0 || id.includes(q)) choices.push({i, name, id, rank: at === 0 ? 0 : at > 0 ? 1 : 2});
+		});
+		choices.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
+		choices = choices.slice(0, 12);
+	}
+	ui.list.replaceChildren(...choices.map((c, n) => {
+		const li = document.createElement('li');
+		li.setAttribute('role', 'option');
+		li.innerHTML = '<span></span><span class="dim"></span>';
+		li.firstChild.textContent = c.name;
+		li.lastChild.textContent = c.id.startsWith('diffusicraft:') ? '' : c.id.split(':')[0];
+		li.addEventListener('mousedown', ev => {
+			ev.preventDefault();
+			findBiome(c);
+		});
+		return li;
+	}));
+}
+
+function searchKey(e) {
+	if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+		e.preventDefault();
+		if (!choices.length) return;
+		chosen = (chosen + (e.key === 'ArrowDown' ? 1 : choices.length - 1)) % choices.length;
+		[...ui.list.children].forEach((li, n) => li.classList.toggle('sel', n === chosen));
+	} else if (e.key === 'Enter') {
+		e.preventDefault();
+		go(ui.search.value.trim());
+	} else if (e.key === 'Escape') {
+		ui.list.replaceChildren();
+		ui.search.blur();
+	}
+}
+
+function go(q) {
+	const lower = q.toLowerCase();
+	const numbers = q.match(/^\s*([-+]?\d+(?:\.\d+)?)[\s,]+([-+]?\d+(?:\.\d+)?)(?:[\s,]+([-+]?\d+(?:\.\d+)?))?\s*$/);
+	if (numbers) {
+		const x = Math.floor(+numbers[1]), z = Math.floor(+(numbers[3] !== undefined ? numbers[3] : numbers[2]));
+		ui.list.replaceChildren();
+		ui.search.blur();
+		flyTo(x + 0.5, z + 0.5);
+		openPopup(x, z);
+	} else if (lower === 'me' || lower === 'player' || lower === 'you') {
+		ui.list.replaceChildren();
+		ui.search.blur();
+		centreOnPlayer();
+	} else if (lower === 'spawn') {
+		ui.list.replaceChildren();
+		ui.search.blur();
+		if (spawn) {
+			if (spawn.level !== level && spawn.level >= 0) setLevel(spawn.level);
+			flyTo(spawn.x, spawn.z);
+		}
+	} else if (choices.length) {
+		findBiome(choices[Math.max(0, chosen)]);
+	} else if (q) {
+		note('No biome or place by that name');
+	}
+}
+
+function note(text) {
+	const li = document.createElement('li');
+	li.className = 'note';
+	li.textContent = text;
+	ui.list.replaceChildren(li);
+}
+
+let searchId = 0;
+function findBiome(c) {
+	ui.search.value = c.name;
+	note(`Looking for ${c.name}…`);
+	const id = ++searchId, l = level, x = Math.round(view.x), z = Math.round(view.z);
+	fetch(`${BASE}api/search?level=${l}&biome=${c.i}&x=${x}&z=${z}`, {cache: 'no-store'})
+		.then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+		.then(result => {
+			if (id !== searchId) return;
+			if (!result.places.length) {
+				note(`No ${c.name} found near here on the coarse map`);
+				return;
+			}
+			ui.list.replaceChildren(...result.places.map(p => {
+				const li = document.createElement('li');
+				const dx = p.x - x, dz = p.z - z, blocks = Math.hypot(dx, dz);
+				const meters = blocks * lv().metersPerBlock;
+				const dir = blocks < 1 ? 'here' : direction(dx, dz);
+				li.innerHTML = '<span></span><span class="dim"></span>';
+				li.firstChild.textContent = `${c.name} · ${fmt(blocks)} blocks ${dir}`;
+				li.lastChild.textContent = `${fmt(p.x)}, ${fmt(p.z)}`;
+				li.title = meters >= 1000 ? `${+(meters / 1000).toPrecision(3)} km real` : `${fmt(meters)} m real`;
+				li.addEventListener('mousedown', ev => {
+					ev.preventDefault();
+					flyTo(p.x + 0.5, p.z + 0.5);
+					openPopup(p.x, p.z);
+				});
+				return li;
+			}));
+			const first = result.places[0];
+			flyTo(first.x + 0.5, first.z + 0.5);
+			openPopup(first.x, first.z);
+		})
+		.catch(() => {
+			if (id === searchId) note('The search failed');
+		});
+}
+
+function direction(dx, dz) {
+	const names = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+	const a = Math.atan2(dz, dx) / (Math.PI / 4);
+	return names[((Math.round(a) % 8) + 8) % 8];
+}
+
+document.addEventListener('pointerdown', e => {
+	if (!e.target.closest('#top')) ui.list.replaceChildren();
+	if (!e.target.closest('#help') && !e.target.closest('#helpButton')) ui.help.style.display = 'none';
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Levels, the hash and the game's state
+
+function setLevel(l) {
+	if (l === level || l < 0 || l >= info.levels.length) return;
+	level = l;
+	ui.level.value = String(l);
+	for (const [, ctl] of inflight) ctl.abort();
+	inflight.clear();
+	closePopup();
+	moved();
+}
+
+ui.level.addEventListener('change', () => setLevel(+ui.level.value));
+
+function writeHash() {
+	const hash = `#${lv().id}/${Math.round(view.x)}/${Math.round(view.z)}/${view.zoom.toFixed(2)}`;
+	if (location.hash !== hash) history.replaceState(null, '', hash);
+}
+
+/** Reads {@code #<level>/<x>/<z>[/<zoom>]}; false if there is none. */
+function readHash() {
+	const parts = decodeURIComponent(location.hash.slice(1)).split('/');
+	if (parts.length < 3) return false;
+	const l = info.levels.findIndex(v => v.id === parts[0]);
+	const x = +parts[1], z = +parts[2], zoom = parts.length > 3 ? +parts[3] : NaN;
+	if (l < 0 || !isFinite(x) || !isFinite(z)) return false;
+	level = l;
+	ui.level.value = String(l);
+	view.x = x + 0.5;
+	view.z = z + 0.5;
+	if (isFinite(zoom)) view.zoom = zoom;
+	moved();
+	return true;
+}
+
+window.addEventListener('hashchange', () => {
+	if (info) readHash();
+});
+
+let polling = false;
+async function poll() {
+	if (polling) return;
+	polling = true;
+	try {
+		const r = await fetch(`${BASE}api/state?since=${revs.join(',')}`, {cache: 'no-store'});
+		if (r.status === 404) {
+			gone();
+			return;
+		}
+		if (!r.ok) return;
+		const state = await r.json();
+		state.levels.forEach((s, l) => {
+			if (revs[l] !== undefined && s.rev !== revs[l]) {
+				const v = info.levels[l];
+				if (s.all) {
+					for (const [key, t] of tiles) {
+						const p = key.split('/');
+						if (+p[0] === l && +p[1] > v.fine) t.stale = true;
+					}
+				} else {
+					changed(l, v.fine, v.max, s.tiles);
+				}
+			}
+			revs[l] = s.rev;
+		});
+		player = state.player;
+		spawn = state.spawn;
+		if (follow && player && player.level === level) {
+			view.x = player.x;
+			view.z = player.z;
+			moved();
+		}
+		redraw();
+		pump();
+	} catch (e) {
+		// The game may be busy or closed: try again later.
+	} finally {
+		polling = false;
+	}
+}
+
+function gone() {
+	ui.message.style.display = 'grid';
+	ui.message.textContent = 'This map closed with the world. Run /diffusicraft map in the game for a new link.';
+	clearInterval(pollTimer);
+}
+
+let pollTimer = 0;
+async function start() {
+	resize();
+	try {
+		const r = await fetch(`${BASE}api/info`, {cache: 'no-store'});
+		if (r.status === 404) {
+			gone();
+			return;
+		}
+		info = await r.json();
+	} catch (e) {
+		ui.message.style.display = 'grid';
+		ui.message.textContent = 'Could not reach the game. Is the world still open?';
+		return;
+	}
+	if (info.levels.length > 1) {
+		ui.level.hidden = false;
+		info.levels.forEach((v, l) => {
+			const option = document.createElement('option');
+			option.value = String(l);
+			option.textContent = v.id.replace(/^minecraft:/, '').replace(/[_:]/g, ' ');
+			ui.level.appendChild(option);
+		});
+	}
+	if (!info.player) {
+		$('me').hidden = true;
+		ui.follow.hidden = true;
+	}
+	view.zoom = lv().fine + Math.log2(dpr);
+	const fromHash = readHash();
+	await poll();
+	if (!fromHash) {
+		const at = player && player.level >= 0 ? player : spawn && spawn.level >= 0 ? spawn : null;
+		if (at) {
+			level = at.level;
+			view.x = at.x;
+			view.z = at.z;
+		}
+		view.zoom = lv().fine + Math.log2(dpr);
+		moved();
+	}
+	pollTimer = setInterval(poll, POLL_MS);
+	document.addEventListener('visibilitychange', () => {
+		if (!document.hidden) poll();
+	});
+}
+
+start();
+})();
+</script>
+</body>
+</html>
