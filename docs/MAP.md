@@ -116,3 +116,13 @@ a file of the same name with `.stop` appended appears, or for 25 minutes:
 ```bash
 ./gradlew test --tests '*MapPagePreview' -Pdiffusicraft.mapPreview=/tmp/map-url
 ```
+
+To check it against a real world, run `ReliefMapGameTest` (it needs the models). It asks for the player's link as the
+pause menu's button does, without opening a browser, then fetches the page, the levels and the tiles around the
+player, and saves their colours as `diffusicraft-map-coarse.png` and `-fine.png`. With
+`-Pdiffusicraft.mapLink=<file>` it writes the link to that file and keeps the world open until the `.stop` file
+appears, or for 20 minutes, so that the page can be opened on a world the models drew:
+
+```bash
+env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x24" ./gradlew runClientGameTest -PnoDevMods -Pdiffusicraft.gametests=ReliefMap -Pdiffusicraft.mapLink=/tmp/map-url
+```

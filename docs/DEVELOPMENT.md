@@ -118,6 +118,11 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   foot while the chunks tick. It saves a view of each area it visits until one has falls, and of the tallest falls
   from the front and the side (`diffusicraft-world-waterfall-front.png`, `-side.png`). It fails if none of the three
   areas has a waterfall. It needs the models.
+- [`ReliefMapGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ReliefMapGameTest.java)
+  creates a Medium world and checks its relief map without the pause menu's button, which would open a browser: the
+  player's link, the page, the levels and the tiles around the player, coarse and in detail, whose colours it saves
+  (`diffusicraft-map-coarse.png`, `-fine.png`). `-Pdiffusicraft.mapLink=<file>` keeps the world open for a browser.
+  See [MAP.md](MAP.md#working-on-the-page). It needs the models.
 - [`TreesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TreesGameTest.java) plants three of
   each of Diffusicraft's trees on a superflat world, the giants too, in the biome each grows in, and saves a view of
   each (`diffusicraft-world-tree-<name>.png`). The giants grow twice, at their full height and as in a Vanilla world
