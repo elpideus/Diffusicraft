@@ -11,6 +11,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -33,6 +34,12 @@ final class GiantTree {
 	private static final double TWIGGED = 3.5;
 	/** Share of the blocks of a clump's outer part that hold leaves, which makes its edge ragged. */
 	private static final double RAGGED = 0.7;
+	/** The widest a broad crown's clumps grow, as a share of their usual width. */
+	private static final double WIDEST = 1.1;
+	/** How far apart a broad crown's clumps lie, in their widths: near enough to close the crown, with a gap here and there. */
+	private static final double SPACING = 1.4;
+	/** The golden angle, which spreads points evenly around a circle, one after another. */
+	private static final double GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 	/**
 	 * How fast the giants shrink with the world: each halving of its size takes this power of two off their height,
 	 * about a sixth, so that at 1:32 they stand at 42% of their height at 1:1. The land shrinks some sixteen times
@@ -56,6 +63,18 @@ final class GiantTree {
 	/** The share of their height at 1:1 that the giants grow to in a world of {@code scale}. */
 	static double size(WorldScale scale) {
 		return Math.pow(scale.ratio(), -SHRINK);
+	}
+
+	/**
+	 * How far out a giant of {@code form}, {@code height} blocks tall, spreads its crown where it has the room: the
+	 * redwoods as far as a feature may write, the oaks to six tenths of their height and the kapoks to a third.
+	 */
+	static int reach(GiantTreeFeature.Form form, int height) {
+		return switch (form) {
+			case REDWOOD -> MAX_REACH;
+			case OAK -> (int) Math.round(height * 0.6);
+			case KAPOK -> (int) Math.round(height * 0.32);
+		};
 	}
 
 	/** Plans a tree of {@code form} about {@code height} blocks tall, none of it farther than {@code reach} out. */
@@ -164,75 +183,204 @@ final class GiantTree {
 	}
 
 	/**
-	 * An ancient oak: a short, massive trunk that forks into great limbs, under a broad dome of clumps of leaves. The
-	 * lower limbs reach out wide and nearly level, the upper ones climb steeply into the top of the dome, and a few
-	 * long ones reach out low under it.
+	 * An ancient oak, as one grows in the open: a short, massive trunk that forks low into great limbs, which rise
+	 * steeply and then reach out nearly level, under a broad, lumpy dome wider than it is tall, open inside, so that
+	 * the limbs show from under it. A few long limbs reach out low under the dome.
 	 */
 	private void oak(int height) {
-		double foot = 1.5 + height / 38.0;
-		int fork = (int) (height * (0.25 + 0.08 * random.nextDouble()));
-		trunk(fork + 2, foot, foot * 0.65, 1, 5, foot * 0.6, 3 + foot);
-		double crown = Math.min(7, 4 + height / 25.0);
-		double widest = reach - crown - 0.5;
-		double domeTop = height - crown * 0.6;
-		double turn = random.nextDouble() * Math.PI * 2;
-		// The lower tier, out to the edge of the dome.
-		int lower = 5 + random.nextInt(2);
-		for (int l = 0; l < lower; l++) {
-			double angle = turn + (l + 0.3 * random.nextDouble()) * Math.PI * 2 / lower;
-			double rise = fork + (domeTop - fork) * (0.25 + 0.25 * random.nextDouble());
-			double[] end = branchOut(angle, fork - 1, foot * 0.5, widest * (0.8 + 0.2 * random.nextDouble()), rise,
-				crown);
-			clump(end[0], end[1], end[2], crown, crown * 0.7);
-		}
-		// The upper tier, between the lower limbs and up into the top of the dome.
-		double[] leader = segment(new double[]{0, fork, 0}, 0, 0, domeTop - fork, foot * 0.45, 0.8);
-		clump(leader[0], leader[1], leader[2], crown, crown * 0.7);
-		int upper = 3 + random.nextInt(3);
-		for (int l = 0; l < upper; l++) {
-			double angle = turn + (l + 0.5 + 0.3 * random.nextDouble()) * Math.PI * 2 / upper;
-			double from = fork + (domeTop - fork) * (0.15 + 0.2 * random.nextDouble());
-			double rise = from + (domeTop - from) * (0.7 + 0.3 * random.nextDouble());
-			double[] end = branchOut(angle, from, foot * 0.35, widest * (0.4 + 0.25 * random.nextDouble()), rise,
-				crown);
-			clump(end[0], end[1], end[2], crown, crown * 0.7);
-		}
-		// Low limbs, reaching out nearly level under the dome.
-		for (int l = random.nextInt(3); l > 0; l--) {
+		double foot = 1.5 + height / 24.0;
+		int fork = (int) (height * (0.18 + 0.08 * random.nextDouble()));
+		trunk(fork + 2, foot, foot * 0.7, 1, 5, foot * 0.6, 3 + foot);
+		double clump = Math.min(Math.clamp(2.5 + height / 25.0, 3, 5.5), reach / 4.0);
+		double tall = clump * 0.7;
+		double centre = height * (0.48 + 0.07 * random.nextDouble());
+		double out = reach - clump * WIDEST - 0.5;
+		broadCrown(centre, out, height - tall - 1 - centre, Math.sin(Math.toRadians(-25)), clump, tall, fork,
+			foot * 0.7 * 0.65, 5 + random.nextInt(3), 0.3, 0.85, Math.sin(Math.toRadians(60)));
+		// On a large one, low limbs reaching out nearly level under the dome, rising a little at their ends, which
+		// alone bear leaves.
+		for (int l = height < 40 ? 0 : random.nextInt(3); l > 0; l--) {
 			double angle = random.nextDouble() * Math.PI * 2;
-			double y = fork * (0.6 + 0.25 * random.nextDouble());
-			double small = crown * 0.75;
-			double out = reach - small - 0.5;
-			double[] end = limb(angle, y, radius(y, fork + 2, foot, foot * 0.65, 1), out,
-				y + out * (0.15 + 0.2 * random.nextDouble()), foot * 0.3, 0.5);
-			clump(end[0], end[1], end[2], small, small * 0.6);
-			clump(Math.cos(angle) * out * 0.6, end[1] - 1, Math.sin(angle) * out * 0.6, small * 0.8, small * 0.5);
+			double y = fork * (0.55 + 0.25 * random.nextDouble());
+			double far = out * (0.8 + 0.15 * random.nextDouble());
+			double[] end = {Math.cos(angle) * far, y + far * (0.05 + 0.15 * random.nextDouble()), Math.sin(angle) * far};
+			double[] control = {end[0] * 0.5, y + (end[1] - y) * 0.2, end[2] * 0.5};
+			double[][] along = curve(new double[]{0, y, 0}, control, end, foot * 0.35, 0.6);
+			for (int i = (int) Math.ceil((along.length - 1) * 0.7); i < along.length; i++) {
+				double[] at = along[i];
+				double size = i == along.length - 1 ? clump * 0.9 : clump * 0.7;
+				clump(at[0], at[1], at[2], size, size * 0.6);
+			}
 		}
 	}
 
 	/**
 	 * A kapok, the emergent of the rainforest: a pale, unbranched column on great plank buttresses, rising over the
-	 * canopy to a flat umbrella of near-level limbs.
+	 * canopy to a broad, flat umbrella on limbs that leave the trunk nearly level and climb toward their ends.
 	 */
 	private void kapok(int height) {
 		double foot = 1.3 + height / 55.0;
 		int crownBase = (int) (height * (0.72 + 0.08 * random.nextDouble()));
 		trunk(crownBase + 2, foot, foot * 0.7, 1, 0, 0, 0);
 		buttresses(4 + random.nextInt(3), foot, 3 + height / 22.0, 4 + height * 0.1);
-		double crown = 5 + random.nextDouble();
-		int limbs = 6 + random.nextInt(3);
+		double clump = Math.min(4 + random.nextDouble(), reach / 4.0);
+		double tall = Math.max(2, clump * 0.5);
+		double centre = crownBase + (height - crownBase) * 0.45;
+		double out = reach - clump * WIDEST - 0.5;
+		broadCrown(centre, out, height - tall - 1 - centre, Math.sin(Math.toRadians(-20)), clump, tall, crownBase,
+			foot * 0.7 * 0.65, 6 + random.nextInt(3), 0.6, 0.2, Math.sin(Math.toRadians(65)));
+	}
+
+	/**
+	 * A broad crown: clumps of leaves {@code clump} blocks wide and {@code tall} high, spread evenly over the shell of a
+	 * spheroid around the trunk's axis, {@code out} blocks in radius at its widest, at height {@code centre}, and
+	 * {@code up} blocks from there to its top, from the latitude whose sine is {@code lowest} up. Inside, it is open.
+	 *
+	 * <p>{@code limbs} limbs, {@code thick} blocks in radius, leave the trunk's axis at {@code fromY}, one to each side
+	 * of the crown, and a leader to the clumps over the latitude whose sine is {@code cap}. Each runs along a curve to a
+	 * point a little more than halfway to its clumps, pulled out by {@code bendOut} and up by {@code bendUp} of the way
+	 * at its start: an oak's rise steeply and then reach out, a kapok's reach out and then rise. There it forks into
+	 * branches, one to each group of a few clumps, which carry a smaller clump at their ends and twigs to the clumps.
+	 */
+	private void broadCrown(double centre, double out, double up, double lowest, double clump, double tall,
+							double fromY, double thick, int limbs, double bendOut, double bendUp, double cap) {
+		List<double[]> points = shell(centre, out, up, lowest, clump * SPACING);
 		double turn = random.nextDouble() * Math.PI * 2;
-		double flat = 0.7 * (height - crownBase);
+		double[] angles = new double[limbs];
 		for (int l = 0; l < limbs; l++) {
-			double angle = turn + (l + 0.4 * random.nextDouble()) * Math.PI * 2 / limbs;
-			double out = (reach - crown - 0.5) * (0.7 + 0.3 * random.nextDouble());
-			double rise = crownBase + flat * (0.6 + 0.3 * random.nextDouble());
-			double[] end = branchOut(angle, crownBase, foot * 0.45, out, rise, crown);
-			clump(end[0], end[1], end[2], crown, crown * 0.5);
+			angles[l] = turn + (l + 0.3 * random.nextDouble()) * Math.PI * 2 / limbs;
 		}
-		// The leader, up to the middle of the umbrella.
-		double[] leader = segment(new double[]{0, crownBase + 2, 0}, 0, 0, flat - 2, foot * 0.4, 0.8);
-		clump(leader[0], leader[1], leader[2], crown + 2, 3);
+		// Each clump to the limb on its side, or to the leader over the cap.
+		List<List<double[]>> sides = new ArrayList<>();
+		for (int l = 0; l <= limbs; l++) {
+			sides.add(new ArrayList<>());
+		}
+		for (double[] point : points) {
+			int side = limbs;
+			if ((point[1] - centre) / up <= cap) {
+				double angle = Math.atan2(point[2], point[0]);
+				double best = Double.MAX_VALUE;
+				for (int l = 0; l < limbs; l++) {
+					double apart = Math.abs(Math.IEEEremainder(angle - angles[l], Math.PI * 2));
+					if (apart < best) {
+						best = apart;
+						side = l;
+					}
+				}
+			}
+			sides.get(side).add(point);
+		}
+		double[] start = {0, fromY, 0};
+		for (List<double[]> side : sides) {
+			if (side.isEmpty()) {
+				continue;
+			}
+			double[] mid = centroid(side);
+			double[] fork = {mid[0] * 0.55, fromY + (mid[1] - fromY) * 0.75, mid[2] * 0.55};
+			double[] control = {fork[0] * bendOut, fromY + (fork[1] - fromY) * bendUp, fork[2] * bendOut};
+			curve(start, control, fork, thick, thick * 0.6);
+			for (List<double[]> group : groups(side, Math.max(1, Math.round(side.size() / 5f)))) {
+				double[] node = between(fork, centroid(group), 0.6);
+				double[] arch = between(fork, node, 0.5);
+				arch[1] += distance(fork, node) * 0.15;
+				curve(fork, arch, node, thick * 0.6, Math.max(0.5, thick * 0.35));
+				clump(node[0], node[1], node[2], clump * 0.75, tall * 0.8);
+				for (double[] point : group) {
+					line(node, point, 0.6, 0);
+					clump(point[0], point[1], point[2], clump * (0.9 + (WIDEST - 0.9) * random.nextDouble()), tall);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Points spread over the shell of a spheroid, as {@link #broadCrown} describes it, none nearer each other than
+	 * {@code spacing} and leaving no gap wider: candidates evenly over a sphere, mapped onto the spheroid, and taken in
+	 * a random order where they keep their distance. Each then sinks a little into the shell, which makes it lumpy.
+	 */
+	private List<double[]> shell(double centre, double out, double up, double lowest, double spacing) {
+		double mean = (2 * out + up) / 3;
+		double area = 2 * Math.PI * mean * mean * (1 - lowest);
+		int count = Math.max(64, (int) (8 * area / (spacing * spacing)));
+		double turn = random.nextDouble() * Math.PI * 2;
+		List<double[]> candidates = new ArrayList<>(count);
+		for (int i = 0; i < count; i++) {
+			double sin = lowest + (1 - lowest) * (i + 0.5) / count;
+			double cos = Math.sqrt(1 - sin * sin);
+			double angle = turn + i * GOLDEN_ANGLE;
+			candidates.add(new double[]{Math.cos(angle) * cos * out, centre + sin * up, Math.sin(angle) * cos * out});
+		}
+		for (int i = candidates.size() - 1; i > 0; i--) {
+			Collections.swap(candidates, i, random.nextInt(i + 1));
+		}
+		List<double[]> kept = new ArrayList<>();
+		for (double[] candidate : candidates) {
+			boolean apart = true;
+			for (int k = 0; k < kept.size() && apart; k++) {
+				apart = distance(candidate, kept.get(k)) >= spacing;
+			}
+			if (apart) {
+				kept.add(candidate);
+			}
+		}
+		for (double[] point : kept) {
+			double sink = 0.85 + 0.15 * random.nextDouble();
+			point[0] *= sink;
+			point[1] = centre + (point[1] - centre) * sink;
+			point[2] *= sink;
+		}
+		return kept;
+	}
+
+	/** {@code count} groups of points near each other: a few rounds of k-means, from points spread through the list. */
+	private static List<List<double[]>> groups(List<double[]> points, int count) {
+		double[][] centres = new double[count][];
+		for (int g = 0; g < count; g++) {
+			centres[g] = points.get(g * points.size() / count).clone();
+		}
+		List<List<double[]>> groups = new ArrayList<>();
+		for (int round = 0; round < 4; round++) {
+			groups = new ArrayList<>();
+			for (int g = 0; g < count; g++) {
+				groups.add(new ArrayList<>());
+			}
+			for (double[] point : points) {
+				int nearest = 0;
+				for (int g = 1; g < count; g++) {
+					if (distance(point, centres[g]) < distance(point, centres[nearest])) {
+						nearest = g;
+					}
+				}
+				groups.get(nearest).add(point);
+			}
+			for (int g = 0; g < count; g++) {
+				if (!groups.get(g).isEmpty()) {
+					centres[g] = centroid(groups.get(g));
+				}
+			}
+		}
+		groups.removeIf(List::isEmpty);
+		return groups;
+	}
+
+	private static double[] centroid(List<double[]> points) {
+		double[] sum = new double[3];
+		for (double[] point : points) {
+			for (int i = 0; i < 3; i++) {
+				sum[i] += point[i] / points.size();
+			}
+		}
+		return sum;
+	}
+
+	private static double[] between(double[] from, double[] to, double t) {
+		return new double[]{from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t,
+			from[2] + (to[2] - from[2]) * t};
+	}
+
+	private static double distance(double[] a, double[] b) {
+		double dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+		return Math.sqrt(dx * dx + dy * dy + dz * dz);
 	}
 
 	/**
@@ -273,31 +421,6 @@ final class GiantTree {
 		add(new Logs(walls.toLongArray()));
 	}
 
-	/**
-	 * A limb from the trunk's axis at {@code fromY}, bending outward and up to a point {@code out} blocks out and as
-	 * high as {@code rise}, forking on the way. Returns its end, where the caller puts the crown's largest clump; the
-	 * fork's end has a clump of its own.
-	 */
-	private double[] branchOut(double angle, double fromY, double thick, double out, double rise, double crown) {
-		double bendOut = out * (0.35 + 0.2 * random.nextDouble());
-		double bendY = fromY + (rise - fromY) * (0.5 + 0.2 * random.nextDouble());
-		double[] bend = limb(angle, fromY, 0, bendOut, bendY, thick, thick * 0.6);
-		double[] end = segment(bend, angle, out - bendOut, rise - bendY, thick * 0.6, 0.5);
-		// The fork, to one side.
-		double side = angle + (random.nextBoolean() ? 1 : -1) * (0.35 + 0.25 * random.nextDouble());
-		double sideOut = Math.min(out * (0.6 + 0.2 * random.nextDouble()), reach - crown * 0.8 - 0.5) - bendOut;
-		if (sideOut > 1) {
-			double[] fork = segment(bend, side, sideOut, (rise - bendY) * 0.6, thick * 0.4, 0.5);
-			clump(fork[0], fork[1], fork[2], crown * 0.8, crown * 0.55);
-		}
-		// Smaller clumps along the outer half, so the crown is not a ring of balls.
-		for (double t = 0.45; t < 0.95; t += 0.25) {
-			clump(bend[0] + (end[0] - bend[0]) * t, bend[1] + (end[1] - bend[1]) * t - 0.5,
-				bend[2] + (end[2] - bend[2]) * t, crown * 0.6, crown * 0.45);
-		}
-		return end;
-	}
-
 	/** A limb straight out from the trunk's axis at {@code angle}, from {@code from} to {@code to} blocks out. */
 	private double[] limb(double angle, double fromY, double from, double to, double toY, double thick, double tip) {
 		double[] start = {Math.cos(angle) * from, fromY, Math.sin(angle) * from};
@@ -310,8 +433,34 @@ final class GiantTree {
 	 */
 	private double[] segment(double[] start, double angle, double out, double up, double thick, double tip) {
 		double[] end = {start[0] + Math.cos(angle) * out, start[1] + up, start[2] + Math.sin(angle) * out};
-		add(new Segment(start[0], start[1], start[2], end[0], end[1], end[2], thick, tip));
+		line(start, end, thick, tip);
 		return end;
+	}
+
+	/** Wood from {@code start} to {@code end}, {@code thick} blocks of radius at the start and {@code tip} at the end. */
+	private void line(double[] start, double[] end, double thick, double tip) {
+		add(new Segment(start[0], start[1], start[2], end[0], end[1], end[2], thick, tip));
+	}
+
+	/**
+	 * Wood along a curve from {@code start} to {@code end}, pulled toward {@code control} on the way, tapering from
+	 * {@code thick} blocks of radius to {@code tip}: straight lengths of a few blocks each. Returns the points between
+	 * them, from the start to the end.
+	 */
+	private double[][] curve(double[] start, double[] control, double[] end, double thick, double tip) {
+		int pieces = Math.max(2, (int) Math.ceil((distance(start, control) + distance(control, end)) / 6));
+		double[][] points = new double[pieces + 1][];
+		for (int i = 0; i <= pieces; i++) {
+			double t = i / (double) pieces, u = 1 - t;
+			points[i] = new double[3];
+			for (int k = 0; k < 3; k++) {
+				points[i][k] = u * u * start[k] + 2 * u * t * control[k] + t * t * end[k];
+			}
+		}
+		for (int i = 0; i < pieces; i++) {
+			line(points[i], points[i + 1], thick + (tip - thick) * i / pieces, thick + (tip - thick) * (i + 1) / pieces);
+		}
+		return points;
 	}
 
 	/**

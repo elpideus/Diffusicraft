@@ -478,8 +478,8 @@ the colours:
 | Cloud forest | Jungle | Vine-hung canopy trees, gnarled oaks, ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
 | Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, now and then a redwood, ferns, moss, mushrooms; light fog | Grass and podzol |
 | Redwood forest | Old-growth spruce taiga | [Redwoods](#giant-trees) 110 to 230 blocks tall at 1:1, one or two in most chunks, over spruces, mega spruces and fallen trunks, large ferns, moss, mushrooms, berries; fog (256 blocks) | Grass with deep needle litter (podzol) and coarse dirt |
-| Ancient woodland | Forest | [Ancient oaks](#giant-trees) 40 to 64 blocks tall at 1:1 in every other chunk, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
-| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1 in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, with vines, melons and moss | Grass, red laterite below |
+| Ancient woodland | Forest | [Ancient oaks](#giant-trees) 48 to 80 blocks tall at 1:1, one to every 3×3 chunks, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
+| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1, one to most 3×3 chunks, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, with vines, melons and moss | Grass, red laterite below |
 | Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass and terra rossa on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
@@ -622,10 +622,13 @@ taller than any of vanilla's, as a fantasy of real giants, in three forms. Each 
 - **Redwoods**, 110 to 230 blocks tall, of mangrove wood for its red-brown bark under spruce needles: a straight
   column, bare for half its height or more, under a narrow cone of short, drooping branches and a spire, its foot
   flaring into ribs. Coast redwoods reach 116 m; these are twice that.
-- **Ancient oaks**, 40 to 64 blocks tall, of oak: a short, massive trunk that forks into great limbs under a broad
-  dome, the lower limbs reaching out wide and nearly level, the upper ones climbing into the top of the dome.
+- **Ancient oaks**, 48 to 80 blocks tall, of oak, as one grows in the open: a short, massive trunk that forks low into
+  five to seven great limbs and a leader. The limbs rise steeply, then reach out nearly level and fork into branches
+  under a broad, lumpy dome of clumps, wider than it is tall and open inside, so that the limbs show from under it.
+  On the larger ones, a long limb or two sweeps out low under the dome.
 - **Kapoks**, 80 to 130 blocks tall, of jungle wood: the emergents of the rainforest, a pale, unbranched column on
-  plank buttresses that rises over the canopy to a flat umbrella some 35 blocks across.
+  plank buttresses that rises over the canopy to a flat umbrella, on limbs that leave the trunk nearly level and
+  climb toward their ends.
 
 These are their heights at 1:1. The smaller the world, the smaller the giants, though far less than the land, which
 is some sixteen times lower at 1:32 than at 1:1: each halving of the world takes about a sixth off their height
@@ -634,12 +637,17 @@ shapes follow the height, so a smaller giant is a smaller tree of the same build
 
 | Size | Of the height at 1:1 | Redwoods | Ancient oaks | Kapoks |
 |---|---|---|---|---|
-| Ultra (1:1) | 100% | 110 to 230 | 40 to 64 | 80 to 130 |
-| Extreme (1:2) | 84% | 92 to 193 | 34 to 54 | 67 to 109 |
-| Grand (1:4) | 71% | 78 to 163 | 28 to 45 | 57 to 92 |
-| Large (1:8) | 59% | 65 to 137 | 24 to 38 | 48 to 77 |
-| Medium (1:16) | 50% | 55 to 115 | 20 to 32 | 40 to 65 |
-| Vanilla (1:32) | 42% | 46 to 97 | 17 to 27 | 34 to 55 |
+| Ultra (1:1) | 100% | 110 to 230 | 48 to 80 | 80 to 130 |
+| Extreme (1:2) | 84% | 92 to 193 | 40 to 67 | 67 to 109 |
+| Grand (1:4) | 71% | 78 to 163 | 34 to 57 | 57 to 92 |
+| Large (1:8) | 59% | 65 to 137 | 29 to 48 | 48 to 77 |
+| Medium (1:16) | 50% | 55 to 115 | 24 to 40 | 40 to 65 |
+| Vanilla (1:32) | 42% | 46 to 97 | 20 to 34 | 34 to 55 |
+
+The crowns spread with the height (`GiantTree.reach`): an oak's to six tenths of its height on every side, 58 to 96
+blocks across at 1:1 and 24 to 40 at 1:32, and a kapok's to a third, 52 to 84 blocks across at 1:1 and 22 to 36 at
+1:32. A broad crown is clumps spread evenly over the shell of a spheroid, each sunk a little into it, so that the
+dome is lumpy; each limb takes the clumps on its side, and forks into a branch to each group of a few of them.
 
 Outside a Diffusicraft world, as on the superflat world of `TreesGameTest`, they grow to their height at 1:1.
 
@@ -1477,9 +1485,11 @@ Other searches still read the full terrain and can take a while on new land:
   line, that other biomes and columns outside the patches stay, and that the seed sets the patches. The groves of
   giants keep to level land, and redwoods to mild, wet climates.
 - `GiantTreeTest` grows every form of giant tree at its least and most height, at 1:1 and at 1:32, and checks that it
-  keeps within its reach and height, that the same draw grows the same tree, that all its wood hangs together from
-  the foot, that at least 97% of its leaves live on the wood, that redwoods stand bare under their crowns and kapoks
-  on buttresses under an umbrella, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks
+  keeps within its reach and height, as a structure and as a feature, that the same draw grows the same tree, that a
+  tree laid chunk by chunk is the whole tree, that all its wood hangs together from the foot, that at least 97% of its
+  leaves live on the wood, that redwoods stand bare under their crowns, that ancient oaks spread domes nearly as wide
+  as they are tall, open inside, over a bare trunk, that kapoks stand on buttresses under an umbrella half as wide as
+  they are tall, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks
   that the LODs draw a biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of
   detail farther out, and as tall as the kapoks grow in a world of each size.
 - `WaterfallTest` lays out waterfalls over a straight cliff, into a pool of their own on level ground and into the sea,

@@ -647,11 +647,11 @@ def great_tree(form, wood, foliage, lo, hi, biomes, chance=1.0):
 # The broadleaf giants: the ancient oaks and the kapoks, in groves in their own biomes and alone in vanilla's, where they
 # grow only in Diffusicraft worlds. Each has a biome tag of its own, which lists `biomes`.
 STRUCTURES = {
-    "giant_oak": great_tree("oak", "oak_wood", "oak_leaves", 40, 64, [ours("ancient_woodland")]),
-    "lone_giant_oak": great_tree("oak", "oak_wood", "oak_leaves", 40, 64,
+    "giant_oak": great_tree("oak", "oak_wood", "oak_leaves", 48, 80, [ours("ancient_woodland")]),
+    "lone_giant_oak": great_tree("oak", "oak_wood", "oak_leaves", 48, 80,
                                  ["minecraft:forest", "minecraft:flower_forest", "minecraft:birch_forest",
                                   "minecraft:dark_forest"], 0.375),
-    "lone_giant_oak_plains": great_tree("oak", "oak_wood", "oak_leaves", 40, 64,
+    "lone_giant_oak_plains": great_tree("oak", "oak_wood", "oak_leaves", 48, 80,
                                         ["minecraft:plains", "minecraft:sunflower_plains"], 0.1875),
     "kapok": great_tree("kapok", "jungle_wood", "jungle_leaves", 80, 130, [ours("old_growth_jungle")], 0.7),
     "lone_kapok": great_tree("kapok", "jungle_wood", "jungle_leaves", 80, 130, ["minecraft:jungle"], 0.9),

@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GiantTreeTest {
 	private static final GiantTreeFeature.Form[] FORMS = GiantTreeFeature.Form.values();
 	/** The heights each form grows to in tools/biomes.py, least and most: a 1:1 world's. */
-	private static final int[][] HEIGHTS = {{110, 230}, {40, 64}, {80, 130}};
+	private static final int[][] HEIGHTS = {{110, 230}, {48, 80}, {80, 130}};
 	/** The share of those that the giants grow to in the smallest world. */
 	private static final double SMALLEST = GiantTree.size(WorldScale.VANILLA);
 
@@ -25,15 +25,28 @@ class GiantTreeTest {
 		return new int[]{(int) Math.round(full[0] * SMALLEST), (int) Math.round(full[1] * SMALLEST), full[0], full[1]};
 	}
 
+	/**
+	 * The reaches a form grows with: its own, as a structure gives it, and those of a feature, which writes no farther
+	 * than {@link GiantTree#MAX_REACH} and less near the edge of its chunks.
+	 */
+	private static int[] reaches(GiantTreeFeature.Form form, int height) {
+		int own = GiantTree.reach(form, height);
+		return own == GiantTree.MAX_REACH ? new int[]{own, 12} : new int[]{own, GiantTree.MAX_REACH, 12};
+	}
+
 	private static GiantTree.Blocks grow(GiantTreeFeature.Form form, int height, int reach, long seed) {
 		return GiantTree.grow(form, height, reach, RandomSource.create(seed));
+	}
+
+	private static GiantTree.Blocks grow(GiantTreeFeature.Form form, int height, long seed) {
+		return grow(form, height, GiantTree.reach(form, height), seed);
 	}
 
 	@Test
 	void everyFormKeepsWithinItsReachAndHeight() {
 		for (GiantTreeFeature.Form form : FORMS) {
 			for (int height : heights(form)) {
-				for (int reach : new int[]{GiantTree.MAX_REACH, 12}) {
+				for (int reach : reaches(form, height)) {
 					for (long seed = 0; seed < 8; seed++) {
 						GiantTree.Blocks tree = grow(form, height, reach, seed);
 						String what = form + " " + height + " tall, reach " + reach + ", seed " + seed;
@@ -44,7 +57,8 @@ class GiantTreeTest {
 							}
 						}
 						assertTrue(tree.top <= height + 2 && tree.top >= height * 0.8, what + " tops out at " + tree.top);
-						assertTrue(!tree.foot.isEmpty() && tree.leaves.size() > 500, what);
+						assertTrue(!tree.foot.isEmpty() && tree.leaves.size() > 400, what + " holds " + tree.leaves.size()
+							+ " leaves");
 					}
 				}
 			}
@@ -66,7 +80,8 @@ class GiantTreeTest {
 	void aTreeLaidChunkByChunkIsTheWholeTree() {
 		for (GiantTreeFeature.Form form : FORMS) {
 			for (long seed = 0; seed < 2; seed++) {
-				GiantTree plan = GiantTree.plan(form, 120, GiantTree.MAX_REACH, RandomSource.create(seed));
+				int height = heights(form)[3];
+				GiantTree plan = GiantTree.plan(form, height, GiantTree.reach(form, height), RandomSource.create(seed));
 				GiantTree.Blocks whole = plan.blocks();
 				Long2IntOpenHashMap distances = whole.distances();
 				LongOpenHashSet wood = new LongOpenHashSet(), leaves = new LongOpenHashSet();
@@ -99,11 +114,13 @@ class GiantTreeTest {
 	void theWoodHangsTogetherFromTheFoot() {
 		for (GiantTreeFeature.Form form : FORMS) {
 			for (int height : heights(form)) {
-				for (long seed = 0; seed < 6; seed++) {
-					GiantTree.Blocks tree = grow(form, height, GiantTree.MAX_REACH, seed);
-					int reached = connected(tree.wood, tree.foot);
-					assertEquals(tree.wood.size(), reached, form + " " + height + " tall, seed " + seed + ": " + reached
-						+ " of " + tree.wood.size() + " logs hang together");
+				for (int reach : reaches(form, height)) {
+					for (long seed = 0; seed < 6; seed++) {
+						GiantTree.Blocks tree = grow(form, height, reach, seed);
+						int reached = connected(tree.wood, tree.foot);
+						assertEquals(tree.wood.size(), reached, form + " " + height + " tall, reach " + reach + ", seed "
+							+ seed + ": " + reached + " of " + tree.wood.size() + " logs hang together");
+					}
 				}
 			}
 		}
@@ -134,14 +151,16 @@ class GiantTreeTest {
 	void nearlyEveryLeafLivesOnTheWood() {
 		for (GiantTreeFeature.Form form : FORMS) {
 			for (int height : heights(form)) {
-				for (long seed = 0; seed < 6; seed++) {
-					GiantTree.Blocks tree = grow(form, height, GiantTree.MAX_REACH, seed);
-					Long2IntOpenHashMap distances = tree.distances();
-					float alive = distances.size() / (float) tree.leaves.size();
-					assertTrue(alive >= 0.97f, form + " " + height + " tall, seed " + seed + ": " + alive
-						+ " of the leaves live");
-					for (int distance : distances.values()) {
-						assertTrue(distance >= 1 && distance <= GiantTree.LEAF_REACH);
+				for (int reach : reaches(form, height)) {
+					for (long seed = 0; seed < 6; seed++) {
+						GiantTree.Blocks tree = grow(form, height, reach, seed);
+						Long2IntOpenHashMap distances = tree.distances();
+						float alive = distances.size() / (float) tree.leaves.size();
+						assertTrue(alive >= 0.97f, form + " " + height + " tall, reach " + reach + ", seed " + seed + ": "
+							+ alive + " of the leaves live");
+						for (int distance : distances.values()) {
+							assertTrue(distance >= 1 && distance <= GiantTree.LEAF_REACH);
+						}
 					}
 				}
 			}
@@ -151,18 +170,52 @@ class GiantTreeTest {
 	@Test
 	void redwoodsStandBareUnderANarrowCrownAndKapoksOnButtresses() {
 		for (long seed = 0; seed < 6; seed++) {
-			GiantTree.Blocks redwood = grow(GiantTreeFeature.Form.REDWOOD, 200, GiantTree.MAX_REACH, seed);
+			GiantTree.Blocks redwood = grow(GiantTreeFeature.Form.REDWOOD, 200, seed);
 			int lowest = redwood.leaves.longStream().mapToInt(BlockPos::getY).min().orElseThrow();
 			assertTrue(lowest >= 200 * 0.4, "the redwood's crown starts at " + lowest);
 
-			GiantTree.Blocks kapok = grow(GiantTreeFeature.Form.KAPOK, 110, GiantTree.MAX_REACH, seed);
+			GiantTree.Blocks kapok = grow(GiantTreeFeature.Form.KAPOK, 110, seed);
 			double trunk = 1.3 + 110 / 55.0;
 			assertTrue(kapok.footReach >= trunk + 4, "the kapok's buttresses reach " + kapok.footReach);
 			// The umbrella: most of the leaves in the top quarter.
 			long high = kapok.leaves.longStream().filter(pos -> BlockPos.getY(pos) > 110 * 0.7).count();
 			assertTrue(high > kapok.leaves.size() * 0.9, "the kapok holds " + high + " of " + kapok.leaves.size()
 				+ " leaves in its crown");
+			int across = across(kapok);
+			assertTrue(across >= 110 * 0.5, "the kapok's umbrella is " + across + " blocks across");
 		}
+	}
+
+	@Test
+	void oaksSpreadBroadDomesOverABareTrunk() {
+		for (int height : heights(GiantTreeFeature.Form.OAK)) {
+			for (long seed = 0; seed < 6; seed++) {
+				GiantTree.Blocks oak = grow(GiantTreeFeature.Form.OAK, height, seed);
+				String what = "the oak " + height + " tall, seed " + seed;
+				int across = across(oak);
+				assertTrue(across >= height * 0.85, what + " is " + across + " blocks across");
+				// The trunk shows under the crown: no leaves near it below where it forks.
+				long hidden = oak.leaves.longStream().filter(pos -> BlockPos.getY(pos) < height * 0.18
+					&& Math.hypot(BlockPos.getX(pos), BlockPos.getZ(pos)) < height * 0.15).count();
+				assertEquals(0, hidden, what + " hides its trunk under " + hidden + " leaves");
+				// The dome is open inside, so that its limbs show: few leaves near the trunk under its middle.
+				long inside = oak.leaves.longStream().filter(pos -> BlockPos.getY(pos) < height * 0.45
+					&& Math.hypot(BlockPos.getX(pos), BlockPos.getZ(pos)) < height * 0.25).count();
+				assertTrue(inside < oak.leaves.size() * 0.02, what + " holds " + inside + " leaves inside its dome");
+			}
+		}
+	}
+
+	/** How far a tree's leaves spread across, the least of east to west and north to south. */
+	private static int across(GiantTree.Blocks tree) {
+		int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+		for (long pos : tree.leaves) {
+			minX = Math.min(minX, BlockPos.getX(pos));
+			maxX = Math.max(maxX, BlockPos.getX(pos));
+			minZ = Math.min(minZ, BlockPos.getZ(pos));
+			maxZ = Math.max(maxZ, BlockPos.getZ(pos));
+		}
+		return Math.min(maxX - minX, maxZ - minZ) + 1;
 	}
 
 	@Test

@@ -114,7 +114,8 @@ public final class GiantTreeStructure extends Structure {
 		if (height < GiantTreeFeature.MIN_HEIGHT * GiantTree.size(world.scale())) {
 			return Optional.empty();
 		}
-		GiantTree plan = GiantTree.plan(form, height, GiantTree.MAX_REACH, RandomSource.create(sapling.seed()));
+		GiantTree plan = GiantTree.plan(form, height, GiantTree.reach(form, height),
+			RandomSource.create(sapling.seed()));
 		int footReach = plan.blocks(new BoundingBox(-plan.reach, 0, -plan.reach, plan.reach, 0, plan.reach)).footReach;
 		if (!levelAround(generator, x, ground, z, footReach + 2, heights, state)) {
 			return Optional.empty();
