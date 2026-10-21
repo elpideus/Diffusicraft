@@ -345,7 +345,7 @@ gives each one a physical meaning, with breakpoints at the edges of vanilla's ow
 | humidity (vegetation) | Precipitation over the Köppen aridity threshold (see [Summer rain](#summer-rain) below), less what the sun dries out of a sunny slope. |
 | continentalness | Offshore: the water depth. On the [coast](#coasts): the height above the sea. Inland: the mean elevation. |
 | erosion | Local relief: rugged land is low, flat land is high. Flat, low and wet land is put in the swamp band. |
-| weirdness | Whether the column is a local peak or a hollow. The sign comes from smooth noise with a wavelength of 12 km of real ground and only picks variants, in patches kilometres across. |
+| weirdness | Whether the column is a local peak or a hollow. The sign comes from smooth noise with a wavelength of 12 km of real ground, but at most 2000 blocks, and only picks variants: in patches a few hundred blocks across at 1:32 and about a thousand from 1:4 up, where 12 km would have made them several thousand. |
 | depth | Blocks below the surface, capped at 60 blocks above the sea. |
 
 Some adjustments move biomes away from vanilla's defaults:
@@ -522,6 +522,82 @@ these biomes impose can then clash with another mod's.
 
 `tools/biomes.py` writes all of this: the biomes, their features, the surface rule and the tags. It reads the
 templates from the Minecraft jar Loom unpacked.
+
+### Sub-biomes
+
+The climate changes over tens of kilometres of real ground, so the biome it picks can cover an area that size: at 1:1
+one forest could run on for days of walking. Real woods break up within one climate over a few hundred meters, into
+birch stands, glades, bogs and old growth, with the soil, the water and the last fire. So after the refiner, the biome
+source breaks each biome into patches of its siblings (`SubBiomes`).
+
+**Patches.** The world is cut into cells 320 blocks wide, at every size. Each holds one patch around a point placed at
+random in the middle 80% of the cell, with a radius of 90 to 160 blocks, its edge frayed by noise with a wavelength of
+96 blocks that moves it by up to 60% of the radius. A column belongs to the patch it lies deepest in, so patches that
+meet do so along a curve. Patches cover 47% of the land, and a straight line runs through one for 180 blocks on
+average. Each patch draws a number, which the family of the column's biome turns into one of its siblings, or into
+nothing, which keeps the biome. On level ground a fifth of a forest is other woods and glades.
+
+**Ground.** Some siblings keep to their ground, and their patches shrink back from ground that does not suit them. The
+ground is the column's height over the mean of the land around (over 1.4 km of real ground), in units of its relief
+(at least 15 m), as vanilla's peaks and valleys have it. A patch loses 0.8 of its depth, which is 1 at its centre and
+0 at its edge, for each unit of height on the wrong side:
+
+- **low**, the lower half of the land, where the water gathers: dark forest and old spruce, the groves of the plains
+  and the steppe, the bamboo of the jungle, the gallery forests of the savanna;
+- **high**, the upper half, which dries out first: pines, light woods, open jungle, shrub steppe and junipers, stony
+  desert, tundra on the exposed rises of the forest-tundra;
+- **wet**, flat hollows, where the water stands: bogs, which also shrink from 10 m of relief and are gone by 25 m.
+
+**Climate.** Siblings that need a climate of their own come only where it holds. Bogs need peat's cool, wet summers,
+as the refiner's bogs do (warmest month below 20 °C, at least the rain of the aridity threshold, below 1500 m, not in
+the maquis). Trees in the snowy plains and the meadows need summers at least 1 °C past the tree line, ice spikes summers
+short of it. The dry forests of the savanna need frost-free land with at least the rain of the aridity threshold,
+jungle in the monsoon forest 1500 mm, and junipers in the shrub steppe their own climate (see the refiner); the
+juniper woodland's patches are steppe or shrub steppe, whichever its climate would have.
+
+The families, with the share of the patches each sibling takes; the other patches keep the biome:
+
+| Biome | Its patches |
+|---|---|
+| Forest | Birch forest 16%, flower forest 8%, plains 8%, dark forest 8% (low), dappled forest 6% (high), old-growth birch forest 4% |
+| Birch forest | Forest 14%, old-growth birch forest 10%, flower forest 6%, plains 6% |
+| Old-growth birch forest | Birch forest 16%, flower forest 6% |
+| Dark forest | Forest 14% (high), birch forest 6% (high), pale garden 4% (low) |
+| Pale garden | Dark forest 16% |
+| Flower forest | Forest 14%, plains 8%, birch forest 6% |
+| Dappled forest | Forest 10% (low), plains 10%, birch forest 5% |
+| Plains | Sunflower plains 12%, forest 12% (low), flower forest 5%, dappled forest 5%, birch forest 4% (low) |
+| Sunflower plains | Plains 16%, forest 8% (low) |
+| Taiga | Old-growth spruce taiga 10% (low), old-growth pine taiga 10% (high), bog 10% (wet), birch forest 8% |
+| Old-growth spruce taiga | Taiga 14% (high), bog 6% (wet) |
+| Old-growth pine taiga | Taiga 14%, old-growth spruce taiga 6% (low) |
+| Snowy taiga | Snowy plains 14% (high) |
+| Snowy plains | Snowy taiga 10% (low), ice spikes 3% |
+| Ice spikes | Snowy plains 20% |
+| Meadow | Taiga 8% (low) |
+| Jungle | Sparse jungle 10% (high), bamboo jungle 10% (low) |
+| Sparse jungle | Jungle 14% (low), bamboo jungle 4% (low) |
+| Bamboo jungle | Jungle 18% |
+| Savanna | Monsoon forest 8% (low), sparse jungle 4% (low) |
+| Desert | Stony desert 6% (high) |
+| Desert scrub | Desert 10% (low), stony desert 6% (high) |
+| Mixed forest | Taiga 10% (high), birch forest 10%, forest 10% (low), bog 5% (wet), flower forest 3% |
+| Larch taiga | Bog 8% (wet), taiga 6% (low), birch forest 5% |
+| Forest-tundra | Tundra 14% (high), taiga 8% (low), bog 6% (wet) |
+| Temperate rainforest | Bog 6% (wet) |
+| Steppe | Forest-steppe 8% (low), shrub steppe 8% (high) |
+| Forest-steppe | Steppe 12% (high), forest 6% (low), birch forest 6% |
+| Shrub steppe | Steppe 10% (low), juniper woodland 6% (high) |
+| Juniper woodland | Steppe or shrub steppe 10% (low) |
+| Moorland | Bog 14% (wet) |
+| Bog | Taiga 10% (high) |
+| Monsoon forest | Bamboo jungle 8% (low), savanna 8% (high), jungle 5% (low) |
+| Laurel forest | Bamboo jungle 10%, cherry grove 4% (high) |
+
+Rivers, shores, seas, slopes, peaks, caves and the Grand Hollows keep their biomes, and so do the biomes of other mods
+and the rest of Diffusicraft's: only the biomes in the table vary. A sibling a datapack removed leaves its patches to
+the biome. The patches are drawn from the seed alone and need nothing but the column's climate, so the chunks, the
+LOD mods and the [relief map](MAP.md) all see the same ones.
 
 ### Density and caves
 
@@ -1166,7 +1242,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
-| `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
+| `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, and `SeleniteBeamFeature` (`diffusicraft:selenite_beam`) |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
@@ -1274,6 +1350,11 @@ Other searches still read the full terrain and can take a while on new land:
   and Scottsbluff. On slopes, the tree line of the Alps is higher on the sunny side, with forest-tundra just below it,
   and the woods of the Rockies' foothills keep to the shaded side, where it is cool enough for mixed forest; flat ground
   there is open forest-steppe, and junipers grow on the sunny side.
+- `SubBiomesTest` checks that every sibling is land the source knows and that no family gives its siblings more than
+  60% of its patches, that patches cover about half the land and run 100 to 320 blocks across, that a forest on level
+  ground is a fifth to two-fifths other woods with every sibling present, that bogs keep to flat hollows and need cool
+  summers, that pines keep to the rises and old spruce to the valleys, that no trees grow in patches beyond the tree
+  line, that other biomes and columns outside the patches stay, and that the seed sets the patches.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.
@@ -1301,7 +1382,8 @@ Other searches still read the full terrain and can take a while on new land:
   - eviction;
   - concurrent tile computation;
   - the coarse column;
-  - the hillside's slope, across tile corners too.
+  - the hillside's slope, across tile corners too;
+  - the variant noise's wavelength, at most 2000 blocks from 1:4 up.
 - `WorldGenerationGameTest` is a client game test and needs the models. It checks that Diffusicraft is the default world
   type, creates a world at the Medium size (1:16), which its checks were made for, and checks that a player can stand at
   the world spawn, and that the heightmaps count all of Diffusicraft's full blocks. It then saves a biome map, a height

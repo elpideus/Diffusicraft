@@ -18,6 +18,8 @@ public final class BiomeClimate {
 	public float precipitationSeasonality;
 	/** Meters above sea level. */
 	public float elevation;
+	/** Mean elevation of the land around, in meters; see {@link TerrainField.Column#meanElevation}. */
+	public float meanElevation;
 	/** How rugged the land around is, in meters; see {@link TerrainField.Column#relief}. */
 	public float relief;
 	/** Meters above the low ground around; see {@link TerrainField.Column#aboveLow}. */
@@ -26,6 +28,10 @@ public final class BiomeClimate {
 	public float variant;
 	/** How far glaciers lowered ground at sea level, in meters; see {@link TerrainField.Column#iceCut}. */
 	public float iceCut;
+	/** The draw of the {@link SubBiomes sub-biome} patch the column lies in, in [0, 1). */
+	public float patch;
+	/** How far inside that patch the column lies: above zero inside, zero or less outside every patch. */
+	public float patchDepth;
 
 	public BiomeClimate set(TerrainField.Column column) {
 		temperature = column.temperature;
@@ -33,10 +39,13 @@ public final class BiomeClimate {
 		precipitation = column.precipitation;
 		precipitationSeasonality = column.precipitationSeasonality;
 		elevation = column.elevation;
+		meanElevation = column.meanElevation;
 		relief = column.relief;
 		aboveLow = column.aboveLow;
 		variant = column.variant;
 		iceCut = column.iceCut;
+		patch = 0f;
+		patchDepth = 0f;
 		return this;
 	}
 

@@ -52,6 +52,11 @@ public final class TerrainField implements AutoCloseable {
 	static final int HILLSIDE = 16;
 	/** Real-world wavelength of the noise that picks vanilla's biome variants, in meters. */
 	static final float VARIANT_WAVELENGTH = 12000f;
+	/**
+	 * The longest wavelength of that noise, in blocks: from 1:4 up, 12 km of real ground would make its patches
+	 * thousands of blocks across.
+	 */
+	static final double VARIANT_MAX_BLOCKS = 2000;
 
 	static final int MEAN = 0;
 	static final int RELIEF = 1;
@@ -250,6 +255,15 @@ public final class TerrainField implements AutoCloseable {
 	/** Variant noise at a position in real meters (block × meters per block). */
 	public float variant(double xMeters, double zMeters) {
 		return variantNoise.GetNoise((float) (xMeters / VARIANT_WAVELENGTH), (float) (zMeters / VARIANT_WAVELENGTH));
+	}
+
+	/**
+	 * Variant noise at a block of a world of {@code scale}: {@link #variant(double, double)}, but with a wavelength of
+	 * at most {@value #VARIANT_MAX_BLOCKS} blocks.
+	 */
+	public float variant(WorldScale scale, int blockX, int blockZ) {
+		double metersPerBlock = Math.max(scale.metersPerBlock(), VARIANT_WAVELENGTH / VARIANT_MAX_BLOCKS);
+		return variant(blockX * metersPerBlock, blockZ * metersPerBlock);
 	}
 
 	/**

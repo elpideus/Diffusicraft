@@ -88,8 +88,7 @@ public final class ClimateColumn {
 			field.slope(scale.toPixel(blockZ), scale.toPixel(blockX), slope);
 			ClimateMapping.expose(column, ClimateMapping.exposure(slope[1], slope[0]));
 		}
-		double mpb = scale.metersPerBlock();
-		column.variant = field.variant(blockX * mpb, blockZ * mpb);
+		column.variant = field.variant(scale, blockX, blockZ);
 		surfaceY = column.coast >= 0f && column.coast < ClimateMapping.maxCoastWidth(scale)
 			? field.surface(scale).y(blockX, blockZ)
 			: scale.surfaceY(column.elevation);

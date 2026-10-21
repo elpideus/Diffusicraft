@@ -143,6 +143,10 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   terrain before any chunk is generated: the coarse map when zoomed out, the full terrain when zoomed in, kept on disk.
   Click a place for its coordinates and a `/tp`, or search for the nearest places of a biome. It opens from the pause
   menu or `/diffusicraft map`, and a server can share it with its players. See [MAP.md](MAP.md).
+- **Sub-biomes.** Every forest, plain, taiga, jungle, savanna, steppe and desert breaks into patches of its siblings a
+  few hundred blocks across, in the same climate: birch stands, glades and dark woods in the forest, bogs in the flat
+  hollows of the taiga and pines on its rises. The variants vanilla's weirdness picks come in patches of at most a
+  thousand blocks at every size. See [WORLDGEN.md](WORLDGEN.md#sub-biomes).
 - **Half-precision decoder.** On NVIDIA GPUs the decoder runs in fp16, which makes terrain 1.2× faster and moves it
   by 5 cm RMS. See [PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 
@@ -153,7 +157,6 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
 drama on top, at every size:
 
-- **Sub-biomes and smaller biomes.** Variations of a biome within its area, as real land has.
 - **Features.** Giant trees hundreds of blocks tall, most common in forests on big plains; waterfalls; denser jungles;
   boulders.
 

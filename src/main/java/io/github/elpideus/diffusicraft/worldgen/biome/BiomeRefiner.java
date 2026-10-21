@@ -321,6 +321,11 @@ public final class BiomeRefiner {
 	private BiomeRefiner() {
 	}
 
+	/** What a vanilla biome is, or {@code null} for any other. */
+	static @Nullable Kind kindOf(String biome) {
+		return KINDS.get(biome);
+	}
+
 	private static Map.Entry<String, Kind> fixed(String path) {
 		return kind(path, Kind.FIXED);
 	}

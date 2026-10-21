@@ -233,4 +233,16 @@ class TerrainFieldTest {
 		}
 		assertTrue(differs);
 	}
+
+	@Test
+	void theVariantNoiseIsNeverWiderThanTwoThousandBlocks() {
+		TerrainField field = new TerrainField(3, new AnalyticSource());
+		for (int k = 0; k < 20; k++) {
+			int x = k * 1013 - 9000, z = 7000 - k * 611;
+			// 12 km of real ground is 375 blocks at 1:32 and 12,000 at 1:1, which the noise narrows to 2000.
+			assertEquals(field.variant(x * 32.0, z * 32.0), field.variant(WorldScale.VANILLA, x, z));
+			assertEquals(field.variant(x * 6.0, z * 6.0), field.variant(WorldScale.ULTRA, x, z));
+			assertEquals(field.variant(x * 6.0, z * 6.0), field.variant(WorldScale.GRAND, x, z));
+		}
+	}
 }

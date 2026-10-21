@@ -24,8 +24,9 @@ import java.util.stream.Stream;
 
 /**
  * {@code diffusicraft:climate}: vanilla's multi-noise biome source with its picks refined by the real climate (see
- * {@link BiomeRefiner}). It is still a {@link MultiNoiseBiomeSource} reading the same parameter list, so mods that
- * add biomes to that list, or look for a multi-noise source, work with it as they do with vanilla's.
+ * {@link BiomeRefiner}), then varied by {@link SubBiomes}: patches of the biome's siblings, a few hundred blocks
+ * across. It is still a {@link MultiNoiseBiomeSource} reading the same parameter list, so mods that add biomes to that
+ * list, or look for a multi-noise source, work with it as they do with vanilla's.
  *
  * <p>Each Grand {@link Hollows} cavern gets one cave biome of its own, from the climate over it (see
  * {@link HollowBiomes}), in place of whatever vanilla picks there. Biomes of other mods are left where vanilla's
@@ -127,12 +128,18 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 	/** The biome that replaces {@code biome} in a column, or {@code biome} itself. */
 	private Holder<Biome> refined(Holder<Biome> biome, BiomeClimate climate) {
 		String id = biome.unwrapKey().map(key -> key.identifier().toString()).orElse(null);
-		String target = id == null ? null : BiomeRefiner.refine(id, climate);
-		if (target == null) {
+		if (id == null) {
 			return biome;
 		}
-		Holder<Biome> holder = targets().get(target);
-		return holder != null ? holder : biome;
+		String target = BiomeRefiner.refine(id, climate);
+		Holder<Biome> refined = target == null ? null : targets().get(target);
+		if (refined != null) {
+			biome = refined;
+			id = target;
+		}
+		String sibling = SubBiomes.vary(id, climate);
+		Holder<Biome> varied = sibling == null ? null : targets().get(sibling);
+		return varied != null ? varied : biome;
 	}
 
 	/** Every biome this source can pick, by id. A datapack may have removed some of the refinements. */
@@ -210,6 +217,7 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 				this.world = world;
 				column.sample(world.field(), world.scale(), blockX, blockZ);
 				climate.set(column.column);
+				SubBiomes.locate(world.field().seed(), blockX, blockZ, climate);
 				memo = 0;
 				hollowBiome = null;
 				hollowPrepared = false;
