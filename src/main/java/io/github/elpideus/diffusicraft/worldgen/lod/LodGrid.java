@@ -1,12 +1,23 @@
 package io.github.elpideus.diffusicraft.worldgen.lod;
 
+import io.netty.handler.codec.DecoderException;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A square grid of {@link LodSampler}'s columns, kept so that a stack of voxel sections can be cut from it. Voxy draws
@@ -21,10 +32,19 @@ import java.util.Arrays;
  *
  * <p>A column that reaches above the consumer's ceiling sinks by the difference into the rock under it, so it keeps
  * its snow and soils and stands flat at that height, as it does for Distant Horizons.
+ *
+ * <p>A server sends grids to the clients that draw its far terrain through {@link #STREAM_CODEC}. A grid names its
+ * blocks and biomes once, and each column its runs by their place in that list and by how far each starts and ends
+ * from the one under it, so that most take a byte each.
  */
 public final class LodGrid {
 	/** Sky light of open air. */
 	public static final int FULL_SKY = 15;
+	/** Widest grid {@link #STREAM_CODEC} reads. */
+	public static final int MAX_WIDTH = 64;
+	/** Grids as a server sends them, with the ids of the blocks and biomes it shares with the client. */
+	public static final StreamCodec<RegistryFriendlyByteBuf, LodGrid> STREAM_CODEC =
+		codec(ByteBufCodecs.holderRegistry(Registries.BIOME));
 
 	static final byte AIR = 0;
 	static final byte WATER = 1;
@@ -94,13 +114,7 @@ public final class LodGrid {
 	void add(LodColumn column, int ceiling) {
 		int size = column.size();
 		int sink = Math.max(0, column.top() - ceiling);
-		if (runs + size > states.length) {
-			int capacity = Math.max(runs + size, states.length * 2);
-			states = Arrays.copyOf(states, capacity);
-			bottoms = Arrays.copyOf(bottoms, capacity);
-			tops = Arrays.copyOf(tops, capacity);
-			kinds = Arrays.copyOf(kinds, capacity);
-		}
+		reserve(size);
 		for (int run = 0; run < size; run++) {
 			BlockState state = column.state(run);
 			states[runs] = state;
@@ -118,6 +132,135 @@ public final class LodGrid {
 		if (size > 0) {
 			highest = Math.max(highest, column.top() - sink);
 		}
+	}
+
+	/** Makes room for {@code more} runs. */
+	private void reserve(int more) {
+		if (runs + more > states.length) {
+			int capacity = Math.max(runs + more, states.length * 2);
+			states = Arrays.copyOf(states, capacity);
+			bottoms = Arrays.copyOf(bottoms, capacity);
+			tops = Arrays.copyOf(tops, capacity);
+			kinds = Arrays.copyOf(kinds, capacity);
+		}
+	}
+
+	/** {@link #STREAM_CODEC}, with the biomes written by {@code biomes}. */
+	static <B extends FriendlyByteBuf> StreamCodec<B, LodGrid> codec(StreamCodec<? super B, Holder<Biome>> biomes) {
+		return StreamCodec.of((buf, grid) -> grid.write(buf, biomes), buf -> read(buf, biomes));
+	}
+
+	private <B extends FriendlyByteBuf> void write(B buf, StreamCodec<? super B, Holder<Biome>> biomeCodec) {
+		Map<BlockState, Integer> stateIndices = new IdentityHashMap<>();
+		List<BlockState> statePalette = new ArrayList<>();
+		int[] runStates = new int[runs];
+		for (int run = 0; run < runs; run++) {
+			runStates[run] = stateIndices.computeIfAbsent(states[run], state -> {
+				statePalette.add(state);
+				return statePalette.size() - 1;
+			});
+		}
+		Map<Holder<Biome>, Integer> biomeIndices = new IdentityHashMap<>();
+		List<Holder<Biome>> biomePalette = new ArrayList<>();
+		int[] columnBiomes = new int[columns];
+		for (int column = 0; column < columns; column++) {
+			columnBiomes[column] = biomeIndices.computeIfAbsent(biomes[column], biome -> {
+				biomePalette.add(biome);
+				return biomePalette.size() - 1;
+			});
+		}
+		buf.writeVarInt(width);
+		buf.writeVarInt(statePalette.size());
+		for (BlockState state : statePalette) {
+			buf.writeVarInt(Block.BLOCK_STATE_REGISTRY.getId(state));
+		}
+		buf.writeVarInt(biomePalette.size());
+		for (Holder<Biome> biome : biomePalette) {
+			biomeCodec.encode(buf, biome);
+		}
+		for (int column = 0; column < columns; column++) {
+			buf.writeVarInt(columnBiomes[column]);
+			buf.writeVarInt(first[column + 1] - first[column]);
+			int below = 0;
+			for (int run = first[column]; run < first[column + 1]; run++) {
+				buf.writeVarInt(runStates[run]);
+				buf.writeVarInt(zigzag(bottoms[run] - below));
+				buf.writeVarInt(zigzag(tops[run] - bottoms[run]));
+				below = tops[run];
+			}
+			// 0 for a column with no ground; otherwise how far the surface is from the column's top, plus one.
+			buf.writeVarInt(surfaces[column] == Integer.MIN_VALUE ? 0 : zigzag(surfaces[column] - below) + 1);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <B extends FriendlyByteBuf> LodGrid read(B buf, StreamCodec<? super B, Holder<Biome>> biomeCodec) {
+		int width = buf.readVarInt();
+		if (width < 1 || width > MAX_WIDTH) {
+			throw new DecoderException("A grid of far terrain " + width + " columns wide");
+		}
+		// Every entry and run takes at least a byte, so no count can be larger than what is left to read.
+		BlockState[] statePalette = new BlockState[count(buf, 1)];
+		for (int i = 0; i < statePalette.length; i++) {
+			statePalette[i] = Block.BLOCK_STATE_REGISTRY.byIdOrThrow(buf.readVarInt());
+		}
+		Holder<Biome>[] biomePalette = new Holder[count(buf, 1)];
+		for (int i = 0; i < biomePalette.length; i++) {
+			biomePalette[i] = biomeCodec.decode(buf);
+		}
+		LodGrid grid = new LodGrid(width);
+		for (int column = 0; column < width * width; column++) {
+			Holder<Biome> biome = biomePalette[index(buf, biomePalette.length)];
+			int size = count(buf, 3);
+			grid.reserve(size);
+			int below = 0;
+			for (int i = 0; i < size; i++) {
+				BlockState state = statePalette[index(buf, statePalette.length)];
+				int bottom = below + unzigzag(buf.readVarInt());
+				int top = bottom + unzigzag(buf.readVarInt());
+				grid.states[grid.runs] = state;
+				grid.bottoms[grid.runs] = bottom;
+				grid.tops[grid.runs] = top;
+				grid.kinds[grid.runs] = kind(state);
+				grid.runs++;
+				below = top;
+			}
+			int surface = buf.readVarInt();
+			grid.surfaces[column] = surface == 0 ? Integer.MIN_VALUE : below + unzigzag(surface - 1);
+			grid.biomes[column] = biome;
+			grid.columns++;
+			grid.first[grid.columns] = grid.runs;
+			if (size > 0) {
+				grid.highest = Math.max(grid.highest, below);
+			}
+		}
+		return grid;
+	}
+
+	/** A count read from the buffer, of entries that take at least {@code bytes} each. */
+	private static int count(FriendlyByteBuf buf, int bytes) {
+		int count = buf.readVarInt();
+		if (count < 0 || count > buf.readableBytes() / bytes) {
+			throw new DecoderException("A grid of far terrain cut short: " + count + " entries");
+		}
+		return count;
+	}
+
+	private static int index(FriendlyByteBuf buf, int size) {
+		int index = buf.readVarInt();
+		if (index < 0 || index >= size) {
+			throw new DecoderException("A grid of far terrain names entry " + index + " of " + size);
+		}
+		return index;
+	}
+
+	/** Small numbers of either sign as small unsigned ones, which take a byte as a VarInt. */
+	private static int zigzag(int value) {
+		return value << 1 ^ value >> 31;
+	}
+
+	private static int unzigzag(int value) {
+		return value >>> 1 ^ -(value & 1);
 	}
 
 	private static byte kind(BlockState state) {
