@@ -112,6 +112,12 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   creates an Ultra (1:1) world and goes to the highest ground within 123 km of the spawn. It checks that the chunks
   there, which are filled only up to their ground, hold all of it, saves two views of the summit and logs how long
   their chunks took. It needs the models.
+- [`WaterfallsGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WaterfallsGameTest.java)
+  creates an Ultra (1:1) world, looks for the wettest steep land within 4 km of the spawn and checks that waterfalls
+  stand there: falls of 8 blocks or more, spilling from still water, that keep their water and do not flood their
+  foot while the chunks tick. It saves a view of each area it visits until one has falls, and of the tallest falls
+  from the front and the side (`diffusicraft-world-waterfall-front.png`, `-side.png`). It fails if none of the three
+  areas has a waterfall. It needs the models.
 - [`TreesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TreesGameTest.java) plants three of
   each of Diffusicraft's trees on a superflat world, in the biome each grows in, and saves a view of each
   (`diffusicraft-world-tree-<name>.png`). It fails if a tree never grows on open grass. It needs no models.
