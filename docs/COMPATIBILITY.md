@@ -179,6 +179,15 @@ failed. Forests, coasts and the sea run on past the chunks to the haze. Thin lig
 along the edges of sections, most over the sea; whether Voxy draws them over the levels it builds from chunks too has
 not been checked. The voxel rule has unit tests (`LodGridTest`).
 
+`VoxyServerGameTest` does the same on a dedicated server, which the client joins over a real connection. On the CPU the
+server answered all 41 grids the client asked for and 8 sections were filled; on CUDA it answered every one of the 4,127
+the client asked for, each once. In the last run, Voxy filled 11,418 sections from the server's grids for the first view
+in under 11 minutes and 6,183 for the second in under 4, none failed, and the far terrain runs up to the chunks the
+server sends, as in singleplayer. A grid is 16 to 17 KB as sampled and 1.6 to 2.5 KB on the wire. Voxy logs "Request
+result with child existence of 0" now and then while it fills; its own code calls that harmless. The test turns the
+server's watchdog off (`max-tick-time=-1`): the server waits for the client each tick, and drawing Voxy's frames in
+software can take longer than the watchdog allows.
+
 **Licensing.** Voxy is All Rights Reserved. It is a dev mod outside the pack (`localRuntime`, named in `-PdevMods`),
 never a dependency and never bundled. Diffusicraft compiles its mixins against its own declarations of the few Voxy
 members they use, in the `voxyStubs` source set, never against Voxy; those declarations are not shipped. Each has

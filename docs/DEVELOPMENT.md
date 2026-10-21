@@ -107,6 +107,11 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   6 chunks, so that all but the nearest 100 blocks of its views are Voxy's far terrain, and saves three views from
   above the spawn (`diffusicraft-voxy-<view>.png`), each once Voxy has stopped asking for sections. It fails if no
   section was filled from the terrain or one could not be. It needs the models, and takes about 11 minutes on CUDA.
+- [`VoxyServerGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/VoxyServerGameTest.java) does
+  the same on a dedicated server, joined over a real connection, where Voxy's far terrain comes from the grids the
+  server sends. It saves two views (`diffusicraft-voxy-server-<view>.png`), fails if the server offered no far terrain,
+  if no section was filled from it or if one could not be, and logs how many bytes a grid takes on the wire. It needs
+  the models. `-Pdiffusicraft.gametests=Voxy` runs both Voxy tests, `VoxyServer` this one alone.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods
