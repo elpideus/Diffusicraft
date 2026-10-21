@@ -119,8 +119,8 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   from the front and the side (`diffusicraft-world-waterfall-front.png`, `-side.png`). It fails if none of the three
   areas has a waterfall. It needs the models.
 - [`TreesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TreesGameTest.java) plants three of
-  each of Diffusicraft's trees on a superflat world, in the biome each grows in, and saves a view of each
-  (`diffusicraft-world-tree-<name>.png`). It fails if a tree never grows on open grass. It needs no models.
+  each of Diffusicraft's trees on a superflat world, the giants too, in the biome each grows in, and saves a view of
+  each (`diffusicraft-world-tree-<name>.png`). It fails if a tree never grows on open grass. It needs no models.
 - [`BiomesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/BiomesGameTest.java) lays out a
   plot of each of Diffusicraft's surface biomes on a superflat world, grows its plants there as world generation
   would, and saves a view of each (`diffusicraft-world-biome-<name>.png`): how dense its woods are, how its trees mix

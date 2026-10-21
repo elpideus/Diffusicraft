@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.gametest;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
+import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -32,10 +33,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Plants every tree of Diffusicraft's data pack on a superflat world, three of each in the biome it grows in, and takes
- * a screenshot of each: {@code diffusicraft-world-tree-<name>} in {@code build/run/clientGameTest/screenshots}. It
- * fails if a tree never grows on open grass, as happens when its trunk, foliage or decorators are set up wrongly. It
- * needs no models and takes about a minute: run it alone with {@code -Pdiffusicraft.gametests=Trees}.
+ * Plants every tree of Diffusicraft's data pack on a superflat world, the giants too, three of each in the biome it
+ * grows in, and takes a screenshot of each: {@code diffusicraft-world-tree-<name>} in
+ * {@code build/run/clientGameTest/screenshots}. It fails if a tree never grows on open grass, as happens when its
+ * trunk, foliage or decorators are set up wrongly. It needs no models and takes about a minute: run it alone with
+ * {@code -Pdiffusicraft.gametests=Trees}.
  */
 public class TreesGameTest implements FabricClientGameTest {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Diffusicraft game test");
@@ -43,6 +45,11 @@ public class TreesGameTest implements FabricClientGameTest {
 	private static final int PLOT = 64;
 	/** Blocks between the three trees of a plot. */
 	private static final int SPACING = 16;
+	/** The same for the giants, whose crowns reach out a few dozen blocks and which do not grow under each other's. */
+	private static final int GIANT_PLOT = 192;
+	private static final int GIANT_SPACING = 56;
+	/** Chunks seen around the camera: enough for the giants, seen from about 170 blocks away. */
+	private static final int RENDER_DISTANCE = 14;
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
@@ -51,11 +58,12 @@ public class TreesGameTest implements FabricClientGameTest {
 		}
 		context.getInput().resizeWindow(1280, 720);
 		context.runOnClient(mc -> {
-			mc.options.renderDistance().set(6);
+			mc.options.renderDistance().set(RENDER_DISTANCE);
 			hideHud(mc, true);
 		});
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
-			world.getConnection().waitForChunksRender();
+			// Not Fabric's wait for the chunks to render, which expects a square of chunks while the server sends a
+			// circle: above a render distance of 6 it never returns. Each view waits for its own chunks.
 			TestServerContext server = world.getServer();
 			server.runCommand("time set noon");
 			server.runCommand("weather clear");
@@ -89,38 +97,48 @@ public class TreesGameTest implements FabricClientGameTest {
 		ServerLevel level = server.overworld();
 		Map<Identifier, Holder<Biome>> homes = homes(level);
 		List<Holder.Reference<Feature>> trees = level.registryAccess().lookupOrThrow(Registries.FEATURE).listElements()
-			.filter(f -> f.key().identifier().getNamespace().equals(Diffusicraft.MOD_ID) && f.value() instanceof TreeFeature)
+			.filter(f -> f.key().identifier().getNamespace().equals(Diffusicraft.MOD_ID)
+				&& (f.value() instanceof TreeFeature || f.value() instanceof GiantTreeFeature))
 			.sorted(Comparator.comparing(f -> f.key().identifier().getPath()))
 			.toList();
 		List<Plot> plots = new ArrayList<>();
-		for (int i = 0; i < trees.size(); i++) {
-			Holder.Reference<Feature> tree = trees.get(i);
+		int x = 0, last = 0;
+		for (Holder.Reference<Feature> tree : trees) {
 			Identifier id = tree.key().identifier();
-			int x = (i + 1) * PLOT;
-			for (int cx = (x - PLOT / 2) >> 4; cx <= (x + PLOT / 2) >> 4; cx++) {
-				for (int cz = -2; cz <= 1; cz++) {
+			boolean giant = tree.value() instanceof GiantTreeFeature;
+			int plot = giant ? GIANT_PLOT : PLOT, spacing = giant ? GIANT_SPACING : SPACING, side = giant ? 32 : 16;
+			x += (last + plot) / 2;
+			last = plot;
+			for (int cx = (x - plot / 2) >> 4; cx <= (x + plot / 2) >> 4; cx++) {
+				for (int cz = -(side >> 4) - 1; cz <= side >> 4; cz++) {
 					level.getChunk(cx, cz);
 				}
 			}
 			int ground = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, 0);
 			Holder<Biome> home = homes.get(id);
 			if (home != null) {
-				// In bands of 16 blocks: the command refuses more than 32,768 blocks at once.
-				for (int y = ground - 4; y < ground + 60; y += 16) {
-					FillBiomeCommand.fill(level, new BlockPos(x - PLOT / 2 + 1, y, -16),
-						new BlockPos(x + PLOT / 2 - 1, y + 15, 15), home).ifRight(e -> {
-						throw new AssertionError("Trees: cannot set the biome of " + id + "'s plot: " + e.getMessage());
-					});
+				// Up to where the tallest giants' crowns reach, in boxes of 16 blocks: the command refuses more than
+				// 32,768 blocks at once. Each starts on a cell of the biome's 4 blocks, so that it sets a cell of its
+				// own: one that sets none fails.
+				int west = Math.ceilDiv(x - plot / 2 + 1, 4) * 4, east = x + plot / 2 - 1;
+				for (int y = ground - 4; y < ground + (giant ? 250 : 60); y += 16) {
+					for (int bx = west; bx <= east; bx += 16) {
+						FillBiomeCommand.fill(level, new BlockPos(bx, y, -side),
+							new BlockPos(Math.min(bx + 15, east), y + 15, side - 1), home).ifRight(e -> {
+							throw new AssertionError("Trees: cannot set the biome of " + id + "'s plot: "
+								+ e.getMessage());
+						});
+					}
 				}
 			}
 			int grown = 0, top = ground;
 			for (int k = -1; k <= 1; k++) {
 				RandomSource random = RandomSource.create(id.hashCode() * 31L + k);
 				if (tree.value().place(level, level.getChunkSource().getGenerator(), random,
-					new BlockPos(x + k * SPACING, ground, 0))) {
+					new BlockPos(x + k * spacing, ground, 0))) {
 					grown++;
 				}
-				top = Math.max(top, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x + k * SPACING, 0));
+				top = Math.max(top, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x + k * spacing, 0));
 			}
 			LOGGER.info("Tree {}: {} of 3 grew, in {}", id, grown, home == null ? "plains" : home.getRegisteredName());
 			plots.add(new Plot(id.getPath(), x, ground, top, grown));
