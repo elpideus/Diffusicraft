@@ -9,7 +9,8 @@ for each mod, and what is still open.
 |---|---|---|
 | [Distant Horizons](#distant-horizons) 3.3.4 | Integrated | Draws the far terrain straight from the terrain, without chunks |
 | [Voxy](#voxy) 0.2.20-beta | Works, checked in game | Keeps it within the heights it can hold; draws its far terrain straight from the terrain, in singleplayer and from servers that run Diffusicraft |
-| Distant Horizons SeedGen, Voxy SeedGen | Superseded in Diffusicraft worlds | Both mods' far terrain comes from Diffusicraft's terrain instead |
+| [Distant Horizons SeedGen](#distant-horizons) 0.9.1 | Works, checked in game; on servers, turn off sharing the seed | Diffusicraft's generator draws the far terrain in its place, in singleplayer and on servers |
+| Voxy SeedGen | Not checked: no release for 26.3 yet | Nothing yet; Diffusicraft feeds Voxy its far terrain itself |
 | [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's; their trees show in the LODs |
 | Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
 | C2ME 0.4.2-alpha.0.106+26.3 | Works, checked in game | Nothing: the terrain pipeline is thread-safe. The client game test passes with it (`-PdevMods=c2me-fabric`), LODs, rivers and lakes included, in well under half the time |
@@ -26,7 +27,8 @@ from generated chunks, which in a Diffusicraft world means running the whole chu
 With Diffusicraft installed it instead gets each LOD straight from the terrain: `compat.dh.DiffusicraftLodGenerator`
 is registered for every Diffusicraft level when the level loads. Other levels, and Diffusicraft levels with
 [`distantHorizonsLods`](CONFIG.md#distanthorizonslods) off, keep Distant Horizons' own generator or another mod's.
-Its priority (20) is above the default, so it wins over SeedGen in Diffusicraft levels.
+Its priority (20) is above the default, so in Diffusicraft levels it wins over other generators, SeedGen's
+included, on servers as in singleplayer.
 
 **What an LOD holds.** `worldgen.lod.LodSampler` fills each column of an LOD the way the chunk generator would:
 
@@ -88,10 +90,25 @@ LODs stop at y = 3838:
 Ground above y = 3838 shows flat in the far terrain; the chunks themselves are whole. Grand and the standard world
 fit.
 
+**On a server.** Distant Horizons on a dedicated server makes the LODs there, with Diffusicraft's generator, and
+sends them to players who have Distant Horizons. Only the server runs the models: the players' clients take the
+LODs as they are and never load them.
+
+**Distant Horizons SeedGen.** SeedGen (checked with 0.9.1) registers a far-terrain generator of its own, which loses
+to Diffusicraft's in Diffusicraft levels. On a server that shares its seed with players, as SeedGen does by default,
+a player's SeedGen draws the far terrain on the client instead of taking the server's LODs. It samples the world's
+noise settings itself, which loads the Terrain Diffusion models on the client, and it does not understand
+Diffusicraft's own density functions and material rules (`diffusicraft:river`, `diffusicraft:strata`): it draws no
+beaches, leaves grey patches, and in the game test filled only the nearest of three rings of LODs. On a server with
+SeedGen, set `"shareSeedWithClients": false` in its `config/seedgen.json`; players then get the server's LODs, made by
+Diffusicraft. Singleplayer needs nothing: Diffusicraft's generator draws the far terrain there.
+
 **Checking it.** The client game test samples the LODs around the spawn, block by block, and compares them with the
 chunks generated there: the ground and its top block, and the share of the ground under tree crowns. It also checks
 that a far LOD computes no terrain tile, and saves maps of both; see
-[DEVELOPMENT.md](DEVELOPMENT.md#tests).
+[DEVELOPMENT.md](DEVELOPMENT.md#tests). `DistantHorizonsServerGameTest` joins a dedicated server and checks that the
+client gets LODs from it on rings 320 to 1280 blocks round the spawn. With Distant Horizons alone, the client held
+all 24 points after 93 to 107 s; with SeedGen on both sides and the seed not shared, after 36 s.
 
 **Licensing.** Distant Horizons is LGPL-3.0. Diffusicraft compiles against its API (`compileOnly`) and never bundles
 it; the integration loads only when Distant Horizons is installed.

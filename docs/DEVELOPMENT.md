@@ -112,6 +112,14 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   server sends. It saves two views (`diffusicraft-voxy-server-<view>.png`), fails if the server offered no far terrain,
   if no section was filled from it or if one could not be, and logs how many bytes a grid takes on the wire. It needs
   the models. `-Pdiffusicraft.gametests=Voxy` runs both Voxy tests, `VoxyServer` this one alone.
+- [`DistantHorizonsServerGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/DistantHorizonsServerGameTest.java)
+  runs only when named and with Distant Horizons installed, against a dedicated server started apart from it (see
+  below): Distant Horizons keeps one world per JVM, which a client joining a server in its own JVM would take over.
+  It joins at a render distance of 8 chunks and waits until the client holds LODs, sent by the server, at 24 points
+  on rings 320 to 1280 blocks round the spawn. It saves two views from above the spawn
+  (`diffusicraft-dh-server-<view>.png`) before it fails on any point it does not hold, so a failed run still shows
+  what the client drew, checks in the server's log that the server gave Distant Horizons Diffusicraft's generator,
+  and stops the server. The server needs the models.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods
@@ -133,6 +141,26 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
 - **Some of them.** `-Pdiffusicraft.gametests=TallDimension,Earth` runs only the tests whose class names start with
   one of those. The tall dimension, the trees and the biomes each take under a minute.
+- **Against a server of their own.** `DistantHorizonsServerGameTest` joins a server run by Gradle in a JVM of its
+  own. Start it first; each start makes a new world on the test seed in `build/run/gameTestServer`, offline, with the
+  test's player (`Player0`) as an operator. `-Pdiffusicraft.device` and `-Pdiffusicraft.gpuMemoryLimitMb` go into its
+  Diffusicraft config, and the dev mods named go on it as on the client:
+
+  ```bash
+  ./gradlew runGameTestServer -PdevMods=distanthorizons -Pdiffusicraft.testServerPort=25570 -Pdiffusicraft.device=CUDA
+  ```
+
+  Once it logs `Done`, run the test with the same port, in another terminal:
+
+  ```bash
+  env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x24" ./gradlew runClientGameTest -PdevMods=distanthorizons -Pdiffusicraft.gametests=DistantHorizonsServer -Pdiffusicraft.testServerPort=25570
+  ```
+
+  The test stops the server when it is done. If it fails before it joins, stop the server yourself with Ctrl+C in
+  its terminal. To run it with Distant Horizons SeedGen too (`-PdevMods=distanthorizons,distant-horizons-seedgen` on
+  both), set `"shareSeedWithClients": false` in `build/run/gameTestServer/config/seedgen.json` after the server's
+  first start, or the client draws the far terrain itself instead of taking the server's (see
+  [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
 - **Not part of `build`.** Run them yourself after changing anything in `client/screen`, `worldgen` or the mixins.
 
 ## Project conventions

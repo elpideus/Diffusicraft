@@ -56,6 +56,13 @@ loom {
 		server {
 			runDir 'run-server'
 		}
+		// The dedicated server that DistantHorizonsServerGameTest joins, in a JVM of its own (see below).
+		gameTestServer {
+			server()
+			runDir 'build/run/gameTestServer'
+			programArg 'nogui'
+			ideConfigGenerated false
+		}
 	}
 }
 
@@ -72,8 +79,43 @@ fabricApi {
 }
 
 // Forward -Pdiffusicraft.* to the game tests too: the world generation test reads diffusicraft.device.
+def gameTestServerDir = file('build/run/gameTestServer')
 tasks.matching { it.name == 'runClientGameTest' }.configureEach {
 	systemProperties project.properties.findAll { k, v -> k.startsWith('diffusicraft.') }
+	systemProperty 'diffusicraft.testServerDir', gameTestServerDir.absolutePath
+}
+
+// `./gradlew runGameTestServer -Pdiffusicraft.testServerPort=25570`: a dedicated server for the game tests that need
+// one outside the client's JVM. Each start makes a new world on the test seed, offline so that the test's player can
+// join, who is an operator to run the test's commands and stops the server when done. -Pdiffusicraft.device and
+// -Pdiffusicraft.gpuMemoryLimitMb go into its Diffusicraft config. See docs/DEVELOPMENT.md.
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+	def port = project.findProperty('diffusicraft.testServerPort') ?: '25570'
+	def seed = project.findProperty('diffusicraft.seed') ?: '20261052'
+	def device = project.findProperty('diffusicraft.device') ?: 'AUTO'
+	def gpuMemoryLimitMb = project.findProperty('diffusicraft.gpuMemoryLimitMb') ?: '0'
+	doFirst {
+		delete new File(gameTestServerDir, 'world')
+		new File(gameTestServerDir, 'config').mkdirs()
+		// The same opt-in as the client game tests' servers (configureTests above).
+		new File(gameTestServerDir, 'eula.txt').text = 'eula=true\n'
+		new File(gameTestServerDir, 'server.properties').text = """\
+			server-port=${port}
+			online-mode=false
+			enforce-secure-profile=false
+			level-seed=${seed}
+			view-distance=8
+			simulation-distance=4
+			spawn-protection=0
+			motd=Diffusicraft game test server
+			""".stripIndent()
+		// The client game tests play as Player0; offline, a player's UUID comes from the name.
+		def uuid = UUID.nameUUIDFromBytes('OfflinePlayer:Player0'.getBytes('UTF-8'))
+		new File(gameTestServerDir, 'ops.json').text =
+			"""[{"uuid": "${uuid}", "name": "Player0", "level": 4, "bypassesPlayerLimit": false}]\n"""
+		new File(gameTestServerDir, 'config/diffusicraft.json').text =
+			"""{"device": "${device}", "gpuMemoryLimitMb": ${gpuMemoryLimitMb}}\n"""
+	}
 }
 
 dependencies {

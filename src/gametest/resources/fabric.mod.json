@@ -15,7 +15,8 @@
 			"io.github.elpideus.diffusicraft.gametest.TreesGameTest",
 			"io.github.elpideus.diffusicraft.gametest.BiomesGameTest",
 			"io.github.elpideus.diffusicraft.gametest.VoxyGameTest",
-			"io.github.elpideus.diffusicraft.gametest.VoxyServerGameTest"
+			"io.github.elpideus.diffusicraft.gametest.VoxyServerGameTest",
+			"io.github.elpideus.diffusicraft.gametest.DistantHorizonsServerGameTest"
 		]
 	},
 	"depends": {

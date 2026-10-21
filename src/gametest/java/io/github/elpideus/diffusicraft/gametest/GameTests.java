@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Picks the game tests to run. {@code -Pdiffusicraft.gametests=TallDimension,Earth} runs only the tests whose class
- * names start with one of those; without it, all of them run.
+ * names start with one of those; without it, all of them run but those that run only when named.
  */
 final class GameTests {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Diffusicraft game test");
@@ -31,6 +31,12 @@ final class GameTests {
 		}
 		LOGGER.info("Skipping {}: not in diffusicraft.gametests", name);
 		return true;
+	}
+
+	/** Whether the filter names {@code test}, for the tests that run only when asked for. */
+	static boolean named(FabricClientGameTest test) {
+		String filter = System.getProperty("diffusicraft.gametests", "");
+		return !filter.isBlank() && !skips(test);
 	}
 
 	/**

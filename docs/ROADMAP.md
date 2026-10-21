@@ -113,7 +113,8 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   sea, as Mjøsa does. See [WORLDGEN.md](WORLDGEN.md#coasts).
 - **Distant Horizons.** Its far terrain comes straight from the terrain, without generating chunks: surface blocks
   from the world's own material rules, rivers, sea, ice and snow, tree crowns estimated from each biome's trees
-  (biome mods' own trees included), and the coarse map alone for the far horizon. See
+  (biome mods' own trees included), and the coarse map alone for the far horizon. A dedicated server makes them and
+  sends them to its players, with or without Distant Horizons SeedGen, checked in game. See
   [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
 - **Build height up to 32,736 blocks.** Dimension types can be up to 32,736 blocks tall (Y −16,368 to 16,367);
   vanilla stops at 4064. Positions are repacked, so worlds end at ±8,000,000 blocks. Blocks, light, heightmaps, the

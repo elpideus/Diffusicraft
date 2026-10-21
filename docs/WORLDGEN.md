@@ -7,8 +7,7 @@ step added. Several things work unchanged because of this:
 
 - structures and structure mods;
 - biome mods that extend the overworld biome table (TerraBlender, Biomes O' Plenty, BYG);
-- C2ME's parallel generation;
-- tools that call the generator directly, such as Voxy SeedGen.
+- C2ME's parallel generation.
 
 Distant Horizons gets a generator of its own that reads the terrain without building chunks; see
 [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).
