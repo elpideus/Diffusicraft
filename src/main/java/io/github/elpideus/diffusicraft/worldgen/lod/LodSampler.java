@@ -31,6 +31,7 @@ import net.minecraft.world.level.levelgen.material.rule.RuleEvaluator;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -127,6 +128,24 @@ public final class LodSampler {
 		return minY;
 	}
 
+	/** Highest block the terrain reaches. */
+	public int maxY() {
+		return maxY;
+	}
+
+	public int seaLevel() {
+		return seaLevel;
+	}
+
+	public WorldScale scale() {
+		return scale;
+	}
+
+	/** The biomes the world's biome source can place. */
+	public Set<Holder<Biome>> possibleBiomes() {
+		return generator.getBiomeSource().possibleBiomes();
+	}
+
 	/** Whether a grid of {@code width} columns {@code step} blocks apart is sampled from the coarse map. */
 	public boolean coarse(int width, int step) {
 		double tileBlocks = TerrainField.TILE / scale.pixelsPerBlock();
@@ -138,15 +157,44 @@ public final class LodSampler {
 	 * {@code step} blocks, each taken at the middle of its square.
 	 */
 	public void sample(int minX, int minZ, int width, int step, Sink sink) {
-		Grid grid = new Grid(minX, minZ, width, step);
 		if (coarse(width, step)) {
-			CoarseClimate.call(() -> {
-				grid.sample(true, sink);
-				return null;
-			});
+			sampleCoarse(minX, minZ, width, step, sink);
 		} else {
-			grid.sample(false, sink);
+			new Grid(minX, minZ, width, step).sample(false, sink);
 		}
+	}
+
+	/**
+	 * Samples a grid like {@link #sample}, from the coarse map alone however narrow the grid is: no model inference
+	 * beyond the coarse stage, but no rivers and nothing finer than a coarse pixel either. For overviews, such as the
+	 * relief map's, which show more land than anyone will ever load.
+	 */
+	public void sampleCoarse(int minX, int minZ, int width, int step, Sink sink) {
+		Grid grid = new Grid(minX, minZ, width, step);
+		CoarseClimate.call(() -> {
+			grid.sample(true, sink);
+			return null;
+		});
+	}
+
+	/**
+	 * The biomes at the surface of the coarse map, as {@link #sampleCoarse} finds them, for searches over many
+	 * kilometres. Call it from inside {@link CoarseClimate#call}; each lookup belongs to one thread.
+	 */
+	public CoarseBiomes coarseBiomes() {
+		BiomeResolver biomes = generator.getBiomeSource()
+			.createResolver(randomState.createClimateSampler(SamplerContext.EMPTY_UNCACHED));
+		return (x, z) -> {
+			float surface = scale.surfaceY(field.coarseElevation(scale.toPixel(z), scale.toPixel(x)));
+			int top = Mth.clamp(Mth.ceil(surface) - 1, minY, maxY - 1);
+			return biomes.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(top), QuartPos.fromBlock(z));
+		};
+	}
+
+	/** The biome at the surface of a column of the coarse map. */
+	@FunctionalInterface
+	public interface CoarseBiomes {
+		Holder<Biome> at(int x, int z);
 	}
 
 	private final class Grid {
