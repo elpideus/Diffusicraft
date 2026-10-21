@@ -3,6 +3,7 @@ package io.github.elpideus.diffusicraft.client;
 import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.client.lod.RemoteLods;
 import io.github.elpideus.diffusicraft.client.screen.Formats;
+import io.github.elpideus.diffusicraft.client.worldgen.FarTerrainLimits;
 import io.github.elpideus.diffusicraft.runtime.Job;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import net.fabricmc.api.ClientModInitializer;
@@ -19,6 +20,7 @@ public final class DiffusicraftClient implements ClientModInitializer {
 		// Downloads continue after their screen is closed; report how they ended wherever the player is.
 		Resources.get().addListener(job -> Minecraft.getInstance().execute(() -> showResult(job)));
 		RemoteLods.init();
+		FarTerrainLimits.init();
 	}
 
 	/** Whether to show the resource screen at game start. Never lets a failure block the title screen. */

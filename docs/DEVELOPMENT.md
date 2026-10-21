@@ -82,6 +82,10 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
 - [`ResourceScreensGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ResourceScreensGameTest.java)
   goes through the launch screen, Create World > More and the resource screen, and opens and cancels an install.
   Nothing is downloaded.
+- [`WorldSizeGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WorldSizeGameTest.java) picks
+  sizes with the slider in Create World's World tab, by mouse and by the arrow keys, and checks the world type follows.
+  With Distant Horizons or Voxy installed and the models downloaded, it checks that Create on Ultra asks first. Nothing
+  is created; it needs no models.
 - [`WorldGenerationGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WorldGenerationGameTest.java)
   creates a world with the default settings and checks that it is a Diffusicraft world. It saves a biome map, a height
   map, three views around the spawn, a view into a pit dug beside the deepest soil near the spawn, whose soil it checks

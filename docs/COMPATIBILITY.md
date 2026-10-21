@@ -22,6 +22,18 @@ for each mod, and what is still open.
 | [Sulkan](#vulkan) 0.6.0, shaders on Vulkan | Works, checked in game; hides Distant Horizons' far terrain | Inference leaves GPU memory for it, as for Iris |
 | Structure mods | Works | Structures are placed by the vanilla generator |
 
+## Warnings
+
+Distant Horizons and Voxy cannot hold Diffusicraft's two tallest sizes, Extreme and Ultra, whole: their far terrain
+shows the highest ground cut flat, while the chunks around the player are whole (see [below](#distant-horizons) and
+[Voxy's heights](#voxy)). With either mod installed, `client.worldgen.FarTerrainLimits` says so before it matters:
+
+- on the Create World screen, the size slider turns yellow on those sizes and its tooltip says what each mod will do;
+- pressing Create on one of them asks first, and names the largest size they hold whole (Grand);
+- entering a level taller than they hold, in any world or on any server, says it once in the chat, per level and
+  connection;
+- a server that hands Distant Horizons Diffusicraft's generator logs it for each such level.
+
 ## Distant Horizons
 
 Distant Horizons draws terrain far beyond the render distance from levels of detail (LODs). By default it builds them
@@ -92,8 +104,9 @@ blocks above the bottom of a level and garbles anything higher. Diffusicraft's E
 - the chunks Distant Horizons reads are cut off at that height by `mixin.dh.ChunkWrapperMixin`, which applies only
   when Distant Horizons is installed.
 
-Ground above y = 3838 shows flat in the far terrain; the chunks themselves are whole. Grand and the smaller sizes
-fit: Grand ends at y = 3839.
+Ground above y = 3838 shows flat in the far terrain; the chunks themselves are whole. Grand and the smaller sizes fit:
+Grand ends at y = 3839. Players are told before they create a taller world, and when they enter one (see
+[Warnings](#warnings)).
 
 **On a server.** Distant Horizons on a dedicated server makes the LODs there, with Diffusicraft's generator, and
 sends them to players who have Distant Horizons. Only the server runs the models: the players' clients take the
@@ -194,6 +207,7 @@ it within its heights:
 - `client.mixin.voxy.WorldUpdaterMixin` leaves out of Voxy's store the chunk sections above or below them.
 
 In Extreme and Ultra, ground above y = 4095 shows cut flat in Voxy's far terrain; the chunks themselves are whole.
+Players are told, as for Distant Horizons (see [Warnings](#warnings)).
 
 **Checking it.** The client game tests for tall dimensions and for Earth 1:1 (now Ultra) passed with Voxy
 (`-PdevMods=voxy,sodium`: Voxy needs Sodium) and save screenshots. `VoxyGameTest` looks at the far terrain from above

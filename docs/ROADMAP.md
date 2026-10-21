@@ -36,7 +36,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   | **Extreme** (1:2) | 2 m per block | 1.7 times, eased above 6.3 km | −256 to 8191 |
   | **Ultra** (1:1), the default | 1 m per block | 1.5 times, eased above 6.5 km | −256 to 16,367 |
 
-  See [WORLDGEN.md](WORLDGEN.md#world-types).
+  Pick the size with the slider beside the world type. Distant Horizons and Voxy cut the highest ground of Extreme and
+  Ultra flat in their far terrain; with either installed, the slider, Create and the chat say so. See
+  [WORLDGEN.md](WORLDGEN.md#world-types).
 - **A real geography.** The coarse model is conditioned on a map of continents, plates and climate rather than on
   noise. One world holds supercontinents and islands of every size, with smooth coasts in places and archipelagos in
   others. It also has cordilleras, collision belts, island arcs, rifts and hotspot chains, and winds, rain shadows and
@@ -142,8 +144,6 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
 drama on top, at every size:
 
-- **A size slider.** Pick the size on the Create World screen, and see what Distant Horizons or Voxy will do with a
-  size taller than they hold.
 - **A relief map.** A web page the mod serves for the current world, to find places and their coordinates.
 - **Dramatic mountains and small-scale relief.** Small cliffs, ridges and knolls on ground that is now too level up
   close.

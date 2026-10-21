@@ -53,6 +53,11 @@ public final class DistantHorizonsCompat {
 			new DiffusicraftLodGenerator(sampler, levelWrapper));
 		if (result.success) {
 			LOGGER.info("Distant Horizons LODs for {} come from the terrain", level.dimension().identifier());
+			// Players are told in the chat; a dedicated server's operator learns it here.
+			if (level.getHeight() > MAX_HEIGHT + 1) {
+				LOGGER.warn("{} is taller than Distant Horizons holds: its LODs stop at y = {}, and higher ground "
+					+ "shows flat in them", level.dimension().identifier(), level.getMinY() + MAX_HEIGHT - 1);
+			}
 		} else {
 			LOGGER.warn("Distant Horizons refused the LOD generator for {}: {}", level.dimension().identifier(),
 				result.message);

@@ -33,10 +33,16 @@ listed among the world types. On a dedicated server, set `level-type` to the siz
 | Extreme (1:2) | `diffusicraft:extreme` | 2 m per block | 1.7 times, eased above 6.3 km | −256 to 8191 | y = 585 |
 | **Ultra (1:1)**, the default | `diffusicraft:ultra` | 1 m per block | 1.5 times, eased above 6.5 km | −256 to 16,367 | y = 986 |
 
+**Picking a size.** While Diffusicraft is the world type, a size slider takes the place of "Customize" in the World tab
+of the Create World screen (`client.mixin.CreateWorldScreenWorldTabMixin`, `client.worldgen.WorldSizeSlider`). Drag
+it, or press the arrow keys to move one size at a time. Its tooltip gives the size's scale, its build height and how
+high its mountains reach.
+
 Grand is the tallest world that Distant Horizons and Voxy hold whole; in the two above it they cut the highest ground
-flat in the far terrain (see [COMPATIBILITY.md](COMPATIBILITY.md)). Ultra fills the tallest dimension Minecraft can
-hold once Diffusicraft lifts its limits (see [HEIGHT.md](HEIGHT.md)). The clouds float about 600 m above the sea, in
-each size's heights, and never below vanilla's.
+flat in the far terrain (see [COMPATIBILITY.md](COMPATIBILITY.md#warnings)). With either mod installed, the slider turns
+yellow on those sizes, its tooltip says what the mod will do, and Create asks before it makes the world. Ultra fills the
+tallest dimension Minecraft can hold once Diffusicraft lifts its limits (see [HEIGHT.md](HEIGHT.md)). The clouds float
+about 600 m above the sea, in each size's heights, and never below vanilla's.
 
 A world type that needs the models cannot be created until they are downloaded. Pressing Create opens the resource
 screen instead. A dedicated server downloads them at startup, and generation waits for the download.

@@ -10,14 +10,10 @@ import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.AbstractScrollArea;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.components.tabs.Tab;
-import net.minecraft.client.gui.components.tabs.TabNavigationBar;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.input.KeyEvent;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.contents.TranslatableContents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +53,7 @@ public class ResourceScreensGameTest implements FabricClientGameTest {
 		// 2. From world creation: More tab > Diffusicraft Resources...
 		context.runOnClient(mc -> CreateWorldScreen.openFresh(mc, () -> mc.gui.setScreen(new TitleScreen())));
 		context.waitForScreen(CreateWorldScreen.class);
-		context.runOnClient(mc -> selectTab(mc.gui.screen().children(), "createWorld.tab.more.title"));
+		context.runOnClient(mc -> GameTests.selectTab(mc.gui.screen().children(), "createWorld.tab.more.title"));
 		context.waitTicks(2);
 		screenshot(context, "create-world-more");
 		context.clickScreenButton("diffusicraft.resources.button");
@@ -104,25 +100,6 @@ public class ResourceScreensGameTest implements FabricClientGameTest {
 		LOGGER.info("Screenshot: {}", file.toAbsolutePath());
 	}
 
-	private static boolean hasKey(Component text, String key) {
-		return text.getContents() instanceof TranslatableContents translatable && translatable.getKey().equals(key);
-	}
-
-	private static void selectTab(List<? extends GuiEventListener> children, String titleKey) {
-		for (GuiEventListener child : children) {
-			if (child instanceof TabNavigationBar bar) {
-				List<Tab> tabs = bar.getTabs();
-				for (int i = 0; i < tabs.size(); i++) {
-					if (hasKey(tabs.get(i).getTabTitle(), titleKey)) {
-						bar.selectTab(i, false);
-						return;
-					}
-				}
-			}
-		}
-		throw new AssertionError("No tab titled " + titleKey);
-	}
-
 	private static void scrollToBottom(List<? extends GuiEventListener> children) {
 		for (GuiEventListener child : children) {
 			if (child instanceof AbstractScrollArea area) {
@@ -134,7 +111,7 @@ public class ResourceScreensGameTest implements FabricClientGameTest {
 	/** Presses the first visible, active button labelled {@code key}, searching nested lists too, as Enter would. */
 	private static boolean press(List<? extends GuiEventListener> children, String key) {
 		for (GuiEventListener child : children) {
-			if (child instanceof AbstractButton button && button.visible && button.active && hasKey(button.getMessage(), key)) {
+			if (child instanceof AbstractButton button && button.visible && button.active && GameTests.hasKey(button.getMessage(), key)) {
 				button.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
 				return true;
 			}

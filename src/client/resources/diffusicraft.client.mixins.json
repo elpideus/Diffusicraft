@@ -6,6 +6,7 @@
 	"client": [
 		"CreateWorldScreenMixin",
 		"CreateWorldScreenMoreTabMixin",
+		"CreateWorldScreenWorldTabMixin",
 		"GuiMixin",
 		"WorldCreationUiStateMixin",
 		"height.RenderGridMixin",

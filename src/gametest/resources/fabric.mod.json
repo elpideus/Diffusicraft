@@ -11,6 +11,7 @@
 			"io.github.elpideus.diffusicraft.gametest.ResourceScreensGameTest",
 			"io.github.elpideus.diffusicraft.gametest.ShadersGameTest",
 			"io.github.elpideus.diffusicraft.gametest.WorldGenerationGameTest",
+			"io.github.elpideus.diffusicraft.gametest.WorldSizeGameTest",
 			"io.github.elpideus.diffusicraft.gametest.TallDimensionGameTest",
 			"io.github.elpideus.diffusicraft.gametest.UltraWorldGameTest",
 			"io.github.elpideus.diffusicraft.gametest.TreesGameTest",
