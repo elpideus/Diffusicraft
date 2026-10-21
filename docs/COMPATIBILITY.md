@@ -17,7 +17,7 @@ for each mod, and what is still open.
 | [Tech Reborn](#tech-mods) 6.2.0 | Works, checked in game | The geology's ore bodies hold its tin, lead, silver, uranium, rubies, sapphires and the rest in their host rocks, and its bauxite lies in tropical laterite |
 | Create, Mekanism, other tech mods | Should work: not checked | The same for any ore under the common tags `c:ores/<metal>` |
 | [Sodium](#sodium) 0.9.3-beta.1 | Works, checked in game | Lets it build sections at every height of a tall dimension; inference leaves it GPU memory |
-| Iris, shader packs | Works | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
+| [Iris](#shaders) 1.11.7 with Bliss 2.1.2, other shader packs | Works, checked in game | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
 | Structure mods | Works | Structures are placed by the vanilla generator |
 
 ## Distant Horizons
@@ -230,6 +230,30 @@ built (`GameTests.waitForRender`).
 
 **Licensing.** Sodium is under the PolyForm Shield license. It is a dev mod (`localRuntime`); Diffusicraft's mixins
 name its classes and never compile against it.
+
+## Shaders
+
+Iris runs shader packs, drawing each frame a second time from the sun for their shadows. Diffusicraft changes nothing
+in how they draw: what they need from it is GPU memory, which inference leaves them by keeping within
+[`gpuMemoryLimitMb`](CONFIG.md#gpumemorylimitmb). Packs that support Distant Horizons draw its far terrain,
+Diffusicraft's included, through programs of their own.
+
+**Checking it.** `ShadersGameTest` turns a pack on, checks in a superflat world that Iris runs it and draws its shadow
+pass, and leaves it on for the game tests named after it (see
+[DEVELOPMENT.md](DEVELOPMENT.md#client-game-tests)). With Iris 1.11.7 and Sodium 0.9.3-beta.1 on an NVIDIA GPU:
+
+- the test's own pack, which casts shadows and draws Distant Horizons' far terrain, and Bliss 2.1.2
+  (`-PdevMods=sodium,iris,bliss-shader -Pdiffusicraft.shaderPack=bliss-shader.zip`) both drew the tall dimension
+  (`-Pdiffusicraft.gametests=Shaders,TallDimension`);
+- Bliss drew every view of the world generation test (`Shaders,WorldGeneration`), from the rivers, fjords and sea
+  cliffs to the lit hollows underground, with Terrain Diffusion on CUDA beside it at a 4096 MB limit;
+- Bliss drew Distant Horizons' far terrain from a dedicated server (`-Pdiffusicraft.gametests=DistantHorizonsServer`,
+  Distant Horizons on both sides): the client held all its LODs after 35 s, and the forest runs on past the chunks to
+  the horizon. The test's view from 480 blocks up is inside Bliss's second layer of clouds, at y = 500 by default.
+
+**Licensing.** Iris is under the LGPL. The shader game test compiles against it (`gametestCompileOnly`) and it runs
+only as a dev mod, never bundled. Bliss is All Rights Reserved: a dev-runtime pack (`devShaderPacks` in
+`gradle/dev-mods.gradle`), never committed or shipped.
 
 ## Biome mods
 

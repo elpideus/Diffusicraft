@@ -39,6 +39,9 @@ project directly, and Loom generates run configurations.
 - **Mods outside the modpack.** Some compatibility targets are not in the maintainer's pack and load only when named
   in `-PdevMods`, for example `-PdevMods=techreborn` to see the geology place the ores of a tech mod, or
   `-PdevMods=voxy,sodium` for Voxy, which needs Sodium. They are listed under `optionalDevMods` in the same file.
+- **Shader packs.** Named in `-PdevMods` as well, the packs under `devShaderPacks`, such as Bliss
+  (`-PdevMods=sodium,iris,bliss-shader`), go into the client's `shaderpacks` folder as `<slug>.zip`. Like the mods,
+  they are pinned by Modrinth version id and never leave the dev runtime.
 - **Adding or updating a mod.** Find the version id on the mod's Modrinth *Versions* page (the last part of the
   version URL) and add `'<slug>': '<version id>'`. If it fails to start, add the mod's required dependencies too.
 
@@ -120,6 +123,17 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   (`diffusicraft-dh-server-<view>.png`) before it fails on any point it does not hold, so a failed run still shows
   what the client drew, checks in the server's log that the server gave Distant Horizons Diffusicraft's generator,
   and stops the server. The server needs the models.
+- [`ShadersGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ShadersGameTest.java) runs only
+  when named and with Iris installed (`-PdevMods=sodium,iris`). It turns on a small shader pack of its own
+  (`src/gametest/resources/diffusicraft-gametest/shaderpack`), which casts shadows and draws Distant Horizons' far
+  terrain, checks in a superflat world that Iris runs it and draws its shadow pass, and saves a view
+  (`diffusicraft-shaders-flat.png`). The pack stays on for the tests after it, so
+  `-Pdiffusicraft.gametests=Shaders,TallDimension` plays the tall dimension under shaders. It needs no models.
+  `-Pdiffusicraft.shaderPack=bliss-shader.zip` turns on a real pack instead, from the run's `shaderpacks` folder,
+  where `-PdevMods=sodium,iris,bliss-shader` puts Bliss (see [Running the game](#running-the-game)). Gradle also
+  writes it into Iris's config before the game starts, so every test runs under it, `ShadersGameTest` or not. Use
+  that for `DistantHorizonsServerGameTest` and leave `Shaders` out: with Distant Horizons installed, closing the
+  superflat world once hung the game, Fabric's test threads waiting on the integrated server while it waited on them.
 
 ```bash
 ./gradlew runClientGameTest -PnoDevMods
@@ -138,6 +152,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   ```bash
   env -u WAYLAND_DISPLAY -u DISPLAY gamescope --backend headless -W 1600 -H 900 -- ./gradlew runClientGameTest -PnoDevMods -Pdiffusicraft.device=CUDA
   ```
+
+  SDL's offscreen driver (`SDL_VIDEO_DRIVER=offscreen`, no display at all) renders OpenGL on the real driver too.
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
 - **Some of them.** `-Pdiffusicraft.gametests=TallDimension,Earth` runs only the tests whose class names start with
   one of those. The tall dimension, the trees and the biomes each take under a minute.

@@ -181,8 +181,11 @@ Diffusicraft counts them from below the camera instead (see [COMPATIBILITY.md](C
 - **Sodium** built no section above y = 14,335 or below y = −2048, so the tallest dimensions showed nothing at
   their top or bottom. Diffusicraft lets it build sections at every height (see
   [COMPATIBILITY.md](COMPATIBILITY.md#sodium)); the tall-dimension game test runs with it.
-- **Untested:** Iris, Lithium, FerriteCore, Moonrise and C2ME in a tall dimension. Test each of them in one before
-  relying on it.
+- **Iris** draws the tall dimension with a shader pack on, its shadow pass included: the test's own pack and Bliss
+  both drew the platforms at y = ±16,000 and the chunk at y = 16,340 (`-Pdiffusicraft.gametests=Shaders,TallDimension`,
+  see [COMPATIBILITY.md](COMPATIBILITY.md#shaders)).
+- **Untested:** Lithium, FerriteCore, Moonrise and C2ME in a tall dimension. Test each of them in one before relying
+  on it.
 
 ## Costs
 

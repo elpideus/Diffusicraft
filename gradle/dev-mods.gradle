@@ -29,7 +29,7 @@ def devMods = [
 	'distant-horizons-seedgen'   : '7hGTqcL4',  // 0.9.1 (SeedGen compat target, ARR: dev runtime only)
 	'entityculling'              : 'X1g3VhTx',  // 1.11.3
 	'ferrite-core'               : 'd5ddUdiB',  // 9.0.0-fabric
-	'iris'                       : 'vTN4NRGW',  // 1.11.7+26.3-fabric
+	'iris'                       : project.iris_version,  // 1.11.7+26.3-fabric (shader target)
 	'lithium'                    : 'xS0Q8LSi',  // mc26.3-0.26.2-fabric
 	'modmenu'                    : 'kyy7dbrZ',  // 21.0.0
 	'no-chat-reports'            : '6g96avt2',  // Fabric-26.3-v2.21.0
@@ -46,16 +46,44 @@ def optionalDevMods = [
 	'voxy'                       : 'iIrM8ZKQ',  // 0.2.20-beta (LOD target, ARR: dev runtime only; needs sodium)
 ]
 
+// Shader packs, also named in -PdevMods and put in the client runs' shaderpacks folder as <slug>.zip. Like the mods,
+// they never leave the dev runtime.
+def devShaderPacks = [
+	'bliss-shader'               : 'kC2Y8q1P',  // 2.1.2 (Iris pack with Distant Horizons support, ARR: dev runtime only)
+]
+
 if (!project.hasProperty('noDevMods')) {
 	def wanted = project.findProperty('devMods')?.toString()?.split(',')?.collect { it.trim() }?.findAll { it }
 	def known = devMods + optionalDevMods
-	def unknown = (wanted ?: []) - known.keySet()
+	def unknown = (wanted ?: []) - known.keySet() - devShaderPacks.keySet()
 	if (unknown) {
-		throw new GradleException("Unknown dev mods ${unknown}; pick from ${known.keySet()}")
+		throw new GradleException("Unknown dev mods ${unknown}; pick from ${known.keySet() + devShaderPacks.keySet()}")
 	}
 	dependencies {
-		(wanted ? known.subMap(wanted) : devMods).each { slug, ver ->
+		(wanted ? known.subMap(wanted.findAll { known.containsKey(it) }) : devMods).each { slug, ver ->
 			localRuntime "maven.modrinth:${slug}:${ver}"
+		}
+	}
+	def packs = devShaderPacks.subMap((wanted ?: []).findAll { devShaderPacks.containsKey(it) })
+	if (packs) {
+		def packFiles = configurations.detachedConfiguration(*packs.collect { slug, ver ->
+			dependencies.create("maven.modrinth:${slug}:${ver}@zip")
+		})
+		packFiles.transitive = false
+		// Into the run's directory, which Loom makes the task's working directory only once the task runs.
+		def runs = [runClient: 'client', runClientGameTest: 'clientGameTest']
+		tasks.matching { it.name in runs.keySet() }.configureEach { task ->
+			doFirst {
+				def shaderpacks = file("${loom.runs.getByName(runs[task.name]).runDir}/shaderpacks")
+				packs.each { slug, ver ->
+					def file = packFiles.resolvedConfiguration.resolvedArtifacts.find { it.name == slug }.file
+					project.copy {
+						from file
+						into shaderpacks
+						rename { "${slug}.zip" }
+					}
+				}
+			}
 		}
 	}
 }

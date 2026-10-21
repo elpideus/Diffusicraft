@@ -83,6 +83,16 @@ def gameTestServerDir = file('build/run/gameTestServer')
 tasks.matching { it.name == 'runClientGameTest' }.configureEach {
 	systemProperties project.properties.findAll { k, v -> k.startsWith('diffusicraft.') }
 	systemProperty 'diffusicraft.testServerDir', gameTestServerDir.absolutePath
+	// -Pdiffusicraft.shaderPack=<file in shaderpacks>: Iris starts with that pack on, for every game test. The run's
+	// directory, Iris's config in it, is new for each run.
+	def shaderPack = project.findProperty('diffusicraft.shaderPack')
+	if (shaderPack) {
+		doFirst {
+			def config = file('build/run/clientGameTest/config')
+			config.mkdirs()
+			new File(config, 'iris.properties').text = "enableShaders=true\nshaderPack=${shaderPack}\n"
+		}
+	}
 }
 
 // `./gradlew runGameTestServer -Pdiffusicraft.testServerPort=25570`: a dedicated server for the game tests that need
@@ -139,6 +149,8 @@ dependencies {
 	// Optional integration: Voxy (client.compat.voxy, client.mixin.voxy). Voxy is All Rights Reserved, so Diffusicraft
 	// compiles against its own declarations of the few Voxy members it calls (src/voxyStubs), never against Voxy.
 	clientCompileOnly sourceSets.voxyStubs.output
+	// The shader game test turns Iris's shader packs on through Iris itself. Compile-only; Iris runs only as a dev mod.
+	gametestCompileOnly "maven.modrinth:iris:${project.iris_version}"
 
 	// Dev-runtime mods (client run only). See gradle/dev-mods.gradle.
 }
