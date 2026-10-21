@@ -683,7 +683,8 @@ one in 24 of vanilla's forests (flower, birch and dark forests too) and one in 4
 and a kapok in one in 10 of its jungles. So the plains, the largest open land, show a lone giant oak a hundred blocks
 or so apart where the ground is level, and their ancient woodlands a stand of them.
 
-The LOD mods draw the giants too (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
+The LOD mods draw the giants too, the ancient oaks and the kapoks where the world grows them (see
+[COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
 
 ### Waterfalls
 
@@ -1374,7 +1375,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` and `GiantTreeStructure` (both `diffusicraft:giant_tree`), `GiantTreePiece` (a giant written a chunk at a time) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
-| `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
+| `worldgen/lod/` | `LodSampler`, `LodColumn`, `TreeCover` and `GreatTrees`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust, glowworm silk and selenite |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
@@ -1491,7 +1492,10 @@ Other searches still read the full terrain and can take a while on new land:
   as they are tall, open inside, over a bare trunk, that kapoks stand on buttresses under an umbrella half as wide as
   they are tall, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks
   that the LODs draw a biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of
-  detail farther out, and as tall as the kapoks grow in a world of each size.
+  detail farther out, and as tall as the kapoks grow in a world of each size. `GreatTreesTest` checks that the LODs
+  stand the structures' giants at the feet their chunks draw, with their trunks there and nowhere else, only the
+  giant of the biome at the foot, none under water, on steep ground or in chunks the set does not place in, crowns
+  wider than a feature's at 1:1 that shrink at 1:32, and leaves that stay put as the ground rises under them.
 - `WaterfallTest` lays out waterfalls over a straight cliff, into a pool of their own on level ground and into the sea,
   down the head of a gorge cut into a steep face, never below its floor, and none on slopes of one block a block,
   fins, ridges and peaks. On rough ground of plateaus and down the steep sides of mesas, with the sea at their foot

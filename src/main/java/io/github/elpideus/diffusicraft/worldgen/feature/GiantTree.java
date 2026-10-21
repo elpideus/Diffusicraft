@@ -28,6 +28,8 @@ import java.util.List;
 final class GiantTree {
 	/** The farthest any block may lie from the trunk's axis, in blocks: a feature writes in the 3×3 chunks around it. */
 	static final int MAX_REACH = 21;
+	/** The least room a tree is given, however little it is offered, in blocks from the trunk's axis. */
+	static final int MIN_REACH = 4;
 	/** The farthest a leaf lives from the wood, as {@code LeavesBlock} counts it: the leaves beyond decay. */
 	static final int LEAF_REACH = 6;
 	/** Clumps of leaves wider than this hold twigs, in blocks of radius. */
@@ -56,7 +58,7 @@ final class GiantTree {
 	private final RandomSource random;
 
 	private GiantTree(int reach, RandomSource random) {
-		this.reach = Math.max(4, reach);
+		this.reach = Math.max(MIN_REACH, reach);
 		this.random = random;
 	}
 

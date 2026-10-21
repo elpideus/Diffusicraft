@@ -90,6 +90,67 @@ public final class GiantTreeStructure extends Structure {
 		return new Sapling(x, z, height, random.nextLong());
 	}
 
+	/** The form of the giants it grows. */
+	public GiantTreeFeature.Form form() {
+		return form;
+	}
+
+	public BlockState wood() {
+		return wood;
+	}
+
+	public BlockState leaves() {
+		return leaves;
+	}
+
+	/** The lowest a giant of a world of {@code scale} grows, before the top of the world cuts it. */
+	public int minHeight(WorldScale scale) {
+		return (int) Math.round(height.minInclusive() * GiantTree.size(scale));
+	}
+
+	/** The highest a giant of a world of {@code scale} grows. */
+	public int maxHeight(WorldScale scale) {
+		return (int) Math.round(height.maxInclusive() * GiantTree.size(scale));
+	}
+
+	/** The farthest any block of a giant {@code height} blocks tall lies from its trunk's axis. */
+	public int reach(int height) {
+		return Math.max(GiantTree.MIN_REACH, GiantTree.reach(form, height));
+	}
+
+	/**
+	 * How tall a sapling grows with its foot at {@code ground}: cut to fit under {@code maxY}, the top of the world, or
+	 * {@code 0} if it is then too short to grow at all.
+	 */
+	public int height(Sapling sapling, int ground, int maxY, WorldScale scale) {
+		int height = Math.min(sapling.height(), maxY - ground - GiantTreeFeature.HEADROOM);
+		return height < GiantTreeFeature.MIN_HEIGHT * GiantTree.size(scale) ? 0 : height;
+	}
+
+	/** Lays the whole of a giant {@code height} blocks tall, drawn from {@code seed}, into {@code out}. */
+	public void grow(int height, long seed, BlockSink out) {
+		GiantTree.Blocks blocks = GiantTree.grow(form, height, GiantTree.reach(form, height), RandomSource.create(seed));
+		for (long pos : blocks.wood) {
+			out.accept(BlockPos.getX(pos), BlockPos.getY(pos), BlockPos.getZ(pos), true);
+		}
+		for (long pos : blocks.leaves) {
+			out.accept(BlockPos.getX(pos), BlockPos.getY(pos), BlockPos.getZ(pos), false);
+		}
+	}
+
+	/** Receives the blocks of a giant, relative to the foot of its trunk, the block just over the ground. */
+	@FunctionalInterface
+	public interface BlockSink {
+		void accept(int x, int y, int z, boolean wood);
+	}
+
+	/** The ground under the columns of a world, as a giant tests it. */
+	@FunctionalInterface
+	public interface Ground {
+		/** The first block over the ground of column {@code (x, z)}, or {@link Integer#MIN_VALUE} if water covers it. */
+		int at(int x, int z);
+	}
+
 	@Override
 	protected Optional<GenerationStub> findGenerationPoint(GenerationContext context) {
 		BiomeWorld world = ((BiomeWorld.Carrier) (Object) context.randomState()).diffusicraft$biomeWorld();
@@ -104,20 +165,21 @@ public final class GiantTreeStructure extends Structure {
 		ChunkGenerator generator = context.chunkGenerator();
 		LevelHeightAccessor heights = context.heightAccessor();
 		RandomState state = context.randomState();
+		Ground land = (x, z) -> dryGround(generator, x, z, heights, state);
 		int x = sapling.x(), z = sapling.z();
-		int ground = dryGround(generator, x, z, heights, state);
+		int ground = land.at(x, z);
 		if (ground == Integer.MIN_VALUE || !context.validBiome().test(context.biomeResolver()
 			.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(ground), QuartPos.fromBlock(z)))) {
 			return Optional.empty();
 		}
-		int height = Math.min(sapling.height(), heights.getMaxY() - ground - GiantTreeFeature.HEADROOM);
-		if (height < GiantTreeFeature.MIN_HEIGHT * GiantTree.size(world.scale())) {
+		int height = height(sapling, ground, heights.getMaxY(), world.scale());
+		if (height == 0) {
 			return Optional.empty();
 		}
 		GiantTree plan = GiantTree.plan(form, height, GiantTree.reach(form, height),
 			RandomSource.create(sapling.seed()));
 		int footReach = plan.blocks(new BoundingBox(-plan.reach, 0, -plan.reach, plan.reach, 0, plan.reach)).footReach;
-		if (!levelAround(generator, x, ground, z, footReach + 2, heights, state)) {
+		if (!levelAround(land, x, ground, z, footReach + 2)) {
 			return Optional.empty();
 		}
 		BlockPos base = new BlockPos(x, ground, z);
@@ -136,21 +198,20 @@ public final class GiantTreeStructure extends Structure {
 	}
 
 	/**
-	 * Whether the ground {@code distance} blocks around the foot lies within {@value GiantTreeFeature#UNEVEN} blocks of
-	 * it, and dry, as {@link GiantTreeFeature} asks of its own.
+	 * Whether the ground {@code distance} blocks around a foot at {@code (x, y, z)} lies within {@value
+	 * GiantTreeFeature#UNEVEN} blocks of it, and dry, as {@link GiantTreeFeature} asks of its own.
 	 */
-	private static boolean levelAround(ChunkGenerator generator, int x, int ground, int z, int distance,
-									   LevelHeightAccessor heights, RandomState state) {
+	public static boolean levelAround(Ground ground, int x, int y, int z, int distance) {
 		int low = Integer.MAX_VALUE, high = Integer.MIN_VALUE;
 		for (int k = 0; k < 8; k++) {
 			double angle = k * Math.PI / 4;
-			int y = dryGround(generator, x + (int) Math.round(Math.cos(angle) * distance),
-				z + (int) Math.round(Math.sin(angle) * distance), heights, state);
-			if (y == Integer.MIN_VALUE || Math.abs(y - ground) > GiantTreeFeature.UNEVEN) {
+			int around = ground.at(x + (int) Math.round(Math.cos(angle) * distance),
+				z + (int) Math.round(Math.sin(angle) * distance));
+			if (around == Integer.MIN_VALUE || Math.abs(around - y) > GiantTreeFeature.UNEVEN) {
 				return false;
 			}
-			low = Math.min(low, y);
-			high = Math.max(high, y);
+			low = Math.min(low, around);
+			high = Math.max(high, around);
 		}
 		return high - low <= GiantTreeFeature.UNEVEN;
 	}

@@ -78,7 +78,8 @@ import java.util.function.Predicate;
  * each column would look over hundreds of cells for them. As in the world, which places them after the small trees
  * and grows them through their crowns, the small trees do not shade them, nor they the small trees; only another giant
  * keeps one from growing. Their trunks show in the farther levels of detail too, as far as they are wide.
- * Diffusicraft's giants are drawn at the height they grow to in a world of the cover's size.
+ * Diffusicraft's giants are drawn at the height they grow to in a world of the cover's size. Those that grow as
+ * structures, the ancient oaks and the kapoks, are not a biome's features: {@link GreatTrees} draws them.
  */
 final class TreeCover {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TreeCover.class);
@@ -122,7 +123,7 @@ final class TreeCover {
 	 * lowest and highest leaf, as heights above the block the tree stands on ({@code 1} right above it), or
 	 * {@link #NO_LEAVES}, and whether the trunk rises there. The trunk is about {@code trunkWidth} blocks across.
 	 */
-	private record Shape(int reach, short[] low, short[] high, boolean[] trunk, int trunkWidth) {
+	record Shape(int reach, short[] low, short[] high, boolean[] trunk, int trunkWidth) {
 		static final short NO_LEAVES = Short.MIN_VALUE;
 
 		/** Index of the column {@code (dx, dz)} from the trunk, or {@code -1} beyond the crown's reach. */
