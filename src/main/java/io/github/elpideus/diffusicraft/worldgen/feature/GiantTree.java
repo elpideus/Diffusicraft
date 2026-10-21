@@ -3,20 +3,26 @@ package io.github.elpideus.diffusicraft.worldgen.feature;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * The shape of one giant tree, block by block, before it meets the world: its wood and its leaves, as positions
- * relative to the foot of its trunk, the block at {@code (0, 0, 0)} just above the ground. {@link GiantTreeFeature}
- * places it.
+ * The plan of one giant tree, before it meets the world: the parts it is built of, a trunk, limbs and clumps of
+ * leaves, in positions relative to the foot of its trunk, the block at {@code (0, 0, 0)} just above the ground.
+ * {@link #blocks} lays the parts in blocks, in the whole tree or in any box of it, and the blocks of a box are those of
+ * the whole tree there, so that a tree can be placed a piece at a time. {@link GiantTreeFeature} places it.
  *
  * <p>Every form is a trunk that tapers from a flared foot, and limbs that carry the leaves in clumps. The clumps keep
- * within a few blocks of the wood, so that the leaves stay alive (see {@link #distances}), and large ones hold twigs
- * of their own. Nothing reaches farther than {@code reach} blocks from the trunk's axis, which keeps the tree in the
- * chunks a feature may write to. Pure, so it is unit-tested without a world.
+ * within a few blocks of the wood, so that the leaves stay alive (see {@link Blocks#distances}), and large ones hold
+ * twigs of their own. Nothing reaches farther than {@code reach} blocks from the trunk's axis. Pure, so it is
+ * unit-tested without a world.
  */
 final class GiantTree {
 	/** The farthest any block may lie from the trunk's axis, in blocks: a feature writes in the 3×3 chunks around it. */
@@ -25,6 +31,8 @@ final class GiantTree {
 	static final int LEAF_REACH = 6;
 	/** Clumps of leaves wider than this hold twigs, in blocks of radius. */
 	private static final double TWIGGED = 3.5;
+	/** Share of the blocks of a clump's outer part that hold leaves, which makes its edge ragged. */
+	private static final double RAGGED = 0.7;
 	/**
 	 * How fast the giants shrink with the world: each halving of its size takes this power of two off their height,
 	 * about a sixth, so that at 1:32 they stand at 42% of their height at 1:1. The land shrinks some sixteen times
@@ -32,20 +40,16 @@ final class GiantTree {
 	 */
 	private static final double SHRINK = 0.25;
 
-	final LongOpenHashSet wood = new LongOpenHashSet();
-	final LongOpenHashSet leaves = new LongOpenHashSet();
-	/** The columns of the trunk's foot, which the roots fill down to the ground. */
-	final LongOpenHashSet foot = new LongOpenHashSet();
-	/** The farthest the foot reaches from the axis, buttresses included. */
-	int footReach;
-	/** The height of the top block. */
-	int top;
-
-	private final int reach;
+	/** The farthest any block lies from the trunk's axis. */
+	final int reach;
+	private final List<Part> parts = new ArrayList<>();
+	/** The highest any part may reach. */
+	private int top;
+	/** The draws of the plan, while it is made. */
 	private final RandomSource random;
 
 	private GiantTree(int reach, RandomSource random) {
-		this.reach = Math.clamp(reach, 4, MAX_REACH);
+		this.reach = Math.max(4, reach);
 		this.random = random;
 	}
 
@@ -54,27 +58,57 @@ final class GiantTree {
 		return Math.pow(scale.ratio(), -SHRINK);
 	}
 
-	/** Grows a tree of {@code form} about {@code height} blocks tall, none of it farther than {@code reach} out. */
-	static GiantTree grow(GiantTreeFeature.Form form, int height, int reach, RandomSource random) {
+	/** Plans a tree of {@code form} about {@code height} blocks tall, none of it farther than {@code reach} out. */
+	static GiantTree plan(GiantTreeFeature.Form form, int height, int reach, RandomSource random) {
 		GiantTree tree = new GiantTree(reach, random);
 		switch (form) {
 			case REDWOOD -> tree.redwood(height);
 			case OAK -> tree.oak(height);
 			case KAPOK -> tree.kapok(height);
 		}
-		tree.leaves.removeAll(tree.wood);
-		for (long pos : tree.wood) {
+		return tree;
+	}
+
+	/** Grows a whole tree of {@code form}: {@link #plan}, laid in blocks. */
+	static Blocks grow(GiantTreeFeature.Form form, int height, int reach, RandomSource random) {
+		return plan(form, height, reach, random).blocks();
+	}
+
+	/** The highest any block of the tree may lie, over its foot. */
+	int top() {
+		return top;
+	}
+
+	/** The blocks of the whole tree. */
+	Blocks blocks() {
+		return blocks(new BoundingBox(-reach, 0, -reach, reach, top, reach));
+	}
+
+	/**
+	 * The blocks of the tree within {@code box}, relative to its foot, as they lie in the whole tree. The distances of
+	 * its leaves from the wood are those in the whole tree too for leaves at least {@value #LEAF_REACH} blocks inside
+	 * the box, which it takes to lay a chunk: its own box grown by that much on every side.
+	 */
+	Blocks blocks(BoundingBox box) {
+		Blocks blocks = new Blocks(box, reach);
+		for (Part part : parts) {
+			if (part.bounds().intersects(box)) {
+				part.lay(blocks);
+			}
+		}
+		blocks.leaves.removeAll(blocks.wood);
+		for (long pos : blocks.wood) {
 			if (BlockPos.getY(pos) == 0) {
-				tree.foot.add(pos);
-				tree.footReach = Math.max(tree.footReach,
+				blocks.foot.add(pos);
+				blocks.footReach = Math.max(blocks.footReach,
 					Math.max(Math.abs(BlockPos.getX(pos)), Math.abs(BlockPos.getZ(pos))));
 			}
-			tree.top = Math.max(tree.top, BlockPos.getY(pos));
+			blocks.top = Math.max(blocks.top, BlockPos.getY(pos));
 		}
-		for (long pos : tree.leaves) {
-			tree.top = Math.max(tree.top, BlockPos.getY(pos));
+		for (long pos : blocks.leaves) {
+			blocks.top = Math.max(blocks.top, BlockPos.getY(pos));
 		}
-		return tree;
+		return blocks;
 	}
 
 	/**
@@ -207,20 +241,7 @@ final class GiantTree {
 	 * out into {@code ribs} ribs.
 	 */
 	private void trunk(int top, double foot, double tip, double taper, int ribs, double flare, double flareHeight) {
-		double phase = random.nextDouble() * Math.PI * 2;
-		for (int y = 0; y <= top; y++) {
-			double r = radius(y, top, foot, tip, taper);
-			double spread = y < flareHeight ? flare * Math.pow(1 - y / flareHeight, 2) : 0;
-			int bound = (int) Math.ceil(r + spread + 0.5);
-			for (int dz = -bound; dz <= bound; dz++) {
-				for (int dx = -bound; dx <= bound; dx++) {
-					double rib = ribs == 0 ? 1 : Math.pow(Math.max(0, Math.cos(ribs * (Math.atan2(dz, dx) - phase))), 4);
-					if (Math.hypot(dx, dz) <= r + spread * (0.35 + 0.65 * rib) + 0.3) {
-						wood(dx, y, dz);
-					}
-				}
-			}
-		}
+		add(new Trunk(top, foot, tip, taper, ribs, flare, flareHeight, random.nextDouble() * Math.PI * 2));
 	}
 
 	/** The radius of a trunk at height {@code y}, as {@link #trunk} tapers it. */
@@ -233,6 +254,7 @@ final class GiantTree {
 	 * {@code out} blocks past the trunk at the foot, and up to {@code tall} blocks high on it.
 	 */
 	private void buttresses(int count, double foot, double out, double tall) {
+		LongArrayList walls = new LongArrayList();
 		double turn = random.nextDouble() * Math.PI * 2;
 		for (int b = 0; b < count; b++) {
 			double angle = turn + (b + 0.5 * random.nextDouble()) * Math.PI * 2 / count;
@@ -243,10 +265,12 @@ final class GiantTree {
 				for (double d = foot - 0.5; d <= length; d += 0.5) {
 					// Each wall winds a little as it runs out.
 					double side = 0.8 * Math.sin(d * 0.4 + wave);
-					wood(cos * d - sin * side, y, sin * d + cos * side);
+					walls.add(BlockPos.asLong((int) Math.round(cos * d - sin * side), y,
+						(int) Math.round(sin * d + cos * side)));
 				}
 			}
 		}
+		add(new Logs(walls.toLongArray()));
 	}
 
 	/**
@@ -286,29 +310,7 @@ final class GiantTree {
 	 */
 	private double[] segment(double[] start, double angle, double out, double up, double thick, double tip) {
 		double[] end = {start[0] + Math.cos(angle) * out, start[1] + up, start[2] + Math.sin(angle) * out};
-		double length = Math.sqrt(out * out + up * up);
-		int steps = Math.max(1, (int) Math.ceil(length * 2));
-		for (int s = 0; s <= steps; s++) {
-			double t = s / (double) steps;
-			double x = start[0] + (end[0] - start[0]) * t;
-			double y = start[1] + (end[1] - start[1]) * t;
-			double z = start[2] + (end[2] - start[2]) * t;
-			double r = thick + (tip - thick) * t;
-			if (r < 0.75) {
-				wood(x, y, z);
-				continue;
-			}
-			int bound = (int) Math.ceil(r);
-			for (int dy = -bound; dy <= bound; dy++) {
-				for (int dz = -bound; dz <= bound; dz++) {
-					for (int dx = -bound; dx <= bound; dx++) {
-						if (dx * dx + dy * dy + dz * dz <= r * r + 0.25) {
-							wood(x + dx, y + dy, z + dz);
-						}
-					}
-				}
-			}
-		}
+		add(new Segment(start[0], start[1], start[2], end[0], end[1], end[2], thick, tip));
 		return end;
 	}
 
@@ -317,20 +319,7 @@ final class GiantTree {
 	 * one holds twigs, so that its leaves stay within {@value #LEAF_REACH} blocks of wood.
 	 */
 	private void clump(double x, double y, double z, double width, double tall) {
-		int bx = (int) Math.ceil(width), by = (int) Math.ceil(tall);
-		int cx = (int) Math.round(x), cy = (int) Math.round(y), cz = (int) Math.round(z);
-		for (int dy = -by; dy <= by; dy++) {
-			for (int dz = -bx; dz <= bx; dz++) {
-				for (int dx = -bx; dx <= bx; dx++) {
-					double px = cx + dx - x, py = cy + dy - y, pz = cz + dz - z;
-					double d = (px * px + pz * pz) / (width * width) + py * py / (tall * tall);
-					if (d <= 1 && (d < 0.55 || random.nextFloat() < 0.7f)) {
-						leaf(cx + dx, cy + dy, cz + dz);
-					}
-				}
-			}
-		}
-		wood(x, y, z);
+		add(new Clump(x, y, z, width, tall, random.nextLong()));
 		if (width > TWIGGED) {
 			int twigs = 4 + random.nextInt(3);
 			for (int t = 0; t < twigs; t++) {
@@ -344,48 +333,229 @@ final class GiantTree {
 		}
 	}
 
-	private void wood(double x, double y, double z) {
-		long pos = clip((int) Math.round(x), (int) Math.round(y), (int) Math.round(z));
-		if (pos != Long.MIN_VALUE) {
-			wood.add(pos);
-		}
+	private void add(Part part) {
+		parts.add(part);
+		top = Math.max(top, part.bounds().maxY());
 	}
 
-	private void leaf(int x, int y, int z) {
-		long pos = clip(x, y, z);
-		if (pos != Long.MIN_VALUE) {
-			leaves.add(pos);
-		}
+	private static int round(double value) {
+		return (int) Math.round(value);
 	}
 
-	/** The position, or {@link Long#MIN_VALUE} beyond the reach or under the ground. */
-	private long clip(int x, int y, int z) {
-		return Math.abs(x) > reach || Math.abs(z) > reach || y < 0 ? Long.MIN_VALUE : BlockPos.asLong(x, y, z);
+	/** One part of the plan, which lays its blocks in those of a box. */
+	private sealed interface Part {
+		/** The box the part lies in. */
+		BoundingBox bounds();
+
+		void lay(Blocks blocks);
 	}
 
-	/**
-	 * Each leaf's distance from the wood, as {@code LeavesBlock} counts it: steps through leaves to the nearest wood,
-	 * from 1 next to it. Leaves farther than {@value #LEAF_REACH} have none.
-	 */
-	Long2IntOpenHashMap distances() {
-		Long2IntOpenHashMap distance = new Long2IntOpenHashMap(leaves.size());
-		LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
-		for (long pos : wood) {
-			queue.enqueue(pos);
+	/** The trunk, as {@link #trunk} describes it, turned by {@code phase}. */
+	private record Trunk(int top, double foot, double tip, double taper, int ribs, double flare, double flareHeight,
+						 double phase) implements Part {
+		@Override
+		public BoundingBox bounds() {
+			int bound = (int) Math.ceil(foot + flare + 0.5);
+			return new BoundingBox(-bound, 0, -bound, bound, top, bound);
 		}
-		// Breadth first from all the wood at once, a ring of leaves at a time.
-		for (int ring = 1; ring <= LEAF_REACH && !queue.isEmpty(); ring++) {
-			for (int n = queue.size(); n > 0; n--) {
-				long pos = queue.dequeueLong();
-				for (Direction direction : Direction.values()) {
-					long next = BlockPos.offset(pos, direction);
-					if (leaves.contains(next) && !distance.containsKey(next)) {
-						distance.put(next, ring);
-						queue.enqueue(next);
+
+		@Override
+		public void lay(Blocks blocks) {
+			BoundingBox box = blocks.box;
+			for (int y = Math.max(0, box.minY()); y <= Math.min(top, box.maxY()); y++) {
+				double r = radius(y, top, foot, tip, taper);
+				double spread = y < flareHeight ? flare * Math.pow(1 - y / flareHeight, 2) : 0;
+				int bound = (int) Math.ceil(r + spread + 0.5);
+				for (int dz = Math.max(-bound, box.minZ()); dz <= Math.min(bound, box.maxZ()); dz++) {
+					for (int dx = Math.max(-bound, box.minX()); dx <= Math.min(bound, box.maxX()); dx++) {
+						double rib = ribs == 0 ? 1 : Math.pow(Math.max(0, Math.cos(ribs * (Math.atan2(dz, dx) - phase))), 4);
+						if (Math.hypot(dx, dz) <= r + spread * (0.35 + 0.65 * rib) + 0.3) {
+							blocks.wood(dx, y, dz);
+						}
 					}
 				}
 			}
 		}
-		return distance;
+	}
+
+	/** Logs laid one by one, as the walls of buttresses. */
+	private record Logs(long[] positions, BoundingBox bounds) implements Part {
+		Logs(long[] positions) {
+			this(positions, bounds(positions));
+		}
+
+		private static BoundingBox bounds(long[] positions) {
+			int minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
+			for (long pos : positions) {
+				int x = BlockPos.getX(pos), y = BlockPos.getY(pos), z = BlockPos.getZ(pos);
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				minZ = Math.min(minZ, z);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+				maxZ = Math.max(maxZ, z);
+			}
+			return new BoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
+		}
+
+		@Override
+		public void lay(Blocks blocks) {
+			for (long pos : positions) {
+				blocks.wood(BlockPos.getX(pos), BlockPos.getY(pos), BlockPos.getZ(pos));
+			}
+		}
+	}
+
+	/**
+	 * Wood along a straight line, {@code thick} blocks of radius at its start and {@code tip} at its end: balls every
+	 * half block, or single logs where it is thinner than a block.
+	 */
+	private record Segment(double x0, double y0, double z0, double x1, double y1, double z1, double thick,
+						   double tip) implements Part {
+		@Override
+		public BoundingBox bounds() {
+			int r = (int) Math.ceil(Math.max(thick, tip)) + 1;
+			return new BoundingBox(round(Math.min(x0, x1)) - r, round(Math.min(y0, y1)) - r,
+				round(Math.min(z0, z1)) - r, round(Math.max(x0, x1)) + r, round(Math.max(y0, y1)) + r,
+				round(Math.max(z0, z1)) + r);
+		}
+
+		@Override
+		public void lay(Blocks blocks) {
+			BoundingBox box = blocks.box;
+			double length = Math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) + (z1 - z0) * (z1 - z0));
+			int steps = Math.max(1, (int) Math.ceil(length * 2));
+			for (int s = 0; s <= steps; s++) {
+				double t = s / (double) steps;
+				int x = round(x0 + (x1 - x0) * t);
+				int y = round(y0 + (y1 - y0) * t);
+				int z = round(z0 + (z1 - z0) * t);
+				double r = thick + (tip - thick) * t;
+				if (r < 0.75) {
+					blocks.wood(x, y, z);
+					continue;
+				}
+				int bound = (int) Math.ceil(r);
+				if (x + bound < box.minX() || x - bound > box.maxX() || y + bound < box.minY()
+					|| y - bound > box.maxY() || z + bound < box.minZ() || z - bound > box.maxZ()) {
+					continue;
+				}
+				for (int dy = -bound; dy <= bound; dy++) {
+					for (int dz = -bound; dz <= bound; dz++) {
+						for (int dx = -bound; dx <= bound; dx++) {
+							if (dx * dx + dy * dy + dz * dz <= r * r + 0.25) {
+								blocks.wood(x + dx, y + dy, z + dz);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * A clump of leaves around a log, as {@link #clump} describes it. Which blocks of its outer part hold leaves
+	 * follows from {@code seed} and the block alone, so that any box of it is laid the same.
+	 */
+	private record Clump(double x, double y, double z, double width, double tall, long seed) implements Part {
+		@Override
+		public BoundingBox bounds() {
+			int bx = (int) Math.ceil(width), by = (int) Math.ceil(tall);
+			return new BoundingBox(round(x) - bx, round(y) - by, round(z) - bx, round(x) + bx, round(y) + by,
+				round(z) + bx);
+		}
+
+		@Override
+		public void lay(Blocks blocks) {
+			BoundingBox box = blocks.box;
+			BoundingBox bounds = bounds();
+			for (int py = Math.max(bounds.minY(), box.minY()); py <= Math.min(bounds.maxY(), box.maxY()); py++) {
+				for (int pz = Math.max(bounds.minZ(), box.minZ()); pz <= Math.min(bounds.maxZ(), box.maxZ()); pz++) {
+					for (int px = Math.max(bounds.minX(), box.minX()); px <= Math.min(bounds.maxX(), box.maxX()); px++) {
+						double dx = px - x, dy = py - y, dz = pz - z;
+						double d = (dx * dx + dz * dz) / (width * width) + dy * dy / (tall * tall);
+						if (d <= 1 && (d < 0.55 || ragged(px, py, pz))) {
+							blocks.leaf(px, py, pz);
+						}
+					}
+				}
+			}
+			blocks.wood(round(x), round(y), round(z));
+		}
+
+		/** Whether a block of the outer part holds a leaf: a hash of the clump's seed and the block. */
+		private boolean ragged(int px, int py, int pz) {
+			long h = seed ^ px * 0x9E3779B97F4A7C15L ^ py * 0xC2B2AE3D27D4EB4FL ^ pz * 0x165667B19E3779F9L;
+			h = (h ^ (h >>> 30)) * 0xBF58476D1CE4E5B9L;
+			h = (h ^ (h >>> 27)) * 0x94D049BB133111EBL;
+			h ^= h >>> 31;
+			return (h >>> 11) * 0x1.0p-53 < RAGGED;
+		}
+	}
+
+	/**
+	 * The blocks of a tree within a box, as positions relative to its foot: its wood and its leaves, and the columns of
+	 * its foot.
+	 */
+	static final class Blocks {
+		final LongOpenHashSet wood = new LongOpenHashSet();
+		final LongOpenHashSet leaves = new LongOpenHashSet();
+		/** The columns of the trunk's foot, which the roots fill down to the ground. */
+		final LongOpenHashSet foot = new LongOpenHashSet();
+		/** The farthest the foot reaches from the axis, buttresses included. */
+		int footReach;
+		/** The height of the top block. */
+		int top;
+
+		private final BoundingBox box;
+		private final int reach;
+
+		private Blocks(BoundingBox box, int reach) {
+			this.box = box;
+			this.reach = reach;
+		}
+
+		private void wood(int x, int y, int z) {
+			if (holds(x, y, z)) {
+				wood.add(BlockPos.asLong(x, y, z));
+			}
+		}
+
+		private void leaf(int x, int y, int z) {
+			if (holds(x, y, z)) {
+				leaves.add(BlockPos.asLong(x, y, z));
+			}
+		}
+
+		/** Whether a block lies in the box, within the tree's reach and over the ground. */
+		private boolean holds(int x, int y, int z) {
+			return Math.abs(x) <= reach && Math.abs(z) <= reach && y >= 0 && box.isInside(x, y, z);
+		}
+
+		/**
+		 * Each leaf's distance from the wood, as {@code LeavesBlock} counts it: steps through leaves to the nearest
+		 * wood, from 1 next to it. Leaves farther than {@value #LEAF_REACH} have none.
+		 */
+		Long2IntOpenHashMap distances() {
+			Long2IntOpenHashMap distance = new Long2IntOpenHashMap(leaves.size());
+			LongArrayFIFOQueue queue = new LongArrayFIFOQueue();
+			for (long pos : wood) {
+				queue.enqueue(pos);
+			}
+			// Breadth first from all the wood at once, a ring of leaves at a time.
+			for (int ring = 1; ring <= LEAF_REACH && !queue.isEmpty(); ring++) {
+				for (int n = queue.size(); n > 0; n--) {
+					long pos = queue.dequeueLong();
+					for (Direction direction : Direction.values()) {
+						long next = BlockPos.offset(pos, direction);
+						if (leaves.contains(next) && !distance.containsKey(next)) {
+							distance.put(next, ring);
+							queue.enqueue(next);
+						}
+					}
+				}
+			}
+			return distance;
+		}
 	}
 }

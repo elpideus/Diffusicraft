@@ -105,7 +105,7 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		if (height < MIN_HEIGHT * size) {
 			return false;
 		}
-		GiantTree tree = GiantTree.grow(form, height, room(origin), random);
+		GiantTree.Blocks tree = GiantTree.grow(form, height, room(origin), random);
 		if (!levelAround(level, base, tree.footReach + 2)) {
 			return false;
 		}
@@ -174,7 +174,7 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		return Math.min(GiantTree.MAX_REACH, Math.min(Math.min(x + 16, 31 - x), Math.min(z + 16, 31 - z)) - 1);
 	}
 
-	private void write(WorldGenLevel level, BlockPos base, BlockPos origin, GiantTree tree) {
+	private void write(WorldGenLevel level, BlockPos base, BlockPos origin, GiantTree.Blocks tree) {
 		int chunkX = SectionPos.blockToSectionCoord(origin.getX());
 		int chunkZ = SectionPos.blockToSectionCoord(origin.getZ());
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
