@@ -72,16 +72,18 @@ their own numbers, so abyssal plains stay above the bottom of the world.
 
 | Size | Land: m per block, knee, cap | Highest surface | Everest | Ocean: m per block, knee, cap | Lowest sea floor |
 |---|---|---|---|---|---|
-| vanilla | 10.7, 120, 240 | y = 303 | y = 302 | 20, 20, 45 | y = 18 |
-| medium | 6.4, 750, 1100 | y = 1163 | y = 1144 | 16, 30, 80 | y = −17 |
-| large | 3.5, 1600, 2150 | y = 2213 | y = 2176 | 12, 35, 120 | y = −57 |
-| grand | 2, 3000, 3700 | y = 3763 | y = 3739 | 8, 40, 160 | y = −97 |
-| extreme | 1.15, 5500, 7800 | y = 7863 | y = 7268 | 3, 50, 180 | y = −117 |
-| ultra | 0.65, 10000, 15800 | y = 15,863 | y = 13,271 | 1, 60, 200 | y = −137 |
+| vanilla | 10.7, 120, 240 | y = 303 | y = 303 | 20, 20, 45 | y = 18 |
+| medium | 6.4, 750, 1100 | y = 1163 | y = 1160 | 16, 30, 80 | y = −17 |
+| large | 3.5, 1600, 2150 | y = 2213 | y = 2209 | 12, 35, 120 | y = −57 |
+| grand | 2, 3000, 3700 | y = 3763 | y = 3762 | 8, 40, 160 | y = −97 |
+| extreme | 1.15, 5500, 7800 | y = 7863 | y = 7731 | 3, 50, 180 | y = −117 |
+| ultra | 0.65, 10000, 15800 | y = 15,863 | y = 14,877 | 1, 60, 200 | y = −137 |
 
 The sea is at y = 63 at every size. The sea floor lies at least one block under it, so a sea shallower than one
-block's worth of meters still holds water instead of showing as a dry shelf flush with the water. From Medium up the
-knee lies at 5 to 6.5 km, so only the Himalaya's and the Andes' highest peaks are eased. Each world above Vanilla ends
+block's worth of meters still holds water instead of showing as a dry shelf flush with the water. The Everest column
+is a peak of 8,849 m over valleys at 5 km, as [raised](#taller-mountains) to 10,978 m; unraised, it would stand at
+y = 13,272 at Ultra. From Medium up the knee lies at 5 to 6.5 km, which the uplift takes peaks of about 4 to 4.5 km
+over their valleys to, so only the highest ranges are eased. Each world above Vanilla ends
 some 20 blocks or more above its highest surface, room for the tallest trees on the highest peak; Ultra has 500.
 
 **Depth is sized for play.** The real crust is tens of kilometres thick, but the game happens mostly on the surface,
@@ -103,6 +105,8 @@ Geography (per seed): continents, plates, hotspots and climate, the map the coar
    ▼
 WorldPipeline (30 m pixels, per seed)
    │  PipelineSource: creates the pipeline on first use; caches windows under <world>/diffusicraft/
+   ▼
+Uplift: raises the mountains over their valley floors
    ▼
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate, and the distance to the coastline
@@ -161,10 +165,49 @@ The windows cached on disk go under `map<Geography.VERSION>`. Bump the version w
 A world started before a change keeps the chunks it has already generated and generates new ones from the new map, so
 the two meet at a seam. Nothing has been released yet, so no world is migrated.
 
+### Taller mountains
+
+The model's mountains rise as gently over their valleys as real ones do. Diffusicraft is a fantasy inspired by real
+terrain, not a simulation of it, so `Uplift` raises them. It wraps the pipeline before anything else reads it and
+lifts the ground `h` meters above its valley floor by
+
+```text
+lift(h) = (K − 1) (h − F (1 − e^(−h / F)))          K = 1.6, F = 300 m
+```
+
+Ground on the floor keeps its level, a hill 100 m high rises by 9 m, and the mountains by three fifths of their height
+over their valleys, less 180 m. The lift never grows faster than three fifths of the height, so where the floor is
+level, slopes keep their direction and only steepen.
+
+| Peak, over a valley floor at | Raised to | y at Ultra, before and after |
+|---|---|---|
+| 800 m, 200 m | 1,004 m | 1,294 → 1,608 |
+| 1,500 m, 300 m | 2,043 m | 2,371 → 3,207 |
+| 3,000 m, 1,500 m | 3,721 m | 4,678 → 5,788 |
+| 4,808 m (Mont Blanc), 1,000 m | 6,913 m | 7,460 → 10,696 |
+| 8,849 m (Everest), 5,000 m | 10,978 m | 13,272 → 14,877 |
+
+- **The valley floor** is the coarse map's 5th percentile of the elevation, or sea level where that is lower,
+  interpolated bilinearly between the centres of the coarse pixels, 7.7 km apart. Each pixel's floor depends on where
+  it is alone, so overlapping windows agree to the bit. The floors, and the rivers and lakes on them, keep their
+  levels, and the coarse map keeps its 5th percentile, so the rivers, which route over it, run where they ran.
+- **Plateaus.** The floor changes slowly, but where it falls away beside high, level ground, as beside a gorge cut
+  through a plateau, the lift tilts that ground up towards the drop. A river there keeps its course if it falls at
+  least three-eighths as fast as the floor; where it does not, a lake the rain fills can gather behind the tilt.
+- **The climate.** Raised ground is colder by the local lapse rate, so the tree line and the snow stay at their
+  heights and more of each range stands above them. On the coarse map, each pixel's mean rises as ground that high
+  above the pixel's own 5th percentile would, and its temperature falls by 6.5 °C a kilometre.
+- **Every size.** The field is shared by all the sizes of a seed, so the lift is in meters and the same in each. In
+  the smaller sizes, whose knee lies low, the raised ranges crowd under the cap: their summits flatten a little more.
+  The glaciers come after it and read the mountains as the world has them.
+
+Ground below the sea is never raised.
+
 ### `TerrainField`
 
 `TerrainField` holds one seed's terrain. It reads the pipeline in tiles of 256 × 256 pixels (7.7 km), with a
-32-pixel margin, through `Glaciation`, which drowns the valleys of cold mountain coasts into [fjords](#coasts). For
+32-pixel margin, through `Uplift`, which [raises the mountains](#taller-mountains), and `Glaciation`, which drowns the
+valleys of cold mountain coasts into [fjords](#coasts). For
 each tile it keeps three things:
 
 - **The padded elevation.** Columns sample it with a Catmull-Rom spline.
@@ -1086,7 +1129,7 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
-| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
@@ -1129,6 +1172,9 @@ Other searches still read the full terrain and can take a while on new land:
 - `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
   tall worlds keep about as much basement under the land as the Vanilla size, and draws a cross-section of each to
   `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs, in a folder per seed.
+- `UpliftTest` checks that the lift grows in from the valley floor and never faster than its gain, that the floors and
+  the sea keep their levels and raised ground cools by the lapse rate, that windows agree to the bit, and that the
+  coarse map's mean rises while its 5th percentile stays.
 - `GulliesTest` checks that only the sizes from 1:4 up are fine enough for gullies, that gentle ground stays smooth,
   that steeper slopes are cut deeper but never past the deepest a gully can go for any rock and climate, that the ground
   changes about three times as much across a slope as down it, that cover rounds the ground off and hard rock is cut

@@ -21,10 +21,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * The {@link TerrainField} of every seed in use, and the models they share.
  *
  * <p>Fields are created when the density functions compile (once per world and dimension) but load nothing until
- * the first chunk needs terrain. The models are loaded once and freed when the server stops, which gives the GPU
- * memory back to the game. Pipeline windows are cached on disk in
- * {@code <world>/diffusicraft/<model revision>/map<map version>/<seed>} so a world reloads quickly and stays identical
- * even if the model files change.
+ * the first chunk needs terrain. Each reads the pipeline through {@link Uplift}, which raises the mountains. The models
+ * are loaded once and freed when the server stops, which gives the GPU memory back to the game. Pipeline windows are
+ * cached on disk in {@code <world>/diffusicraft/<model revision>/map<map version>/<seed>} so a world reloads quickly
+ * and stays identical even if the model files change.
  */
 public final class TerrainFields {
 	/** The seed of a world's terrain is derived from the world seed and this name. */
@@ -66,7 +66,7 @@ public final class TerrainFields {
 	 * geology seed.
 	 */
 	public static TerrainField get(long seed, long geologySeed) {
-		return FIELDS.computeIfAbsent(seed, s -> new TerrainField(s, geologySeed, new PipelineSource(s)));
+		return FIELDS.computeIfAbsent(seed, s -> new TerrainField(s, geologySeed, new Uplift(new PipelineSource(s))));
 	}
 
 	/** Where pipeline windows are cached, or {@code null} outside a server (nothing is written to disk then). */

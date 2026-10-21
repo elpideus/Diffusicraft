@@ -7,7 +7,8 @@ public final class PipelineSources {
 	private PipelineSources() {
 	}
 
+	/** The terrain of a pipeline as the game reads it: through {@link Uplift}. */
 	public static TerrainSource of(long seed, WorldPipeline pipeline) {
-		return new PipelineSource(seed, pipeline);
+		return new Uplift(new PipelineSource(seed, pipeline));
 	}
 }

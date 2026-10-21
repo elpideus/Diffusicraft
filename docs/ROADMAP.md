@@ -129,9 +129,11 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   instead of 450 and are left out of saves, sections of a few blocks take 1 to 3 bits per block instead of 4, and the
   client keeps render data for the rows near the camera only. Sodium builds sections at every height, and Voxy is
   kept within the 8192 blocks it holds. See [HEIGHT.md](HEIGHT.md).
-- **Tall mountains.** At Ultra (1:1) mountains rise half as tall again as the real ones up to 6.5 km, Everest to
-  y = 13,271, in a world from −256 to 16,367, with the underground and the oceans kept game-sized. Chunks are filled
-  only up to their ground, so the air above it is never computed. See [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground).
+- **Tall mountains.** Mountains stand up to three fifths taller over their valleys than real ones, and at Ultra (1:1)
+  heights are half as tall again as the real ones up to 6.5 km: Mont Blanc reaches y = 10,700 and Everest
+  y = 14,900, in a world from −256 to 16,367, with the underground and the oceans kept game-sized. Chunks are filled
+  only up to their ground, so the air above it is never computed. See [WORLDGEN.md](WORLDGEN.md#taller-mountains) and
+  [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground).
 - **Generating ahead.** Terrain is computed in the background where the players are heading, so chunks rarely
   wait for inference. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 - **A relief map.** A web page the mod serves for the world that is open, shaded by its relief and drawn from the
@@ -148,8 +150,7 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
 drama on top, at every size:
 
-- **Dramatic mountains and small-scale relief.** Small cliffs, ridges and knolls on ground that is now too level up
-  close.
+- **Small-scale relief.** Small cliffs, ridges and knolls on ground that is now too level up close.
 - **Sub-biomes and smaller biomes.** Variations of a biome within its area, as real land has.
 - **Features.** Giant trees hundreds of blocks tall, most common in forests on big plains; waterfalls; denser jungles;
   boulders.

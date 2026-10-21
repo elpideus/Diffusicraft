@@ -152,9 +152,10 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
   Caves, aquifers, surface rules, features and structures stay vanilla's, as do the biome source and anything mods add
   to them.
 - **`TerrainField`.** For each seed, it turns pipeline output into tiles: interpolated elevation plus a coarse grid of
-  local relief and sea-level climate, and the distance to the coastline. It reads the pipeline through `Glaciation`,
-  which drowns the valleys of cold mountain coasts into fjords and cuts the long fjords and their arms that `Fjords`
-  traces on the coarse map. It is thread-safe and computes each tile once.
+  local relief and sea-level climate, and the distance to the coastline. It reads the pipeline through `Uplift`, which
+  raises the mountains over their valley floors, and `Glaciation`, which drowns the valleys of cold mountain coasts
+  into fjords and cuts the long fjords and their arms that `Fjords` traces on the coarse map. It is thread-safe and
+  computes each tile once.
 - **`TerrainSurface`.** The height of the ground in blocks for one scale, with the hard beds standing out of steep
   slopes as ledges and, from 1:4 up, the gullies cut into them, both shaped by the rock and the climate, and with sea
   cliffs where high land meets the sea. Everything that needs the ground reads it there, so the density, rivers, caves,

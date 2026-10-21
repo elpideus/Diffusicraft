@@ -33,7 +33,8 @@ public enum WorldScale implements StringRepresentable {
 	EXTREME("extreme", 2, -256, 8448, 1.15, 5500.0, 7800.0, 3.0, 50.0, 180.0),
 	/**
 	 * 1:1, the real Earth's size and the default, from y -256 to 16,367 (the top of the tallest dimension). Heights
-	 * are half as tall again up to 6.5 km, so Everest stands at about y = 13,000.
+	 * are half as tall again up to 6.5 km, so Everest would stand at about y = 13,300; {@link Uplift} raises it over
+	 * its valleys to about y = 14,900.
 	 */
 	ULTRA("ultra", 1, -256, 16624, 0.65, 10000.0, 15800.0, 1.0, 60.0, 200.0);
 
