@@ -22,14 +22,14 @@ import static io.github.elpideus.diffusicraft.terrain.geography.Continents.smoot
  * a temperate latitude between {@value #MIN_ORIGIN_LATITUDE}° and {@value #MAX_ORIGIN_LATITUDE}° north, chosen by the
  * seed, and the continents are shifted so that the kind of place the seed drew for the spawn ({@link SpawnKind}) lies
  * there: the coast of a continent, a plain or other land well inland, a small island far out at sea, or a high
- * mountain.
+ * mountain. A coast, or land inland off the plains, lies in view of mountains wherever the seed has such a place.
  */
 public final class Geography {
 	/**
 	 * Bumped whenever the map of a seed changes, so that windows cached on disk from an older map are not mixed with
 	 * the new one.
 	 */
-	public static final int VERSION = 1;
+	public static final int VERSION = 2;
 	/** Kilometres per pixel of the coarse map: 256 native pixels of 30 m. */
 	public static final double KM_PER_PIXEL = 7.68;
 	public static final double KM_PER_DEGREE = 111.2;
@@ -44,6 +44,8 @@ public final class Geography {
 	private static final int ORIGIN_TRIES = 4096;
 	/** Islands far out at sea are rare, so more places are tried for them. */
 	private static final int ISLAND_TRIES = 65536;
+	/** And for the places with mountains in view, which few coasts and little land inland have. */
+	private static final int VIEW_TRIES = 16384;
 	/** An inland origin has land all around it this many km out, and mostly land four times as far. */
 	private static final double NEAR_LAND = 100;
 	private static final double WIDE_LAND = 400;
@@ -71,6 +73,13 @@ public final class Geography {
 	private static final double ISLAND_REMOTE = 300;
 	/** A mountain at the origin is at least this high. */
 	private static final double PEAK_HEIGHT = 3000;
+	/**
+	 * A coast, or land inland off the plains, is better with mountains in view: ground at least {@value #VIEW_HEIGHT}
+	 * m high within {@value #VIEW_REACH} km, looked for on rings {@value #VIEW_STEP} km apart.
+	 */
+	private static final double VIEW_HEIGHT = 1500;
+	private static final double VIEW_REACH = 30;
+	private static final double VIEW_STEP = 2;
 	private static final double MIN_HEIGHT = -8700;
 	private static final double MAX_HEIGHT = 6200;
 
@@ -222,18 +231,43 @@ public final class Geography {
 		return smoothstep(hypsometry.seaLevel() - LAND_BAND, hypsometry.seaLevel() + LAND_BAND, field);
 	}
 
-	/** A place for the origin that suits a kind of spawn, or {@code null} if none turns up. */
+	/**
+	 * A place for the origin that suits a kind of spawn, or {@code null} if none turns up. Of the coasts and the land
+	 * inland off the plains, the first with mountains in view, or else the first.
+	 */
 	private double[] placeOrigin(long h, SpawnKind kind, boolean plains) {
-		int tries = kind == SpawnKind.ISLAND ? ISLAND_TRIES : ORIGIN_TRIES;
+		boolean view = kind == SpawnKind.COAST || kind == SpawnKind.INLAND && !plains;
+		int tries = kind == SpawnKind.ISLAND ? ISLAND_TRIES : view ? VIEW_TRIES : ORIGIN_TRIES;
+		double[] first = null;
 		for (int k = 0; k < tries; k++) {
 			long t = Hash.of(h, 7, k);
 			double x = ORIGIN_SEARCH * (2 * Hash.unit(t, 1) - 1);
 			double z = ORIGIN_SEARCH * (2 * Hash.unit(t, 2) - 1);
 			if (suits(kind, plains, x, z)) {
-				return new double[]{x, z};
+				if (!view || mountainsInView(x, z)) {
+					return new double[]{x, z};
+				}
+				if (first == null) {
+					first = new double[]{x, z};
+				}
 			}
 		}
-		return null;
+		return first;
+	}
+
+	/** Whether ground at least {@value #VIEW_HEIGHT} m high lies within {@value #VIEW_REACH} km. */
+	private boolean mountainsInView(double x, double z) {
+		for (double radius = VIEW_STEP; radius <= VIEW_REACH; radius += VIEW_STEP) {
+			int points = (int) Math.ceil(2 * Math.PI * radius / VIEW_STEP);
+			for (int k = 0; k < points; k++) {
+				double angle = 2 * Math.PI * k / points;
+				if (shiftedElevation(x + radius * StrictMath.cos(angle), z + radius * StrictMath.sin(angle))
+					>= VIEW_HEIGHT) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private boolean suits(SpawnKind kind, boolean plains, double x, double z) {

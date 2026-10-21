@@ -72,7 +72,9 @@ class GeographyTest {
 		for (int a = 0; a < 300; a++) {
 			for (int b = 0; b < 300; b++) {
 				total++;
-				if (geography.elevation(60.0 * b - 9000, 60.0 * a - 9000) > 0) {
+				// A square of 36,000 km: the continents are large enough that a smaller one around a coast can be
+				// mostly land.
+				if (geography.elevation(120.0 * b - 18000, 120.0 * a - 18000) > 0) {
 					land++;
 				}
 			}
@@ -112,6 +114,31 @@ class GeographyTest {
 				}
 			}
 		}
+	}
+
+	/** The highest ground within {@code reach} km of the origin, on rings 2 km apart. */
+	private static double highestWithin(Geography geography, double reach) {
+		double highest = geography.elevation(0, 0);
+		for (double radius = 2; radius <= reach; radius += 2) {
+			int points = (int) Math.ceil(Math.PI * radius);
+			for (int k = 0; k < points; k++) {
+				double a = 2 * Math.PI * k / points;
+				highest = Math.max(highest, geography.elevation(radius * Math.cos(a), radius * Math.sin(a)));
+			}
+		}
+		return highest;
+	}
+
+	@Test
+	void mostCoastsHaveMountainsInView() {
+		int seeds = 12, inView = 0;
+		for (long seed = 1; seed <= seeds; seed++) {
+			if (highestWithin(new Geography(seed, QUANTILES, SpawnKind.COAST), 30) >= 1500) {
+				inView++;
+			}
+		}
+		// Eight of these twelve have them, and none did before the origin looked for them.
+		assertTrue(inView >= seeds / 2, inView + " of " + seeds + " coasts have mountains in view");
 	}
 
 	@Test

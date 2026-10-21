@@ -1293,6 +1293,12 @@ Each seed draws the kind of place where the world spawn lies (`SpawnKind`):
 coast must be more than 100 m deep 30 and 60 km out, because the coarse model fills a small or shallow inlet with
 land.
 
+Plates lie as far apart as on Earth, so most coasts and most land inland lie hundreds of kilometres from a range. A
+coast, or land inland off the plains, is better with mountains in view. For these, `Geography` tries up to 16,384
+places and keeps the first with ground at least 1,500 m high within 30 km (before `Uplift` raises it), or else the
+first that suits. Over 300 seeds, this puts 81% of coastal spawns within 40 km of such ground, up from 8%. The plains
+stay flat but for the knolls and ridges of [Roughness](#roughness). The search takes up to 0.2 s once per world.
+
 The map is only what the coarse model is conditioned on, so the shore or the summit the model draws lies a little
 away from where the map puts it. `SpawnSearch` reads the coarse map within 6 coarse pixels (46 km) of the origin.
 Then it reads the full terrain of at most six coarse pixels:
@@ -1491,12 +1497,12 @@ Other searches still read the full terrain and can take a while on new land:
   the flat floor of a broad valley drowns while a plain beside the mountains keeps its ground, that the coarse map is
   lowered alike, its valley floors within 45 m of the samples' 5th percentile on average, and that overlapping samples
   agree to the bit.
-- `GeographyTest` checks, on a table of heights shaped like the real one, that a seed always maps the same world,
-  that land takes about its real share, that the origin is the kind of place asked for (a coast by the open sea on a
-  continent, land far inland, a lone island, land over a Hollow or a high mountain) and that seeds draw the kinds by
-  their chances, coasts first. `SpawnSearchTest` checks on analytic terrain that a coastal spawn is on the beach
-  nearest the origin, that a spawn by a peak is on its summit, that without a mountain or at sea the spawn moves to the
-  nearest land, and that land at the origin keeps it.
+- `GeographyTest` checks, on a table of heights shaped like the real one, that a seed always maps the same world, that
+  land takes about its real share, that the origin is the kind of place asked for (a coast by the open sea on a
+  continent, land far inland, a lone island, land over a Hollow or a high mountain), that most coasts have mountains in
+  view and that seeds draw the kinds by their chances, coasts first. `SpawnSearchTest` checks on analytic terrain that a
+  coastal spawn is on the beach nearest the origin, that a spawn by a peak is on its summit, that without a mountain or
+  at sea the spawn moves to the nearest land, and that land at the origin keeps it.
 - `WorldScaleTest`, `ClimateMappingTest` and `TerrainFieldTest` run with `./gradlew build` and need no models.
   `TerrainFieldTest` uses an analytic terrain to check:
   - interpolation;
