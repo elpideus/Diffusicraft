@@ -11,6 +11,8 @@ import io.github.elpideus.diffusicraft.worldgen.density.RiverFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
 import io.github.elpideus.diffusicraft.worldgen.feature.DiffusicraftWorldFilter;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
+import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreePiece;
+import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeStructure;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.WaterfallFeature;
@@ -43,7 +45,6 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.levelgen.presets.WorldPreset;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -86,6 +87,8 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("selenite_beam"), SeleniteBeamFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("giant_tree"), GiantTreeFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("waterfall"), WaterfallFeature.CODEC);
+		Registry.register(BuiltInRegistries.STRUCTURE_TYPE, Diffusicraft.id("giant_tree"), GiantTreeStructure.TYPE);
+		Registry.register(BuiltInRegistries.STRUCTURE_PIECE, Diffusicraft.id("giant_tree"), GiantTreePiece.TYPE);
 		TerrainFields.register();
 		addHollowFeatures();
 		addLoneGiants();
@@ -119,20 +122,14 @@ public final class DiffusicraftWorldgen {
 	}
 
 	/**
-	 * Gives vanilla's plains and woods a giant tree now and then, over the trees of their own: ancient oaks on the
-	 * plains and in the broadleaf woods, redwoods among the old spruce, kapoks over the jungle. They grow only in
-	 * Diffusicraft worlds ({@link DiffusicraftWorldFilter}); its own groves of giants are biomes of their own.
+	 * Gives vanilla's old spruce woods a redwood now and then, over the trees of their own. They grow only in
+	 * Diffusicraft worlds ({@link DiffusicraftWorldFilter}); its own groves of giants are biomes of their own. The lone
+	 * ancient oaks of the plains and woods and the kapoks of the jungle are structures ({@link GiantTreeStructure}),
+	 * which their biome tags place.
 	 */
 	private static void addLoneGiants() {
-		addFeatures("giant", Biomes.PLAINS, "lone_giant_oak_plains");
-		addFeatures("giant", Biomes.SUNFLOWER_PLAINS, "lone_giant_oak_plains");
-		for (ResourceKey<Biome> woods : List.of(Biomes.FOREST, Biomes.FLOWER_FOREST, Biomes.BIRCH_FOREST,
-			Biomes.DARK_FOREST)) {
-			addFeatures("giant", woods, "lone_giant_oak");
-		}
 		addFeatures("giant", Biomes.OLD_GROWTH_SPRUCE_TAIGA, "lone_redwood");
 		addFeatures("giant", Biomes.OLD_GROWTH_PINE_TAIGA, "lone_redwood");
-		addFeatures("giant", Biomes.JUNGLE, "lone_kapok");
 	}
 
 	/**

@@ -1,5 +1,8 @@
 {
   "type": "diffusicraft:giant_tree",
+  "biomes": "#diffusicraft:has_structure/giant_oak",
+  "spawn_overrides": {},
+  "step": "top_layer_modification",
   "form": "oak",
   "wood": {
     "id": "minecraft:oak_wood",
@@ -19,5 +22,6 @@
     "type": "minecraft:uniform",
     "min_inclusive": 40,
     "max_inclusive": 64
-  }
+  },
+  "chance": 1.0
 }

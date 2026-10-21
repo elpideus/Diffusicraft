@@ -1,0 +1,34 @@
+{
+  "placement": {
+    "type": "minecraft:random_spread",
+    "exclusion_zone": {
+      "chunk_count": 6,
+      "other_set": "minecraft:villages"
+    },
+    "salt": 1529730183,
+    "separation": 1,
+    "spacing": 3
+  },
+  "structures": [
+    {
+      "structure": "diffusicraft:giant_oak",
+      "weight": 1
+    },
+    {
+      "structure": "diffusicraft:lone_giant_oak",
+      "weight": 1
+    },
+    {
+      "structure": "diffusicraft:lone_giant_oak_plains",
+      "weight": 1
+    },
+    {
+      "structure": "diffusicraft:kapok",
+      "weight": 1
+    },
+    {
+      "structure": "diffusicraft:lone_kapok",
+      "weight": 1
+    }
+  ]
+}

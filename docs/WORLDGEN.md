@@ -615,8 +615,8 @@ LOD mods and the [relief map](MAP.md) all see the same ones.
 
 ### Giant trees
 
-`diffusicraft:giant_tree` (`GiantTreeFeature`) grows trees far taller than any of vanilla's, as a fantasy of real
-giants, in three forms. Each is a trunk that tapers from a flared foot, and limbs that carry the leaves in clumps
+`diffusicraft:giant_tree`, a feature (`GiantTreeFeature`) and a structure (`GiantTreeStructure`), grows trees far
+taller than any of vanilla's, as a fantasy of real giants, in three forms. Each is a trunk that tapers from a flared foot, and limbs that carry the leaves in clumps
 (`GiantTree`, which draws the shape before it meets the world):
 
 - **Redwoods**, 110 to 230 blocks tall, of mangrove wood for its red-brown bark under spruce needles: a straight
@@ -645,24 +645,35 @@ Outside a Diffusicraft world, as on the superflat world of `TreesGameTest`, they
 
 The clumps keep within six blocks of the wood, as leaves must to live, and large ones hold twigs of their own; the few
 leaves still farther out are placed persistent so that they do not decay. A giant grows after the smaller trees of its
-biome and through their crowns, as an emergent does, looking down through up to 32 blocks of leaves and plants for
-its ground. It needs soil under its foot, ground within 6 blocks of level around it and no water: its roots fill down
-to the ground where it falls away a little, but not off a cliff. It does not grow under another giant's crown, nor
-against another's foot. The height is cut to fit under the top of the world.
+biome and through their crowns, as an emergent does. It needs ground within 6 blocks of level around its foot and no
+water: its roots fill down to the ground where it falls away a little, but not off a cliff. The height is cut to fit
+under the top of the world.
 
-A feature writes only in the 3×3 chunks around its own, so a giant reaches at most 21 blocks out from its trunk, about
-42 blocks across, and each is placed near the middle of its chunk, where it has the most room. That is why the oaks
-stay at 64 blocks and the redwoods, whose crowns are narrow, take the height.
+A feature writes only in the 3×3 chunks around its own, so a redwood, a feature, reaches at most 21 blocks out from its
+trunk, about 42 blocks across, and each is placed near the middle of its chunk, where it has the most room. Its crown
+is narrow, so it takes the height. It looks down through up to 32 blocks of leaves and plants for its ground, needs
+soil there, and does not grow under another giant's crown, nor against another's foot.
+
+The ancient oaks and the kapoks spread broad crowns, so they grow as structures, whose crowns are not held to those
+chunks. The structure's one piece (`GiantTreePiece`) keeps the draws of the tree rather than its blocks; as each chunk
+it reaches is decorated, it plans the tree again and lays the blocks of that chunk and of the six blocks around it,
+which tell how far each leaf lies from the wood, and writes that chunk's share. A structure is drawn before its chunk
+has any blocks, so it reads the land from the generator: the structure's biome at the foot, dry ground there and on a
+ring around the foot, and that ring within 6 blocks of level. It grows in the step `top_layer_modification`, after
+every smaller tree, and only in Diffusicraft worlds.
 
 **Where.** The groves are biomes of their own, which come as [patches](#sub-biomes) of the woods around them on level
 land: redwood forests in the mild, wet taiga and the temperate rainforest, ancient woodlands in the forests and on the
-plains, old-growth jungle in the jungle. Redwoods stand in two chunks of three there, and the oaks and kapoks in every
-other chunk. Outside the groves, lone giants grow here and there, and only in Diffusicraft worlds (the placement filter
-`diffusicraft:diffusicraft_world`): a redwood in one in 6 chunks of the temperate rainforest and in one in 16 of the
-old-growth spruce and pine taigas, an ancient oak in one in 24 of vanilla's forests (flower, birch and dark forests too)
-and one in 48 of its plains and sunflower plains, and a kapok in one in 10 of its jungles. So the plains, the largest
-open land, show a lone giant oak a hundred blocks or so apart where the ground is level, and their ancient woodlands a
-stand of them.
+plains, old-growth jungle in the jungle. Redwoods stand in two chunks of three there. The oaks and kapoks come from one
+structure set, `diffusicraft:giant_trees`, which gives one chunk in each cell of 3×3 chunks, none within 6 chunks of
+where a village may stand. Each of its structures grows in its own biomes (the biome tag
+`diffusicraft:has_structure/<structure>`), so each chunk grows the giant of its biome: an ancient oak in every such
+chunk of an ancient woodland, a kapok in 7 of 10 of the old-growth jungle's. Outside the groves, lone giants grow here
+and there, and only in Diffusicraft worlds: a redwood in one in 6 chunks of the temperate rainforest and in one in 16
+of the old-growth spruce and pine taigas (the placement filter `diffusicraft:diffusicraft_world`), an ancient oak in
+one in 24 of vanilla's forests (flower, birch and dark forests too) and one in 48 of its plains and sunflower plains,
+and a kapok in one in 10 of its jungles. So the plains, the largest open land, show a lone giant oak a hundred blocks
+or so apart where the ground is level, and their ancient woodlands a stand of them.
 
 The LOD mods draw the giants too (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
 
@@ -1352,7 +1363,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` and `GiantTreeStructure` (both `diffusicraft:giant_tree`), `GiantTreePiece` (a giant written a chunk at a time) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
