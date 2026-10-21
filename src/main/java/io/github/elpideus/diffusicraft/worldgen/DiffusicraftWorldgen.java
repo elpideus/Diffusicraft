@@ -49,10 +49,8 @@ import java.util.Set;
  * types registered here.
  */
 public final class DiffusicraftWorldgen {
-	/** The default world type: Diffusicraft at {@link WorldScale#STANDARD}. */
-	public static final ResourceKey<WorldPreset> STANDARD_PRESET = preset(WorldScale.STANDARD);
-	public static final ResourceKey<WorldPreset> GRAND_PRESET = preset(WorldScale.GRAND);
-	public static final ResourceKey<WorldPreset> EARTH_PRESET = preset(WorldScale.EARTH);
+	/** The default world type: Diffusicraft at {@link WorldScale#DEFAULT}. */
+	public static final ResourceKey<WorldPreset> DEFAULT_PRESET = preset(WorldScale.DEFAULT);
 	/**
 	 * Vanilla's features that Diffusicraft worlds leave out. The blobs of dirt and gravel that vanilla scatters through
 	 * the rock: a soil is rock weathered at the top of the ground ({@link StrataRule}), and loose gravel lies in scree,
@@ -125,6 +123,18 @@ public final class DiffusicraftWorldgen {
 
 	public static ResourceKey<WorldPreset> preset(WorldScale scale) {
 		return ResourceKey.create(Registries.WORLD_PRESET, Diffusicraft.id(scale.getSerializedName()));
+	}
+
+	/**
+	 * The size of one of Diffusicraft's presets, or {@code null} for anyone else's. Each size is its own preset; only
+	 * the default one is listed among the world types.
+	 */
+	public static WorldScale scale(ResourceKey<WorldPreset> preset) {
+		if (!isDiffusicraft(preset)) {
+			return null;
+		}
+		return Arrays.stream(WorldScale.values())
+			.filter(scale -> scale.getSerializedName().equals(preset.identifier().getPath())).findFirst().orElse(null);
 	}
 
 	/** Whether a preset is one of Diffusicraft's. */

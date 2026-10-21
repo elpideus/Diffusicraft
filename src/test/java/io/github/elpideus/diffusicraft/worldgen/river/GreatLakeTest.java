@@ -222,7 +222,7 @@ class GreatLakeTest {
 
 	@Test
 	void sameLakeOnEveryThread() throws Exception {
-		WorldScale scale = WorldScale.STANDARD;
+		WorldScale scale = WorldScale.MEDIUM;
 		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
 		List<int[]> points = new ArrayList<>();
 		for (int k = 0; k < 400; k++) {
@@ -274,7 +274,7 @@ class GreatLakeTest {
 			}
 		}
 		assertTrue(reach >= 2, "the lake reaches past the plan");
-		WorldScale scale = WorldScale.STANDARD;
+		WorldScale scale = WorldScale.MEDIUM;
 		double blocks = TILE / scale.pixelsPerBlock();
 		try (TerrainPrefetcher prefetcher = new TerrainPrefetcher()) {
 			prefetcher.update(List.of(new TerrainPrefetcher.Traveller(field, scale, (cells[at + 1] + 0.5) * blocks,

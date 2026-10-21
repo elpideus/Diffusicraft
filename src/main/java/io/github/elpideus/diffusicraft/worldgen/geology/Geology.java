@@ -91,7 +91,7 @@ public final class Geology {
 	private static final double LEDGE_FOLD = 0.15;
 	private static final double NO_LEDGE_FOLD = 0.35;
 	/**
-	 * The fewest meters a block stands for below the sea: the standard world's vertical scale. The underground is
+	 * The fewest meters a block stands for below the sea, about the smaller sizes' vertical scale. The underground is
 	 * sized for play, not for the real crust. Otherwise, in the tall worlds, a lowland basin's 1.7 km of sediment
 	 * would bury the basement and reach below the bottom of the world.
 	 */

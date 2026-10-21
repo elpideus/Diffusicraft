@@ -36,7 +36,7 @@ Loom's split source sets keep client-only code out of the server.
 | `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen); `mixin/` (launch hook, Create World button, default world type, model check on Create, render grid); `height/` (the render grid's window of rows); `compat/` (Mod Menu; the heights of Sodium's build tasks; Voxy's heights and its far terrain, filled from the terrain); `lod/` (`RemoteLods`: the far terrain a server sends) |
 | `src/main/resources/diffusicraft` | `model-manifest.json`, `runtime-manifest.json`: every download, pinned by SHA-256 |
 | `src/test` | JUnit tests. Those tagged `models` need the real models and run only with `-PwithModels` |
-| `src/gametest` | Fabric client game tests: the resource screens, a Diffusicraft world with maps and screenshots, an Earth 1:1 world, a 32,736-block dimension, trees, biomes and Voxy's far terrain, in singleplayer and on a dedicated server |
+| `src/gametest` | Fabric client game tests: the resource screens, a Diffusicraft world with maps and screenshots, a 1:1 world, a 32,736-block dimension, trees, biomes and Voxy's far terrain, in singleplayer and on a dedicated server |
 
 ## Startup
 
@@ -155,7 +155,7 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
   which drowns the valleys of cold mountain coasts into fjords and cuts the long fjords and their arms that `Fjords`
   traces on the coarse map. It is thread-safe and computes each tile once.
 - **`TerrainSurface`.** The height of the ground in blocks for one scale, with the hard beds standing out of steep
-  slopes as ledges and, at Earth 1:1, the gullies cut into them, both shaped by the rock and the climate, and with sea
+  slopes as ledges and, from 1:4 up, the gullies cut into them, both shaped by the rock and the climate, and with sea
   cliffs where high land meets the sea. Everything that needs the ground reads it there, so the density, rivers, caves,
   materials and LODs agree.
 - **`TerrainFields`.** It holds one field per seed, which also carries the world's geology seed for the gullies and
@@ -167,4 +167,4 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
 - **Far terrain.** `worldgen.lod` samples columns of the finished surface without chunks (`LodSampler`) for Distant
   Horizons, and cuts them into voxels for Voxy (`LodGrid`). On a server, `LodFeed` sends the grids to the clients
   that ask for them, and `client.lod.RemoteLods` asks. See [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
-- **Scales.** `WorldScale` maps meters to blocks for the standard, grand and earth world types.
+- **Sizes.** `WorldScale` maps meters to blocks for the six world sizes, from Ultra (1:1) to Vanilla (1:32).

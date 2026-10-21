@@ -442,25 +442,18 @@ public final class Rivers {
 
 	/**
 	 * Half the width of a river, in pixels. Real rivers are about 4√Q meters wide; streams are widened at the smaller
-	 * scales so they stay at least two blocks wide and wide enough to look like rivers.
+	 * sizes so they stay at least two blocks wide and wide enough to look like rivers: by about 4.5 at 1:32, 1.6 at
+	 * 1:4, not at all at 1:1.
 	 */
 	static float halfWidthPixels(WorldScale scale, float discharge) {
-		double widening = switch (scale) {
-			case STANDARD -> 3.0;
-			case GRAND -> 1.5;
-			case EARTH -> 1.0;
-		};
+		double widening = Math.max(1.0, Math.sqrt(scale.metersPerBlock() / 1.6));
 		double meters = Math.max(2.0 * Math.sqrt(discharge) * widening, scale.metersPerBlock());
 		return (float) Math.min(meters / WorldScale.METERS_PER_PIXEL, MAX_HALF_WIDTH);
 	}
 
-	/** Deepest a river gets, in blocks. */
+	/** Deepest a river gets, in blocks: 3 at 1:32, 6 at 1:4, 10 at 1:1. */
 	static int maxDepth(WorldScale scale) {
-		return switch (scale) {
-			case STANDARD -> 4;
-			case GRAND -> 6;
-			case EARTH -> 10;
-		};
+		return (int) Math.round(10 / Math.cbrt(scale.metersPerBlock()));
 	}
 
 	private static CellRivers.Width width(WorldScale scale) {

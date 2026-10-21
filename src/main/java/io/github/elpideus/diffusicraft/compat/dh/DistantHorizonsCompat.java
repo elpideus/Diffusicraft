@@ -19,8 +19,8 @@ import org.slf4j.LoggerFactory;
 public final class DistantHorizonsCompat {
 	/**
 	 * The highest an LOD column reaches, in blocks above the bottom of its level. Distant Horizons packs the bottom and
-	 * the height of each run into 12 bits each and wraps anything larger, so a level taller than this (Diffusicraft
-	 * Earth 1:1) is cut off at this height in its LODs.
+	 * the height of each run into 12 bits each and wraps anything larger, so a level taller than this (Diffusicraft's
+	 * Extreme and Ultra sizes) is cut off at this height in its LODs.
 	 */
 	public static final int MAX_HEIGHT = 4095;
 

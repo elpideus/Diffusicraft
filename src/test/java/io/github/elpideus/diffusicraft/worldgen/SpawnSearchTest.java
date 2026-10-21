@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SpawnSearchTest {
-	private static final WorldScale SCALE = WorldScale.STANDARD;
+	private static final WorldScale SCALE = WorldScale.MEDIUM;
 
 	private static float elevationAt(TerrainField field, SpawnSearch.Target target) {
 		return field.elevation(SCALE.toPixel(target.z()), SCALE.toPixel(target.x()));

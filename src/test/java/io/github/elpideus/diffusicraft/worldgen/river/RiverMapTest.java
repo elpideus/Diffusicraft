@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Tag("models")
 class RiverMapTest {
-	private static final WorldScale SCALE = WorldScale.STANDARD;
+	private static final WorldScale SCALE = WorldScale.MEDIUM;
 
 	@Test
 	void survey(@TempDir Path game) throws Exception {

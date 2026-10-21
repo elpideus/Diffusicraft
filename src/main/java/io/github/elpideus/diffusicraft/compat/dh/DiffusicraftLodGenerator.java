@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  * and the crowns of its trees.
  *
  * <p>Distant Horizons holds {@value DistantHorizonsCompat#MAX_HEIGHT} blocks above the bottom of the level, which
- * Diffusicraft Earth 1:1 outgrows. Columns that reach higher sink by the difference into the rock under them, so they
+ * Diffusicraft's Extreme and Ultra sizes outgrow. Columns that reach higher sink by the difference into the rock under them, so they
  * keep their snow and soils and stand flat at that height. The chunks Distant Horizons reads stop there as well (see
  * {@code mixin.dh.ChunkWrapperMixin}).
  */

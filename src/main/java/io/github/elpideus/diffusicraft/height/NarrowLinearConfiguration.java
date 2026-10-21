@@ -12,7 +12,7 @@ import java.util.List;
  *
  * <p>Vanilla stores every block section with 2 to 16 different blocks at 4 bits per block: 2 KiB. A tall world holds
  * thousands of blocks of rock per column, and most of its sections that are not empty hold only a few kinds of stone:
- * around the highest ground near the spawn of an Earth 1:1 world, half of them hold two blocks. At 1, 2 or 3 bits
+ * around the highest ground near the spawn of a 1:1 world, half of them hold two blocks. At 1, 2 or 3 bits
  * per block they take a quarter, a half or three quarters of the memory. Biomes already work this way in vanilla.
  *
  * <p>Saves keep vanilla's 4 bits ({@link #bitsInStorage()}), so worlds stay readable without the mod, and the

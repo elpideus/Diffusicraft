@@ -23,16 +23,20 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   - Downloads in the background, then reports with a toast.
   - Detects the hardware and picks a sensible GPU memory cap.
   - Stores everything once per user.
-- **World types and scales.** Diffusicraft is the default world type on the Create World screen and on dedicated
-  servers. Three scales:
+- **World sizes.** Diffusicraft is the default world type on the Create World screen and on dedicated servers. It is
+  inspired by real terrain, not a simulation of it, and comes in six sizes, each half the one before, across and up,
+  with heights exaggerated the more the smaller the world:
 
-  | World type | Horizontal | Vertical | Build height |
+  | Size | Horizontal | Heights exaggerated | Build height |
   |---|---|---|---|
-  | **Diffusicraft** | 15 m per block | 10 m per block, eased above 1 km | Vanilla (−64 to 319) |
-  | **Diffusicraft Grand** | 5 m per block | 4 m per block, eased above 8 km | −256 to 2383 |
-  | **Diffusicraft Earth 1:1** | 1 m per block | 1 m per block, eased above 8 km | −256 to 9087 |
+  | **Vanilla** (1:32) | 32 m per block | 3 times, eased above 1.3 km | Vanilla (−64 to 319) |
+  | **Medium** (1:16) | 16 m per block | 2.5 times, eased above 4.8 km | −256 to 1279 |
+  | **Large** (1:8) | 8 m per block | 2.3 times, eased above 5.6 km | −256 to 2303 |
+  | **Grand** (1:4) | 4 m per block | 2 times, eased above 6 km | −256 to 3839 |
+  | **Extreme** (1:2) | 2 m per block | 1.7 times, eased above 6.3 km | −256 to 8191 |
+  | **Ultra** (1:1), the default | 1 m per block | 1.5 times, eased above 6.5 km | −256 to 16,367 |
 
-  The scale factors will be tuned in game. See [WORLDGEN.md](WORLDGEN.md).
+  See [WORLDGEN.md](WORLDGEN.md#world-types).
 - **A real geography.** The coarse model is conditioned on a map of continents, plates and climate rather than on
   noise. One world holds supercontinents and islands of every size, with smooth coasts in places and archipelagos in
   others. It also has cordilleras, collision belts, island arcs, rifts and hotspot chains, and winds, rain shadows and
@@ -56,7 +60,7 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   their own under some biomes: peat, which burns, terra rossa, laterite and loess. Snow follows the climate rather than
   a fixed height, above a real tree line, with no forest on it, and the Grand Hollows are free of sculk. See
   [WORLDGEN.md](WORLDGEN.md#refined-biomes).
-- **Real biome sizes.** Biomes come in patches as large as their real counterparts. At Earth 1:1 the main forests
+- **Real biome sizes.** Biomes come in patches as large as their real counterparts. At 1:1 the main forests
   and taigas average 10 to 20 km across, a few hundred square kilometres at most, and steppe or maquis can cover a
   whole plain. Sun and shade are measured over a whole valley side, vanilla's variants are picked by noise with a
   12 km wavelength, summer rain counts as Köppen counts it, so continental plains are steppe, and meadows keep to the
@@ -76,7 +80,7 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   hold their minerals too, in the rocks they form in: zinc and lead in limestone, tin in granite, nickel and the
   platinum metals in gabbro and peridotite, and bauxite in the laterite of the wet tropics. The ores come from the
   common tags, so any mod that tags them takes part. See [WORLDGEN.md](WORLDGEN.md#the-ground).
-- **Gullies.** At Earth 1:1 the slopes are cut by gullies finer than the model's 30 m pixels, which run downhill and
+- **Gullies.** From 1:4 up the slopes are cut by gullies finer than the model's 30 m pixels, which run downhill and
   branch, deeper on steeper ground; gentle ground stays smooth. The rock and the climate shape them: crags in hard
   rock, badlands in bare soft rock, rounded hills where soil and plants cover soft rock. See
   [WORLDGEN.md](WORLDGEN.md#gullies).
@@ -123,9 +127,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   instead of 450 and are left out of saves, sections of a few blocks take 1 to 3 bits per block instead of 4, and the
   client keeps render data for the rows near the camera only. Sodium builds sections at every height, and Voxy is
   kept within the 8192 blocks it holds. See [HEIGHT.md](HEIGHT.md).
-- **Real mountain heights.** Mountains stand at their real height in Earth 1:1, a block per meter up to 8 km: from
-  −256 to 9087, with the underground and the oceans kept game-sized. Chunks are filled only up to their ground, so
-  the air above it is never computed. See [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground).
+- **Tall mountains.** At Ultra (1:1) mountains rise half as tall again as the real ones up to 6.5 km, Everest to
+  y = 13,271, in a world from −256 to 16,367, with the underground and the oceans kept game-sized. Chunks are filled
+  only up to their ground, so the air above it is never computed. See [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground).
 - **Generating ahead.** Terrain is computed in the background where the players are heading, so chunks rarely
   wait for inference. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 - **Half-precision decoder.** On NVIDIA GPUs the decoder runs in fp16, which makes terrain 1.2× faster and moves it
@@ -133,12 +137,26 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 
 ## Next
 
+### Fantasy terrain
+
+Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
+drama on top, at every size:
+
+- **A size slider.** Pick the size on the Create World screen, and see what Distant Horizons or Voxy will do with a
+  size taller than they hold.
+- **A relief map.** A web page the mod serves for the current world, to find places and their coordinates.
+- **Dramatic mountains and small-scale relief.** Small cliffs, ridges and knolls on ground that is now too level up
+  close.
+- **Sub-biomes and smaller biomes.** Variations of a biome within its area, as real land has.
+- **Features.** Giant trees hundreds of blocks tall, most common in forests on big plains; waterfalls; denser jungles;
+  boulders.
+
 ### Height beyond 4064 blocks
 
 The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#next-steps)):
 
-- **Compatibility.** Distant Horizons holds 4095 blocks and Voxy 8192, so the far terrain of Earth 1:1 is flat above
-  y = 3838 with the one and y = 4095 with the other.
+- **Compatibility.** Distant Horizons holds 4095 blocks and Voxy 8192, so the far terrain of Extreme and Ultra is
+  flat above y = 3838 with the one and y = 4095 with the other.
 
 ### Terrain detail
 

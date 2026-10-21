@@ -1,0 +1,5 @@
+{
+  "type": "diffusicraft:climate",
+  "scale": "vanilla",
+  "parameter": "humidity"
+}

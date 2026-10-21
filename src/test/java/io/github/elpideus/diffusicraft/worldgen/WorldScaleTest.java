@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,34 +57,65 @@ class WorldScaleTest {
 	}
 
 	@Test
-	void ordinaryTerrainKeepsItsProportions() {
-		// Below the knee a hill is exactly its height in meters over the vertical meters per block.
-		assertEquals(63 + 50, WorldScale.STANDARD.surfaceY(500f), 1e-3);
-		assertEquals(63 + 200, WorldScale.GRAND.surfaceY(800f), 1e-3);
-		assertEquals(63 + 1000, WorldScale.EARTH.surfaceY(1000f), 1e-3);
+	void sizesHalveFromOneToOneToOneToThirtyTwo() {
+		WorldScale[] sizes = WorldScale.values();
+		for (int k = 0; k < sizes.length; k++) {
+			assertEquals(32 >> k, sizes[k].ratio(), sizes[k].name());
+		}
+		assertEquals(WorldScale.ULTRA, WorldScale.DEFAULT);
 	}
 
 	@Test
-	void realMountainsKeepTheirHeight() {
-		// Mont Blanc stands at its full height in Earth 1:1, and at a quarter of it in Grand.
-		assertEquals(63 + 4808, WorldScale.EARTH.surfaceY(4808f), 1e-3);
-		assertEquals(63 + 1202, WorldScale.GRAND.surfaceY(4808f), 1e-3);
-		// Only the last kilometre is eased: Everest loses less than 200 m in Earth 1:1.
-		assertTrue(WorldScale.EARTH.surfaceY(8849f) - 63 > 8650);
+	void ordinaryTerrainKeepsItsShape() {
+		// Below the knee a hill is exactly its height in meters over the vertical meters per block: tripled at 1:32,
+		// doubled at 1:4, half as tall again at 1:1.
+		assertEquals(63 + 500 * 3.0 / 32, WorldScale.VANILLA.surfaceY(500f), 1e-3);
+		assertEquals(63 + 400, WorldScale.GRAND.surfaceY(800f), 1e-3);
+		assertEquals(63 + 1000 / 0.65, WorldScale.ULTRA.surfaceY(1000f), 1e-2);
 	}
 
 	@Test
-	void theHighestPeaksFitTheirWorld() throws IOException {
-		for (WorldScale scale : List.of(WorldScale.GRAND, WorldScale.EARTH)) {
-			String path = "/data/diffusicraft/dimension_type/" + scale.getSerializedName() + ".json";
-			JsonObject type;
-			try (Reader reader = new InputStreamReader(WorldScaleTest.class.getResourceAsStream(path),
-				StandardCharsets.UTF_8)) {
-				type = JsonParser.parseReader(reader).getAsJsonObject();
+	void mountainsAreDramatic() {
+		// Mont Blanc stands linearly at 1:1 and at 1:4, under their knees.
+		assertEquals(63 + 4808 / 0.65, WorldScale.ULTRA.surfaceY(4808f), 1e-2);
+		assertEquals(63 + 2404, WorldScale.GRAND.surfaceY(4808f), 1e-3);
+		// Everest towers above y = 13,000 at 1:1, and stays under what Distant Horizons can hold at 1:4.
+		assertTrue(WorldScale.ULTRA.surfaceY(8849f) > 13_000);
+		assertTrue(WorldScale.GRAND.surfaceY(8849f) < 3838);
+	}
+
+	@Test
+	void eachSizeMatchesItsDimensionType() throws IOException {
+		for (WorldScale scale : WorldScale.values()) {
+			String name = scale.getSerializedName();
+			String type = read("/data/diffusicraft/worldgen/world_preset/" + name + ".json")
+				.getAsJsonObject("dimensions").getAsJsonObject("minecraft:overworld").get("type").getAsString();
+			int minY, height;
+			if (type.equals("minecraft:overworld")) {
+				minY = -64;
+				height = 384;
+			} else {
+				assertEquals("diffusicraft:" + name, type);
+				JsonObject dimension = read("/data/diffusicraft/dimension_type/" + name + ".json");
+				minY = dimension.get("min_y").getAsInt();
+				height = dimension.get("height").getAsInt();
+				// Room for the tallest trees above the highest surface, under the top of the world.
+				assertTrue(scale.maxSurfaceY() + 20 < minY + height, scale + " tops out at " + (minY + height));
 			}
-			int top = type.get("min_y").getAsInt() + type.get("height").getAsInt();
-			// Room for the tallest trees above the highest surface, under the top of the world.
-			assertTrue(scale.maxSurfaceY() + 20 < top, scale + " tops out at " + top);
+			assertEquals(minY, scale.minY(), name);
+			assertEquals(height, scale.height(), name);
+			// The density fades to air over the 16 blocks under the top of the world.
+			assertTrue(scale.maxSurfaceY() + 16 <= scale.maxY(), name);
+		}
+		// The tallest world fills the tallest dimension, and the 1:4 one what Distant Horizons and Voxy hold whole.
+		assertEquals(16_367, WorldScale.ULTRA.maxY());
+		assertEquals(3839, WorldScale.GRAND.maxY());
+	}
+
+	private static JsonObject read(String path) throws IOException {
+		try (Reader reader = new InputStreamReader(WorldScaleTest.class.getResourceAsStream(path),
+			StandardCharsets.UTF_8)) {
+			return JsonParser.parseReader(reader).getAsJsonObject();
 		}
 	}
 
@@ -98,10 +128,10 @@ class WorldScaleTest {
 
 	@Test
 	void blockCentresMapToPixels() {
-		// 30 m pixels and 15 m blocks: blocks 0 and 1 share pixel 0.
-		assertEquals(0.25, WorldScale.STANDARD.toPixel(0), 1e-9);
-		assertEquals(0.75, WorldScale.STANDARD.toPixel(1), 1e-9);
-		assertEquals(-0.25, WorldScale.STANDARD.toPixel(-1), 1e-9);
-		assertEquals(1.0 / 60, WorldScale.EARTH.toPixel(0), 1e-9);
+		// 30 m pixels and 16 m blocks: blocks 0 and 1 share pixel 0.
+		assertEquals(8.0 / 30, WorldScale.MEDIUM.toPixel(0), 1e-9);
+		assertEquals(24.0 / 30, WorldScale.MEDIUM.toPixel(1), 1e-9);
+		assertEquals(-8.0 / 30, WorldScale.MEDIUM.toPixel(-1), 1e-9);
+		assertEquals(1.0 / 60, WorldScale.ULTRA.toPixel(0), 1e-9);
 	}
 }

@@ -145,14 +145,15 @@ generation asks for them:
   world alone for a minute. Chunk generation reports the error as before.
 - **An off switch.** [`generateAhead`](CONFIG.md#generateahead) in the config.
 
-How much it has to do depends on the scale. A tile is 512 blocks across at the standard scale, 1536 at Grand and 7680
-at Earth 1:1. An elytra with rockets (about 33 blocks per second) crosses a standard tile in 15.5 s. A view of 12
+How much it has to do depends on the size. A tile is 240 blocks across at Vanilla, and twice as wide at each size up
+to 7680 at Ultra. An elytra with rockets (about 33 blocks per second) crosses a tile of 512 blocks in 15.5 s. A view of 12
 chunks spans two or three rows of tiles, so each column the player flies into costs two or three tiles of inference.
 `TerrainField.tileWaitNanos()` counts the time chunk generation spent waiting for tiles.
 
 `TerrainPrefetchBenchmarkTest` flies 1536 blocks east over fresh terrain at 33 blocks per second, in real time, with
-a view of 12 chunks that spans three rows of tiles. It starts from a spawn area that is already generated. On the CPU
-of the benchmark above (`nice 19`, about 5 s per tile, while a game was running):
+a view of 12 chunks that spans three rows of tiles. It starts from a spawn area that is already generated. It flies at
+Medium now; these numbers were measured before the sizes, in the Standard world, whose tiles were 512 blocks across.
+On the CPU of the benchmark above (`nice 19`, about 5 s per tile, while a game was running):
 
 | | On demand | Generating ahead |
 |---|---|---|
@@ -160,10 +161,10 @@ of the benchmark above (`nice 19`, about 5 s per tile, while a game was running)
 | Longest stall | 16.3 s | 8.7 s |
 | Tiles computed ahead | 0 of 9 | 10 of 11 |
 
-On the CPU, an elytra flight at the standard scale needs a little more inference than the CPU delivers: each column
+On the CPU, an elytra flight over tiles of 512 blocks needs a little more inference than the CPU delivers: each column
 of three tiles costs about 15 s, and the player crosses it in 15.5 s. Prefetching cuts the waits by more than two
 thirds, but it cannot remove them; the one stall left comes right after takeoff, before the first column ahead is
-done. The GPU computes a tile in under a second, and the larger scales have larger tiles, so there the prefetcher
+done. The GPU computes a tile in under a second, and the larger sizes have larger tiles, so there the prefetcher
 keeps well ahead. Reproduce with:
 
 ```bash

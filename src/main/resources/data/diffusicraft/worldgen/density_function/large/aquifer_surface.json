@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:range_choice",
+  "input": "diffusicraft:large/surface",
+  "min_inclusive": -1000000.0,
+  "max_exclusive": 63.0,
+  "when_in_range": {
+    "type": "minecraft:min",
+    "left": "diffusicraft:large/surface",
+    "right": 51.0
+  },
+  "when_out_of_range": "diffusicraft:large/surface"
+}

@@ -233,7 +233,7 @@ class RiversTest {
 	@Test
 	void riverHasWaterAndMeetsItselfAcrossTileBorders() {
 		Rivers rivers = Rivers.of(field());
-		WorldScale scale = WorldScale.STANDARD;
+		WorldScale scale = WorldScale.MEDIUM;
 		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
 		int channels = 0;
 		for (int tile = 2; tile < 8; tile++) {
@@ -256,7 +256,7 @@ class RiversTest {
 	@Test
 	void banksHoldTheWaterWhereItStepsDown() {
 		Rivers rivers = Rivers.of(field());
-		WorldScale scale = WorldScale.STANDARD;
+		WorldScale scale = WorldScale.MEDIUM;
 		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
 		// The whole valley, a row at a time, away from the sea.
 		int x0 = VALLEY * blocksPerTile, size = blocksPerTile;
@@ -316,7 +316,7 @@ class RiversTest {
 		};
 		TerrainField field = new TerrainField(1, source);
 		Rivers rivers = Rivers.of(field);
-		WorldScale scale = WorldScale.STANDARD;
+		WorldScale scale = WorldScale.MEDIUM;
 		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
 		int z = (int) Math.floor(crest / scale.pixelsPerBlock()), x0 = VALLEY * blocksPerTile;
 		float[] surface = new float[blocksPerTile], terrain = new float[blocksPerTile];
@@ -340,8 +340,9 @@ class RiversTest {
 		for (int dx = last; dx + 1 < blocksPerTile; dx++) {
 			steepest = Math.max(steepest, surface[dx + 1] - surface[dx]);
 		}
-		// Banks rise 1.5 blocks across per block; walls too deep for the reach rise steeper, but not into a slot.
-		assertTrue(steepest < 2f, "the gorge's walls rise at most 2 blocks per block: " + steepest);
+		// Banks rise 1.5 blocks across per block; walls too deep for the reach rise steeper (heights are 2.5 times
+		// the widths at 1:16), but not into a slot.
+		assertTrue(steepest < 3f, "the gorge's walls rise at most 3 blocks per block: " + steepest);
 	}
 
 	@Test
@@ -349,7 +350,7 @@ class RiversTest {
 		Rivers rivers = Rivers.of(field());
 		// The rolling hills on the slopes between the valleys leave hollows 3 m deep: three blocks at the Earth scale,
 		// less than one at the others.
-		WorldScale scale = WorldScale.EARTH;
+		WorldScale scale = WorldScale.ULTRA;
 		int lakes = 0;
 		for (int z = 23040; z < 30720; z += 32) {
 			for (int x = 0; x < 15360; x += 32) {
@@ -431,14 +432,14 @@ class RiversTest {
 		Rivers rivers = Rivers.of(new TerrainField(1, source));
 		for (int z = 23040; z < 30720; z += 32) {
 			for (int x = 0; x < 15360; x += 32) {
-				assertFalse(rivers.column(WorldScale.EARTH, x, z).lake, "a lake at " + x + ", " + z);
+				assertFalse(rivers.column(WorldScale.ULTRA, x, z).lake, "a lake at " + x + ", " + z);
 			}
 		}
 	}
 
 	@Test
 	void sameRiversOnEveryThread() throws Exception {
-		WorldScale scale = WorldScale.STANDARD;
+		WorldScale scale = WorldScale.MEDIUM;
 		Rivers serial = Rivers.of(field());
 		List<int[]> points = new ArrayList<>();
 		for (int k = 0; k < 400; k++) {
@@ -472,7 +473,7 @@ class RiversTest {
 
 	@Test
 	void aQuestionAskedWhileComputingLeavesTheColumnsInPlace() {
-		WorldScale scale = WorldScale.STANDARD;
+		WorldScale scale = WorldScale.MEDIUM;
 		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
 		// A bank, which needs the columns around it too.
 		Rivers plain = Rivers.of(field());
@@ -538,7 +539,7 @@ class RiversTest {
 		};
 		Rivers rivers = Rivers.of(new TerrainField(1, source));
 		for (int x = 2000; x < 2600; x += 7) {
-			assertFalse(rivers.column(WorldScale.STANDARD, x, 3000).river);
+			assertFalse(rivers.column(WorldScale.MEDIUM, x, 3000).river);
 		}
 	}
 

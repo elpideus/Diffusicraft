@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerrainPrefetcherTest {
-	/** Blocks per tile side at the standard scale. */
-	private static final double TILE_BLOCKS = TerrainField.TILE / WorldScale.STANDARD.pixelsPerBlock();
+	/** Blocks per tile side at the Medium size. */
+	private static final double TILE_BLOCKS = TerrainField.TILE / WorldScale.MEDIUM.pixelsPerBlock();
 
 	/** Flat land that takes {@code millis} per sample, like a tile's inference, and counts its samples. */
 	private static final class SlowSource implements TerrainSource {
@@ -83,12 +83,12 @@ class TerrainPrefetcherTest {
 		// In the middle of tile (0, 0), with a view that stays inside it.
 		double mid = TILE_BLOCKS / 2;
 		var plan = TerrainPrefetcher.plan(List.of(
-			new TerrainPrefetcher.Traveller(field, WorldScale.STANDARD, mid, mid, 0, 0, 100)));
+			new TerrainPrefetcher.Traveller(field, WorldScale.MEDIUM, mid, mid, 0, 0, 100)));
 		assertEquals(tiles(-1, -1, 1, 1), tiles(plan));
 		assertEquals(tile(0, 0), tile(plan.get(0).ti(), plan.get(0).tj()), "the tile in view first");
 		// Near the corner of four tiles, all four and the ring around them.
 		plan = TerrainPrefetcher.plan(List.of(
-			new TerrainPrefetcher.Traveller(field, WorldScale.STANDARD, 10, -10, 0, 0, 100)));
+			new TerrainPrefetcher.Traveller(field, WorldScale.MEDIUM, 10, -10, 0, 0, 100)));
 		assertEquals(tiles(-2, -2, 1, 1), tiles(plan));
 	}
 
@@ -98,7 +98,7 @@ class TerrainPrefetcherTest {
 		double mid = TILE_BLOCKS / 2;
 		// Flying east (+X, which is +j) at elytra speed through the middle of a row of tiles.
 		var plan = TerrainPrefetcher.plan(List.of(
-			new TerrainPrefetcher.Traveller(field, WorldScale.STANDARD, mid, mid, 33, 0, 100)));
+			new TerrainPrefetcher.Traveller(field, WorldScale.MEDIUM, mid, mid, 33, 0, 100)));
 		double reach = mid + 33 * TerrainPrefetcher.HORIZON_SECONDS + 100;
 		int last = (int) Math.floor(reach / TILE_BLOCKS);
 		assertEquals(tiles(-1, -1, 1, last + 1), tiles(plan));
@@ -116,13 +116,13 @@ class TerrainPrefetcherTest {
 		TerrainField field = new TerrainField(1, new SlowSource(0), 16);
 		// A very fast traveller in a world where tiles are small, with a wide view.
 		var plan = TerrainPrefetcher.plan(List.of(
-			new TerrainPrefetcher.Traveller(field, WorldScale.STANDARD, 0, 0, 1000, 1000, 600)));
+			new TerrainPrefetcher.Traveller(field, WorldScale.MEDIUM, 0, 0, 1000, 1000, 600)));
 		assertEquals(4, plan.size());
 		assertEquals(0, plan.get(0).seconds());
 		// Speeds are capped, so a teleport-like velocity does not send the plan off into the distance.
 		double reach = TerrainPrefetcher.MAX_SPEED * TerrainPrefetcher.HORIZON_SECONDS + 600 + TILE_BLOCKS;
 		var fast = TerrainPrefetcher.plan(List.of(
-			new TerrainPrefetcher.Traveller(new TerrainField(1, new SlowSource(0)), WorldScale.STANDARD, 0, 0,
+			new TerrainPrefetcher.Traveller(new TerrainField(1, new SlowSource(0)), WorldScale.MEDIUM, 0, 0,
 				1e6, 0, 600)));
 		for (TerrainPrefetcher.Request r : fast) {
 			assertTrue(r.tj() * TILE_BLOCKS <= reach, "tile " + r.tj() + " is beyond the capped speed");
@@ -186,7 +186,7 @@ class TerrainPrefetcherTest {
 				}
 				if (prefetch && tick % 10 == 0) {
 					// The plan is in game seconds, so the prefetcher sees the game's speed.
-					prefetcher.update(List.of(new TerrainPrefetcher.Traveller(field, WorldScale.STANDARD,
+					prefetcher.update(List.of(new TerrainPrefetcher.Traveller(field, WorldScale.MEDIUM,
 						x, z, speed / speedup, 0, reach)));
 				}
 				for (double dz = -reach; dz <= reach; dz += reach) {
@@ -200,6 +200,6 @@ class TerrainPrefetcherTest {
 	}
 
 	private static double pixel(double block) {
-		return WorldScale.STANDARD.toPixel((int) Math.floor(block));
+		return WorldScale.MEDIUM.toPixel((int) Math.floor(block));
 	}
 }

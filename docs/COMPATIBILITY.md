@@ -35,7 +35,7 @@ included, on servers as in singleplayer.
 **What an LOD holds.** `worldgen.lod.LodSampler` fills each column of an LOD the way the chunk generator would:
 
 - the terrain's height, cut by the rivers, with water in their channels and lakes, and the sea up to its level; the
-  nearest LODs, whose columns are at most 4 blocks apart, carry the ledges too, and the gullies at Earth 1:1, smoothed
+  nearest LODs, whose columns are at most 4 blocks apart, carry the ledges too, and the gullies from 1:4 up, smoothed
   over the 4-block cells the chunks interpolate over, as the chunks smooth them; all but the farthest, which read the
   coarse map, carry the sea cliffs and stacks and the shape of the sea floor;
 - the blocks at the top from the world's own material rules (soils, sand, gravel, snow, rock strata in cliffs), run on
@@ -74,23 +74,26 @@ reads the full-resolution terrain, which runs the models over every tile it touc
 coarse map alone: no inference beyond the coarse stage, but no rivers or lakes and no detail finer than a coarse
 pixel (7.7 km). That keeps the far horizon cheap.
 
-| World type | Terrain tile | Full resolution up to | Coarse from |
+| Size | Terrain tile | Full resolution up to | Coarse from |
 |---|---|---|---|
-| Diffusicraft | 512 blocks | detail 5 (2048 blocks per LOD) | detail 6 |
-| Diffusicraft Grand | 1536 blocks | detail 6 (4096 blocks per LOD) | detail 7 |
-| Diffusicraft Earth 1:1 | 7680 blocks | detail 8 (16384 blocks per LOD) | detail 9 |
+| Vanilla (1:32) | 240 blocks | detail 3 (512 blocks per LOD) | detail 4 |
+| Medium (1:16) | 480 blocks | detail 4 (1024 blocks per LOD) | detail 5 |
+| Large (1:8) | 960 blocks | detail 5 (2048 blocks per LOD) | detail 6 |
+| Grand (1:4) | 1920 blocks | detail 6 (4096 blocks per LOD) | detail 7 |
+| Extreme (1:2) | 3840 blocks | detail 7 (8192 blocks per LOD) | detail 8 |
+| Ultra (1:1) | 7680 blocks | detail 8 (16384 blocks per LOD) | detail 9 |
 
 **Height.** Distant Horizons packs the bottom and the height of each run of blocks into 12 bits, so it holds 4095
-blocks above the bottom of a level and garbles anything higher. Diffusicraft Earth 1:1 is 9,344 blocks tall, so its
-LODs stop at y = 3838:
+blocks above the bottom of a level and garbles anything higher. Diffusicraft's Extreme and Ultra sizes are 8,448 and
+16,624 blocks tall, so their LODs stop at y = 3838:
 
 - the generator's columns that reach higher sink into the rock under them by the difference, keeping their snow and
   soils on top;
 - the chunks Distant Horizons reads are cut off at that height by `mixin.dh.ChunkWrapperMixin`, which applies only
   when Distant Horizons is installed.
 
-Ground above y = 3838 shows flat in the far terrain; the chunks themselves are whole. Grand and the standard world
-fit.
+Ground above y = 3838 shows flat in the far terrain; the chunks themselves are whole. Grand and the smaller sizes
+fit: Grand ends at y = 3839.
 
 **On a server.** Distant Horizons on a dedicated server makes the LODs there, with Diffusicraft's generator, and
 sends them to players who have Distant Horizons. Only the server runs the models: the players' clients take the
@@ -180,18 +183,19 @@ filled and Voxy draws it again, as it does with the chunks a server sends. The s
 - A server without Diffusicraft, or with [`serveFarTerrain`](CONFIG.md#servefarterrain) off, sends nothing, and
   clients without Diffusicraft are never sent anything.
 
-**Heights.** Voxy packs the height of its sections into 8 bits, so it holds y = −4096 to 4095. Grand fits. In a taller
-level, Earth 1:1 or a dimension of up to 32,736 blocks (see [HEIGHT.md](HEIGHT.md)), its renderer walked the sections
-past that, which wrap round to the other end of the level, and stopped the game with "Position not valid at all
-levels" as soon as the player entered. Two mixins, applied only when Voxy is installed, keep it within its heights:
+**Heights.** Voxy packs the height of its sections into 8 bits, so it holds y = −4096 to 4095. Grand and the smaller
+sizes fit. In a taller level, Extreme, Ultra or a dimension of up to 32,736 blocks (see [HEIGHT.md](HEIGHT.md)), its
+renderer walked the sections past that, which wrap round to the other end of the level, and stopped the game with
+"Position not valid at all levels" as soon as the player entered. Two mixins, applied only when Voxy is installed, keep
+it within its heights:
 
 - `client.mixin.voxy.VoxyRenderSystemMixin` gives the renderer the range of its coarsest sections, 512 blocks tall,
   cut to the heights Voxy holds;
 - `client.mixin.voxy.WorldUpdaterMixin` leaves out of Voxy's store the chunk sections above or below them.
 
-In Earth 1:1, ground above y = 4095 shows cut flat in Voxy's far terrain; the chunks themselves are whole.
+In Extreme and Ultra, ground above y = 4095 shows cut flat in Voxy's far terrain; the chunks themselves are whole.
 
-**Checking it.** The client game tests for tall dimensions and for Earth 1:1 pass with Voxy
+**Checking it.** The client game tests for tall dimensions and for Earth 1:1 (now Ultra) passed with Voxy
 (`-PdevMods=voxy,sodium`: Voxy needs Sodium) and save screenshots. `VoxyGameTest` looks at the far terrain from above
 the spawn at a render distance of 6 chunks. On CUDA, Voxy asked for some 16,000 sections for its first view, filled
 in about 7 minutes, and for 7,000 to 10,000 more for each later view, filled in under a minute and a half; none
@@ -219,7 +223,7 @@ Sodium replaces the client's chunk renderer. In a dimension taller than vanilla'
 
 - **Building sections.** Sodium packs the position of each section waiting to be built into 10 bits a coordinate and
   counted heights from y = −2048, so it reached only up to y = 14,335. Sections outside that range came back at the
-  wrong height and were never built: at y = ±16,000 it drew nothing. Grand and Earth 1:1 fit in that range; the
+  wrong height and were never built: at y = ±16,000 it drew nothing. Every size fits in that range; the
   tallest dimensions do not. The mixins in `client.mixin.sodium`, applied only when Sodium is installed, count the
   heights from below the camera's search area instead (`client.compat.sodium.SodiumTaskHeights`), so every section
   Sodium looks at is built, at any height. In levels within Sodium's range the sections built are the same.
@@ -312,7 +316,7 @@ them.
   own. A Biomes O' Plenty region takes its biomes from Biomes O' Plenty's table, with Diffusicraft's parameters.
   Diffusicraft refines only vanilla's picks (see [WORLDGEN.md](WORLDGEN.md#refined-biomes)), so the mod's biomes stay
   as they are. The regions keep TerraBlender's size in blocks at every scale, which is small next to the terrain of
-  Diffusicraft Earth 1:1.
+  Diffusicraft's larger sizes.
 - **Surfaces.** TerraBlender tries the mods' material rules first, in the mods' own biomes, and the world's wherever
   they place nothing. Everything else, the rivers, the rock and Diffusicraft's soils, comes from Diffusicraft's rules.
   TerraBlender does this by wrapping the world's rule in a new one, so Diffusicraft tells its worlds by the rule the

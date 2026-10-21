@@ -43,8 +43,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Tag("models")
 class GeologySurveyTest {
 	private static final long GEOLOGY_SEED = 0x6E01_0617L;
-	private static final Map<WorldScale, Integer> MIN_Y = new EnumMap<>(Map.of(
-		WorldScale.STANDARD, -64, WorldScale.GRAND, -256, WorldScale.EARTH, -256));
 	private static final int STEP = 4;
 	private static final int SECTION_WIDTH = TerrainField.TILE * 3;
 	private static final int SECTION_HEIGHT = 1200;
@@ -99,7 +97,7 @@ class GeologySurveyTest {
 			int deepest = -1;
 			float deepestBase = Float.POSITIVE_INFINITY;
 			for (WorldScale scale : WorldScale.values()) {
-				int minY = MIN_Y.get(scale);
+				int minY = scale.minY();
 				Geology geology = new Geology(GEOLOGY_SEED, minY, scale.metersPerBlock(),
 					scale.verticalMetersPerBlock());
 				Geology.Column c = new Geology.Column();
@@ -123,7 +121,7 @@ class GeologySurveyTest {
 							lowlandKept += shows ? 1 : 0;
 						}
 					}
-					if (scale == WorldScale.STANDARD && elevation[k] >= 0 && c.sedimentBase() < deepestBase) {
+					if (scale == WorldScale.VANILLA && elevation[k] >= 0 && c.sedimentBase() < deepestBase) {
 						deepestBase = c.sedimentBase();
 						deepest = k;
 					}
@@ -150,11 +148,11 @@ class GeologySurveyTest {
 					+ scale.getSerializedName() + ".png"));
 			}
 
-			assertTrue(basement.get(WorldScale.STANDARD) > 0, "the standard world has a basement somewhere");
+			assertTrue(basement.get(WorldScale.VANILLA) > 0, "the Vanilla size has a basement somewhere");
 			for (WorldScale scale : WorldScale.values()) {
-				assertTrue(basement.get(scale) > 0.5 * basement.get(WorldScale.STANDARD),
+				assertTrue(basement.get(scale) > 0.5 * basement.get(WorldScale.VANILLA),
 					scale + " keeps a basement under " + basement.get(scale) + " of the land against "
-						+ basement.get(WorldScale.STANDARD) + " in the standard world");
+						+ basement.get(WorldScale.VANILLA) + " at the Vanilla size");
 			}
 		}
 	}
@@ -213,7 +211,7 @@ class GeologySurveyTest {
 
 	/** One tile of a pixel row, cut down to the bottom of the world. */
 	private static void section(TerrainField field, WorldScale scale, int row, int from, Path file) throws Exception {
-		int minY = MIN_Y.get(scale);
+		int minY = scale.minY();
 		Geology geology = new Geology(GEOLOGY_SEED, minY, scale.metersPerBlock(), scale.verticalMetersPerBlock());
 		Hollows hollows = new Hollows(GEOLOGY_SEED, minY);
 		TerrainField.Column t = new TerrainField.Column();

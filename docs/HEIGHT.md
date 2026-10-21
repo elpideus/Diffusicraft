@@ -3,12 +3,13 @@
 With Diffusicraft installed, a dimension type can be up to **32,736 blocks tall**: Y from −16,368 to 16,367. Vanilla
 allows 4064. The price is horizontal range: worlds end at **±8,000,000 blocks** instead of ±30,000,000.
 
-Earth's highest mountain rises 8,849 m above the sea. At 1 block per meter that fits easily, because the underground
-and the oceans keep their game depth (see [Costs](#costs)).
+Earth's highest mountain rises 8,849 m above the sea. Even at 1 block per meter, and exaggerated, that fits, because
+the underground and the oceans keep their game depth (see [Costs](#costs)).
 
-Diffusicraft Grand runs from −256 to 2383 and Diffusicraft Earth 1:1 from −256 to 9087, so real mountains keep their
-height (see [WORLDGEN.md](WORLDGEN.md#from-meters-to-blocks)). Their chunks fill only up to their ground (see
-[Filling only to the ground](#filling-only-to-the-ground)). Any taller dimension type is plain data:
+Diffusicraft's sizes above Vanilla run from −256 up to y = 1279 (Medium), 2303, 3839, 8191 and 16,367 (Ultra, 1:1), so
+the mountains keep their exaggerated height (see [WORLDGEN.md](WORLDGEN.md#from-meters-to-blocks)). Their chunks fill
+only up to their ground (see [Filling only to the ground](#filling-only-to-the-ground)). Any taller dimension type is
+plain data:
 
 ```json
 { "min_y": -16368, "height": 32736, "logical_height": 32736, ... }
@@ -81,17 +82,18 @@ come near that. A column that did would disconnect the player, as vanilla does w
 Vanilla stores each section's Y as a byte, which holds sections −128 to 127 (Y −2048 to 2047). Sections outside that
 range get an integer `Y` tag instead, and the reader accepts both.
 
-Above the ground almost every section of a tall column is plain air with the biomes of the section below it, and
-vanilla writes each of them with its two palettes. Diffusicraft leaves such sections out of the save when they also
-have no light data, and loading fills each missing section with air and the biomes of the section below it
+Above the ground almost every section of a tall column is plain air with the biomes of the section below it, and vanilla
+writes each of them with its two palettes. Diffusicraft leaves such sections out of the save when they also have no
+light data, and loading fills each missing section with air and the biomes of the section below it
 ([`AirSections`](../src/main/java/io/github/elpideus/diffusicraft/height/AirSections.java)). The empty test column
-writes 4 of its 2046 sections. In Earth 1:1 a chunk writes the sections up to its ground: about 20 of its 584 near
-the sea, and 361 around the Earth test's summit at y = 5654. Light data is stored near blocks and in the shade under
-them, so a block hanging high in the air keeps the sections below it in the save.
+writes 4 of its 2046 sections. In the Earth 1:1 world that came before the sizes (−256 to 9087, real heights), a chunk
+wrote the sections up to its ground: about 20 of its 584 near the sea, and 361 around the Earth test's summit at
+y = 5654. An Ultra column has 1039. Light data is stored near blocks and in the shade under them, so a block
+hanging high in the air keeps the sections below it in the save.
 
-Sections are left out only in dimensions that cannot open without the mod: those taller than vanilla allows, and
-those of Diffusicraft's own dimension types (Grand and Earth 1:1). Chunks of every other dimension are written exactly
-as vanilla writes them. Tools that read region files with code of their own see the left-out sections as missing.
+Sections are left out only in dimensions that cannot open without the mod: those taller than vanilla allows, and those
+of Diffusicraft's own dimension types (every size but Vanilla). Chunks of every other dimension are written exactly as
+vanilla writes them. Tools that read region files with code of their own see the left-out sections as missing.
 
 ## Memory
 
@@ -124,7 +126,7 @@ shared, because the game and mods write to the sections of a chunk directly.
 
 Vanilla stores the blocks of every section that holds 2 to 16 different blocks at 4 bits per block, 2 KiB a section.
 A tall world holds thousands of blocks of rock in each column, and most of its sections hold only a few kinds:
-around the highest ground near the spawn of an Earth 1:1 world, half of the mixed sections hold two blocks and most
+around the highest ground near the spawn of a 1:1 world, half of the mixed sections hold two blocks and most
 of the rest three or four. Diffusicraft stores sections of 2 blocks at 1 bit per block, 3 or 4 blocks at 2 bits and 5
 to 8 blocks at 3 bits, as vanilla already does for biomes
 ([`NarrowLinearConfiguration`](../src/main/java/io/github/elpideus/diffusicraft/height/NarrowLinearConfiguration.java)).
@@ -171,13 +173,13 @@ Diffusicraft counts them from below the camera instead (see [COMPATIBILITY.md](C
   replaces it with one of its own. The shared data and the detector change are written to work alongside all three:
   they never overwrite a method, and never assume the detector field is set.
 - **Distant Horizons** stores heights in 12 bits, so its LODs hold 4096 blocks above the bottom of the level. Taller
-  levels are cut off there in the LODs instead of coming out garbled: in Earth 1:1 they stop at y = 3838, and higher
-  ground shows flat in the far terrain (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
-- **Voxy** packs the height of its sections into 8 bits, so it holds y = −4096 to 4095. Taller levels used to stop
-  the game as soon as Voxy started in them; Diffusicraft now keeps Voxy's renderer and its store within those
-  heights, and leaves out of it the sections beyond (see [COMPATIBILITY.md](COMPATIBILITY.md#voxy)). In Earth 1:1,
-  ground above y = 4095 shows cut flat in Voxy's far terrain; the chunks themselves are whole. The far terrain
-  Diffusicraft fills Voxy with sinks there, as it does for Distant Horizons.
+  levels are cut off there in the LODs instead of coming out garbled: in Extreme and Ultra they stop at y = 3838, and
+  higher ground shows flat in the far terrain (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
+- **Voxy** packs the height of its sections into 8 bits, so it holds y = −4096 to 4095. Taller levels used to stop the
+  game as soon as Voxy started in them; Diffusicraft now keeps Voxy's renderer and its store within those heights, and
+  leaves out of it the sections beyond (see [COMPATIBILITY.md](COMPATIBILITY.md#voxy)). In Extreme and Ultra, ground
+  above y = 4095 shows cut flat in Voxy's far terrain; the chunks themselves are whole. The far terrain Diffusicraft
+  fills Voxy with sinks there, as it does for Distant Horizons.
 - **Sodium** built no section above y = 14,335 or below y = −2048, so the tallest dimensions showed nothing at
   their top or bottom. Diffusicraft lets it build sections at every height (see
   [COMPATIBILITY.md](COMPATIBILITY.md#sodium)); the tall-dimension game test runs with it.
@@ -232,13 +234,14 @@ What the rest of the tall dimension costs did not change:
   vanilla one. Stopping the server saves every loaded column, which took 3 seconds instead of 12 in the test world.
 
 So a tall dimension still costs some memory in proportion to its height, whatever it contains. Make dimensions only
-as tall as the terrain needs. Earth 1:1 keeps the underground and the oceans game-sized, because the fun is on the
-surface: `min_y` stays −256 and the oceans stay compressed to at most 200 blocks deep. Only the top moves.
-Its mountains keep their height up to 8 km and ease above that, so its highest ground is y = 9063 and the world runs
-from −256 to 9087: 9,344 blocks, or 584 sections per column.
+as tall as the terrain needs. Ultra (1:1) keeps the underground and the oceans game-sized, because the fun is on the
+surface: `min_y` stays −256 and the oceans stay compressed to at most 200 blocks deep. Only the top moves. Its
+mountains rise half as tall again as the real ones up to 6.5 km and ease above that, so its highest ground is
+y = 15,863 and the world runs from −256 to 16,367: 16,624 blocks, or 1039 sections per column.
 
-Real terrain is not empty. The Earth 1:1 game test stands over the highest ground near the spawn, at y = 5654, with
-600 columns loaded around it at render distance 12: 350,400 sections, 161,000 of them mixed. The block storage is
+Real terrain is not empty. The numbers below come from the Earth 1:1 world that came before the sizes, from −256 to
+9087 with real heights. Its game test stood over the highest ground near the spawn, at y = 5654, with 600 columns
+loaded around it at render distance 12: 350,400 sections, 161,000 of them mixed. The block storage is
 counted on the server; the heap is the whole game, server and client, after a full garbage collection. One run each:
 
 | Around the Earth 1:1 summit | Block storage | Heap |
@@ -252,8 +255,8 @@ time (52 to 54 seconds).
 
 ## Filling only to the ground
 
-Minecraft fills a new chunk from the bottom of the world to the top, working out the density of every block: 2.4
-million blocks for a chunk of Earth 1:1, nearly all of them air. Diffusicraft fills it only up to its ground:
+Minecraft fills a new chunk from the bottom of the world to the top, working out the density of every block: 4.3
+million blocks for a chunk of Ultra, nearly all of them air. Diffusicraft fills it only up to its ground:
 
 - **The ceiling.** `TerrainCeiling` works out the highest block a chunk can hold before it is filled. The density of
   the terrain is interpolated between the corners of cells 4 blocks wide and 8 tall, so it never rises above its
@@ -270,11 +273,11 @@ million blocks for a chunk of Earth 1:1, nearly all of them air. Diffusicraft fi
   terrain.
 
 The blocks come out the same either way: the cells and the aquifer's grid are aligned to absolute positions, not to
-the part of the chunk that is filled. `TerrainCeilingTest` checks the ceiling over rivers and the sea, and the Earth
-1:1 game test checks that the chunks around the highest ground near the spawn hold all of it.
+the part of the chunk that is filled. `TerrainCeilingTest` checks the ceiling over rivers and the sea, and the Ultra
+game test checks that the chunks around the highest ground near the spawn hold all of it.
 
-It saves less time than the air it skips suggests. In the Earth 1:1 game test the chunks around the summit, at
-render distance 12, were ready in 52 seconds against 57 with the full fill (one run each, on the CPU): most of a
+It saves less time than the air it skips suggests. In the Earth 1:1 game test, before the sizes, the chunks around
+the summit, at render distance 12, were ready in 52 seconds against 57 with the full fill (one run each, on the CPU): most of a
 chunk's time goes to the rest of its generation.
 
 ## Tests
@@ -302,8 +305,8 @@ chunk's time goes to the rest of its generation.
   each once the section of a block in view is built. It passes with Sodium and Voxy too (`-PdevMods=voxy,sodium`).
 - [`TerrainCeilingTest`](../src/test/java/io/github/elpideus/diffusicraft/worldgen/river/TerrainCeilingTest.java)
   checks that the ceiling of each column is under its chunk's and above its rivers, lakes and the sea.
-- [`EarthWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/EarthWorldGameTest.java)
-  creates an Earth 1:1 world and compares the chunks around the highest ground near the spawn with the terrain: their
+- [`UltraWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/UltraWorldGameTest.java)
+  creates an Ultra (1:1) world and compares the chunks around the highest ground near the spawn with the terrain: their
   ground with the LODs, and their highest block with the summit. It saves and sends a few hundred of their narrow
   sections and reads them back, and logs what the chunks cost in memory.
 
@@ -345,7 +348,7 @@ without `BlockPos.asLong`.
 ## Next steps
 
 - **A switch.** A config option to keep vanilla's packing for players who need ±30,000,000 worlds.
-- **Compatibility.** Distant Horizons and Voxy could hold all of Earth 1:1 by drawing their LODs from a raised
+- **Compatibility.** Distant Horizons and Voxy could hold all of Extreme and Ultra by drawing their LODs from a raised
   bottom, at the cost of the deepest underground.
 - **Only nearby heights on the wire (not for now).** The server would send each client only the sections near the
   player, as Cubic Chunks does, so a client's memory and bandwidth would follow what it sees instead of the height of

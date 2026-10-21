@@ -1,0 +1,101 @@
+{
+  "sea_level": 63,
+  "disable_mob_generation": false,
+  "legacy_random_source": false,
+  "default_block": "minecraft:stone",
+  "default_fluid": "minecraft:water",
+  "noise": {
+    "min_y": -256,
+    "height": 8448
+  },
+  "noise_router": {
+    "temperature": "diffusicraft:extreme/temperature",
+    "vegetation": "diffusicraft:extreme/vegetation",
+    "continents": "diffusicraft:extreme/continents",
+    "erosion": "diffusicraft:extreme/erosion",
+    "ridges": "diffusicraft:extreme/ridges",
+    "depth": "diffusicraft:extreme/depth",
+    "chunk_surface_level": "diffusicraft:extreme/surface",
+    "final_density": "diffusicraft:extreme/final_density"
+  },
+  "aquifers": {
+    "barrier": {
+      "type": "minecraft:noise",
+      "noise": "minecraft:aquifer_barrier",
+      "xz_scale": 1.0,
+      "y_scale": 0.5
+    },
+    "fluid_level_floodedness": {
+      "type": "minecraft:noise",
+      "noise": "minecraft:aquifer_fluid_level_floodedness",
+      "xz_scale": 1.0,
+      "y_scale": 0.67
+    },
+    "fluid_level_spread": {
+      "type": "minecraft:noise",
+      "noise": "minecraft:aquifer_fluid_level_spread",
+      "xz_scale": 1.0,
+      "y_scale": 0.7142857142857143
+    },
+    "lava": {
+      "type": "minecraft:noise",
+      "noise": "minecraft:aquifer_lava",
+      "xz_scale": 1.0,
+      "y_scale": 1.0
+    },
+    "exclusion": {
+      "type": "minecraft:min",
+      "left": {
+        "type": "minecraft:sub",
+        "left": -0.225,
+        "right": "diffusicraft:extreme/erosion"
+      },
+      "right": {
+        "type": "minecraft:max",
+        "left": {
+          "type": "minecraft:sub",
+          "left": "diffusicraft:extreme/depth",
+          "right": 0.9
+        },
+        "right": 0.0
+      }
+    },
+    "surface_level": "diffusicraft:extreme/aquifer_surface"
+  },
+  "material_rule": "diffusicraft:extreme",
+  "spawn_target": [],
+  "debug_functions": [
+    {
+      "function": "diffusicraft:extreme/final_density",
+      "label": "N"
+    },
+    {
+      "function": "diffusicraft:extreme/temperature",
+      "label": "T"
+    },
+    {
+      "function": "diffusicraft:extreme/vegetation",
+      "label": "V"
+    },
+    {
+      "function": "diffusicraft:extreme/continents",
+      "label": "C"
+    },
+    {
+      "function": "diffusicraft:extreme/erosion",
+      "label": "E"
+    },
+    {
+      "function": "diffusicraft:extreme/depth",
+      "label": "D"
+    },
+    {
+      "function": "diffusicraft:extreme/ridges",
+      "label": "W"
+    },
+    {
+      "function": "diffusicraft:extreme/surface",
+      "label": "S"
+    }
+  ]
+}

@@ -12,7 +12,7 @@
 
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the mod is put together: startup, native runtime selection, and the
   windowed diffusion pipeline.
-- [WORLDGEN.md](WORLDGEN.md): how the terrain becomes chunks: world types and scales, the terrain field, biome
+- [WORLDGEN.md](WORLDGEN.md): how the terrain becomes chunks: world sizes, the terrain field, biome
   parameters, density and the spawn.
 - [HEIGHT.md](HEIGHT.md): build heights up to 32,736 blocks: how positions are repacked, what it costs, and what it
   breaks.

@@ -24,7 +24,7 @@ class ClimateMappingTest {
 	}
 
 	private static float[] parameters(TerrainField.Column c) {
-		return parameters(WorldScale.STANDARD, c, WorldScale.STANDARD.surfaceY(c.elevation));
+		return parameters(WorldScale.MEDIUM, c, WorldScale.MEDIUM.surfaceY(c.elevation));
 	}
 
 	private static float[] parameters(WorldScale scale, TerrainField.Column c, float groundY) {
@@ -121,20 +121,20 @@ class ClimateMappingTest {
 		TerrainField.Column c = column(1f, 1f, 3f, 15f, 500f);
 		c.coast = 60f;
 		c.variant = -1f;
-		assertFalse(isCoast(parameters(WorldScale.EARTH, c, 64f)), "a narrow beach is 45 m wide");
+		assertFalse(isCoast(parameters(WorldScale.ULTRA, c, 64f)), "a narrow beach is 45 m wide");
 		c.variant = 1f;
-		assertTrue(isCoast(parameters(WorldScale.EARTH, c, 64f)), "a wide one 120 m");
+		assertTrue(isCoast(parameters(WorldScale.ULTRA, c, 64f)), "a wide one 120 m");
 		c.variant = -1f;
-		assertTrue(isCoast(parameters(WorldScale.STANDARD, c, 63.5f)), "5 blocks at least");
+		assertTrue(isCoast(parameters(WorldScale.MEDIUM, c, 63.5f)), "5 blocks at least");
 	}
 
 	@Test
 	void theTopOfACliffIsNotCoast() {
 		TerrainField.Column c = column(1f, 1f, 3f, 15f, 500f);
 		c.coast = 20f;
-		assertTrue(isCoast(parameters(WorldScale.EARTH, c, 64f)), "the beach at its foot");
-		assertFalse(isCoast(parameters(WorldScale.EARTH, c, 90f)));
-		assertTrue(isCoast(parameters(WorldScale.STANDARD, c, 65f)), "2.5 blocks at least");
+		assertTrue(isCoast(parameters(WorldScale.ULTRA, c, 64f)), "the beach at its foot");
+		assertFalse(isCoast(parameters(WorldScale.ULTRA, c, 90f)));
+		assertTrue(isCoast(parameters(WorldScale.MEDIUM, c, 65f)), "2.5 blocks at least");
 	}
 
 	@Test
@@ -209,8 +209,8 @@ class ClimateMappingTest {
 
 	@Test
 	void depthIsMeasuredFromACappedSurface() {
-		assertEquals(0f, ClimateMapping.depth(WorldScale.STANDARD, 70f, 70), 1e-6);
-		assertEquals(1f, ClimateMapping.depth(WorldScale.STANDARD, 70f, 70 - 128), 1e-6);
+		assertEquals(0f, ClimateMapping.depth(WorldScale.MEDIUM, 70f, 70), 1e-6);
+		assertEquals(1f, ClimateMapping.depth(WorldScale.MEDIUM, 70f, 70 - 128), 1e-6);
 		// A 2000-block mountain: depth counts from 60 blocks above the sea.
 		assertEquals(0f, ClimateMapping.depth(WorldScale.GRAND, 2000f, 123), 1e-6);
 	}

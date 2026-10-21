@@ -16,12 +16,19 @@ ROOT = Path(__file__).resolve().parent.parent / "src" / "main" / "resources" / "
 NS = "diffusicraft"
 SEA_LEVEL = 63
 
-# name: (min_y, height, dimension type, highest surface the scale can reach, cloud height or None)
+# The world sizes, from 1:32 to 1:1. name: (min_y, height, dimension type, highest surface the size can reach,
+# cloud height or None). The clouds float about 600 m above the sea, in the size's exaggerated heights.
 SCALES = {
-    "standard": (-64, 384, "minecraft:overworld", 303, None),
-    "grand": (-256, 2640, f"{NS}:grand", 2363, 383.33),
-    "earth": (-256, 9344, f"{NS}:earth", 9063, 863.33),
+    "vanilla": (-64, 384, "minecraft:overworld", 303, None),
+    "medium": (-256, 1536, f"{NS}:medium", 1163, 192.33),
+    "large": (-256, 2560, f"{NS}:large", 2213, 234.33),
+    "grand": (-256, 4096, f"{NS}:grand", 3763, 363.33),
+    "extreme": (-256, 8448, f"{NS}:extreme", 7863, 585.33),
+    "ultra": (-256, 16624, f"{NS}:ultra", 15863, 986.33),
 }
+# The size a new world starts with, and the only one listed among the world types. The Create World screen picks the
+# others with its size slider.
+DEFAULT = "ultra"
 # Biome parameters, as named by ClimateFunction.Parameter, and the noise router fields they feed.
 CLIMATE = {
     "temperature": "temperature",
@@ -343,8 +350,7 @@ def main():
     # Single octaves, as vanilla's noodle toggle, about 250 blocks across.
     for gate in ("entrance_gate", "spaghetti_2d_gate"):
         write(f"{NS}/worldgen/noise/{gate}.json", {"base_amplitude": 0.955388882960065, "base_octave": -8})
-    write("minecraft/tags/worldgen/world_preset/normal.json",
-          {"replace": False, "values": [f"{NS}:{scale}" for scale in SCALES]})
+    write("minecraft/tags/worldgen/world_preset/normal.json", {"replace": False, "values": [f"{NS}:{DEFAULT}"]})
 
 
 if __name__ == "__main__":

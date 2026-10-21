@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Picks the game tests to run. {@code -Pdiffusicraft.gametests=TallDimension,Earth} runs only the tests whose class
+ * Picks the game tests to run. {@code -Pdiffusicraft.gametests=TallDimension,Ultra} runs only the tests whose class
  * names start with one of those; without it, all of them run but those that run only when named.
  */
 final class GameTests {

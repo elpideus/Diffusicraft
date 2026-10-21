@@ -145,11 +145,11 @@ class TerrainFieldTest {
 				}
 			}
 			System.out.printf("%s: the ground strays up to %.2f blocks from the terrain%n", scale, largest);
-			// Ledges at every scale, at most 10 blocks; gullies too at Earth 1:1, where the rolling hills are barely
-			// steep enough for them.
-			assertTrue(largest <= (scale == WorldScale.EARTH ? 18 : 10), scale + ": " + largest);
-			if (scale == WorldScale.EARTH) {
-				assertTrue(largest > 0, "gullies at Earth 1:1");
+			// Ledges at every size, at most 10 blocks; gullies too at 1:1, where the rolling hills are barely steep
+			// enough for them.
+			assertTrue(largest <= (scale == WorldScale.ULTRA ? 18 : 10), scale + ": " + largest);
+			if (scale == WorldScale.ULTRA) {
+				assertTrue(largest > 0, "gullies at 1:1");
 			}
 		}
 	}

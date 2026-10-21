@@ -18,8 +18,8 @@ import java.util.List;
  * on load. Above the ground most of a tall column is such sections, and vanilla writes each of them with its palettes:
  * an empty column of 2046 sections took 213 KiB of NBT and 7 ms to encode.
  *
- * <p>Sections are left out only in dimensions that cannot open without Diffusicraft: its own dimension types (Grand
- * and Earth 1:1) and any dimension taller than vanilla allows. Every other dimension is saved as vanilla saves it, so
+ * <p>Sections are left out only in dimensions that cannot open without Diffusicraft: its own dimension types (every
+ * size but Vanilla) and any dimension taller than vanilla allows. Every other dimension is saved as vanilla saves it, so
  * a world that stops using the mod loses nothing. A section with light data is always written.
  *
  * <p>Loading fills every missing section that has a section below it, in every dimension. Vanilla writes all the

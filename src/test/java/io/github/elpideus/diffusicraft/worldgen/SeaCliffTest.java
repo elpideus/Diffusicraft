@@ -2,6 +2,8 @@ package io.github.elpideus.diffusicraft.worldgen;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,6 +18,13 @@ class SeaCliffTest {
 	private static TerrainSurface surface(FormulaSource.Elevation elevation, WorldScale scale) {
 		return new TerrainField(7, new FormulaSource(elevation)).surface(scale);
 	}
+
+	/**
+	 * The sizes with sea stacks: every one but 1:32, where the distance to the coastline reads only 11 blocks out to
+	 * sea, too short for a stack and the open water around it.
+	 */
+	private static final WorldScale[] WITH_STACKS = Arrays.stream(WorldScale.values())
+		.filter(scale -> scale != WorldScale.VANILLA).toArray(WorldScale[]::new);
 
 	/** The first block column east of the coastline. */
 	private static int coast(WorldScale scale) {
@@ -49,7 +58,7 @@ class SeaCliffTest {
 
 	@Test
 	void someStretchesOfAHighCoastHaveCliffs() {
-		for (WorldScale scale : new WorldScale[]{WorldScale.EARTH, WorldScale.STANDARD}) {
+		for (WorldScale scale : new WorldScale[]{WorldScale.ULTRA, WorldScale.MEDIUM}) {
 			TerrainSurface surface = surface(HIGH, scale);
 			// The land rises a block or so per block; a face rises a good part of the plateau's height at once.
 			float cliff = (scale.surfaceY(90f) - scale.seaLevel()) * 0.4f;
@@ -68,7 +77,7 @@ class SeaCliffTest {
 
 	@Test
 	void theFootOfAFullCliffIsAShelfABlockAboveTheWater() {
-		WorldScale scale = WorldScale.EARTH;
+		WorldScale scale = WorldScale.ULTRA;
 		TerrainSurface surface = surface(HIGH, scale);
 		// The top of a cliff is the ground at the end of the strip, two pixels inland.
 		float shelf = scale.seaLevel() + 0.5f, top = scale.surfaceY(HIGH.at(0, 102));
@@ -91,13 +100,15 @@ class SeaCliffTest {
 
 	@Test
 	void theCliffMeetsTheGroundAtTheEndOfItsStrip() {
-		for (WorldScale scale : new WorldScale[]{WorldScale.EARTH, WorldScale.GRAND, WorldScale.STANDARD}) {
+		for (WorldScale scale : new WorldScale[]{WorldScale.ULTRA, WorldScale.GRAND, WorldScale.MEDIUM}) {
 			TerrainSurface surface = surface(HIGH, scale);
 			int end = coast(scale) + (int) Math.ceil(TerrainSurface.cliffZone(scale));
+			// Two blocks of rise for each time the heights are exaggerated: the ramp and its ledges grow with them.
+			float rise = (float) (2 * scale.metersPerBlock() / scale.verticalMetersPerBlock());
 			for (int z = 0; z < 20_000 / scale.metersPerBlock(); z += 7) {
 				// The plateau is flat; its edge, where the land rises to it, lies inside the strip.
 				for (int x = end - 1; x <= end + 3; x++) {
-					assertEquals(surface.y(x, z), surface.y(x + 1, z), 2.5f, scale + " " + x + ", " + z);
+					assertEquals(surface.y(x, z), surface.y(x + 1, z), rise, scale + " " + x + ", " + z);
 				}
 			}
 		}
@@ -105,7 +116,7 @@ class SeaCliffTest {
 
 	@Test
 	void aLowCoastHasNoCliffs() {
-		WorldScale scale = WorldScale.EARTH;
+		WorldScale scale = WorldScale.ULTRA;
 		TerrainSurface surface = surface(LOW, scale);
 		for (int z = 0; z < 40_000; z += 211) {
 			float[] y = profile(surface, scale, z);
@@ -121,22 +132,22 @@ class SeaCliffTest {
 	void theSeaFloorDeepensAwayFromAFlatShore() {
 		// A shore that barely leaves the sea level: 0.02 m per pixel either way.
 		FormulaSource.Elevation flat = (i, j) -> (float) (0.02 * (j - 100));
-		WorldScale earth = WorldScale.EARTH;
-		TerrainSurface surface = surface(flat, earth);
+		WorldScale ultra = WorldScale.ULTRA;
+		TerrainSurface surface = surface(flat, ultra);
 		// The coastline runs through block 3014.5, a block a meter.
 		for (int z = 0; z < 2000; z += 173) {
-			float previous = earth.seaLevel();
+			float previous = ultra.seaLevel();
 			for (int d = 5; d < 600; d += 5) {
 				int x = 3014 - d;
 				float y = surface.y(x, z);
 				double depth = 0.1 * Math.pow(Math.min(d + 0.5, TerrainField.COAST_REACH), 2.0 / 3.0);
-				assertEquals(earth.seaLevel() - Math.max(1, depth), y, 0.3, "z " + z + ", " + d + " m out");
+				assertEquals(ultra.seaLevel() - Math.max(1, depth), y, 0.3, "z " + z + ", " + d + " m out");
 				assertTrue(y <= previous + 1e-3f, "the floor never rises away from the shore: " + d + " m out");
 				previous = y;
 			}
 		}
 		// The other worlds keep the shallowest sea a block deep: the profile is less than a block there.
-		for (WorldScale scale : new WorldScale[]{WorldScale.GRAND, WorldScale.STANDARD}) {
+		for (WorldScale scale : new WorldScale[]{WorldScale.GRAND, WorldScale.MEDIUM}) {
 			TerrainSurface other = surface(flat, scale);
 			for (int x = coast(scale) - 100; x < coast(scale) - 1; x += 3) {
 				assertEquals(scale.seaLevel() - 1, other.y(x, 0), 1e-3f, scale + " " + x);
@@ -146,7 +157,7 @@ class SeaCliffTest {
 
 	@Test
 	void theFarLevelsOfDetailShowTheCliffs() {
-		for (WorldScale scale : new WorldScale[]{WorldScale.EARTH, WorldScale.STANDARD}) {
+		for (WorldScale scale : new WorldScale[]{WorldScale.ULTRA, WorldScale.MEDIUM}) {
 			TerrainSurface surface = surface(HIGH, scale);
 			float cliff = (scale.surfaceY(90f) - scale.seaLevel()) * 0.4f;
 			int x0 = coast(scale) - 10, n = (int) TerrainSurface.cliffZone(scale) + 20;
@@ -177,13 +188,13 @@ class SeaCliffTest {
 
 	@Test
 	void stacksStandOffSomeCliffsPastOpenWater() {
-		for (WorldScale scale : WorldScale.values()) {
+		for (WorldScale scale : WITH_STACKS) {
 			TerrainSurface surface = surface(HIGH, scale);
 			int sea = scale.seaLevel(), x1 = coast(scale) - 1, x0 = x1 - stackReach(scale);
 			float cliffTop = scale.surfaceY(90f);
 			int length = (int) (100_000 / scale.metersPerBlock()), stacks = 0, columns = 0;
-			// The stacks of the Earth 1:1 world are at least 9 blocks wide.
-			int step = scale == WorldScale.EARTH ? 3 : 1;
+			// The stacks of the 1:1 world are at least 9 blocks wide.
+			int step = scale == WorldScale.ULTRA ? 3 : 1;
 			boolean previous = false;
 			for (int z = 0; z < length; z++) {
 				boolean row = false;
@@ -231,7 +242,7 @@ class SeaCliffTest {
 
 	@Test
 	void theSeaFlowsThroughTheArches() {
-		for (WorldScale scale : WorldScale.values()) {
+		for (WorldScale scale : WITH_STACKS) {
 			TerrainSurface surface = surface(HIGH, scale);
 			int sea = scale.seaLevel(), x1 = coast(scale) - 1, x0 = x1 - stackReach(scale);
 			int length = (int) (100_000 / scale.metersPerBlock()), openings = 0;
@@ -275,7 +286,7 @@ class SeaCliffTest {
 
 	@Test
 	void theDensityTakesTheCliffAndTheSeaBesideItBlockByBlock() {
-		WorldScale scale = WorldScale.EARTH;
+		WorldScale scale = WorldScale.ULTRA;
 		TerrainSurface surface = surface(HIGH, scale);
 		int x0 = coast(scale), zone = (int) TerrainSurface.cliffZone(scale);
 		int beside = 0, stacks = 0, outside = 0;

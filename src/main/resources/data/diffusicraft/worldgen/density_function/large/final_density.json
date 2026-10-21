@@ -1,0 +1,121 @@
+{
+  "type": "minecraft:add",
+  "left": {
+    "type": "minecraft:min",
+    "left": {
+      "type": "minecraft:max",
+      "left": {
+        "type": "minecraft:min",
+        "left": {
+          "type": "minecraft:max",
+          "left": {
+            "type": "minecraft:min",
+            "left": {
+              "type": "minecraft:squeeze",
+              "input": {
+                "type": "minecraft:interpolated",
+                "cell_size_xz": 4,
+                "cell_size_y": 8,
+                "input": {
+                  "type": "minecraft:mul",
+                  "left": {
+                    "type": "minecraft:blend_density",
+                    "input": {
+                      "type": "minecraft:lerp",
+                      "alpha": {
+                        "type": "minecraft:gradient",
+                        "axis": "y",
+                        "from_coordinate": -256,
+                        "from_value": 0.0,
+                        "to_coordinate": -232,
+                        "to_value": 1.0
+                      },
+                      "first": 0.1171875,
+                      "second": {
+                        "type": "minecraft:lerp",
+                        "alpha": {
+                          "type": "minecraft:gradient",
+                          "axis": "y",
+                          "from_coordinate": 2218,
+                          "from_value": 1.0,
+                          "to_coordinate": 2234,
+                          "to_value": 0.0
+                        },
+                        "first": -0.078125,
+                        "second": {
+                          "type": "minecraft:range_choice",
+                          "input": "diffusicraft:large/terrain",
+                          "min_inclusive": -1000000.0,
+                          "max_exclusive": 1.5625,
+                          "when_in_range": {
+                            "type": "minecraft:min",
+                            "left": "diffusicraft:large/terrain",
+                            "right": {
+                              "type": "minecraft:add",
+                              "left": {
+                                "type": "minecraft:mul",
+                                "left": "diffusicraft:large/caves/entrances",
+                                "right": 5.0
+                              },
+                              "right": {
+                                "type": "minecraft:clamp",
+                                "min": 0.0,
+                                "max": 3.0,
+                                "input": {
+                                  "type": "minecraft:mul",
+                                  "left": {
+                                    "type": "minecraft:add",
+                                    "left": "diffusicraft:large/surface",
+                                    "right": -71.0
+                                  },
+                                  "right": -0.5
+                                }
+                              }
+                            }
+                          },
+                          "when_out_of_range": {
+                            "type": "minecraft:min",
+                            "left": {
+                              "type": "minecraft:max",
+                              "left": {
+                                "type": "minecraft:min",
+                                "left": {
+                                  "type": "minecraft:min",
+                                  "left": "diffusicraft:large/caves/cheese",
+                                  "right": "diffusicraft:large/caves/entrances"
+                                },
+                                "right": "diffusicraft:large/caves/spaghetti_2d"
+                              },
+                              "right": {
+                                "type": "minecraft:range_choice",
+                                "input": "minecraft:overworld/caves/pillars",
+                                "min_inclusive": -1000000.0,
+                                "max_exclusive": 0.03,
+                                "when_in_range": -1000000.0,
+                                "when_out_of_range": "minecraft:overworld/caves/pillars"
+                              }
+                            },
+                            "right": "diffusicraft:large/hollows"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "right": 0.64
+                }
+              }
+            },
+            "right": "diffusicraft:large/caves/noodle"
+          },
+          "right": "diffusicraft:large/coast_fill"
+        },
+        "right": "diffusicraft:large/coast_carve"
+      },
+      "right": "diffusicraft:large/river_fill"
+    },
+    "right": "diffusicraft:large/river_carve"
+  },
+  "right": {
+    "type": "minecraft:beardifier"
+  }
+}

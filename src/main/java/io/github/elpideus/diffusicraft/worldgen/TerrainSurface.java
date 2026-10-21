@@ -30,8 +30,8 @@ import java.util.List;
  *
  * <p>The terrain's seas are flats near the shore, a metre deep or less for hundreds of meters, where real ones deepen
  * along a beach's equilibrium profile. Out to sea, the floor lies at least as deep as that profile reaches, up to
- * {@link TerrainField#COAST_REACH} from the coastline and as deep as it reaches there beyond it: 5 m. Only the
- * Earth 1:1 world shows it; the others keep the shallowest sea a block deep.
+ * {@link TerrainField#COAST_REACH} from the coastline and as deep as it reaches there beyond it: 5 m. Only the two
+ * largest sizes show it; the others keep the shallowest sea a block deep.
  *
  * <p>Off the cliffs stand sea stacks, the remains of headlands the sea has cut off: columns with sheer sides and a
  * gently domed top, 6 to 25 m in radius and from half as high as the cliff behind them to as high, past at least
@@ -220,6 +220,10 @@ public final class TerrainSurface implements Erosion.Surface {
 			// The ledges follow the beds through the gullies, round their spurs and into their heads.
 			double ledges = GeoNoise.smoothstep(SMOOTH_SLOPE, LEDGE_SLOPE, slope) * (1 - (1 - COVERED_LEDGES) * cover);
 			y += geology.ledge(site, y, ledges);
+			if (elevation < 0f) {
+				// The ledges never lift the sea floor out of the sea, as off a cliff's foot in the larger sizes.
+				y = Math.min(y, sea - 1);
+			}
 		}
 		return Math.clamp(shore(x, z, i, j, elevation, y, hole), lowest, highest);
 	}

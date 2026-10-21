@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * </pre>
  * For every scale it looks on the coarse map, within {@code geologySearch} tiles of the origin, for the tile whose
  * ground rises the most in blocks, and samples a grid of columns over it. That is not always the highest tile: the
- * Standard scale squeezes the land above 1,000 m, so its steepest ground lies on the flanks of the mountains. It prints
+ * smaller sizes squeeze the highest land, so their steepest ground lies on the flanks of the mountains. It prints
  * the share of the land above the sea that each kind of ground covers, and the slopes under them, and the same for the
  * tile with the highest ground.
  */

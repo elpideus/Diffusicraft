@@ -17,6 +17,6 @@ abstract class DedicatedServerPropertiesMixin {
 	@ModifyExpressionValue(method = "<init>", at = @At(value = "FIELD",
 		target = "Lnet/minecraft/world/level/levelgen/presets/WorldPresets;NORMAL:Lnet/minecraft/resources/ResourceKey;"))
 	private ResourceKey<WorldPreset> diffusicraft$defaultLevelType(ResourceKey<WorldPreset> normal) {
-		return DiffusicraftWorldgen.STANDARD_PRESET;
+		return DiffusicraftWorldgen.DEFAULT_PRESET;
 	}
 }

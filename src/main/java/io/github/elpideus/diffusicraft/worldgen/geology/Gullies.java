@@ -4,7 +4,7 @@ package io.github.elpideus.diffusicraft.worldgen.geology;
  * Gullies: relief finer than the terrain model's 30 m pixels, cut down the slopes.
  *
  * <p>Terrain Diffusion resolves nothing shorter than two of its pixels, and the spline between pixels is smooth, so at
- * Earth 1:1 a mountainside is a smooth sheet between samples 30 blocks apart. Real slopes are cut by gullies and rills
+ * 1:1 a mountainside is a smooth sheet between samples 30 blocks apart. Real slopes are cut by gullies and rills
  * that run straight down them, deeper the steeper the slope, while gentle ground stays smooth under its soil. Gullies
  * adds them as waves that cross the slope, anchored at jittered points and blended with a compact kernel (Gabor
  * noise), so that their crests and troughs run downhill. Each octave halves the wavelength and the depth, and follows
@@ -18,8 +18,8 @@ package io.github.elpideus.diffusicraft.worldgen.geology;
  * finer gullies have no seams where the ridges fold.
  *
  * <p>Wavelengths are fixed in meters. Octaves shorter than 12 blocks are left out: the terrain is interpolated over
- * cells 4 blocks wide and would smooth them into zigzags. That keeps all three at Earth 1:1 and none at the other
- * scales, whose pixels are only 2 and 6 blocks wide. Plain Java with no state, like {@link Erosion}.
+ * cells 4 blocks wide and would smooth them into zigzags. That keeps all three at 1:1, two at 1:2, one at 1:4 and
+ * none in the smaller sizes, whose blocks are 8 m wide or more. Plain Java with no state, like {@link Erosion}.
  */
 public final class Gullies {
 	/** Wavelength of the first octave, in meters: a little over a pixel and a half. */

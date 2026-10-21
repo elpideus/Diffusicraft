@@ -5,7 +5,7 @@ import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 
 /**
  * How high the ground of a chunk or a column can reach, so that the chunk generator fills only up to there instead of
- * the whole height of the world. In Earth 1:1 the world is 9,344 blocks tall but most ground lies in its lowest few
+ * the whole height of the world. At Ultra the world is 16,624 blocks tall but most ground lies in its lowest few
  * hundred; filling the rest would sample the density and run the aquifer for millions of blocks of air per chunk.
  *
  * <p>The ceiling is exact, not a guess. Above the terrain's surface the world's density only falls (caves, the fade

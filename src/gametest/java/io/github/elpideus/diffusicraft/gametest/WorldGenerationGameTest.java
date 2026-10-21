@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.gametest;
 
 import io.github.elpideus.diffusicraft.block.DiffusicraftBlocks;
+import io.github.elpideus.diffusicraft.client.worldgen.WorldSizes;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
@@ -96,6 +97,11 @@ import java.util.stream.IntStream;
  * CPU, so the test leaves the GPU alone; pass {@code -Pdiffusicraft.device=CUDA} (or {@code AUTO}) to change that.
  */
 public class WorldGenerationGameTest implements FabricClientGameTest {
+	/**
+	 * The size of the world, 1:16: the checks below were made for features about this size, and the size the
+	 * default (1:1) is tested at is {@link UltraWorldGameTest}'s.
+	 */
+	static final WorldScale SIZE = WorldScale.MEDIUM;
 	private static final Logger LOGGER = LoggerFactory.getLogger("Diffusicraft world test");
 	/**
 	 * The world's seed: a coastal spawn with rivers, cliffs and Grand Hollows near it. {@code -Pdiffusicraft.seed=...}
@@ -151,7 +157,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		context.runOnClient(mc -> CreateWorldScreen.openFresh(mc, () -> mc.gui.setScreen(new TitleScreen())));
 		context.waitForScreen(CreateWorldScreen.class);
 		String defaultType = context.computeOnClient(mc -> describe(((CreateWorldScreen) mc.gui.screen()).getUiState()));
-		if (!defaultType.equals(DiffusicraftWorldgen.STANDARD_PRESET.identifier().toString())) {
+		if (!defaultType.equals(DiffusicraftWorldgen.DEFAULT_PRESET.identifier().toString())) {
 			throw new AssertionError("The default world type is " + defaultType);
 		}
 		context.setScreen(TitleScreen::new);
@@ -162,6 +168,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			.adjustSettings(ui -> {
 				ui.setSeed(SEED);
 				ui.setGameMode(WorldCreationUiState.SelectedGameMode.CREATIVE);
+				WorldSizes.select(ui, SIZE);
 			})
 			.create()) {
 			LOGGER.info("World loaded in {} s", (System.nanoTime() - start) / 1_000_000_000L);
@@ -195,7 +202,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 
 			// The soil under the grass around the spawn, and a pit dug beside its deepest column to show it.
 			SoilSurvey soils = world.getServer().computeOnServer(server -> checkSoils(server.overworld(),
-				probe.field.surface(WorldScale.STANDARD), probe.spawn));
+				probe.field.surface(SIZE), probe.spawn));
 			problem = problem != null ? problem : soils.problem;
 			if (soils.deepest != null) {
 				BlockPos at = soils.deepest;
@@ -234,7 +241,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				view(context, world, camera.atY(seaCliff.top.getY() + 6), inland, 10f, "sea-cliff");
 				view(context, world, seaCliff.top.above(100), inland, 70f, "sea-cliff-above");
 				String seaProblem = world.getServer().computeOnServer(server -> checkSeaCliff(server.overworld(),
-					probe.field.surface(WorldScale.STANDARD), seaCliff));
+					probe.field.surface(SIZE), seaCliff));
 				problem = problem != null ? problem : seaProblem;
 			}
 
@@ -545,7 +552,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		for (int dx = -2048; dx <= 2048; dx += 16) {
 			for (int dz = -2048; dz <= 2048; dz += 16) {
 				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
-				RiverColumn column = rivers.column(WorldScale.STANDARD, x, z);
+				RiverColumn column = rivers.column(SIZE, x, z);
 				if (column.channel && column.discharge > most) {
 					most = column.discharge;
 					best = new BlockPos(x, column.waterTop, z);
@@ -709,14 +716,14 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		long seed = ((RandomStateAccessor) (Object) probe.state).diffusicraft$random().fromHashOf(StrataRule.SEED_ID)
 			.nextLong();
 		Erosion erosion = new Erosion(seed);
-		Erosion.Surface ground = probe.field.surface(WorldScale.STANDARD);
+		Erosion.Surface ground = probe.field.surface(SIZE);
 		double steepest = 0;
 		Cliff best = null;
 		for (int dx = -1024; dx <= 1024; dx += 8) {
 			for (int dz = -1024; dz <= 1024; dz += 8) {
 				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
 				double cx = x + 0.5, cz = z + 0.5, y = ground.y(cx, cz);
-				if (y < WorldScale.STANDARD.seaLevel() + 8) {
+				if (y < SIZE.seaLevel() + 8) {
 					continue;
 				}
 				double gx = (ground.y(cx + 1, cz) - ground.y(cx - 1, cz)) / 2;
@@ -775,9 +782,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	 * not an arch, whose opening would leave it open halfway up.
 	 */
 	private static @Nullable SeaCliff findSeaCliff(Probe probe) {
-		TerrainSurface surface = probe.field.surface(WorldScale.STANDARD);
+		TerrainSurface surface = probe.field.surface(SIZE);
 		Rivers rivers = Rivers.of(probe.field);
-		double pixelsPerBlock = WorldScale.STANDARD.pixelsPerBlock();
+		double pixelsPerBlock = SIZE.pixelsPerBlock();
 		float[] inland = new float[2], hole = new float[2];
 		double tallest = 0;
 		int columns = 0;
@@ -797,15 +804,15 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				for (int step = 1; step <= 8; step++) {
 					fx = x - (int) Math.round(step * ux);
 					fz = z - (int) Math.round(step * uz);
-					if (surface.y(fx, fz) < WorldScale.STANDARD.seaLevel() + 1.5f) {
+					if (surface.y(fx, fz) < SIZE.seaLevel() + 1.5f) {
 						break;
 					}
 				}
 				// The last column before the foot carries the top of the face.
 				int tx = fx + (int) Math.round(ux), tz = fz + (int) Math.round(uz);
 				double drop = surface.y(tx, tz) - surface.y(fx, fz);
-				if (drop > tallest && !rivers.column(WorldScale.STANDARD, tx, tz).river
-					&& !rivers.column(WorldScale.STANDARD, fx, fz).river
+				if (drop > tallest && !rivers.column(SIZE, tx, tz).river
+					&& !rivers.column(SIZE, fx, fz).river
 					&& (Float.isNaN(surface.cliff(tx, tz, hole)) || Float.isNaN(hole[0]))) {
 					tallest = drop;
 					best = new SeaCliff(new BlockPos(tx, (int) Math.ceil(surface.y(tx, tz)), tz),
@@ -842,7 +849,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		BlockState top = level.getBlockState(cliff.top.atY(middle)), foot = level.getBlockState(cliff.foot.atY(middle));
 		LOGGER.info("Halfway up the sea cliff, at y = {}: {} behind its face, {} in front", middle, top, foot);
 		// The columns along the top of the face, a few blocks either way, from the water up to their own ground.
-		int water = Math.max(cliff.foot.getY(), WorldScale.STANDARD.seaLevel() + 1), solid = 0, blocks = 0;
+		int water = Math.max(cliff.foot.getY(), SIZE.seaLevel() + 1), solid = 0, blocks = 0;
 		List<String> columns = new ArrayList<>();
 		for (int step = -4; step <= 4; step++) {
 			BlockPos column = cliff.top.offset((int) Math.round(-step * cliff.inlandZ), 0,
@@ -893,7 +900,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		for (int dx = -2048; dx <= 2048; dx += 16) {
 			for (int dz = -2048; dz <= 2048; dz += 16) {
 				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
-				RiverColumn column = rivers.column(WorldScale.STANDARD, x, z);
+				RiverColumn column = rivers.column(SIZE, x, z);
 				sampled++;
 				if (column.lake) {
 					columns++;
@@ -1030,7 +1037,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	private static void findFarBiomes(Probe probe, Map<String, BlockPos> found) {
 		long start = System.nanoTime();
 		int reach = 24 * 1024;
-		int meridian = (int) (50 * Geography.KM_PER_DEGREE * 1000 / WorldScale.STANDARD.metersPerBlock());
+		int meridian = (int) (50 * Geography.KM_PER_DEGREE * 1000 / SIZE.metersPerBlock());
 		Map<String, BlockPos> coarse = new TreeMap<>();
 		Map<String, Long> distance = new TreeMap<>();
 		CoarseClimate.call(() -> {

@@ -8,20 +8,25 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GulliesTest {
-	/** Gullies at Earth 1:1, a meter per block. */
-	private static final Gullies EARTH = new Gullies(0x1234_5678_9ABCL, 1.0);
+	/** Gullies at 1:1, a meter per block. */
+	private static final Gullies ULTRA = new Gullies(0x1234_5678_9ABCL, 1.0);
 	/** Rock hardness and ground cover at the corners of their range, and in the middle. */
 	private static final double[][] CHARACTERS = {{0, 0}, {0, 1}, {1, 0}, {1, 1}, {0.5, 0.5}};
 	private static final double MIDDLING = 0.5;
 
 	private static double depth(double x, double z, double gx, double gz) {
-		return EARTH.depth(x, z, gx, gz, MIDDLING, MIDDLING);
+		return ULTRA.depth(x, z, gx, gz, MIDDLING, MIDDLING);
 	}
 
 	@Test
-	void onlyEarthIsFineEnoughForThem() {
-		assertTrue(EARTH.any());
-		for (double metersPerBlock : new double[]{5, 15}) {
+	void onlyTheLargestSizesAreFineEnoughForThem() {
+		assertTrue(ULTRA.any());
+		// Octaves of 48, 24 and 12 m, of which those 12 blocks wide or more survive: all three at 1:1, two at 1:2 and one
+		// at 1:4.
+		for (double metersPerBlock : new double[]{2, 4}) {
+			assertTrue(new Gullies(1, metersPerBlock).any(), metersPerBlock + " m per block");
+		}
+		for (double metersPerBlock : new double[]{8, 16, 32}) {
 			Gullies coarse = new Gullies(1, metersPerBlock);
 			assertFalse(coarse.any(), metersPerBlock + " m per block");
 			assertFalse(coarse.cuts(1, 0.5), metersPerBlock + " m per block");
@@ -32,13 +37,13 @@ class GulliesTest {
 
 	@Test
 	void gentleGroundStaysSmooth() {
-		assertFalse(EARTH.cuts(0.1, -0.1));
-		assertTrue(EARTH.cuts(0.2, 0));
+		assertFalse(ULTRA.cuts(0.1, -0.1));
+		assertTrue(ULTRA.cuts(0.2, 0));
 		for (double[] character : CHARACTERS) {
 			for (int x = -500; x < 500; x += 7) {
 				for (int z = -500; z < 500; z += 11) {
-					assertEquals(0, EARTH.depth(x + 0.5, z + 0.5, 0.1, -0.1, character[0], character[1]));
-					assertEquals(0, EARTH.depth(x + 0.5, z + 0.5, 0, 0, character[0], character[1]));
+					assertEquals(0, ULTRA.depth(x + 0.5, z + 0.5, 0.1, -0.1, character[0], character[1]));
+					assertEquals(0, ULTRA.depth(x + 0.5, z + 0.5, 0, 0, character[0], character[1]));
 				}
 			}
 		}
@@ -73,15 +78,15 @@ class GulliesTest {
 			for (double slope : new double[]{1.5, 3}) {
 				for (int x = -600; x < 600; x += 2) {
 					for (int z = -600; z < 600; z += 9) {
-						double depth = EARTH.depth(x + 0.5, z + 0.5, slope * 0.8, slope * -0.6, character[0],
+						double depth = ULTRA.depth(x + 0.5, z + 0.5, slope * 0.8, slope * -0.6, character[0],
 							character[1]);
 						deepest = Math.max(deepest, Math.abs(depth));
 					}
 				}
 			}
 			System.out.printf("Hardness %.1f, cover %.1f: deepest %.2f of at most %.2f blocks%n", character[0],
-				character[1], deepest, EARTH.maxDepth());
-			assertTrue(deepest <= EARTH.maxDepth(), "within the deepest a gully can be: " + deepest);
+				character[1], deepest, ULTRA.maxDepth());
+			assertTrue(deepest <= ULTRA.maxDepth(), "within the deepest a gully can be: " + deepest);
 		}
 	}
 
@@ -93,10 +98,10 @@ class GulliesTest {
 		double depth = 0, curvature = 0;
 		int count = 0;
 		for (int z = -1000; z < 1000; z += 37) {
-			double before = EARTH.depth(-1000.5, z + 0.5, 0, 0.9, hardness, cover);
-			double here = EARTH.depth(-999.5, z + 0.5, 0, 0.9, hardness, cover);
+			double before = ULTRA.depth(-1000.5, z + 0.5, 0, 0.9, hardness, cover);
+			double here = ULTRA.depth(-999.5, z + 0.5, 0, 0.9, hardness, cover);
 			for (int x = -998; x < 1000; x++) {
-				double next = EARTH.depth(x + 0.5, z + 0.5, 0, 0.9, hardness, cover);
+				double next = ULTRA.depth(x + 0.5, z + 0.5, 0, 0.9, hardness, cover);
 				double bend = next - 2 * here + before;
 				depth += here * here;
 				curvature += bend * bend;
@@ -150,10 +155,10 @@ class GulliesTest {
 				for (int x = -800; x < 800; x += 5) {
 					for (int z = -800; z < 800; z += 7) {
 						double px = x + 0.5, pz = z + 0.5, gx = -0.9 * d[0], gz = -0.9 * d[1];
-						double here = EARTH.depth(px, pz, gx, gz, character[0], character[1]);
-						double down = EARTH.depth(px + 3 * d[0], pz + 3 * d[1], gx, gz, character[0], character[1])
+						double here = ULTRA.depth(px, pz, gx, gz, character[0], character[1]);
+						double down = ULTRA.depth(px + 3 * d[0], pz + 3 * d[1], gx, gz, character[0], character[1])
 							- here;
-						double side = EARTH.depth(px - 3 * d[1], pz + 3 * d[0], gx, gz, character[0], character[1])
+						double side = ULTRA.depth(px - 3 * d[1], pz + 3 * d[0], gx, gz, character[0], character[1])
 							- here;
 						along += down * down;
 						across += side * side;
@@ -171,10 +176,10 @@ class GulliesTest {
 		for (double[] character : CHARACTERS) {
 			for (int x = -300; x < 300; x += 5) {
 				for (int z = -300; z < 300; z += 7) {
-					double here = EARTH.depth(x, z, 1.1, 0.4, character[0], character[1]);
-					assertEquals(here, EARTH.depth(x + 0.01, z, 1.1, 0.4, character[0], character[1]), 0.05,
+					double here = ULTRA.depth(x, z, 1.1, 0.4, character[0], character[1]);
+					assertEquals(here, ULTRA.depth(x + 0.01, z, 1.1, 0.4, character[0], character[1]), 0.05,
 						"at " + x + ", " + z);
-					assertEquals(here, EARTH.depth(x, z + 0.01, 1.1, 0.4, character[0], character[1]), 0.05,
+					assertEquals(here, ULTRA.depth(x, z + 0.01, 1.1, 0.4, character[0], character[1]), 0.05,
 						"at " + x + ", " + z);
 				}
 			}
@@ -186,9 +191,9 @@ class GulliesTest {
 		for (int x = -300; x < 300; x += 5) {
 			for (int z = -300; z < 300; z += 7) {
 				for (double t = 0; t < 1; t += 0.1) {
-					double here = EARTH.depth(x, z, 1.1, 0.4, t, 1 - t);
-					assertEquals(here, EARTH.depth(x, z, 1.1, 0.4, t + 0.01, 1 - t), 0.05, "hardness " + t);
-					assertEquals(here, EARTH.depth(x, z, 1.1, 0.4, t, 1 - t + 0.01), 0.05, "cover " + (1 - t));
+					double here = ULTRA.depth(x, z, 1.1, 0.4, t, 1 - t);
+					assertEquals(here, ULTRA.depth(x, z, 1.1, 0.4, t + 0.01, 1 - t), 0.05, "hardness " + t);
+					assertEquals(here, ULTRA.depth(x, z, 1.1, 0.4, t, 1 - t + 0.01), 0.05, "cover " + (1 - t));
 				}
 			}
 		}

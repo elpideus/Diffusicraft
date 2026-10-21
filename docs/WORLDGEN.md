@@ -14,28 +14,44 @@ Distant Horizons gets a generator of its own that reads the terrain without buil
 
 ## World types
 
-Diffusicraft adds three world types and makes the first one the default:
+Diffusicraft adds one world type, **Diffusicraft**, and makes it the default:
 
 - **on the Create World screen**, `WorldCreationUiStateMixin` selects it;
 - **on dedicated servers**, `DedicatedServerPropertiesMixin` makes it the default `level-type`.
 
-| World type | `level-type` | Horizontal | Vertical | Build height |
-|---|---|---|---|---|
-| Diffusicraft | `diffusicraft:standard` | 15 m per block | 10 m per block, eased above 1 km | −64 to 319 (vanilla) |
-| Diffusicraft Grand | `diffusicraft:grand` | 5 m per block | 4 m per block, eased above 8 km | −256 to 2383 |
-| Diffusicraft Earth 1:1 | `diffusicraft:earth` | 1 m per block | 1 m per block, eased above 8 km | −256 to 9087 |
+Diffusicraft is inspired by real terrain, not a simulation of it. A world comes in six sizes, from the real Earth's
+(1:1) down to 1:32, each half the one before, across and up alike. Heights are exaggerated, the more the smaller the
+world, so mountains stay dramatic at every size. Each size is a world preset of its own; only the default, Ultra, is
+listed among the world types. On a dedicated server, set `level-type` to the size's preset.
+
+| Size | `level-type` | Horizontal | Heights exaggerated | Build height | Clouds |
+|---|---|---|---|---|---|
+| Vanilla (1:32) | `diffusicraft:vanilla` | 32 m per block | 3 times, eased above 1.3 km | −64 to 319 (vanilla's) | y = 192 |
+| Medium (1:16) | `diffusicraft:medium` | 16 m per block | 2.5 times, eased above 4.8 km | −256 to 1279 | y = 192 |
+| Large (1:8) | `diffusicraft:large` | 8 m per block | 2.3 times, eased above 5.6 km | −256 to 2303 | y = 234 |
+| Grand (1:4) | `diffusicraft:grand` | 4 m per block | 2 times, eased above 6 km | −256 to 3839 | y = 363 |
+| Extreme (1:2) | `diffusicraft:extreme` | 2 m per block | 1.7 times, eased above 6.3 km | −256 to 8191 | y = 585 |
+| **Ultra (1:1)**, the default | `diffusicraft:ultra` | 1 m per block | 1.5 times, eased above 6.5 km | −256 to 16,367 | y = 986 |
+
+Grand is the tallest world that Distant Horizons and Voxy hold whole; in the two above it they cut the highest ground
+flat in the far terrain (see [COMPATIBILITY.md](COMPATIBILITY.md)). Ultra fills the tallest dimension Minecraft can
+hold once Diffusicraft lifts its limits (see [HEIGHT.md](HEIGHT.md)). The clouds float about 600 m above the sea, in
+each size's heights, and never below vanilla's.
 
 A world type that needs the models cannot be created until they are downloaded. Pressing Create opens the resource
 screen instead. A dedicated server downloads them at startup, and generation waits for the download.
+
+Worlds made with the three world types before the sizes (`diffusicraft:standard`, `grand` and `earth`) do not load:
+their presets are gone, and Grand changed its scale.
 
 ### From meters to blocks
 
 `WorldScale` holds the numbers.
 
 **Horizontally**, a block covers a fixed number of meters. The model's 30 m pixels are interpolated with Catmull-Rom
-splines, so the surface stays smooth at any scale. Finer detail comes from the rock: in every world the hard beds of
-the sedimentary cover stand out of steep slopes as [ledges](#ledges), and at Earth 1:1 [gullies](#gullies) cut the
-slopes more finely than the pixels.
+splines, so the surface stays smooth at any size. Finer detail comes from the rock: in every world the hard beds of
+the sedimentary cover stand out of steep slopes as [ledges](#ledges), and at 1:4 and larger [gullies](#gullies) cut
+the slopes more finely than the pixels.
 
 **Vertically**, elevation maps linearly up to a knee, then eases towards a ceiling:
 
@@ -44,33 +60,35 @@ blocks(e) = e / v                                            while e / v <= knee
 blocks(e) = knee + (cap - knee) * tanh((e / v - knee) / (cap - knee))   above
 ```
 
-Below the knee, hills and valleys keep their real proportions. Above it, only the highest mountains are compressed to
-fit the build height. Oceans use the same curve with their own numbers, so abyssal plains stay above the bottom of
-the world.
+Below the knee, hills and valleys keep their shape, exaggerated by the size's factor (its horizontal meters per block
+over `v`). Above it, only the highest mountains are compressed to fit the build height. Oceans use the same curve with
+their own numbers, so abyssal plains stay above the bottom of the world.
 
-| Scale | Land: m per block, knee, cap | Highest surface | Ocean: m per block, knee, cap | Lowest sea floor |
-|---|---|---|---|---|
-| standard | 10, 100, 240 | y = 303 | 20, 20, 45 | y = 18 |
-| grand | 4, 2000, 2300 | y = 2363 | 8, 40, 160 | y = −97 |
-| earth | 1, 8000, 9000 | y = 9063 | 1, 60, 200 | y = −137 |
+| Size | Land: m per block, knee, cap | Highest surface | Everest | Ocean: m per block, knee, cap | Lowest sea floor |
+|---|---|---|---|---|---|
+| vanilla | 10.7, 120, 240 | y = 303 | y = 302 | 20, 20, 45 | y = 18 |
+| medium | 6.4, 750, 1100 | y = 1163 | y = 1144 | 16, 30, 80 | y = −17 |
+| large | 3.5, 1600, 2150 | y = 2213 | y = 2176 | 12, 35, 120 | y = −57 |
+| grand | 2, 3000, 3700 | y = 3763 | y = 3739 | 8, 40, 160 | y = −97 |
+| extreme | 1.15, 5500, 7800 | y = 7863 | y = 7268 | 3, 50, 180 | y = −117 |
+| ultra | 0.65, 10000, 15800 | y = 15,863 | y = 13,271 | 1, 60, 200 | y = −137 |
 
-The sea is at y = 63 in every scale. The sea floor lies at least one block under it, so a sea shallower than one
-block's worth of meters still holds water instead of showing as a dry shelf flush with the water. In Grand and Earth
-1:1 the knee lies at 8 km, so every mountain but the Himalaya's highest keeps its real height; Everest stands at
-about y = 8,750 in Earth 1:1. Each tall world type ends some 20 blocks above its highest surface, room for the
-tallest trees on the highest peak.
+The sea is at y = 63 at every size. The sea floor lies at least one block under it, so a sea shallower than one
+block's worth of meters still holds water instead of showing as a dry shelf flush with the water. From Medium up the
+knee lies at 5 to 6.5 km, so only the Himalaya's and the Andes' highest peaks are eased. Each world above Vanilla ends
+some 20 blocks or more above its highest surface, room for the tallest trees on the highest peak; Ultra has 500.
 
 **Depth is sized for play.** The real crust is tens of kilometres thick, but the game happens mostly on the surface,
 so the underground does not follow the vertical scale:
 
-- the bottom of the world is y = −64 in the standard world and y = −256 in the tall ones, whatever their scale;
+- the bottom of the world is y = −64 at Vanilla and y = −256 at every other size, the tall worlds;
 - the seas are compressed, as in the table above;
-- below the sea, the rock layers use at least 10 m per block, as in the standard world (see [The ground](#the-ground)).
+- below the sea, the rock layers use at least 10 m per block (see [The ground](#the-ground)).
 
 The build height goes to the surface instead. Real mountains rise some 9 km above the sea while the mantle lies
-tens of kilometres down, and a world of both would be mostly rock nobody digs. So the tall world types are tall at
-the top only: Earth 1:1 is 9,344 blocks tall, all but 319 of them above the sea. Chunks fill only as high as their
-ground reaches, so the empty height costs little (see [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground)).
+tens of kilometres down, and a world of both would be mostly rock nobody digs. So the tall worlds are tall at the top
+only: Ultra is 16,624 blocks tall, all but 319 of them above the sea. Chunks fill only as high as their ground
+reaches, so the empty height costs little (see [HEIGHT.md](HEIGHT.md#filling-only-to-the-ground)).
 
 ## How a column is generated
 
@@ -83,7 +101,7 @@ WorldPipeline (30 m pixels, per seed)
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate, and the distance to the coastline
    ▼
-TerrainSurface: the ground in blocks for one scale, with ledges, sea cliffs and stacks, and gullies at Earth 1:1
+TerrainSurface: the ground in blocks for one scale, with ledges, sea cliffs and stacks, and gullies at 1:4 and up
    ▼
 density functions: diffusicraft:surface, diffusicraft:climate,
    │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model),
@@ -161,7 +179,7 @@ terrain seed is derived from the world seed, so worlds with the same seed match.
 
 ### Gullies
 
-Nothing narrower than two of the model's 30 m pixels survives, so at Earth 1:1 a mountainside would be a smooth sheet
+Nothing narrower than two of the model's 30 m pixels survives, so at 1:1 a mountainside would be a smooth sheet
 between samples 30 blocks apart. Real slopes are cut by gullies and rills that run straight down them, deeper on
 steeper ground, while gentle ground stays smooth under its soil. `Gullies` adds them:
 
@@ -193,15 +211,16 @@ steeper ground, while gentle ground stays smooth under its soil. `Gullies` adds 
   0.5, desert, and full above 1.5), and warmth (none below −4 °C and full above 4 °C). Deserts, tundra and the high
   summits are bare.
 
-Octaves narrower than 12 blocks are left out: the density is interpolated over cells 4 blocks wide and would turn
-them into zigzags. That keeps all three at Earth 1:1 and none in the other worlds, whose blocks are 5 and 15 m wide.
+Octaves narrower than 12 blocks are left out: the density is interpolated over cells 4 blocks wide and would turn them
+into zigzags. That keeps all three at Ultra (1:1), two at Extreme and one at Grand, and none in the smaller sizes, whose
+blocks are 8 m or more wide.
 
 `TerrainSurface` puts the gullies on the terrain, then the [ledges](#ledges), and everything that needs the ground
 reads it there: the density, the ceiling of each chunk, the rivers and lakes, the Hollows, the materials (so the sides
 of the gullies can bare the rock, see [The ground](#the-ground)) and the LODs whose columns are at most 4 blocks apart.
 The biomes and the climate keep the smooth elevation; gullies and ledges are too small to change them. The slope comes
 from the spline's own derivative, so gentle ground costs one sample. Steep ground costs about 0.2 µs more for the rock,
-the climate and the ledges, and 0.6 µs at Earth 1:1 with the gullies. The rocks come from the geology seed, which
+the climate and the ledges, and 0.6 µs at 1:1 with the gullies. The rocks come from the geology seed, which
 `TerrainFields` gives each field next to the terrain seed, so the gullies and the ledges follow the same rocks the
 world shows.
 
@@ -229,8 +248,8 @@ chalk, salt, coal or stone between them. `Geology.ledge` moves the ground to mak
   the same beds, because the profile is scaled along the beds rather than in height. The ledges fade out over 8
   blocks at the base of the cover and over the deepslate, and in fold belts, whose beds tilt too steeply for them.
 
-The beds are 1 to 8 blocks thick in every world, so a cliff of 15 blocks is 15 m at Earth 1:1 and 150 m in the
-Standard world, as tall as the Grand Canyon's. The density's 4-block cells turn the narrowest cliffs into steep ramps,
+The beds are 1 to 8 blocks thick at every size, so a cliff of 15 blocks stands for 10 m of rock at Ultra and 160 m
+at Vanilla, as tall as the Grand Canyon's. The density's 4-block cells turn the narrowest cliffs into steep ramps,
 but those still rise through the same beds, and [Erosion](#the-ground) bares the rock on them.
 
 ### Biome parameters
@@ -428,7 +447,7 @@ The settings set `final_density` to vanilla's overworld density, with these chan
 
 - vanilla's `sloped_cheese` terrain is replaced by `diffusicraft:<scale>/terrain`, which is `(surface − y) / 16`.
   Its `y` is a gradient over the whole world, not vanilla's `minecraft:y`, which stops at y = 4062 and would leave
-  the mountains of Earth 1:1 solid up to the top of the world;
+  the mountains of the tallest sizes solid up to the top of the world;
 - the caves are vanilla's, but fewer, with more of them noodles (below);
 - deeper than 25 blocks below the surface, the density is the minimum of the caves and
   [the Hollows](#the-hollows);
@@ -515,17 +534,18 @@ place.
   same way, set only the river's level, and under their water the path follows the floor. The blocks can then draw the
   rivers of their tiles without one another's lakes. A river bound for the sea runs on to water that drains into it,
   past the valleys the ice drowned behind a step.
-- **Width and depth.** About 4√Q meters wide for a discharge of Q m³/s, like real rivers. Streams are widened three
-  times at the standard scale and one and a half times at the grand scale so they stay visible, and nothing gets
-  wider than 480 m. The depth grows with the width, up to 4, 6 and 10 blocks at the three scales, and shelves towards
-  the banks.
+- **Width and depth.** About 4√Q meters wide for a discharge of Q m³/s, like real rivers. The smaller sizes widen them
+  by the square root of their meters per block over 1.6, so they stay visible: 1.1 times at Extreme, 1.6 at Grand, 2.2
+  at Large, 3.2 at Medium and 4.5 at Vanilla. Nothing gets wider than 480 m. The depth grows with the width, up to 10
+  blocks at Ultra and to 10 over the cube root of the meters per block at the other sizes: 8, 6, 5, 4 and 3 blocks
+  down to Vanilla. It shelves towards the banks.
 - **Columns.** `Rivers.column` says what a river does to a column. The channel is cut down to the water, or built up on
   a footing 4 blocks deep where the river runs above the ground. Banks blend into the terrain over 1.5 blocks across per
   block of height, out to 24 pixels (720 m) from the water at most, which keeps every column inside the tile whose river
-  shapes it. A valley cut deeper than that reach can span at 1.5 blocks per block, some 300 m at the standard scale,
-  gets steeper walls: a gorge. Where the water steps down a block, it runs over the step as a little fall; the banks
-  within 2 blocks of the step rise above the higher water, which would otherwise spill over them and run beside the
-  river as a second stream.
+  shapes it. A valley cut deeper than that reach can span at 1.5 blocks per block, from some 160 m at Vanilla to 310 m
+  at Ultra, gets steeper walls: a gorge. Where the water steps down a block, it runs over the step as a little fall; the
+  banks within 2 blocks of the step rise above the higher water, which would otherwise spill over them and run beside
+  the river as a second stream.
 - **Water and beds.** The material rule `diffusicraft:river` (`RiverRule`) fills the channel with water on a bed of
   sand and clay in the lowlands, and mostly gravel higher up. The valley, the channel and 3 blocks on each side, takes
   a river biome.
@@ -613,13 +633,13 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   coastline and lower than 5 m above the sea or 2.5 blocks, whichever is higher. The width wanders with slow noise from
   45 to 120 m, at least 5 blocks. Inside the band, continentalness is the height above the sea, so vanilla picks its
   beach, snowy beach or stony shore as it would. Before, the band went by height alone, and it covered most of the low
-  coastal plains of the Standard world, far inland. Low, wet, flat land past the beach is still a swamp, or a bog.
+  coastal plains of the smaller worlds, far inland. Low, wet, flat land past the beach is still a swamp, or a bog.
 - **Sea cliffs.** At 30 m per pixel the terrain's coasts are gentle: the steepest is a slope, which the density's
   4-block cells would smear further. So `TerrainSurface` builds cliffs where high land meets the sea. Across a strip 60
-  m wide (at least 6 blocks: 6 in the Standard world, 12 at Grand, 60 at Earth 1:1), it gathers the rise of the ground
-  into one face. Seaward of the face is a shelf a block above the water; landward, the ground at the end of the strip.
-  The face wanders across the strip with noise 3 strips long, and the cliff fades into the ground's own details over the
-  last 30% of the strip. A cliff needs:
+  m wide (at least 6 blocks: 6 at Vanilla and Medium, 7.5 at Large, 15 at Grand, 30 at Extreme and 60 at Ultra), it
+  gathers the rise of the ground into one face. Seaward of the face is a shelf a block above the water; landward, the
+  ground at the end of the strip. The face wanders across the strip with noise 3 strips long, and the cliff fades into
+  the ground's own details over the last 30% of the strip. A cliff needs:
   - land at least 4 m above the sea at the end of the strip, and 15 m for a full cliff (1.5 and 3 blocks at least);
   - a straight coast, not a spit or a narrow inlet, where the gradient of the distance shrinks;
   - a stretch of coast where noise 1.5 km across allows cliffs. They fade out over a few hundred meters between
@@ -636,9 +656,9 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
 - **The sea floor.** The terrain's seas are flats near the shore: half of the sea 120 m from land is less than 0.3 m
   deep, and 480 m from land less than 3 m. A real sea floor deepens along a beach's equilibrium profile, `0.1 d^(2/3)`
   meters at `d` meters out (Dean's profile for fine sand): 2 m deep 100 m out and 5 m deep 360 m out. So the floor
-  lies at least that deep out to `COAST_REACH`, and at least 5 m deep beyond it. Only the Earth 1:1 world shows it,
-  5 blocks deep 360 blocks out; at the other scales the profile stays within the block of water the shallowest sea
-  already has.
+  lies at least that deep out to `COAST_REACH`, and at least 5 m deep beyond it. Only Ultra and Extreme show it: 5
+  blocks deep 360 blocks out at Ultra, under 2 at Extreme. In the smaller sizes the profile stays within the block of
+  water the shallowest sea already has.
 - **Sea stacks and arches.** The sea cuts cliffs back and leaves the harder parts standing offshore. `TerrainSurface`
   puts stacks off the cliffs: columns 6 to 25 m in radius, with sheer sides and a gently domed top, from half as high
   as the cliff behind them to as high. A stack stands past at least 20 m of open water and at most 150 m beyond that.
@@ -649,7 +669,8 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   floor up to 40–60% of its height above the sea, under a roof at least 2 blocks thick. The density takes stacks and
   the 5 blocks around them block by block, as it does cliffs, and leaves the opening empty: the sea fills it below its
   level, the air above. The smaller worlds keep stacks 3 to 5 blocks across and 2 blocks off the coast, and arches
-  with an opening at least 3 blocks high.
+  with an opening at least 3 blocks high. Vanilla has none: the coastline's distance reaches only 12 pixels, some 11 of
+  its blocks, too short for a stack past its open water.
 - **Fjords.** In the ice ages, glaciers flowing off cold mountain coasts cut their valleys far below the sea, which
   flooded them when the ice melted: the fjords of Norway, Patagonia, Alaska and New Zealand. The model draws those
   coasts smooth, so `Glaciation` wraps the terrain source and cuts the valleys after the fact. The ice cut each valley's
@@ -769,11 +790,11 @@ The thresholds wander by up to a fifth over some 16 blocks, so the edges of clif
 the terrain's grid. Under the water, the beds keep their sand and gravel. Distant Horizons' LODs run the same rule, so
 cliffs show from afar too, except in the farthest LODs, which read the coarse map and are too smooth for them.
 
-The slopes are those the player sees, so the scale matters. The Standard world raises the land 1.5 times more than it
-widens it up to 1,000 m, and its steep flanks get the most cliffs; above that it squeezes the height, and its high
-ground is gentle. At Earth 1:1 the slopes are the real ones over 30 m, which are seldom steeper than 50°: most of
-its cliffs are the [ledges](#ledges) and the sides of the [gullies](#gullies), and they keep to the mountains (see
-`ErosionSurveyTest` under [Tests](#tests)).
+The slopes are those the player sees, so the size matters. Every size raises the land more than it widens it, from 1.5
+times at Ultra to 3 times at Vanilla, so the smaller sizes have steeper flanks and more cliffs; above the knee the
+height is squeezed, and the highest ground is gentler. At Ultra the slopes are the real ones over 30 m, steepened by
+half: most of its cliffs are the [ledges](#ledges) and the sides of the [gullies](#gullies), and they keep to the
+mountains (see `ErosionSurveyTest` under [Tests](#tests)).
 
 `Geology` is a pure function of the geology seed, the scale and the column's terrain. It holds no Minecraft classes and
 is tested on its own. As in vanilla, most of the ground is stone above y = 0 and deepslate below it; the other rocks
@@ -792,7 +813,7 @@ The deep layers share the room between y = 0 and the bottom of the world, so the
 vanilla's height the gabbro is about 5 blocks thick and the peridotite 3, leaving some 50 blocks of deepslate.
 Thicknesses in meters follow the world's vertical scale down to the sea, so mountains keep the full height of their
 strata. Below the sea, they use at least 10 m per block. A lowland's cover therefore ends within about 210 blocks of
-the sea in every world type: without that, Earth 1:1's 1.7 km of sediment would run past the bottom of the world and
+the sea at every size: without that, Ultra's 1.7 km of sediment would run past the bottom of the world and
 leave no basement under the lowlands. Caves fill with lava up to 10 blocks above the bottom of the world (`NoiseBasedChunkGeneratorMixin`). Vanilla fixes
 that level at y = −54, which in a world going down to −256 would flood 200 blocks of caves with lava.
 
@@ -873,8 +894,8 @@ broken rock with soil between it that gives way downwards to the solid rock.
 Weathering is a chemical reaction that warmth and rain drive, so the profiles go about 4 blocks deep in cold or dry
 land and on slopes, 6 in temperate land, 8 or 9 under loess, 12 in the savannas and 15 in the wet tropics, varying
 by a few blocks over some 30. Semi-arid land, from 0.5 to 1.1 times the threshold and 6 °C or warmer, has a pan of
-calcrete (calcite) under the subsoil, where the rain stops sinking in. The depths are in blocks, the same in every
-world type. Sand and gravel never hang over open space: there they stay sandstone and rock.
+calcrete (calcite) under the subsoil, where the rain stops sinking in. The depths are in blocks, the same at every
+size. Sand and gravel never hang over open space: there they stay sandstone and rock.
 
 Some biomes lay a soil of their own on top, to vanilla's depth: peat under the moors, the tundra, the páramo and the
 bogs, whose pools it lines too, terra rossa under the maquis, loess under the steppes and laterite under the jungles, the
@@ -903,7 +924,7 @@ The Hollows are caverns far larger than vanilla's caves, and larger the deeper t
 like `Geology`, seeded from the world seed and `diffusicraft:hollows`. `diffusicraft:hollows` (`HollowsFunction`)
 samples it as a density, negative in the open.
 
-| Kind | Depth | Size (standard world) | How often |
+| Kind | Depth | Size (Vanilla) | How often |
 |---|---|---|---|
 | Hollow | In the basement, centred between y = 6 and y = 36 (117 in the tall worlds) | 14–30 blocks in radius, 10–22 high | One in seven 112-block cells |
 | Deep Hollow | In the deepslate, from halfway down to the lava level up to y = −8 | 20–42 in radius, 14–28 high | One in seven 144-block cells |
@@ -973,7 +994,7 @@ too. Like every Diffusicraft feature they run after vanilla's.
 
 **Lakes.** Under wet land (aridity at least 1, and a mean temperature of at least 0 °C) the water that soaks down
 fills the basin of a Grand or Ancient Grand Hollow to 0.92 of the floor's depth under the centre: just under the plain
-floor at its rim, so the rock holds it. In the standard world the lakes are 7 to 11 blocks deep in the middle, deeper
+floor at its rim, so the rock holds it. At Vanilla the lakes are 7 to 11 blocks deep in the middle, deeper
 in the tall worlds. Under dry or frozen land the basins stay dry, and so do those of the selenite caverns, drained
 like the Cave of the Crystals. `HollowLakes` fills them: a mixin at the end of `NoiseChunk`'s constructor puts it in
 front of the chunk's aquifer, which the noise fill and the carvers both ask what fills open space, so a carver's
@@ -1071,7 +1092,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust, glowworm silk and selenite |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
-| `data/diffusicraft/dimension_type/` | The tall overworld dimension types (grand and earth) |
+| `data/diffusicraft/dimension_type/` | The tall overworld dimension types, one for each size but Vanilla |
 | `data/diffusicraft/worldgen/{biome,feature,placed_feature}/`, `material_rule/biome_surface.json`, `material_rule/biome_caves.json`, biome tags | The new biomes, their trees and plants, their ground and their tags |
 | `tools/worldgen_data.py` | Writes the noise settings, material rules, density functions, presets and dimension types. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
 | `tools/biomes.py` | Writes the new biomes, the cave biomes of the Grand Hollows, their features, ground rules and tags. Edit it, run `python3 tools/biomes.py`, and commit the output. |
@@ -1088,8 +1109,8 @@ Other searches still read the full terrain and can take a while on new land:
 ## Tests
 
 - `GeologyTest` checks the layer order, that lowlands are covered in sediment, that stone makes up most of the ground
-  above y = 0 and deepslate most below it, that sandstone keeps to the deserts, that Earth 1:1 keeps the standard
-  world's layers below the sea and its own scale above it, determinism, ore rarity and diamond depth, that the
+  above y = 0 and deepslate most below it, that sandstone keeps to the deserts, that a world of 1 m per block keeps
+  10 m per block below the sea and its own scale above it, determinism, ore rarity and diamond depth, that the
   basement is harder than its cover and granite harder than schist, that the hardness never jumps, and the sampling
   speed. For the ledges, it checks that the ground climbs steeply through hard beds and gently through soft ones,
   that limestone and sandstone lie only in hard beds and shale, chalk and salt only in soft ones, with the cliffs in
@@ -1100,14 +1121,14 @@ Other searches still read the full terrain and can take a while on new land:
   is picked for each mineral: one in stone and one in deepslate, the first mod by id, either standing in for the
   other, and never a Nether or End ore.
 - `GeologySurveyTest` needs the models. It runs the geology over the same real land at every scale, checks that the
-  tall worlds keep about as much basement under the land as the standard world, and draws a cross-section of each to
+  tall worlds keep about as much basement under the land as the Vanilla size, and draws a cross-section of each to
   `build/geology`. `-Pdiffusicraft.geologyStore=<dir>` keeps the terrain on disk for later runs, in a folder per seed.
-- `GulliesTest` checks that only Earth 1:1 is fine enough for gullies, that gentle ground stays smooth, that steeper
-  slopes are cut deeper but never past the deepest a gully can go for any rock and climate, that the ground changes
-  about three times as much across a slope as down it, that cover rounds the ground off and hard rock is cut deeper
-  and sharper, that bare soft rock has the finest rills, and that the ground is continuous in space, rock and cover,
-  and set by the seed. `TerrainFieldTest` checks the spline's gradient and that the ground keeps within a few blocks
-  of the terrain in every world.
+- `GulliesTest` checks that only the sizes from 1:4 up are fine enough for gullies, that gentle ground stays smooth,
+  that steeper slopes are cut deeper but never past the deepest a gully can go for any rock and climate, that the ground
+  changes about three times as much across a slope as down it, that cover rounds the ground off and hard rock is cut
+  deeper and sharper, that bare soft rock has the finest rills, and that the ground is continuous in space, rock and
+  cover, and set by the seed. `TerrainFieldTest` checks the spline's gradient and that the ground keeps within a few
+  blocks of the terrain in every world.
 - `ErosionTest` checks that gentle ground keeps its soil, steep ground shows the rock in any direction, and scree
   lies at the foot of a cliff, whichever way it faces, and not on the flat beyond.
 - `SoilsTest` checks that the soil follows the rock (sand on sandstone, clay on shale, grus on granite, terra rossa
@@ -1116,11 +1137,13 @@ Other searches still read the full terrain and can take a while on new land:
   warm, wet, flat land weathers deepest, that the weathered rock turns to solid rock downwards, and that bauxite lies
   in patches of the lower subsoil under the flat land of the wet tropics, not on slopes or in drier or cooler land.
 - `ErosionSurveyTest` needs the models. At every scale it finds the tile near the origin whose ground rises the most in
-  blocks and sorts its land into soil, cliffs and scree. With seed 42 that tile is 87% soil, 8.3% cliffs and 4.8%
-  scree in the Standard world, 90% soil, 6% cliffs and 4.2% scree at Grand, and 93% soil, 4.3% cliffs and 2.5% scree
-  at Earth 1:1. The highest tile near the origin, which the Standard world squeezes flat, is 10.4% cliffs and 7.5%
-  scree at Grand and 6.5% cliffs and 4.4% scree at Earth 1:1. Before the ledges, the steepest tiles were 2.6% cliffs
-  in the Standard world, 0.3% at Grand and nearly none at Earth 1:1.
+  blocks and sorts its land into soil, cliffs and scree. These numbers were measured before the six sizes, with the
+  three worlds of the time: Standard (1:15, heights raised 1.5 times up to 1 km), Grand (1:5) and Earth (1:1, heights
+  unexaggerated). With seed 42 that tile was 87% soil, 8.3% cliffs and 4.8% scree in the Standard world, 90% soil, 6%
+  cliffs and 4.2% scree at Grand, and 93% soil, 4.3% cliffs and 2.5% scree at Earth. The highest tile near the origin,
+  which the Standard world squeezed flat, was 10.4% cliffs and 7.5% scree at Grand and 6.5% cliffs and 4.4% scree at
+  Earth. Before the ledges, the steepest tiles were 2.6% cliffs in the Standard world, 0.3% at Grand and nearly none
+  at Earth.
 - `HollowsTest` checks that every kind appears, the share of open ground, the roof and the bedrock, the lava seas,
   the height of the Grand Hollows in the tall worlds, that the rock under their floors and over their ceilings counts
   as part of them, that every open block of a Grand Hollow belongs to one cavern from floor to ceiling, within the band
@@ -1192,19 +1215,20 @@ Other searches still read the full terrain and can take a while on new land:
   - concurrent tile computation;
   - the coarse column;
   - the hillside's slope, across tile corners too.
-- `WorldGenerationGameTest` is a client game test and needs the models. It creates a world with the default settings and
-  checks that it uses Diffusicraft, that a player can stand at the world spawn, and that the heightmaps count all of
-  Diffusicraft's full blocks. It then saves a biome map, a height map, in-game views around the spawn and views of the
-  largest river near the spawn, the steepest cliff, the tallest sea cliff, each of Diffusicraft's biomes within 24 km
-  or, for those of other latitudes, along the meridian towards the equator, the tallest Grand Hollow, a lava sea nearby
-  and the tallest Grand Hollow of each cave biome within 4 km, all at noon, to `build/run/clientGameTest/screenshots`.
-  The top of the cliff must be bare rock, the face of the sea cliff (not an arch, which is open halfway up) sheer above
-  the water, though a cave may open into it there and caves and ravines below it, and each cave biome must hold its own
-  blocks: silk, selenite, mushrooms, moss or dripstone. Around the spawn no sand or gravel may hang over open space, the
-  rock under the soil may hold no dirt or gravel down to the first cave, and on gentle ground outside limestone, chalk
-  and marble the soil must go deeper than vanilla's dirt on average. Run with Tech Reborn (`-PdevMods=techreborn`), it
-  checks that the geology places Tech Reborn's tin, lead, silver, uranium, rubies, sapphires and bauxite, and not its
-  Nether sphalerite. It generates on the CPU unless `-Pdiffusicraft.device` names another device.
+- `WorldGenerationGameTest` is a client game test and needs the models. It checks that Diffusicraft is the default world
+  type, creates a world at the Medium size (1:16), which its checks were made for, and checks that a player can stand at
+  the world spawn, and that the heightmaps count all of Diffusicraft's full blocks. It then saves a biome map, a height
+  map, in-game views around the spawn and views of the largest river near the spawn, the steepest cliff, the tallest sea
+  cliff, each of Diffusicraft's biomes within 24 km or, for those of other latitudes, along the meridian towards the
+  equator, the tallest Grand Hollow, a lava sea nearby and the tallest Grand Hollow of each cave biome within 4 km, all
+  at noon, to `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, the face of the sea cliff
+  (not an arch, which is open halfway up) sheer above the water, though a cave may open into it there and caves and
+  ravines below it, and each cave biome must hold its own blocks: silk, selenite, mushrooms, moss or dripstone. Around
+  the spawn no sand or gravel may hang over open space, the rock under the soil may hold no dirt or gravel down to the
+  first cave, and on gentle ground outside limestone, chalk and marble the soil must go deeper than vanilla's dirt on
+  average. Run with Tech Reborn (`-PdevMods=techreborn`), it checks that the geology places Tech Reborn's tin, lead,
+  silver, uranium, rubies, sapphires and bauxite, and not its Nether sphalerite. It generates on the CPU unless
+  `-Pdiffusicraft.device` names another device.
 - `TreesGameTest`, a client game test that needs no models, plants three of each of Diffusicraft's trees on a
   superflat world, each in its own biome for the colours of its leaves, and saves a view of each. A tree that never
   grows on open grass fails it.

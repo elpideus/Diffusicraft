@@ -99,8 +99,8 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   plays in a 32,736-block dimension: blocks, light and heightmaps at both ends, the network in both directions, a
   column full of blocks, and saving. Then it plays the same on a dedicated server over a real connection. It logs
   memory and save times. See [HEIGHT.md](HEIGHT.md#tests).
-- [`EarthWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/EarthWorldGameTest.java)
-  creates an Earth 1:1 world and goes to the highest ground within 123 km of the spawn. It checks that the chunks
+- [`UltraWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/UltraWorldGameTest.java)
+  creates an Ultra (1:1) world and goes to the highest ground within 123 km of the spawn. It checks that the chunks
   there, which are filled only up to their ground, hold all of it, saves two views of the summit and logs how long
   their chunks took. It needs the models.
 - [`TreesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TreesGameTest.java) plants three of
@@ -172,7 +172,7 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   time it remakes its swapchain, on the title screen, before any world. So NVIDIA on Vulkan can be checked only
   by playing.
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
-- **Some of them.** `-Pdiffusicraft.gametests=TallDimension,Earth` runs only the tests whose class names start with
+- **Some of them.** `-Pdiffusicraft.gametests=TallDimension,Ultra` runs only the tests whose class names start with
   one of those. The tall dimension, the trees and the biomes each take under a minute.
 - **Against a server of their own.** `DistantHorizonsServerGameTest` joins a server run by Gradle in a JVM of its
   own. Start it first; each start makes a new world on the test seed in `build/run/gameTestServer`, offline, with the

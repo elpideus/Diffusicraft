@@ -19,6 +19,6 @@ import java.util.Optional;
 abstract class WorldCreationUiStateMixin {
 	@ModifyVariable(method = "<init>", at = @At("HEAD"), argsOnly = true)
 	private static Optional<ResourceKey<WorldPreset>> diffusicraft$defaultPreset(Optional<ResourceKey<WorldPreset>> preset) {
-		return preset.filter(key -> !key.equals(WorldPresets.NORMAL)).or(() -> Optional.of(DiffusicraftWorldgen.STANDARD_PRESET));
+		return preset.filter(key -> !key.equals(WorldPresets.NORMAL)).or(() -> Optional.of(DiffusicraftWorldgen.DEFAULT_PRESET));
 	}
 }

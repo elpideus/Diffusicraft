@@ -18,7 +18,7 @@ class ClimateColumnTest {
 
 	private static ClimateColumn column(TerrainField field, int x, int z) {
 		ClimateColumn column = new ClimateColumn();
-		column.sample(field, WorldScale.STANDARD, x, z);
+		column.sample(field, WorldScale.MEDIUM, x, z);
 		return column;
 	}
 

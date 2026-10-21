@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Tag("models")
 class TerrainPrefetchBenchmarkTest {
 	private static final long SEED = 42L;
-	private static final WorldScale SCALE = WorldScale.STANDARD;
+	private static final WorldScale SCALE = WorldScale.MEDIUM;
 
 	/**
 	 * @param waitSeconds    time chunk generation spent waiting for tiles

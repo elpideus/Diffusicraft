@@ -112,9 +112,12 @@
 	"diffusicraft.toast.restart": "Restart Minecraft to start using it.",
 	"diffusicraft.toast.failed": "%s: download failed",
 
-	"generator.diffusicraft.standard": "Diffusicraft",
-	"generator.diffusicraft.grand": "Diffusicraft Grand",
-	"generator.diffusicraft.earth": "Diffusicraft Earth 1:1",
+	"generator.diffusicraft.vanilla": "Diffusicraft",
+	"generator.diffusicraft.medium": "Diffusicraft",
+	"generator.diffusicraft.large": "Diffusicraft",
+	"generator.diffusicraft.grand": "Diffusicraft",
+	"generator.diffusicraft.extreme": "Diffusicraft",
+	"generator.diffusicraft.ultra": "Diffusicraft",
 
 	"block.diffusicraft.limestone": "Limestone",
 	"block.diffusicraft.chalk": "Chalk",

@@ -9,8 +9,8 @@
       "axis": "y",
       "from_coordinate": -256,
       "from_value": -256.0,
-      "to_coordinate": 2384,
-      "to_value": 2384.0
+      "to_coordinate": 3840,
+      "to_value": 3840.0
     }
   }
 }

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:mul",
+  "right": 0.0625,
+  "left": {
+    "type": "minecraft:sub",
+    "left": "diffusicraft:vanilla/surface",
+    "right": {
+      "type": "minecraft:gradient",
+      "axis": "y",
+      "from_coordinate": -64,
+      "from_value": -64.0,
+      "to_coordinate": 320,
+      "to_value": 320.0
+    }
+  }
+}
