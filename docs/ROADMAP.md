@@ -167,7 +167,9 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 - **Voxy.** The same far terrain for Voxy, which SeedGen also targets, straight from the terrain instead of from
   chunks. Built: Diffusicraft fills each section Voxy's store misses, in singleplayer from the world and on a server
   from the grids the server sends (see [COMPATIBILITY.md](COMPATIBILITY.md#voxy)), both checked in game.
-- **Rendering mods.** Sodium, Iris and shader packs, which share the GPU with inference.
+- **Rendering mods.** Sodium, Iris and shader packs, which share the GPU with inference. Checked in game: Iris with
+  Bliss, Distant Horizons' far terrain included, and Minecraft's Vulkan renderer with Sodium and Sulkan (see
+  [COMPATIBILITY.md](COMPATIBILITY.md#shaders)).
 - **Structures.** Structure mods, placed on realistic slopes with sensible foundations.
 - **Create.** Create and its addons.
 

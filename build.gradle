@@ -83,6 +83,12 @@ def gameTestServerDir = file('build/run/gameTestServer')
 tasks.matching { it.name == 'runClientGameTest' }.configureEach {
 	systemProperties project.properties.findAll { k, v -> k.startsWith('diffusicraft.') }
 	systemProperty 'diffusicraft.testServerDir', gameTestServerDir.absolutePath
+	// -Pdiffusicraft.graphicsBackend=vulkan or opengl: the game tests reset the options, whose default tries OpenGL
+	// first, so only the launch argument picks the backend.
+	def graphicsBackend = project.findProperty('diffusicraft.graphicsBackend')
+	if (graphicsBackend) {
+		args '--graphicsBackend', graphicsBackend
+	}
 	// -Pdiffusicraft.shaderPack=<file in shaderpacks>: Iris starts with that pack on, for every game test. The run's
 	// directory, Iris's config in it, is new for each run.
 	def shaderPack = project.findProperty('diffusicraft.shaderPack')

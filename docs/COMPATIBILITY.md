@@ -18,6 +18,8 @@ for each mod, and what is still open.
 | Create, Mekanism, other tech mods | Should work: not checked | The same for any ore under the common tags `c:ores/<metal>` |
 | [Sodium](#sodium) 0.9.3-beta.1 | Works, checked in game | Lets it build sections at every height of a tall dimension; inference leaves it GPU memory |
 | [Iris](#shaders) 1.11.7 with Bliss 2.1.2, other shader packs | Works, checked in game | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
+| [Minecraft's Vulkan renderer](#vulkan) | Works, checked in game | Nothing: Diffusicraft draws through neither OpenGL nor Vulkan itself |
+| [Sulkan](#vulkan) 0.6.0, shaders on Vulkan | Works, checked in game; hides Distant Horizons' far terrain | Inference leaves GPU memory for it, as for Iris |
 | Structure mods | Works | Structures are placed by the vanilla generator |
 
 ## Distant Horizons
@@ -108,7 +110,8 @@ chunks generated there: the ground and its top block, and the share of the groun
 that a far LOD computes no terrain tile, and saves maps of both; see
 [DEVELOPMENT.md](DEVELOPMENT.md#tests). `DistantHorizonsServerGameTest` joins a dedicated server and checks that the
 client gets LODs from it on rings 320 to 1280 blocks round the spawn. With Distant Horizons alone, the client held
-all 24 points after 93 to 107 s; with SeedGen on both sides and the seed not shared, after 36 s.
+all 24 points after 93 to 107 s; with SeedGen on both sides and the seed not shared, after 36 s. It draws them on
+Minecraft's Vulkan renderer too (see [Vulkan](#vulkan)).
 
 **Licensing.** Distant Horizons is LGPL-3.0. Diffusicraft compiles against its API (`compileOnly`) and never bundles
 it; the integration loads only when Distant Horizons is installed.
@@ -251,9 +254,46 @@ pass, and leaves it on for the game tests named after it (see
   Distant Horizons on both sides): the client held all its LODs after 35 s, and the forest runs on past the chunks to
   the horizon. The test's view from 480 blocks up is inside Bliss's second layer of clouds, at y = 500 by default.
 
+Iris needs OpenGL: on Minecraft's Vulkan backend it does not run (see [Vulkan](#vulkan)).
+
 **Licensing.** Iris is under the LGPL. The shader game test compiles against it (`gametestCompileOnly`) and it runs
 only as a dev mod, never bundled. Bliss is All Rights Reserved: a dev-runtime pack (`devShaderPacks` in
 `gradle/dev-mods.gradle`), never committed or shipped.
+
+## Vulkan
+
+Minecraft 26.3 can draw through Vulkan instead of OpenGL: Video Settings > Graphics API > Prefer Vulkan
+(Experimental), or `--graphicsBackend vulkan` at launch. The default tries OpenGL first. Diffusicraft draws through
+neither itself: its screens are Minecraft's widgets, and its far terrain reaches Distant Horizons and Voxy as data
+that they draw. So it works the same on both, and what a renderer needs from it is the GPU memory that inference
+leaves it ([`gpuMemoryLimitMb`](CONFIG.md#gpumemorylimitmb)).
+
+The mods that draw differ:
+
+- **Sulkan** draws shaders on the Vulkan backend. It needs Sodium, and comes with a pack of its own, Sulkan
+  Realistic, on by default.
+- **Iris** 1.11.7 and **Voxy** 0.2.20-beta do not run on Vulkan: each says so itself, and Iris offers to switch back
+  to OpenGL.
+- **Distant Horizons** 3.3.4 draws through Minecraft's own renderer by default, which supports Vulkan, and draws
+  Diffusicraft's far terrain there as on OpenGL. Sulkan 0.6.0 does not know it, though: with both, the far terrain
+  does not show.
+
+**Checking it.** `-Pdiffusicraft.graphicsBackend=vulkan` runs the game tests on Vulkan (see
+[DEVELOPMENT.md](DEVELOPMENT.md#client-game-tests)). Without a display only Mesa's drivers can show Vulkan, so these
+ran on Mesa's driver for an Intel UHD 770, with Terrain Diffusion on CUDA on the NVIDIA GPU beside it:
+
+- Minecraft alone drew the tall dimension and the world generation test's views as far as the first biomes, from
+  the rivers and lakes to the sea cliffs;
+- Sodium 0.9.3-beta.1, which draws through multidraw on Vulkan, and Sulkan 0.6.0 (`-PdevMods=sodium,sulkan`) drew
+  the tall dimension and every view of the world generation test. The trees cast shadows, and Sulkan's water is
+  clear and waved: rivers and shallow seas show their sand and gravel through it, and deep water turns turquoise;
+- Distant Horizons, with Sodium, drew the far terrain from a dedicated server (`-PdevMods=sodium,distanthorizons
+  -Pdiffusicraft.gametests=DistantHorizonsServer`): the client held all 24 points after 27 s, and the forest, the
+  coast and the sea run on to the horizon. With Sulkan as well, the client held them all after 30 s too, but showed
+  nothing past the chunks.
+
+**Licensing.** Sulkan is under the GPL-3.0. It is a dev mod outside the pack (`optionalDevMods` in
+`gradle/dev-mods.gradle`), never a dependency and never bundled.
 
 ## Biome mods
 

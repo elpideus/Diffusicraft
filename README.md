@@ -38,6 +38,8 @@ geography, climate and geology.
 - **Distant Horizons.** With Distant Horizons installed, its far terrain, trees included, comes straight from the
   terrain without generating chunks, and the far horizon costs no model inference. See
   [COMPATIBILITY.md](docs/COMPATIBILITY.md).
+- **Shaders and Vulkan.** Checked with Iris and the Bliss shaders, and on Minecraft's Vulkan renderer with Sodium and
+  the Sulkan shaders.
 - **A resource screen.** It opens at first launch, and later from Create World > More or Mod Menu. It downloads the
   models (2.3 GB) and the GPU runtime in the background. Before anything downloads, it shows the licenses to accept.
   It also caps GPU memory so shaders keep theirs.

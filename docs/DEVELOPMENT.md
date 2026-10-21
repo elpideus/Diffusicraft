@@ -39,6 +39,7 @@ project directly, and Loom generates run configurations.
 - **Mods outside the modpack.** Some compatibility targets are not in the maintainer's pack and load only when named
   in `-PdevMods`, for example `-PdevMods=techreborn` to see the geology place the ores of a tech mod, or
   `-PdevMods=voxy,sodium` for Voxy, which needs Sodium. They are listed under `optionalDevMods` in the same file.
+  Sulkan (`-PdevMods=sodium,sulkan`), shaders for Minecraft's Vulkan backend, is one of them.
 - **Shader packs.** Named in `-PdevMods` as well, the packs under `devShaderPacks`, such as Bliss
   (`-PdevMods=sodium,iris,bliss-shader`), go into the client's `shaderpacks` folder as `<slug>.zip`. Like the mods,
   they are pinned by Modrinth version id and never leave the dev runtime.
@@ -145,7 +146,7 @@ This opens a game window. On Linux, run it on a virtual display instead, so noth
 env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x24" ./gradlew runClientGameTest -PnoDevMods
 ```
 
-- **Rendering.** Under Xvfb, Minecraft falls back from Vulkan to OpenGL on Mesa's software renderer. That is fine for
+- **Rendering.** Under Xvfb, Minecraft draws through OpenGL on Mesa's software renderer. That is fine for
   screens, and slow but usable for the world views. With a GPU, gamescope's headless backend renders on the real
   driver, also without a window:
 
@@ -154,6 +155,18 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   ```
 
   SDL's offscreen driver (`SDL_VIDEO_DRIVER=offscreen`, no display at all) renders OpenGL on the real driver too.
+- **Vulkan.** The game tests reset the options, whose default tries OpenGL first, so they run on OpenGL unless
+  `-Pdiffusicraft.graphicsBackend=vulkan` forces Vulkan. Xvfb cannot show Vulkan at all: it has no DRI3. SDL's
+  offscreen driver can, through a headless surface, but only on Mesa's drivers, not NVIDIA's, so pick Mesa's, here
+  for an Intel integrated GPU:
+
+  ```bash
+  env -u WAYLAND_DISPLAY -u DISPLAY SDL_VIDEO_DRIVER=offscreen VK_LOADER_DRIVERS_SELECT='*intel_icd*' ./gradlew runClientGameTest -PnoDevMods -Pdiffusicraft.graphicsBackend=vulkan
+  ```
+
+  Under gamescope's headless backend NVIDIA's driver does start Vulkan, but Minecraft loses the device the first
+  time it remakes its swapchain, on the title screen, before any world. So NVIDIA on Vulkan can be checked only
+  by playing.
 - **Fresh install.** Prefix the command with `XDG_DATA_HOME=$(mktemp -d)` to see what a new player sees.
 - **Some of them.** `-Pdiffusicraft.gametests=TallDimension,Earth` runs only the tests whose class names start with
   one of those. The tall dimension, the trees and the biomes each take under a minute.
