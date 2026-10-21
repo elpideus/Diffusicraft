@@ -1,0 +1,23 @@
+{
+  "type": "diffusicraft:giant_tree",
+  "form": "redwood",
+  "wood": {
+    "id": "minecraft:mangrove_wood",
+    "properties": {
+      "axis": "y"
+    }
+  },
+  "leaves": {
+    "id": "minecraft:spruce_leaves",
+    "properties": {
+      "distance": "7",
+      "persistent": "false",
+      "waterlogged": "false"
+    }
+  },
+  "height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 110,
+    "max_inclusive": 230
+  }
+}

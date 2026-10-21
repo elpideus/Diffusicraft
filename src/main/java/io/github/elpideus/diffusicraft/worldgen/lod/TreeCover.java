@@ -70,10 +70,16 @@ import java.util.function.Predicate;
  * tree's crown, as in the world (see {@link #shaded}). A column is under the highest crown that reaches it, so the
  * nearest levels of detail draw whole crowns and the farther ones, which take one column from a wide square, are under
  * a canopy as often as the ground is.
+ *
+ * <p>Giant trees, whose crowns reach farther than {@value #GIANT_REACH} blocks, are scattered on a grid of their own,
+ * with cells as wide as their own share of the ground: on the small trees' grid each column would look over hundreds of
+ * cells for them. As in the world, which places them after the small trees and grows them through their crowns, the
+ * small trees do not shade them, nor they the small trees; only another giant keeps one from growing. Their trunks show
+ * in the farther levels of detail too, as far as they are wide.
  */
 final class TreeCover {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TreeCover.class);
-	private static final TreeCover NONE = new TreeCover(new Kind[0], new double[0], 1, new double[0], 0);
+	private static final TreeCover NONE = new TreeCover(new Kind[0], new double[0], 1, new double[0], 0, null);
 	/** Draws that average a random count, and trees drawn of each kind. */
 	private static final int DRAWS = 64;
 	private static final double CHUNK_AREA = 16 * 16;
@@ -84,7 +90,11 @@ final class TreeCover {
 	/** Expected trees per chunk below which a biome has none worth drawing. */
 	private static final double MIN_TREES = 1e-3;
 	/** Widest crown recorded, in blocks from the trunk. */
-	private static final int MAX_REACH = 16;
+	private static final int MAX_REACH = 24;
+	/** Reach of the widest crown of a small tree, in blocks: a kind with a wider one is a giant. */
+	private static final int GIANT_REACH = 12;
+	/** Mixed into the seed for the giants' grid, so that its cells fall elsewhere than the small trees'. */
+	private static final long GIANTS = 0x6A09E667F3BCC909L;
 	/** Most trees in a cell, which holds one on average. */
 	private static final int MAX_PER_CELL = 8;
 
@@ -97,6 +107,8 @@ final class TreeCover {
 	private final double[] perCell;
 	/** Farthest any crown reaches from its trunk. */
 	private final int reach;
+	/** The giant trees, on a grid of their own, or {@code null} if the biome grows none. */
+	private final @Nullable TreeCover giants;
 
 	/** One kind of tree, with {@value #DRAWS} draws of its shape. */
 	private record Kind(BlockState leaves, BlockState trunk, Shape[] shapes) {
@@ -105,9 +117,9 @@ final class TreeCover {
 	/**
 	 * One tree, column by column around its trunk. For each column of the square {@code 2 * reach + 1} blocks wide: the
 	 * lowest and highest leaf, as heights above the block the tree stands on ({@code 1} right above it), or
-	 * {@link #NO_LEAVES}, and whether the trunk rises there.
+	 * {@link #NO_LEAVES}, and whether the trunk rises there. The trunk is about {@code trunkWidth} blocks across.
 	 */
-	private record Shape(int reach, short[] low, short[] high, boolean[] trunk) {
+	private record Shape(int reach, short[] low, short[] high, boolean[] trunk, int trunkWidth) {
 		static final short NO_LEAVES = Short.MIN_VALUE;
 
 		/** Index of the column {@code (dx, dz)} from the trunk, or {@code -1} beyond the crown's reach. */
@@ -142,23 +154,25 @@ final class TreeCover {
 		double order;
 	}
 
-	private TreeCover(Kind[] kinds, double[] shares, int cell, double[] perCell, int reach) {
+	private TreeCover(Kind[] kinds, double[] shares, int cell, double[] perCell, int reach,
+					  @Nullable TreeCover giants) {
 		this.kinds = kinds;
 		this.shares = shares;
 		this.cell = cell;
 		this.perCell = perCell;
 		this.reach = reach;
+		this.giants = giants;
 	}
 
 	/**
 	 * Fills {@code out} with the highest crown over the column at block {@code (x, z)} and tells whether there is one.
-	 * The column stands for a square of {@code step} blocks; a trunk shows only in columns of one block.
+	 * The column stands for a square of {@code step} blocks; a trunk shows only in columns no wider than it.
 	 */
 	boolean crown(long seed, int x, int z, int step, Crown out) {
+		boolean found = giants != null && giants.crown(seed ^ GIANTS, x, z, step, out);
 		if (kinds.length == 0) {
-			return false;
+			return found;
 		}
-		boolean found = false;
 		Tree tree = out.tree;
 		int lastX = Math.floorDiv(x + reach, cell);
 		int lastZ = Math.floorDiv(z + reach, cell);
@@ -179,7 +193,7 @@ final class TreeCover {
 					out.trunk = tree.kind.trunk;
 					out.low = tree.shape.low[index];
 					out.high = tree.shape.high[index];
-					out.holdsTrunk = step == 1 && tree.shape.trunk[index];
+					out.holdsTrunk = tree.shape.trunk[index] && step <= tree.shape.trunkWidth;
 				}
 			}
 		}
@@ -278,24 +292,39 @@ final class TreeCover {
 			}
 		}
 
-		List<Kind> kinds = new ArrayList<>();
-		double[] shares = new double[counts.size()];
-		double total = 0;
-		int reach = 0;
+		Map<Kind, Double> small = new LinkedHashMap<>();
+		Map<Kind, Double> giant = new LinkedHashMap<>();
 		for (Map.Entry<Feature, Double> entry : counts.entrySet()) {
 			Kind kind = kind(entry.getKey(), random);
-			if (kind == null) {
-				continue;
+			if (kind != null) {
+				boolean wide = Arrays.stream(kind.shapes).anyMatch(shape -> shape.reach > GIANT_REACH);
+				(wide ? giant : small).merge(kind, entry.getValue(), Double::sum);
 			}
-			total += entry.getValue();
-			shares[kinds.size()] = total;
-			kinds.add(kind);
-			for (Shape shape : kind.shapes) {
+		}
+		TreeCover giants = layer(biome, giant, null);
+		TreeCover cover = layer(biome, small, giants);
+		return cover != null ? cover : giants != null ? giants : NONE;
+	}
+
+	/**
+	 * The trees of {@code counts}, by their number per chunk, scattered on one grid, or {@code null} if they are too few
+	 * to draw.
+	 */
+	private static @Nullable TreeCover layer(Holder<Biome> biome, Map<Kind, Double> counts,
+											 @Nullable TreeCover giants) {
+		Kind[] kinds = counts.keySet().toArray(Kind[]::new);
+		double[] shares = new double[kinds.length];
+		double total = 0;
+		int reach = 0;
+		for (int i = 0; i < kinds.length; i++) {
+			total += counts.get(kinds[i]);
+			shares[i] = total;
+			for (Shape shape : kinds[i].shapes) {
 				reach = Math.max(reach, shape.reach);
 			}
 		}
 		if (total < MIN_TREES) {
-			return NONE;
+			return giants;
 		}
 		// Cells as wide as one tree's share of the ground, so that they hold one on average.
 		double density = total / CHUNK_AREA;
@@ -310,8 +339,8 @@ final class TreeCover {
 			chance *= mean / (n + 1);
 		}
 		LOGGER.debug("{}: {} trees per chunk of {} kinds, one to a cell of {} blocks", biome.getRegisteredName(),
-			total, kinds.size(), cell);
-		return new TreeCover(kinds.toArray(Kind[]::new), Arrays.copyOf(shares, kinds.size()), cell, perCell, reach);
+			total, kinds.length, cell);
+		return new TreeCover(kinds, shares, cell, perCell, reach, giants);
 	}
 
 	/** Adds the expected number per chunk of each tree that {@code placed} grows, times {@code weight}. */
@@ -484,7 +513,7 @@ final class TreeCover {
 			}
 		}
 		trunk[radius * side + radius] = true;
-		return new Shape(radius, low, high, trunk);
+		return new Shape(radius, low, high, trunk, 1);
 	}
 
 	/** What a provider gives without a level, or {@code fallback} if it needs one. */
@@ -510,7 +539,12 @@ final class TreeCover {
 		private static final int MIN_Y = -64;
 		private static final int HEIGHT = 512;
 		private static final Shape EMPTY = new Shape(0, new short[]{Shape.NO_LEAVES}, new short[]{Shape.NO_LEAVES},
-			new boolean[1]);
+			new boolean[1], 1);
+		/**
+		 * Where a whole feature is placed: in the middle of its chunk, where a feature that keeps to the chunks around
+		 * its own has the most room.
+		 */
+		private static final BlockPos ORIGIN = new BlockPos(8, 0, 8);
 
 		private final BlockState ground;
 		private final Map<BlockPos, BlockState> blocks = new HashMap<>();
@@ -518,6 +552,8 @@ final class TreeCover {
 		private final WorldGenLevel level = (WorldGenLevel) Proxy.newProxyInstance(WorldGenLevel.class.getClassLoader(),
 			new Class<?>[]{WorldGenLevel.class}, this);
 		private @Nullable RandomSource random;
+		/** Where the tree stands. */
+		private BlockPos origin = BlockPos.ZERO;
 
 		StandIn(BlockState ground) {
 			this.ground = ground;
@@ -525,6 +561,7 @@ final class TreeCover {
 
 		/** Grows one tree with its trunk on the origin, as {@link TreeFeature} does, without its roots. */
 		Shape grow(TreeFeature tree, RandomSource random) {
+			this.origin = BlockPos.ZERO;
 			int height = tree.trunkPlacer().getTreeHeight(random);
 			int foliage = tree.foliagePlacer().foliageHeight(random, height, tree);
 			int radius = tree.foliagePlacer().foliageRadius(random, height - foliage);
@@ -540,7 +577,8 @@ final class TreeCover {
 		/** Places a whole feature at the origin, on the ground, as the world places it on the highest block. */
 		Shape place(Feature feature, RandomSource random) {
 			this.random = random;
-			feature.place(level, null, random, BlockPos.ZERO);
+			this.origin = ORIGIN;
+			feature.place(level, null, random, ORIGIN);
 			blocks.forEach((pos, state) -> {
 				if (state.getBlock() instanceof LeavesBlock) {
 					leaves.add(pos);
@@ -553,7 +591,8 @@ final class TreeCover {
 		private Shape shape(Predicate<BlockState> trunk) {
 			int reach = 0;
 			for (BlockPos pos : leaves) {
-				reach = Math.max(reach, Math.max(Math.abs(pos.getX()), Math.abs(pos.getZ())));
+				reach = Math.max(reach, Math.max(Math.abs(pos.getX() - origin.getX()),
+					Math.abs(pos.getZ() - origin.getZ())));
 			}
 			if (leaves.isEmpty() || reach > MAX_REACH) {
 				throw new IllegalStateException("No crown, or one too wide: " + leaves.size() + " leaves");
@@ -565,20 +604,23 @@ final class TreeCover {
 			Arrays.fill(low, Shape.NO_LEAVES);
 			Arrays.fill(high, Shape.NO_LEAVES);
 			for (BlockPos pos : leaves) {
-				int k = (pos.getZ() + reach) * side + pos.getX() + reach;
+				int k = (pos.getZ() - origin.getZ() + reach) * side + pos.getX() - origin.getX() + reach;
 				// The tree stands on the block below the origin.
 				short y = (short) (pos.getY() + 1);
 				low[k] = low[k] == Shape.NO_LEAVES ? y : (short) Math.min(low[k], y);
 				high[k] = high[k] == Shape.NO_LEAVES ? y : (short) Math.max(high[k], y);
 			}
+			int columns = 0;
 			for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
 				BlockPos pos = entry.getKey();
-				if (pos.getY() == 0 && Math.abs(pos.getX()) <= reach && Math.abs(pos.getZ()) <= reach
+				int dx = pos.getX() - origin.getX(), dz = pos.getZ() - origin.getZ();
+				if (pos.getY() == 0 && Math.abs(dx) <= reach && Math.abs(dz) <= reach
 					&& !leaves.contains(pos) && trunk.test(entry.getValue())) {
-					trunks[(pos.getZ() + reach) * side + pos.getX() + reach] = true;
+					trunks[(dz + reach) * side + dx + reach] = true;
+					columns++;
 				}
 			}
-			return new Shape(reach, low, high, trunks);
+			return new Shape(reach, low, high, trunks, Math.max(1, (int) Math.round(Math.sqrt(columns))));
 		}
 
 		private BlockState at(BlockPos pos) {

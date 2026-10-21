@@ -68,7 +68,9 @@ class SubBiomesTest {
 	private static boolean isLand(String biome) {
 		BiomeRefiner.Kind kind = BiomeRefiner.kindOf(biome);
 		if (kind == null) {
-			return BiomeRefiner.TARGETS.contains(biome) && !biome.equals(BiomeRefiner.FJORD);
+			return BiomeRefiner.TARGETS.contains(biome) && !biome.equals(BiomeRefiner.FJORD)
+				|| List.of(BiomeRefiner.REDWOOD_FOREST, BiomeRefiner.ANCIENT_WOODLAND, BiomeRefiner.OLD_GROWTH_JUNGLE)
+				.contains(biome);
 		}
 		return kind != BiomeRefiner.Kind.FIXED && kind != BiomeRefiner.Kind.SEA && kind != BiomeRefiner.Kind.PEAK;
 	}
@@ -113,7 +115,7 @@ class SubBiomesTest {
 		}
 		float share = varied / (float) columns;
 		assertTrue(share > 0.15f && share < 0.4f, "siblings take " + share + " of the forest");
-		assertEquals(6, found.size(), "siblings found: " + found);
+		assertEquals(7, found.size(), "siblings found: " + found);
 		assertTrue(found.get("minecraft:birch_forest") > found.get("minecraft:old_growth_birch_forest"));
 	}
 
@@ -154,6 +156,25 @@ class SubBiomesTest {
 		assertEquals("minecraft:old_growth_spruce_taiga", SubBiomes.vary("minecraft:taiga", valley));
 		valley.elevation = valley.meanElevation + 20f;
 		assertNull(SubBiomes.vary("minecraft:taiga", valley));
+	}
+
+	@Test
+	void giantsKeepToLevelLandAndRedwoodsToMildWetClimates() {
+		BiomeClimate level = inPatchOf("minecraft:jungle", BiomeRefiner.OLD_GROWTH_JUNGLE, temperate());
+		level.relief = 20f;
+		assertEquals(BiomeRefiner.OLD_GROWTH_JUNGLE, SubBiomes.vary("minecraft:jungle", level));
+		level.relief = 80f;
+		assertNull(SubBiomes.vary("minecraft:jungle", level), "too rugged for giants");
+
+		BiomeClimate coast = inPatchOf("minecraft:taiga", BiomeRefiner.REDWOOD_FOREST, boreal());
+		coast.temperature = 6f;
+		coast.seasonality = 5f;
+		coast.precipitation = 1200f;
+		assertEquals(BiomeRefiner.REDWOOD_FOREST, SubBiomes.vary("minecraft:taiga", coast));
+		BiomeClimate inland = inPatchOf("minecraft:taiga", BiomeRefiner.REDWOOD_FOREST, boreal());
+		inland.seasonality = 18f;
+		inland.precipitation = 1200f;
+		assertNull(SubBiomes.vary("minecraft:taiga", inland), "winters of -25 °C");
 	}
 
 	@Test

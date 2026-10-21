@@ -7,9 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
+import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.ANCIENT_WOODLAND;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.BOG;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.FOREST_STEPPE;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.JUNIPER_WOODLAND;
+import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.OLD_GROWTH_JUNGLE;
+import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.REDWOOD_FOREST;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.SHRUB_STEPPE;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.STEPPE;
 
@@ -27,9 +30,13 @@ import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.STEPPE
  *
  * <p>Some siblings keep to their ground, and their patches shrink back from ground that does not suit them: bogs to
  * flat hollows, dense old woods and groves on the plains to the moister valleys, pines and open scrub to the drier
- * rises. The ground is the column's height over the land around in units of its relief, as vanilla's peaks and
- * valleys have it. Siblings that need a climate of their own, such as bogs, which need cool, wet summers, come only
- * where it holds.
+ * rises, and the groves of giant trees to level land. The ground is the column's height over the land around in units
+ * of its relief, as vanilla's peaks and valleys have it. Siblings that need a climate of their own, such as bogs,
+ * which need cool, wet summers, come only where it holds.
+ *
+ * <p>The groves of giant trees, {@link BiomeRefiner#REDWOOD_FOREST redwoods}, {@link BiomeRefiner#ANCIENT_WOODLAND
+ * ancient oaks} and {@link BiomeRefiner#OLD_GROWTH_JUNGLE kapoks}, come only as siblings: rare patches of the forests
+ * and plains around them, rather than biomes of a climate of their own.
  *
  * <p>The cells are the same size in blocks at every world size. Only the biomes in {@link #FAMILIES} vary, so the
  * biomes of other mods, rivers, shores and seas stay as they are. Pure and static, so it is unit-tested without a
@@ -55,6 +62,9 @@ public final class SubBiomes {
 	/** Relief from which a bog's patch shrinks, in meters, and over how many more it is gone. */
 	private static final float WET_RELIEF = 10f;
 	private static final float WET_RELIEF_FADE = 15f;
+	/** Relief from which a grove of giants shrinks, in meters, and over how many more it is gone. */
+	private static final float FLAT_RELIEF = 25f;
+	private static final float FLAT_RELIEF_FADE = 35f;
 
 	/** The ground a sibling keeps to. */
 	enum Ground {
@@ -65,7 +75,9 @@ public final class SubBiomes {
 		/** The upper half: rises and ridges, which dry out first. */
 		HIGH,
 		/** Flat hollows, where the water stands. */
-		WET;
+		WET,
+		/** Level land, where giant trees stand. */
+		FLAT;
 
 		/** How much depth a patch of this ground loses in a column. */
 		float penalty(BiomeClimate c) {
@@ -75,6 +87,7 @@ public final class SubBiomes {
 				case LOW -> GROUND * Math.max(0f, height);
 				case HIGH -> GROUND * Math.max(0f, -height);
 				case WET -> GROUND * Math.max(0f, height) + Math.max(0f, c.relief - WET_RELIEF) / WET_RELIEF_FADE;
+				case FLAT -> Math.max(0f, c.relief - FLAT_RELIEF) / FLAT_RELIEF_FADE;
 			};
 		}
 	}
@@ -99,6 +112,8 @@ public final class SubBiomes {
 	private static final Predicate<BiomeClimate> JUNIPERS = c -> BiomeRefiner.juniperWoodland(c, c.aridity());
 	private static final Predicate<BiomeClimate> SHRUBS = c -> BiomeRefiner.shrubSteppe(c, c.aridity());
 	private static final Predicate<BiomeClimate> GRASS = SHRUBS.negate();
+	/** Mild and wet enough for redwoods: not the hard winters nor the dry summers of the inland taiga. */
+	private static final Predicate<BiomeClimate> REDWOODS = c -> c.coldestMonth() >= -12f && c.precipitation >= 700f;
 
 	/** Each biome's siblings, in the order their shares are counted. */
 	static final Map<String, List<Sibling>> FAMILIES = Map.ofEntries(
@@ -109,51 +124,69 @@ public final class SubBiomes {
 			of(0.08f, "minecraft:plains"),
 			of(0.08f, "minecraft:dark_forest", Ground.LOW),
 			of(0.06f, "minecraft:dappled_forest", Ground.HIGH),
-			of(0.04f, "minecraft:old_growth_birch_forest")),
+			of(0.04f, "minecraft:old_growth_birch_forest"),
+			of(0.05f, ANCIENT_WOODLAND, Ground.FLAT)),
 		family("minecraft:birch_forest",
 			of(0.14f, "minecraft:forest"),
 			of(0.10f, "minecraft:old_growth_birch_forest"),
 			of(0.06f, "minecraft:flower_forest"),
-			of(0.06f, "minecraft:plains")),
+			of(0.06f, "minecraft:plains"),
+			of(0.03f, ANCIENT_WOODLAND, Ground.FLAT)),
 		family("minecraft:old_growth_birch_forest",
 			of(0.16f, "minecraft:birch_forest"),
 			of(0.06f, "minecraft:flower_forest")),
 		family("minecraft:dark_forest",
 			of(0.14f, "minecraft:forest", Ground.HIGH),
 			of(0.06f, "minecraft:birch_forest", Ground.HIGH),
-			of(0.04f, "minecraft:pale_garden", Ground.LOW)),
+			of(0.04f, "minecraft:pale_garden", Ground.LOW),
+			of(0.06f, ANCIENT_WOODLAND, Ground.FLAT)),
 		family("minecraft:pale_garden",
 			of(0.16f, "minecraft:dark_forest")),
 		family("minecraft:flower_forest",
 			of(0.14f, "minecraft:forest"),
 			of(0.06f, "minecraft:birch_forest"),
-			of(0.08f, "minecraft:plains")),
+			of(0.08f, "minecraft:plains"),
+			of(0.04f, ANCIENT_WOODLAND, Ground.FLAT)),
 		family("minecraft:dappled_forest",
 			of(0.10f, "minecraft:forest", Ground.LOW),
 			of(0.10f, "minecraft:plains"),
 			of(0.05f, "minecraft:birch_forest")),
-		// Meadows: sunflowers and flowers, and groves where the water gathers, along streams and in the hollows.
+		// Meadows: sunflowers and flowers, groves where the water gathers, along streams and in the hollows, and here
+		// and there the ancient oaks of an old wood pasture.
 		family("minecraft:plains",
 			of(0.12f, "minecraft:sunflower_plains"),
 			of(0.12f, "minecraft:forest", Ground.LOW),
 			of(0.04f, "minecraft:birch_forest", Ground.LOW),
 			of(0.05f, "minecraft:flower_forest"),
-			of(0.05f, "minecraft:dappled_forest")),
+			of(0.05f, "minecraft:dappled_forest"),
+			of(0.06f, ANCIENT_WOODLAND, Ground.FLAT)),
 		family("minecraft:sunflower_plains",
 			of(0.16f, "minecraft:plains"),
-			of(0.08f, "minecraft:forest", Ground.LOW)),
-		// The boreal forest: old spruce in the moist valleys, pine on the dry rises, birch where fire has been, muskeg.
+			of(0.08f, "minecraft:forest", Ground.LOW),
+			of(0.04f, ANCIENT_WOODLAND, Ground.FLAT)),
+		family(ANCIENT_WOODLAND,
+			of(0.14f, "minecraft:forest"),
+			of(0.06f, "minecraft:flower_forest"),
+			of(0.06f, "minecraft:plains")),
+		// The boreal forest: old spruce in the moist valleys, pine on the dry rises, birch where fire has been, muskeg,
+		// and redwoods on the level land of its milder, wetter edges.
 		family("minecraft:taiga",
 			of(0.10f, "minecraft:old_growth_spruce_taiga", Ground.LOW),
 			of(0.10f, "minecraft:old_growth_pine_taiga", Ground.HIGH),
 			of(0.08f, "minecraft:birch_forest"),
-			of(0.10f, BOG, Ground.WET, PEAT)),
+			of(0.10f, BOG, Ground.WET, PEAT),
+			of(0.04f, REDWOOD_FOREST, Ground.FLAT, REDWOODS)),
 		family("minecraft:old_growth_spruce_taiga",
 			of(0.14f, "minecraft:taiga", Ground.HIGH),
-			of(0.06f, BOG, Ground.WET, PEAT)),
+			of(0.06f, BOG, Ground.WET, PEAT),
+			of(0.08f, REDWOOD_FOREST, Ground.FLAT, REDWOODS)),
 		family("minecraft:old_growth_pine_taiga",
 			of(0.14f, "minecraft:taiga"),
-			of(0.06f, "minecraft:old_growth_spruce_taiga", Ground.LOW)),
+			of(0.06f, "minecraft:old_growth_spruce_taiga", Ground.LOW),
+			of(0.06f, REDWOOD_FOREST, Ground.FLAT, REDWOODS)),
+		family(REDWOOD_FOREST,
+			of(0.12f, "minecraft:old_growth_spruce_taiga"),
+			of(0.06f, "minecraft:taiga", Ground.HIGH)),
 		family("minecraft:snowy_taiga",
 			of(0.14f, "minecraft:snowy_plains", Ground.HIGH)),
 		family("minecraft:snowy_plains",
@@ -164,14 +197,21 @@ public final class SubBiomes {
 		// Tree islands in the subalpine meadows, where the snow melts first and the wind is broken.
 		family("minecraft:meadow",
 			of(0.08f, "minecraft:taiga", Ground.LOW, TREES)),
+		// The jungle: thinner on the rises, bamboo in the valleys, and the kapoks of the old growth on level land.
 		family("minecraft:jungle",
 			of(0.10f, "minecraft:sparse_jungle", Ground.HIGH),
-			of(0.10f, "minecraft:bamboo_jungle", Ground.LOW)),
+			of(0.10f, "minecraft:bamboo_jungle", Ground.LOW),
+			of(0.10f, OLD_GROWTH_JUNGLE, Ground.FLAT)),
 		family("minecraft:sparse_jungle",
 			of(0.14f, "minecraft:jungle", Ground.LOW),
-			of(0.04f, "minecraft:bamboo_jungle", Ground.LOW)),
+			of(0.04f, "minecraft:bamboo_jungle", Ground.LOW),
+			of(0.04f, OLD_GROWTH_JUNGLE, Ground.LOW)),
 		family("minecraft:bamboo_jungle",
-			of(0.18f, "minecraft:jungle")),
+			of(0.18f, "minecraft:jungle"),
+			of(0.06f, OLD_GROWTH_JUNGLE, Ground.FLAT)),
+		family(OLD_GROWTH_JUNGLE,
+			of(0.12f, "minecraft:jungle"),
+			of(0.06f, "minecraft:bamboo_jungle", Ground.LOW)),
 		// Islands of dry forest and gallery forests along the streams, where the fires do not reach.
 		family("minecraft:savanna",
 			of(0.08f, BiomeRefiner.MONSOON_FOREST, Ground.LOW, TROPICAL),
@@ -186,7 +226,8 @@ public final class SubBiomes {
 			of(0.10f, "minecraft:birch_forest"),
 			of(0.10f, "minecraft:forest", Ground.LOW),
 			of(0.05f, BOG, Ground.WET, PEAT),
-			of(0.03f, "minecraft:flower_forest")),
+			of(0.03f, "minecraft:flower_forest"),
+			of(0.04f, REDWOOD_FOREST, Ground.FLAT, REDWOODS)),
 		family(BiomeRefiner.LARCH_TAIGA,
 			of(0.08f, BOG, Ground.WET, PEAT),
 			of(0.06f, "minecraft:taiga", Ground.LOW),
@@ -197,7 +238,8 @@ public final class SubBiomes {
 			of(0.08f, "minecraft:taiga", Ground.LOW),
 			of(0.06f, BOG, Ground.WET, PEAT)),
 		family(BiomeRefiner.TEMPERATE_RAINFOREST,
-			of(0.06f, BOG, Ground.WET, PEAT)),
+			of(0.06f, BOG, Ground.WET, PEAT),
+			of(0.14f, REDWOOD_FOREST, Ground.FLAT)),
 		// Woods in the ravines of the steppe, as in its balkas, and shrubs on its dry rises.
 		family(STEPPE,
 			of(0.08f, FOREST_STEPPE, Ground.LOW),
@@ -246,7 +288,7 @@ public final class SubBiomes {
 	}
 
 	/** Every biome {@link #vary} can return. */
-	static List<String> targets() {
+	public static List<String> targets() {
 		return FAMILIES.values().stream().flatMap(List::stream).map(Sibling::biome).distinct().sorted().toList();
 	}
 

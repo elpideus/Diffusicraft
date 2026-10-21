@@ -161,6 +161,21 @@ def scattered(feature, chance=None, count=None):
                                         {"type": "minecraft:biome"}])
 
 
+def giants(feature, chance=None, counts=None, lone=False):
+    """Giant trees: one in `chance` chunks, or a count drawn from `counts`, each near the middle of its chunk, where
+    its crown has the most room (see GiantTreeFeature.java). `lone` giants grow in vanilla's biomes, and only in
+    Diffusicraft worlds."""
+    placement = [{"type": f"{NS}:diffusicraft_world"}] if lone else []
+    if chance:
+        placement.append({"type": "minecraft:rarity_filter", "chance": chance})
+    if counts:
+        placement.append(per_chunk(counts))
+    return placed(feature, placement + [{"type": "minecraft:offset", "x": uniform(4, 11), "y": 0, "z": uniform(4, 11)},
+                                        {"type": "minecraft:surface_water_depth_filter", "max_water_depth": 0},
+                                        {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"},
+                                        {"type": "minecraft:biome"}])
+
+
 def hollow(feature, surface, count):
     """Features of the Grand Hollows' floors or ceilings: `count` columns per chunk, each moved onto a floor or a
     ceiling of the Grand Hollow it crosses (see HollowSurfacePlacement.java). Vanilla's way of finding cave floors
@@ -383,6 +398,19 @@ FEATURES["columnar_cactus"] = {
         {"height": {"type": "minecraft:weighted_list", "distribution": [
             {"data": 0, "weight": 2}, {"data": 1, "weight": 1}]}, "provider": {"id": "minecraft:cactus_flower"}}]}
 
+
+def giant(form, wood, foliage, lo, hi):
+    """A giant tree of `form`, `lo` to `hi` blocks tall (see GiantTreeFeature.java)."""
+    return {"type": f"{NS}:giant_tree", "form": form, "wood": log(wood), "leaves": leaves(foliage),
+            "height": uniform(lo, hi)}
+
+
+# Giant trees, fantasy giants of real ones: coast redwoods twice their height, in the red-brown bark of mangrove
+# wood; ancient oaks; and kapoks, the emergents of the rainforest.
+FEATURES["redwood"] = giant("redwood", "mangrove_wood", "spruce_leaves", 110, 230)
+FEATURES["giant_oak"] = giant("oak", "oak_wood", "oak_leaves", 40, 64)
+FEATURES["kapok"] = giant("kapok", "jungle_wood", "jungle_leaves", 80, 130)
+
 # Placed features, in the order they run within a step.
 PLACED = {
     "giant_spruce_checked": checked(ours("giant_spruce"), "spruce_sapling"),
@@ -432,6 +460,11 @@ PLACED = {
     "trees_puna": trees(ours("polylepis"), {0: 16, 1: 1}, "oak_sapling"),
     "trees_desert_scrub": trees(ours("trees_desert_scrub"), {1: 2, 2: 3, 3: 3, 4: 1}, "acacia_sapling"),
     "trees_mixed_forest": trees(ours("trees_mixed_forest"), {10: 9, 11: 1}, "spruce_sapling"),
+    # Under the giants: a few spruces, firs and fallen trunks; oaks and birches far apart, as in a wood pasture; and
+    # the jungle's own trees, thinned out by the shade.
+    "trees_redwood_forest": trees(ours("trees_redwood_forest"), {3: 3, 4: 2, 6: 1}, "spruce_sapling"),
+    "trees_ancient_woodland": trees(ours("trees_ancient_woodland"), {1: 2, 2: 3, 3: 1}, "oak_sapling"),
+    "trees_old_growth_jungle": trees(ours("trees_old_growth_jungle"), {12: 9, 14: 1}, "jungle_sapling"),
     "trees_forest_steppe": groves(ours("trees_forest_steppe"), 16, "birch_sapling"),
     "lone_trees_forest_steppe": trees(ours("trees_forest_steppe"), {0: 3, 1: 1}, "birch_sapling"),
     # Clumps of trees where the snow drifts deepest and shelters them, with open tundra between.
@@ -497,6 +530,16 @@ PLACED = {
     "hollow_lush_clay": hollow("minecraft:lush_caves_clay", "floor", 3),
     "hollow_cave_vines": hollow("minecraft:cave_vine", "ceiling", 32),
     "hollow_spore_blossoms": hollow("minecraft:spore_blossom", "ceiling", 4),
+    # The giants, after every smaller tree, whose crowns they grow through. Groves of them in their own biomes, and
+    # lone ones elsewhere: Java adds the lone ones to vanilla's biomes (see DiffusicraftWorldgen.addLoneGiants).
+    "redwoods": giants(ours("redwood"), counts={0: 1, 1: 2}),
+    "giant_oaks": giants(ours("giant_oak"), chance=2),
+    "kapoks": giants(ours("kapok"), chance=2),
+    "rainforest_redwoods": giants(ours("redwood"), chance=6),
+    "lone_giant_oak_plains": giants(ours("giant_oak"), chance=48, lone=True),
+    "lone_giant_oak": giants(ours("giant_oak"), chance=24, lone=True),
+    "lone_redwood": giants(ours("redwood"), chance=16, lone=True),
+    "lone_kapok": giants(ours("kapok"), chance=10, lone=True),
 }
 FEATURES["trees_temperate_rainforest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
                                           "features": [
@@ -504,6 +547,20 @@ FEATURES["trees_temperate_rainforest"] = {"type": "minecraft:random_selector", "
                                               {"chance": 0.3, "feature": "minecraft:mega_spruce_checked"},
                                               {"chance": 0.06, "feature": "minecraft:fancy_oak_checked"},
                                               {"chance": 0.06, "feature": "minecraft:fallen_spruce_tree"}]}
+FEATURES["trees_redwood_forest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
+                                    "features": [
+                                        {"chance": 0.25, "feature": "minecraft:mega_spruce_checked"},
+                                        {"chance": 0.15, "feature": "minecraft:fallen_spruce_tree"}]}
+FEATURES["trees_ancient_woodland"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
+                                      "features": [
+                                          {"chance": 0.4, "feature": "minecraft:fancy_oak_checked"},
+                                          {"chance": 0.2, "feature": "minecraft:birch_checked"},
+                                          {"chance": 0.1, "feature": "minecraft:fallen_oak_tree"}]}
+FEATURES["trees_old_growth_jungle"] = {"type": "minecraft:random_selector", "default": "minecraft:jungle_tree",
+                                       "features": [
+                                           {"chance": 0.3, "feature": "minecraft:mega_jungle_tree_checked"},
+                                           {"chance": 0.35, "feature": "minecraft:jungle_bush"},
+                                           {"chance": 0.03, "feature": "minecraft:fallen_jungle_tree"}]}
 FEATURES["trees_cloud_forest"] = {"type": "minecraft:random_selector", "default": ours("cloud_forest_tree_checked"),
                                   "features": [
                                       {"chance": 0.35, "feature": ours("gnarled_oak_checked")},
@@ -643,12 +700,59 @@ BIOMES = {
                        "minecraft:patch_large_fern", "minecraft:patch_grass_taiga",
                        "minecraft:brown_mushroom_old_growth", "minecraft:red_mushroom_old_growth",
                        "minecraft:brown_mushroom_normal", "minecraft:red_mushroom_normal",
-                       "minecraft:patch_firefly_bush_near_water", "minecraft:patch_berry_common"],
+                       "minecraft:patch_firefly_bush_near_water", "minecraft:patch_berry_common",
+                       "rainforest_redwoods"],
         "tags": ["c:is_wet/overworld", "c:is_dense_vegetation/overworld", "c:is_temperate/overworld", "c:is_old_growth",
                  "c:is_rare", "c:is_forest", "c:is_tree/coniferous", "c:primary_wood_type/spruce",
                  "minecraft:has_structure/abandoned_camp_old_growth_spruce_taiga", "minecraft:has_structure/mineshaft",
                  "minecraft:has_structure/trail_ruins", "minecraft:has_structure/trial_chambers",
                  "minecraft:is_overworld", "minecraft:is_taiga", "minecraft:stronghold_biased_to"],
+    },
+    # Groves of redwoods, in the fog of the rainforest's coasts, over ferns and a few spruces.
+    "redwood_forest": {
+        "template": "old_growth_spruce_taiga", "temperature": 0.45, "downfall": 1.0, "fog": 256.0,
+        "effects": {"grass_color": "#5f9a46", "foliage_color": "#4f8a3a"},
+        "attributes": {"minecraft:visual/fog_color": "#bccad0"},
+        "local": ["minecraft:forest_rock"],
+        "vegetation": ["minecraft:glow_lichen", "minecraft:patch_large_fern", "trees_redwood_forest", "rainforest_moss",
+                       "minecraft:patch_grass_taiga", "minecraft:brown_mushroom_old_growth",
+                       "minecraft:red_mushroom_old_growth", "minecraft:patch_firefly_bush_near_water",
+                       "minecraft:patch_berry_common", "redwoods"],
+        "tags": ["c:is_wet/overworld", "c:is_dense_vegetation/overworld", "c:is_temperate/overworld", "c:is_old_growth",
+                 "c:is_rare", "c:is_forest", "c:is_tree/coniferous", "c:primary_wood_type/spruce",
+                 "minecraft:has_structure/abandoned_camp_old_growth_spruce_taiga", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/trail_ruins", "minecraft:has_structure/trial_chambers",
+                 "minecraft:is_overworld", "minecraft:is_taiga", "minecraft:stronghold_biased_to"],
+    },
+    # Ancient oaks over open woodland and glades on the plains, as in Sherwood or Białowieża, made giants.
+    "ancient_woodland": {
+        "template": "forest", "temperature": 0.7, "downfall": 0.8,
+        "effects": {"grass_color": "#6aa043", "foliage_color": "#59a034"},
+        "local": ["minecraft:forest_rock"],
+        "vegetation": ["minecraft:glow_lichen", "minecraft:forest_flowers", "trees_ancient_woodland",
+                       "minecraft:patch_bush", "minecraft:flower_default", "minecraft:patch_grass_forest",
+                       "minecraft:brown_mushroom_normal", "minecraft:red_mushroom_normal",
+                       "minecraft:patch_firefly_bush_near_water", "patch_woodland_flowers", "giant_oaks"],
+        "tags": ["c:is_temperate/overworld", "c:is_forest", "c:is_old_growth", "c:is_rare", "c:is_tree/deciduous",
+                 "c:primary_wood_type/oak", "minecraft:has_structure/abandoned_camp_forest",
+                 "minecraft:has_structure/mineshaft", "minecraft:has_structure/ruined_portal_standard",
+                 "minecraft:has_structure/trial_chambers", "minecraft:is_forest", "minecraft:is_overworld",
+                 "minecraft:stronghold_biased_to"],
+    },
+    # Primary rainforest: kapoks rising out of the canopy.
+    "old_growth_jungle": {
+        "template": "jungle", "temperature": 0.95, "downfall": 0.95,
+        "effects": {"grass_color": "#4e9f2c", "foliage_color": "#3f9a22"},
+        "vegetation": ["minecraft:glow_lichen", "trees_old_growth_jungle", "minecraft:flower_warm",
+                       "minecraft:patch_grass_jungle", "minecraft:brown_mushroom_normal",
+                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water", "minecraft:vines",
+                       "minecraft:patch_melon", "rainforest_moss", "kapoks"],
+        "tags": ["c:is_wet/overworld", "c:is_hot/overworld", "c:is_dense_vegetation/overworld", "c:is_old_growth",
+                 "c:is_rare", "c:is_jungle", "c:is_tree/jungle", "c:primary_wood_type/jungle",
+                 "minecraft:has_structure/jungle_temple", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/trail_ruins", "minecraft:has_structure/trial_chambers",
+                 "minecraft:is_jungle", "minecraft:is_overworld", "minecraft:spawns_warm_variant_farm_animals",
+                 "minecraft:stronghold_biased_to"],
     },
     "maquis": {
         "template": "plains", "temperature": 0.9, "downfall": 0.35,
@@ -1031,7 +1135,7 @@ SUBSOIL = {"type": "minecraft:not", "invert": {
 # Laterite: the red, leached soil of the tropics, and the red earths of the humid subtropics.
 TROPICAL = ["minecraft:jungle", "minecraft:sparse_jungle", "minecraft:bamboo_jungle", "minecraft:savanna",
             "minecraft:savanna_plateau", "minecraft:windswept_savanna", "cloud_forest", "monsoon_forest",
-            "laurel_forest"]
+            "laurel_forest", "old_growth_jungle"]
 SURFACE_RULE = sequence(
     when("minecraft:on_floor", when("minecraft:not_underwater", sequence(
         # Scree and bare rock between the alpine grass.
@@ -1087,6 +1191,10 @@ SURFACE_RULE = sequence(
             when(noise(0.35), block(ours("terra_rossa"))), block("grass_block"))),
         when(biome_is("temperate_rainforest", "cloud_forest"), sequence(
             when(noise(0.15), block("podzol")), block("grass_block"))),
+        # The redwoods' deep litter of needles, and leaf mould under the old oaks.
+        when(biome_is("redwood_forest"), sequence(
+            when(noise(-0.2), block("podzol")), when(noise(hi=-0.6), block("coarse_dirt")), block("grass_block"))),
+        when(biome_is("ancient_woodland"), sequence(when(noise(0.5), block("podzol")), block("grass_block"))),
         when(biome_is("salt_flat"), sequence(when(STEEP, block("sandstone")), block(ours("salt_crust")))),
         # Bare peat and sphagnum bog between the grass and heather.
         when(biome_is("moorland"), sequence(

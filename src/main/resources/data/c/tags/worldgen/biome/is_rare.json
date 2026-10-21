@@ -3,6 +3,9 @@
   "values": [
     "diffusicraft:cloud_forest",
     "diffusicraft:temperate_rainforest",
+    "diffusicraft:redwood_forest",
+    "diffusicraft:ancient_woodland",
+    "diffusicraft:old_growth_jungle",
     "diffusicraft:paramo"
   ]
 }

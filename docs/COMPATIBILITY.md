@@ -75,6 +75,11 @@ any in the world:
   spot. Without that, or with trees spread evenly, the crowns would overlap less than the world's and the LODs would
   show up to a third more canopy. A column is under the highest crown that reaches it, with the trunk drawn only in
   the nearest LODs. The wider columns of farther LODs are under a canopy as often as the ground is.
+- **Giants.** [Giant trees](WORLDGEN.md#giant-trees) reach so far from their trunks that on the small trees' grid each
+  column would look over hundreds of cells for them, so they are scattered on a grid of their own, whose cells are as
+  wide as their own share of the ground. A column under both is under the giant's crown; the small trees under it are
+  not drawn, as the LODs keep one crown a column. Their trunks, several blocks wide, are drawn one or two levels of
+  detail farther out than a small tree's.
 
 **Trees of biome mods.** Biome mods often grow trees with features of their own rather than Minecraft's tree feature;
 Biomes O' Plenty does for nearly all of its trees. Those features are placed whole on the same stand-in, standing on

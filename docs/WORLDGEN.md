@@ -476,7 +476,10 @@ the colours:
 | Tundra | Snowy plains | Dwarf birch scrub, moss mats, berry bushes, boulders | Grass with coarse dirt and podzol over peat |
 | Alpine tundra | Meadow | Knee-high krummholz spruce, alpine flowers, moss, boulders | Grass broken by gravel scree and bare rock |
 | Cloud forest | Jungle | Vine-hung canopy trees, gnarled oaks, ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
-| Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, ferns, moss, mushrooms; light fog | Grass and podzol |
+| Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, now and then a redwood, ferns, moss, mushrooms; light fog | Grass and podzol |
+| Redwood forest | Old-growth spruce taiga | [Redwoods](#giant-trees) 110 to 230 blocks tall, one or two in most chunks, over spruces, mega spruces and fallen trunks, large ferns, moss, mushrooms, berries; fog (256 blocks) | Grass with deep needle litter (podzol) and coarse dirt |
+| Ancient woodland | Forest | [Ancient oaks](#giant-trees) 40 to 64 blocks tall in every other chunk, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
+| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, with vines, melons and moss | Grass, red laterite below |
 | Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass and terra rossa on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
@@ -511,6 +514,9 @@ like their weathered bark, under oak leaves that take the biome's grey-green, on
 round crowns of spruce. The mountain birches of the forest-tundra are birch on a short, bending trunk, and its black
 spruces the bog's.
 
+The redwood forest, the ancient woodland and the old-growth jungle are no climate's own: they come only as
+[patches](#sub-biomes) of the woods around them, on level land, and carry the groves of [giant trees](#giant-trees).
+
 Their ground is the material rule `diffusicraft:biome_surface`, which runs ahead of vanilla's overworld surface rule
 and leaves every other biome to it. They join vanilla's structure tags (villages, outposts, ruins) and the `c:`
 convention tags where they fit.
@@ -535,7 +541,7 @@ random in the middle 80% of the cell, with a radius of 90 to 160 blocks, its edg
 96 blocks that moves it by up to 60% of the radius. A column belongs to the patch it lies deepest in, so patches that
 meet do so along a curve. Patches cover 47% of the land, and a straight line runs through one for 180 blocks on
 average. Each patch draws a number, which the family of the column's biome turns into one of its siblings, or into
-nothing, which keeps the biome. On level ground a fifth of a forest is other woods and glades.
+nothing, which keeps the biome. On level ground a quarter of a forest is other woods and glades.
 
 **Ground.** Some siblings keep to their ground, and their patches shrink back from ground that does not suit them. The
 ground is the column's height over the mean of the land around (over 1.4 km of real ground), in units of its relief
@@ -546,45 +552,53 @@ ground is the column's height over the mean of the land around (over 1.4 km of r
   and the steppe, the bamboo of the jungle, the gallery forests of the savanna;
 - **high**, the upper half, which dries out first: pines, light woods, open jungle, shrub steppe and junipers, stony
   desert, tundra on the exposed rises of the forest-tundra;
-- **wet**, flat hollows, where the water stands: bogs, which also shrink from 10 m of relief and are gone by 25 m.
+- **wet**, flat hollows, where the water stands: bogs, which also shrink from 10 m of relief and are gone by 25 m;
+- **flat**, level land at any height, where the giants stand: the groves of giant trees, which shrink from 25 m of
+  relief and are gone by 60 m, so they keep to the plains and the broad valleys. The old-growth jungle of the sparse
+  jungle keeps to its low ground instead.
 
 **Climate.** Siblings that need a climate of their own come only where it holds. Bogs need peat's cool, wet summers,
 as the refiner's bogs do (warmest month below 20 °C, at least the rain of the aridity threshold, below 1500 m, not in
 the maquis). Trees in the snowy plains and the meadows need summers at least 1 °C past the tree line, ice spikes summers
 short of it. The dry forests of the savanna need frost-free land with at least the rain of the aridity threshold,
 jungle in the monsoon forest 1500 mm, and junipers in the shrub steppe their own climate (see the refiner); the
-juniper woodland's patches are steppe or shrub steppe, whichever its climate would have.
+juniper woodland's patches are steppe or shrub steppe, whichever its climate would have. Redwoods need mild winters
+and rain, a coldest month of −12 °C or more and at least 700 mm, as on the coasts where real redwoods grow: the
+redwood groves of the boreal forest keep to its milder, wetter edges, and the temperate rainforest has them anywhere.
 
 The families, with the share of the patches each sibling takes; the other patches keep the biome:
 
 | Biome | Its patches |
 |---|---|
-| Forest | Birch forest 16%, flower forest 8%, plains 8%, dark forest 8% (low), dappled forest 6% (high), old-growth birch forest 4% |
-| Birch forest | Forest 14%, old-growth birch forest 10%, flower forest 6%, plains 6% |
+| Forest | Birch forest 16%, flower forest 8%, plains 8%, dark forest 8% (low), dappled forest 6% (high), old-growth birch forest 4%, ancient woodland 5% (flat) |
+| Birch forest | Forest 14%, old-growth birch forest 10%, flower forest 6%, plains 6%, ancient woodland 3% (flat) |
 | Old-growth birch forest | Birch forest 16%, flower forest 6% |
-| Dark forest | Forest 14% (high), birch forest 6% (high), pale garden 4% (low) |
+| Dark forest | Forest 14% (high), birch forest 6% (high), pale garden 4% (low), ancient woodland 6% (flat) |
 | Pale garden | Dark forest 16% |
-| Flower forest | Forest 14%, plains 8%, birch forest 6% |
+| Flower forest | Forest 14%, plains 8%, birch forest 6%, ancient woodland 4% (flat) |
 | Dappled forest | Forest 10% (low), plains 10%, birch forest 5% |
-| Plains | Sunflower plains 12%, forest 12% (low), flower forest 5%, dappled forest 5%, birch forest 4% (low) |
-| Sunflower plains | Plains 16%, forest 8% (low) |
-| Taiga | Old-growth spruce taiga 10% (low), old-growth pine taiga 10% (high), bog 10% (wet), birch forest 8% |
-| Old-growth spruce taiga | Taiga 14% (high), bog 6% (wet) |
-| Old-growth pine taiga | Taiga 14%, old-growth spruce taiga 6% (low) |
+| Plains | Sunflower plains 12%, forest 12% (low), flower forest 5%, dappled forest 5%, birch forest 4% (low), ancient woodland 6% (flat) |
+| Sunflower plains | Plains 16%, forest 8% (low), ancient woodland 4% (flat) |
+| Ancient woodland | Forest 14%, flower forest 6%, plains 6% |
+| Taiga | Old-growth spruce taiga 10% (low), old-growth pine taiga 10% (high), bog 10% (wet), birch forest 8%, redwood forest 4% (flat, mild) |
+| Old-growth spruce taiga | Taiga 14% (high), bog 6% (wet), redwood forest 8% (flat, mild) |
+| Old-growth pine taiga | Taiga 14%, old-growth spruce taiga 6% (low), redwood forest 6% (flat, mild) |
+| Redwood forest | Old-growth spruce taiga 12%, taiga 6% (high) |
 | Snowy taiga | Snowy plains 14% (high) |
 | Snowy plains | Snowy taiga 10% (low), ice spikes 3% |
 | Ice spikes | Snowy plains 20% |
 | Meadow | Taiga 8% (low) |
-| Jungle | Sparse jungle 10% (high), bamboo jungle 10% (low) |
-| Sparse jungle | Jungle 14% (low), bamboo jungle 4% (low) |
-| Bamboo jungle | Jungle 18% |
+| Jungle | Sparse jungle 10% (high), bamboo jungle 10% (low), old-growth jungle 10% (flat) |
+| Sparse jungle | Jungle 14% (low), bamboo jungle 4% (low), old-growth jungle 4% (low) |
+| Bamboo jungle | Jungle 18%, old-growth jungle 6% (flat) |
+| Old-growth jungle | Jungle 12%, bamboo jungle 6% (low) |
 | Savanna | Monsoon forest 8% (low), sparse jungle 4% (low) |
 | Desert | Stony desert 6% (high) |
 | Desert scrub | Desert 10% (low), stony desert 6% (high) |
-| Mixed forest | Taiga 10% (high), birch forest 10%, forest 10% (low), bog 5% (wet), flower forest 3% |
+| Mixed forest | Taiga 10% (high), birch forest 10%, forest 10% (low), bog 5% (wet), flower forest 3%, redwood forest 4% (flat, mild) |
 | Larch taiga | Bog 8% (wet), taiga 6% (low), birch forest 5% |
 | Forest-tundra | Tundra 14% (high), taiga 8% (low), bog 6% (wet) |
-| Temperate rainforest | Bog 6% (wet) |
+| Temperate rainforest | Bog 6% (wet), redwood forest 14% (flat) |
 | Steppe | Forest-steppe 8% (low), shrub steppe 8% (high) |
 | Forest-steppe | Steppe 12% (high), forest 6% (low), birch forest 6% |
 | Shrub steppe | Steppe 10% (low), juniper woodland 6% (high) |
@@ -598,6 +612,43 @@ Rivers, shores, seas, slopes, peaks, caves and the Grand Hollows keep their biom
 and the rest of Diffusicraft's: only the biomes in the table vary. A sibling a datapack removed leaves its patches to
 the biome. The patches are drawn from the seed alone and need nothing but the column's climate, so the chunks, the
 LOD mods and the [relief map](MAP.md) all see the same ones.
+
+### Giant trees
+
+`diffusicraft:giant_tree` (`GiantTreeFeature`) grows trees far taller than any of vanilla's, as a fantasy of real
+giants, in three forms. Each is a trunk that tapers from a flared foot, and limbs that carry the leaves in clumps
+(`GiantTree`, which draws the shape before it meets the world):
+
+- **Redwoods**, 110 to 230 blocks tall, of mangrove wood for its red-brown bark under spruce needles: a straight
+  column, bare for half its height or more, under a narrow cone of short, drooping branches and a spire, its foot
+  flaring into ribs. Coast redwoods reach 116 m; these are twice that.
+- **Ancient oaks**, 40 to 64 blocks tall, of oak: a short, massive trunk that forks into great limbs under a broad
+  dome, the lower limbs reaching out wide and nearly level, the upper ones climbing into the top of the dome.
+- **Kapoks**, 80 to 130 blocks tall, of jungle wood: the emergents of the rainforest, a pale, unbranched column on
+  plank buttresses that rises over the canopy to a flat umbrella some 35 blocks across.
+
+The clumps keep within six blocks of the wood, as leaves must to live, and large ones hold twigs of their own; the few
+leaves still farther out are placed persistent so that they do not decay. A giant grows after the smaller trees of its
+biome and through their crowns, as an emergent does, looking down through up to 32 blocks of leaves and plants for
+its ground. It needs soil under its foot, ground within 6 blocks of level around it and no water: its roots fill down
+to the ground where it falls away a little, but not off a cliff. It does not grow under another giant's crown, nor
+against another's foot. The height is cut to fit under the top of the world.
+
+A feature writes only in the 3×3 chunks around its own, so a giant reaches at most 21 blocks out from its trunk, about
+42 blocks across, and each is placed near the middle of its chunk, where it has the most room. That is why the oaks
+stay at 64 blocks and the redwoods, whose crowns are narrow, take the height.
+
+**Where.** The groves are biomes of their own, which come as [patches](#sub-biomes) of the woods around them on level
+land: redwood forests in the mild, wet taiga and the temperate rainforest, ancient woodlands in the forests and on the
+plains, old-growth jungle in the jungle. Redwoods stand in two chunks of three there, and the oaks and kapoks in every
+other chunk. Outside the groves, lone giants grow here and there, and only in Diffusicraft worlds (the placement filter
+`diffusicraft:diffusicraft_world`): a redwood in one in 6 chunks of the temperate rainforest and in one in 16 of the
+old-growth spruce and pine taigas, an ancient oak in one in 24 of vanilla's forests (flower, birch and dark forests too)
+and one in 48 of its plains and sunflower plains, and a kapok in one in 10 of its jungles. So the plains, the largest
+open land, show a lone giant oak a hundred blocks or so apart where the ground is level, and their ancient woodlands a
+stand of them.
+
+The LOD mods draw the giants too (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
 
 ### Density and caves
 
@@ -1243,7 +1294,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, and `SeleniteBeamFeature` (`diffusicraft:selenite_beam`) |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
@@ -1354,7 +1405,13 @@ Other searches still read the full terrain and can take a while on new land:
   60% of its patches, that patches cover about half the land and run 100 to 320 blocks across, that a forest on level
   ground is a fifth to two-fifths other woods with every sibling present, that bogs keep to flat hollows and need cool
   summers, that pines keep to the rises and old spruce to the valleys, that no trees grow in patches beyond the tree
-  line, that other biomes and columns outside the patches stay, and that the seed sets the patches.
+  line, that other biomes and columns outside the patches stay, and that the seed sets the patches. The groves of
+  giants keep to level land, and redwoods to mild, wet climates.
+- `GiantTreeTest` grows every form of giant tree at its least and most height and checks that it keeps within its
+  reach and height, that the same draw grows the same tree, that all its wood hangs together from the foot, that at
+  least 97% of its leaves live on the wood, that redwoods stand bare under their crowns and kapoks on buttresses under
+  an umbrella, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks that the LODs draw a
+  biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of detail farther out.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

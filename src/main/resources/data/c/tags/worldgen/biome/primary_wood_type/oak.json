@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "diffusicraft:ancient_woodland",
     "diffusicraft:laurel_forest"
   ]
 }

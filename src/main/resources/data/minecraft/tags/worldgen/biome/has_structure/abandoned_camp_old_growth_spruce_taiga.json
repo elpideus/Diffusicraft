@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "diffusicraft:temperate_rainforest"
+    "diffusicraft:temperate_rainforest",
+    "diffusicraft:redwood_forest"
   ]
 }

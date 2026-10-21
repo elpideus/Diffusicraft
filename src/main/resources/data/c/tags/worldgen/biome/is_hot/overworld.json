@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "diffusicraft:old_growth_jungle",
     "diffusicraft:desert_scrub",
     "diffusicraft:stony_desert",
     "diffusicraft:monsoon_forest"

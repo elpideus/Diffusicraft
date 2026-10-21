@@ -202,7 +202,8 @@
       "minecraft:patch_firefly_bush_near_water",
       "minecraft:patch_berry_common",
       "diffusicraft:trees_temperate_rainforest",
-      "diffusicraft:rainforest_moss"
+      "diffusicraft:rainforest_moss",
+      "diffusicraft:rainforest_redwoods"
     ],
     [
       "minecraft:freeze_top_layer"

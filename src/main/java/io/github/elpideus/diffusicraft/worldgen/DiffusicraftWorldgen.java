@@ -9,6 +9,8 @@ import io.github.elpideus.diffusicraft.worldgen.density.CoastFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.RiverFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
+import io.github.elpideus.diffusicraft.worldgen.feature.DiffusicraftWorldFilter;
+import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
@@ -40,6 +42,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.levelgen.presets.WorldPreset;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -74,9 +77,13 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.BIOME_SOURCE, Diffusicraft.id("climate"), ClimateBiomeSource.CODEC);
 		Registry.register(BuiltInRegistries.PLACEMENT_MODIFIER_TYPE, Diffusicraft.id("hollow_surface"),
 			HollowSurfacePlacement.CODEC);
+		Registry.register(BuiltInRegistries.PLACEMENT_MODIFIER_TYPE, Diffusicraft.id("diffusicraft_world"),
+			DiffusicraftWorldFilter.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("selenite_beam"), SeleniteBeamFeature.CODEC);
+		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("giant_tree"), GiantTreeFeature.CODEC);
 		TerrainFields.register();
 		addHollowFeatures();
+		addLoneGiants();
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
 			LevelStem overworld = server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getValue(LevelStem.OVERWORLD);
 			HeightTemperature.set(overworld != null && usesModels(overworld.generator()) ? 0f : 1f);
@@ -101,9 +108,26 @@ public final class DiffusicraftWorldgen {
 	 * place nothing in other worlds. The order is the one {@code tools/biomes.py} lists them in.
 	 */
 	private static void addHollowFeatures() {
-		addFeatures(Biomes.LUSH_CAVES, "hollow_moss_floor", "hollow_moss_ceiling", "hollow_lush_clay",
+		addFeatures("hollow", Biomes.LUSH_CAVES, "hollow_moss_floor", "hollow_moss_ceiling", "hollow_lush_clay",
 			"hollow_cave_vines", "hollow_spore_blossoms");
-		addFeatures(Biomes.DRIPSTONE_CAVES, "hollow_dripstone_floor", "hollow_dripstone_ceiling");
+		addFeatures("hollow", Biomes.DRIPSTONE_CAVES, "hollow_dripstone_floor", "hollow_dripstone_ceiling");
+	}
+
+	/**
+	 * Gives vanilla's plains and woods a giant tree now and then, over the trees of their own: ancient oaks on the
+	 * plains and in the broadleaf woods, redwoods among the old spruce, kapoks over the jungle. They grow only in
+	 * Diffusicraft worlds ({@link DiffusicraftWorldFilter}); its own groves of giants are biomes of their own.
+	 */
+	private static void addLoneGiants() {
+		addFeatures("giant", Biomes.PLAINS, "lone_giant_oak_plains");
+		addFeatures("giant", Biomes.SUNFLOWER_PLAINS, "lone_giant_oak_plains");
+		for (ResourceKey<Biome> woods : List.of(Biomes.FOREST, Biomes.FLOWER_FOREST, Biomes.BIRCH_FOREST,
+			Biomes.DARK_FOREST)) {
+			addFeatures("giant", woods, "lone_giant_oak");
+		}
+		addFeatures("giant", Biomes.OLD_GROWTH_SPRUCE_TAIGA, "lone_redwood");
+		addFeatures("giant", Biomes.OLD_GROWTH_PINE_TAIGA, "lone_redwood");
+		addFeatures("giant", Biomes.JUNGLE, "lone_kapok");
 	}
 
 	/**
@@ -111,8 +135,8 @@ public final class DiffusicraftWorldgen {
 	 * applies modifications in the order of their ids, and the game requires every biome to agree on one order of
 	 * features, so features added one by one could follow each other the other way round from Diffusicraft's biomes.
 	 */
-	private static void addFeatures(ResourceKey<Biome> biome, String... features) {
-		BiomeModifications.create(Diffusicraft.id("hollow_" + biome.identifier().getPath())).add(
+	private static void addFeatures(String name, ResourceKey<Biome> biome, String... features) {
+		BiomeModifications.create(Diffusicraft.id(name + "_" + biome.identifier().getPath())).add(
 			ModificationPhase.ADDITIONS, BiomeSelectors.includeByKey(biome), context -> {
 				for (String feature : features) {
 					context.getGenerationSettings().addFeature(GenerationStep.Decoration.VEGETAL_DECORATION,

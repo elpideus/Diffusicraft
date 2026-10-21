@@ -2,6 +2,8 @@
   "replace": false,
   "values": [
     "diffusicraft:temperate_rainforest",
+    "diffusicraft:redwood_forest",
+    "diffusicraft:ancient_woodland",
     "diffusicraft:monsoon_forest",
     "diffusicraft:laurel_forest",
     "diffusicraft:larch_taiga",

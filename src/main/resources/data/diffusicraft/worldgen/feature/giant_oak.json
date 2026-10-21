@@ -1,0 +1,23 @@
+{
+  "type": "diffusicraft:giant_tree",
+  "form": "oak",
+  "wood": {
+    "id": "minecraft:oak_wood",
+    "properties": {
+      "axis": "y"
+    }
+  },
+  "leaves": {
+    "id": "minecraft:oak_leaves",
+    "properties": {
+      "distance": "7",
+      "persistent": "false",
+      "waterlogged": "false"
+    }
+  },
+  "height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 40,
+    "max_inclusive": 64
+  }
+}

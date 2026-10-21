@@ -147,6 +147,10 @@ public final class BiomeRefiner {
 	public static final String JUNIPER_WOODLAND = "diffusicraft:juniper_woodland";
 	public static final String STONY_DESERT = "diffusicraft:stony_desert";
 	public static final String SHRUB_STEPPE = "diffusicraft:shrub_steppe";
+	/** The groves of giant trees, which only {@link SubBiomes} places: never a biome of their own climate. */
+	public static final String REDWOOD_FOREST = "diffusicraft:redwood_forest";
+	public static final String ANCIENT_WOODLAND = "diffusicraft:ancient_woodland";
+	public static final String OLD_GROWTH_JUNGLE = "diffusicraft:old_growth_jungle";
 	public static final String SAVANNA = "minecraft:savanna";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";

@@ -16,6 +16,7 @@ import io.github.elpideus.diffusicraft.worldgen.biome.BiomeClimate;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeWorld;
 import io.github.elpideus.diffusicraft.worldgen.biome.HollowBiomes;
+import io.github.elpideus.diffusicraft.worldgen.biome.SubBiomes;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.geology.Erosion;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
@@ -1088,7 +1089,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				int x = probe.spawn.getX() + dx, z = probe.spawn.getZ() + dz;
 				String b = biomeAt(resolver, x, 160, z);
 				long d = (long) dx * dx + (long) dz * dz;
-				if (BiomeRefiner.TARGETS.contains(b) && b.startsWith("diffusicraft:") && !found.containsKey(b)
+				if ((BiomeRefiner.TARGETS.contains(b) || SubBiomes.targets().contains(b)) && b.startsWith("diffusicraft:")
+					&& !found.containsKey(b)
 					&& d < distance.getOrDefault(b, Long.MAX_VALUE)) {
 					distance.put(b, d);
 					coarse.put(b, new BlockPos(x, 0, z));
