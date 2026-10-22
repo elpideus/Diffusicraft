@@ -433,6 +433,10 @@ FEATURES["kapok"] = giant("kapok", "jungle_wood", "jungle_leaves", 80, 130)
 
 # Waterfalls down the steep faces of wet lands, in a chunk of four at most (see WaterfallFeature.java).
 FEATURES["waterfall"] = {"type": f"{NS}:waterfall", "min_drop": 8, "chance": 0.25}
+# Boulders: the erratics the ice left in the cold lands, in a chunk of seven at most, and the rocks fallen at the feet
+# of rock faces eight blocks high or more (see ErraticFeature.java and RockfallFeature.java).
+FEATURES["erratic"] = {"type": f"{NS}:erratic", "chance": 0.15}
+FEATURES["rockfall"] = {"type": f"{NS}:rockfall", "min_rise": 8, "chance": 0.35}
 
 # Placed features, in the order they run within a step.
 PLACED = {
@@ -569,9 +573,11 @@ PLACED = {
     "lianas": lianas(ours("lianas")),
     "jungle_lianas": lianas(ours("lianas"), lone=True),
     "sparse_jungle_lianas": lianas(ours("sparse_lianas"), lone=True),
-    # In no biome: Java places them after vanilla's water springs in Diffusicraft worlds (see
-    # DiffusicraftWorldgen.waterfallsAfter). The feature picks its face in the chunk itself.
+    # In no biome: Java places them after vanilla's water springs in Diffusicraft worlds, in this order (see
+    # DiffusicraftWorldgen.AFTER_SPRINGS). Each feature picks its place in the chunk itself.
     "waterfalls": placed(ours("waterfall"), []),
+    "erratics": placed(ours("erratic"), []),
+    "rockfall": placed(ours("rockfall"), []),
 }
 FEATURES["trees_temperate_rainforest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
                                           "features": [

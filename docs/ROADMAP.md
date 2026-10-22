@@ -158,6 +158,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 - **Denser jungles.** Vines hang from the jungle crowns down towards the floor as lianas, the old-growth jungle grows
   some 20 trees a chunk with large ferns under them, and the free vines of the jungles hang under their canopy at any
   height. See [WORLDGEN.md](WORLDGEN.md#lianas).
+- **Boulders.** Erratics of granite, gneiss and diorite lie alone on the cold lands, up to 25 blocks across, and
+  boulders of a cliff's own rock lie fallen at its foot, the biggest the farthest out. See
+  [WORLDGEN.md](WORLDGEN.md#boulders).
 - **Half-precision decoder.** On NVIDIA GPUs the decoder runs in fp16, which makes terrain 1.2× faster and moves it
   by 5 cm RMS. See [PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 
@@ -168,7 +171,6 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
 drama on top, at every size:
 
-- **Features.** Boulders.
 - **Great trees.** Broadleaf giants a hundred blocks tall and more, whose crowns would reach past the 3×3 chunks a
   feature may write to: they would need a structure, written chunk by chunk.
 

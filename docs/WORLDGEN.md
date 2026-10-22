@@ -728,9 +728,43 @@ or where anything the water would run into lies beside or under the still water 
 mm, and in proportion between: in steep, wet mountains, a waterfall every ten chunks or so. None where the stream would
 freeze. Only in Diffusicraft worlds, whose climate the feature reads: `ChunkGeneratorMixin` places the waterfalls right
 after vanilla's water springs (`spring_water`), which nearly every land biome has, vanilla's, Diffusicraft's and other
-mods' (`DiffusicraftWorldgen.waterfallsAfter`). Added to the biomes instead, they would need a place in the order of
+mods' (`DiffusicraftWorldgen.AFTER_SPRINGS`). Added to the biomes instead, they would need a place in the order of
 features that every mod's biomes agree with. A biome without vanilla's springs has no waterfalls. The LOD mods do not
 draw them.
+
+### Boulders
+
+Two kinds of big boulder lie on the land, besides the small mossy ones of vanilla and of Diffusicraft's biomes
+(vanilla's `forest_rock` blobs). Both have the same shape (`Boulder`): a superellipsoid of power 2.4 to 3.2, a box
+with rounded edges, somewhat flattened and turned to a heading of its own, cut by six to nine planes into facets, as a
+block of rock splits along its joints and the weather rounds its edges. Its sides stand steep and its top is broad,
+where an ellipsoid of blocks would rise in steps to a point like a pyramid, and a lone block left on its top goes.
+
+- **Erratics** (`diffusicraft:erratic`, `ErraticFeature`) are the lone boulders that the ice sheets left on open
+  ground in the cold lands, of rock carried from far away rather than the ground's own: granite, gneiss or diorite.
+  Most are a few blocks across, one in ten 14 blocks or more, and the biggest 25, as big as a house. One chunk in seven
+  has one where the year's mean temperature is 8 °C or less, none from 13 °C, and in proportion between.
+- **Rockfall** (`diffusicraft:rockfall`, `RockfallFeature`): the boulders fallen from a rock face, at its foot. The
+  feature tries 24 columns of the chunk for one: gentle ground on one side, a block up or down at most, where the
+  rocks come to rest, and on the other a face that rises 2 blocks or more right beside the column and keeps rising at
+  45° or more, at least 8 blocks within 12. One to three boulders (four under a face 24 blocks high or more) lie out
+  from the foot and to either side, of the most common rock at the top of the ground up the face; a face mostly of
+  soil sheds none. They are as big as the face is high, a tenth of its height across from their centres (1.5 to 4.5
+  blocks), half to 1.1 times that, and the bigger the boulder, the farther out it rolled. A chunk in three of those
+  with such a face has them.
+
+Both shrink with the world, by the square root of the giant trees' shrinking: to 71% at 1:16 and 65% at 1:32. A
+boulder is sunk a quarter of its height into the ground at its centre, and where the ground falls away under it, its
+rock fills the gap up to the ground at the centre; the bulge of its sides stands over the ground as on level land. It is
+not set down where the ground under it is under water, falls away from the centre by more than a quarter of its height
+or rises by more than half of it (an erratic, which lies on level ground only) or all of it (a fallen rock, which may
+lean on its face), nor where a structure on the surface reaches into a chunk it would change. It replaces no fluid,
+nothing built, no tree and nothing in `features_cannot_replace`. Moss carpets grow on the tops of boulders where more
+than 700 mm of rain fall a year, on half of them from 2200 mm, and snow settles on them in the cold.
+
+**Where.** Only in Diffusicraft worlds, whose climate the features read: `ChunkGeneratorMixin` places them right after
+the waterfalls (`DiffusicraftWorldgen.AFTER_SPRINGS`), so they reach every land biome too, and the waterfalls are laid
+out on bare ground while the boulders stay out of their water. The plants and trees grow after them, around them.
 
 ### Density and caves
 
@@ -1382,7 +1416,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), `LianaFeature` (`diffusicraft:lianas`), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), `LianaFeature` (`diffusicraft:lianas`), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
@@ -1510,6 +1544,8 @@ Other searches still read the full terrain and can take a while on new land:
   below, that the falls run down through the air to their foot, that no ground is cut away from water beside it, that
   the drop is high enough, and that the waterfall reads and writes only the chunks a feature may. The same draw lays out
   the same one.
+- `BoulderTest` checks that a boulder is one piece around its centre and stays within its reach, that the foot of
+  a cliff is found beside a face that rises at 45° or more, and none on a gentler slope or under a face too low.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.
@@ -1563,3 +1599,6 @@ Other searches still read the full terrain and can take a while on new land:
   wettest steep land near the spawn and checks that they keep their water and do not flood their foot once the chunks
   have ticked. It logs how many blocks wide the falls of each area are, and saves views of the tallest and of the widest
   from the front and the side.
+- `BouldersGameTest`, a client game test that needs the models, creates an Ultra world and finds boulders near the
+  spawn: erratics on the nearest cold, level land, and rocks at the feet of the steepest land. It logs how many there
+  are and how big, and saves a view of the biggest of each area.

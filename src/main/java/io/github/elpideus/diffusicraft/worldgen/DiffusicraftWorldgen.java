@@ -10,9 +10,11 @@ import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.RiverFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
 import io.github.elpideus.diffusicraft.worldgen.feature.DiffusicraftWorldFilter;
+import io.github.elpideus.diffusicraft.worldgen.feature.ErraticFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.LianaFeature;
+import io.github.elpideus.diffusicraft.worldgen.feature.RockfallFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.WaterfallFeature;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
@@ -47,6 +49,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Registers the world generator. The generator itself is data: noise settings, density functions, world presets and
@@ -64,9 +67,13 @@ public final class DiffusicraftWorldgen {
 	 */
 	private static final Set<ResourceKey<PlacedFeature>> LEFT_OUT = Set.of(OrePlacements.ORE_DIRT,
 		OrePlacements.ORE_GRAVEL, MiscOverworldPlacements.LAKE_LAVA_SURFACE);
-	/** The waterfalls of Diffusicraft worlds; see {@link #waterfallsAfter}. */
-	public static final ResourceKey<PlacedFeature> WATERFALLS = ResourceKey.create(Registries.PLACED_FEATURE,
-		Diffusicraft.id("waterfalls"));
+	/**
+	 * What Diffusicraft worlds place right after vanilla's water springs, in this order: their waterfalls, then the
+	 * erratics and the boulders fallen at the feet of cliffs, which stay out of the waterfalls' water; see
+	 * {@link #afterSprings}.
+	 */
+	public static final List<ResourceKey<PlacedFeature>> AFTER_SPRINGS = Stream.of("waterfalls", "erratics",
+		"rockfall").map(name -> ResourceKey.create(Registries.PLACED_FEATURE, Diffusicraft.id(name))).toList();
 
 	private DiffusicraftWorldgen() {
 	}
@@ -88,6 +95,8 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("giant_tree"), GiantTreeFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("waterfall"), WaterfallFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("lianas"), LianaFeature.CODEC);
+		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("erratic"), ErraticFeature.CODEC);
+		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("rockfall"), RockfallFeature.CODEC);
 		TerrainFields.register();
 		addHollowFeatures();
 		addLoneGiants();
@@ -210,11 +219,11 @@ public final class DiffusicraftWorldgen {
 	}
 
 	/**
-	 * Whether Diffusicraft worlds place their waterfalls right after a placed feature: after vanilla's water springs,
-	 * which nearly every land biome has, vanilla's and other mods' as well as Diffusicraft's. Added to the biomes
-	 * instead, the waterfalls would need a place in the order of features that every mod's biomes agree with.
+	 * Whether Diffusicraft worlds place their {@link #AFTER_SPRINGS} right after a placed feature: after vanilla's water
+	 * springs, which nearly every land biome has, vanilla's and other mods' as well as Diffusicraft's. Added to the
+	 * biomes instead, they would need a place in the order of features that every mod's biomes agree with.
 	 */
-	public static boolean waterfallsAfter(Optional<ResourceKey<PlacedFeature>> feature) {
+	public static boolean afterSprings(Optional<ResourceKey<PlacedFeature>> feature) {
 		return feature.isPresent() && feature.get().equals(MiscOverworldPlacements.SPRING_WATER);
 	}
 

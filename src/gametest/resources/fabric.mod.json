@@ -20,7 +20,8 @@
 			"io.github.elpideus.diffusicraft.gametest.VoxyServerGameTest",
 			"io.github.elpideus.diffusicraft.gametest.DistantHorizonsServerGameTest",
 			"io.github.elpideus.diffusicraft.gametest.WaterfallsGameTest",
-			"io.github.elpideus.diffusicraft.gametest.ReliefMapGameTest"
+			"io.github.elpideus.diffusicraft.gametest.ReliefMapGameTest",
+			"io.github.elpideus.diffusicraft.gametest.BouldersGameTest"
 		]
 	},
 	"depends": {

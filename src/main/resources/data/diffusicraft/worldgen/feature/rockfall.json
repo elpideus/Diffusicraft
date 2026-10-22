@@ -1,0 +1,5 @@
+{
+  "type": "diffusicraft:rockfall",
+  "min_rise": 8,
+  "chance": 0.35
+}

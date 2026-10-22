@@ -22,8 +22,8 @@ import java.util.Optional;
 
 /**
  * Leaves the vanilla features that Diffusicraft worlds do without out of their decoration, and adds their waterfalls
- * after vanilla's water springs; see {@link DiffusicraftWorldgen#leavesOut} and
- * {@link DiffusicraftWorldgen#waterfallsAfter}. Biomes are shared by every world, so their lists cannot drop or add
+ * and boulders after vanilla's water springs; see {@link DiffusicraftWorldgen#leavesOut} and
+ * {@link DiffusicraftWorldgen#afterSprings}. Biomes are shared by every world, so their lists cannot drop or add
  * them. The features keep their places in the order, so the others are seeded as before.
  */
 @Mixin(ChunkGenerator.class)
@@ -51,10 +51,12 @@ abstract class ChunkGeneratorMixin {
 			return false;
 		}
 		boolean placed = place.call(placer, feature, random, origin);
-		if (DiffusicraftWorldgen.waterfallsAfter(key)) {
-			PlacedFeature waterfalls = features.getValue(DiffusicraftWorldgen.WATERFALLS);
-			if (waterfalls != null) {
-				placed |= placer.place(waterfalls, random, origin);
+		if (DiffusicraftWorldgen.afterSprings(key)) {
+			for (ResourceKey<PlacedFeature> after : DiffusicraftWorldgen.AFTER_SPRINGS) {
+				PlacedFeature next = features.getValue(after);
+				if (next != null) {
+					placed |= placer.place(next, random, origin);
+				}
 			}
 		}
 		return placed;
