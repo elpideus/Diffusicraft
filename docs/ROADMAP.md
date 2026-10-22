@@ -156,8 +156,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   start. They are up to 12 blocks wide in the wettest land of a 1:1 world and 3 in a Vanilla one. See
   [WORLDGEN.md](WORLDGEN.md#waterfalls).
 - **Denser jungles.** Vines hang from the jungle crowns down towards the floor as lianas, the old-growth jungle grows
-  some 20 trees a chunk with large ferns under them, and the free vines of the jungles hang under their canopy at any
-  height. See [WORLDGEN.md](WORLDGEN.md#lianas).
+  some 20 trees a chunk with large ferns under them, the free vines of the jungles hang under their canopy at any
+  height, and thickets of leafy shrubs and ferns cover their floors between clearings. See
+  [WORLDGEN.md](WORLDGEN.md#lianas) and [Undergrowth](WORLDGEN.md#undergrowth).
 - **Boulders.** Erratics of granite, gneiss and diorite lie alone on the cold lands, up to 25 blocks across, and
   boulders of a cliff's own rock lie fallen at its foot, the biggest the farthest out. See
   [WORLDGEN.md](WORLDGEN.md#boulders).

@@ -105,7 +105,7 @@ final class Boulders {
 	}
 
 	/** Whether a structure on the surface reaches into a chunk under the square from (x1, z1) to (x2, z2). */
-	private static boolean nearStructure(WorldGenLevel level, int x1, int z1, int x2, int z2) {
+	static boolean nearStructure(WorldGenLevel level, int x1, int z1, int x2, int z2) {
 		for (int cx = SectionPos.blockToSectionCoord(x1); cx <= SectionPos.blockToSectionCoord(x2); cx++) {
 			for (int cz = SectionPos.blockToSectionCoord(z1); cz <= SectionPos.blockToSectionCoord(z2); cz++) {
 				for (Structure structure : level.getChunk(cx, cz).getAllReferences().keySet()) {

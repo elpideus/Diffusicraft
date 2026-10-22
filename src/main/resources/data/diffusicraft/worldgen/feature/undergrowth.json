@@ -1,0 +1,18 @@
+{
+  "type": "diffusicraft:undergrowth",
+  "cover": 0.8,
+  "stem": {
+    "id": "minecraft:jungle_log",
+    "properties": {
+      "axis": "y"
+    }
+  },
+  "leaves": {
+    "id": "minecraft:jungle_leaves",
+    "properties": {
+      "distance": "7",
+      "persistent": "true",
+      "waterlogged": "false"
+    }
+  }
+}

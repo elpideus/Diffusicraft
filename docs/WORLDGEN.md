@@ -475,11 +475,11 @@ the colours:
 |---|---|---|---|
 | Tundra | Snowy plains | Dwarf birch scrub, moss mats, berry bushes, boulders | Grass with coarse dirt and podzol over peat |
 | Alpine tundra | Meadow | Knee-high krummholz spruce, alpine flowers, moss, boulders | Grass broken by gravel scree and bare rock |
-| Cloud forest | Jungle | Canopy trees and gnarled oaks hung with [lianas](#lianas), ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
+| Cloud forest | Jungle | Canopy trees and gnarled oaks hung with [lianas](#lianas), over an [undergrowth](#undergrowth) of shrubs of oak leaves, ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
 | Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, now and then a redwood, ferns, moss, mushrooms; light fog | Grass and podzol |
 | Redwood forest | Old-growth spruce taiga | [Redwoods](#giant-trees) 110 to 230 blocks tall at 1:1, one or two in most chunks, over spruces, mega spruces and fallen trunks, large ferns, moss, mushrooms, berries; fog (256 blocks) | Grass with deep needle litter (podzol) and coarse dirt |
 | Ancient woodland | Forest | [Ancient oaks](#giant-trees) 40 to 64 blocks tall at 1:1 in every other chunk, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
-| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1 in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, some 20 to a chunk, hung with [lianas](#lianas); large ferns, melons and moss | Grass, red laterite below |
+| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1 in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, some 20 to a chunk, hung with [lianas](#lianas), over a nearly closed [undergrowth](#undergrowth) of shrubs and large ferns; melons and moss | Grass, red laterite below |
 | Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass and terra rossa on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
@@ -683,6 +683,19 @@ Vanilla's jungles scatter free vines between y = 64 and 100 as well, which misse
 Diffusicraft world, since they stand higher. The old-growth jungle and the cloud forest place theirs within 16 blocks
 under the top of the canopy instead, 64 tries a chunk (`canopy_vines`), about as thick as vanilla's, and on the
 umbrellas of the kapoks too, whose lianas fall forty blocks and more.
+
+### Undergrowth
+
+Vanilla's jungles leave open grass under their trees, where a rainforest's floor grows thick. `diffusicraft:undergrowth`
+(`UndergrowthFeature`) fills it, after the trees, the giants and the lianas. A smooth noise of the world's seed
+(`Thickets`), broad thickets broken up by finer ones, sets how thick it grows at each column, from 0 in a clearing to
+1 in a thicket. In the thickets shrubs grow: mounds of persistent leaves that follow the ground, highest over the middle
+and a block high at the ragged rim, up to 4 blocks high and 9 across, the ones 3 blocks high or more around a stem of
+jungle log. Between them and in the clearings, large ferns, ferns, grass, bushes and lone leaves cover the ground,
+thickest in the thickets. The feature's `cover` sets how thick it all grows: 0.8 in the old-growth jungle, whose floor
+is nearly closed, 0.7 in vanilla's jungle, 0.6 in the cloud forest, whose shrubs are of oak leaves, and 0.35 in
+vanilla's sparse and bamboo jungles. Nothing grows where a structure on the surface reaches into the chunk, and
+vanilla's jungles have it only in Diffusicraft worlds.
 
 ### Waterfalls
 
@@ -1416,7 +1429,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), `LianaFeature` (`diffusicraft:lianas`), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), `LianaFeature` (`diffusicraft:lianas`), `UndergrowthFeature` (`diffusicraft:undergrowth`) and `Thickets` (where it grows thick), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
@@ -1544,6 +1557,8 @@ Other searches still read the full terrain and can take a while on new land:
   below, that the falls run down through the air to their foot, that no ground is cut away from water beside it, that
   the drop is high enough, and that the waterfall reads and writes only the chunks a feature may. The same draw lays out
   the same one.
+- `ThicketsTest` checks that the thickets and the clearings of the undergrowth both cover a good share of the floor,
+  that a thicket thins out gradually, and that they follow the world's seed.
 - `BoulderTest` checks that a boulder is one piece around its centre and stays within its reach, that the foot of
   a cliff is found beside a face that rises at 45° or more, and none on a gentler slope or under a face too low.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as

@@ -1,0 +1,15 @@
+{
+  "feature": "diffusicraft:sparse_undergrowth",
+  "placement": [
+    {
+      "type": "diffusicraft:diffusicraft_world"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

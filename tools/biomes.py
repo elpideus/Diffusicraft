@@ -409,6 +409,20 @@ FEATURES["selenite_beam"] = {"type": f"{NS}:selenite_beam"}
 # Lianas: the vines that hang from the crowns, grown down towards the floor (see LianaFeature.java).
 FEATURES["lianas"] = {"type": f"{NS}:lianas", "chance": 0.6}
 FEATURES["sparse_lianas"] = {"type": f"{NS}:lianas", "chance": 0.3}
+
+
+def undergrowth(cover, leaf="jungle_leaves"):
+    """The undergrowth of a rainforest's floor, `cover` thick: thickets of shrubs and ferns, and clearings between them
+    (see UndergrowthFeature.java). The shrubs' leaves are persistent, as some have no stem."""
+    persistent = leaves(leaf)
+    persistent["properties"]["persistent"] = "true"
+    return {"type": f"{NS}:undergrowth", "cover": cover, "stem": log("jungle_log"), "leaves": persistent}
+
+
+FEATURES["undergrowth"] = undergrowth(0.8)
+FEATURES["cloud_undergrowth"] = undergrowth(0.6, "oak_leaves")
+FEATURES["jungle_undergrowth"] = undergrowth(0.7)
+FEATURES["sparse_undergrowth"] = undergrowth(0.35)
 # Columnar cacti, saguaros and cardones: twice a man's height, and in flower now and then.
 FEATURES["columnar_cactus"] = {
     "type": "minecraft:block_column", "direction": "up", "prioritize_tip": False,
@@ -567,6 +581,12 @@ PLACED = {
     "lone_giant_oak": giants(ours("giant_oak"), chance=24, lone=True),
     "lone_redwood": giants(ours("redwood"), chance=16, lone=True),
     "lone_kapok": giants(ours("kapok"), chance=10, lone=True),
+    # The floors of the rainforests, under the trees and the giants: once per chunk, as the lianas. The vanilla
+    # jungles' undergrowth is only in Diffusicraft worlds: Java adds it (see DiffusicraftWorldgen.addLianas).
+    "undergrowth": lianas(ours("undergrowth")),
+    "cloud_undergrowth": lianas(ours("cloud_undergrowth")),
+    "jungle_undergrowth": lianas(ours("jungle_undergrowth"), lone=True),
+    "sparse_jungle_undergrowth": lianas(ours("sparse_undergrowth"), lone=True),
     # After the giants, whose crowns get vines and whose vines grow too, as do the free ones. The vanilla jungles' lianas
     # are only in Diffusicraft worlds: Java adds them (see DiffusicraftWorldgen.addLianas).
     "canopy_vines": canopy("minecraft:vines", 64),
@@ -723,8 +743,8 @@ BIOMES = {
         "local": ["minecraft:forest_rock"],
         "vegetation": ["minecraft:glow_lichen", "trees_cloud_forest", "rainforest_moss", "minecraft:patch_large_fern",
                        "minecraft:patch_grass_jungle", "minecraft:brown_mushroom_normal",
-                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water", "canopy_vines",
-                       "lianas"],
+                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water", "cloud_undergrowth",
+                       "canopy_vines", "lianas"],
         "tags": ["c:is_wet/overworld", "c:is_dense_vegetation/overworld", "c:is_temperate/overworld", "c:is_rare",
                  "c:is_tree/jungle", "c:primary_wood_type/jungle", "minecraft:has_structure/jungle_temple",
                  "minecraft:has_structure/mineshaft", "minecraft:has_structure/trail_ruins",
@@ -785,7 +805,8 @@ BIOMES = {
         "vegetation": ["minecraft:glow_lichen", "trees_old_growth_jungle", "minecraft:flower_warm",
                        "minecraft:patch_grass_jungle", "minecraft:patch_large_fern", "minecraft:brown_mushroom_normal",
                        "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water",
-                       "minecraft:patch_melon", "rainforest_moss", "kapoks", "canopy_vines", "lianas"],
+                       "minecraft:patch_melon", "rainforest_moss", "kapoks", "undergrowth", "canopy_vines",
+                       "lianas"],
         "tags": ["c:is_wet/overworld", "c:is_hot/overworld", "c:is_dense_vegetation/overworld", "c:is_old_growth",
                  "c:is_rare", "c:is_jungle", "c:is_tree/jungle", "c:primary_wood_type/jungle",
                  "minecraft:has_structure/jungle_temple", "minecraft:has_structure/mineshaft",

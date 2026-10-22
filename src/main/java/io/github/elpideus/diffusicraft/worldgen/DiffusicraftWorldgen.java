@@ -16,6 +16,7 @@ import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.LianaFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.RockfallFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
+import io.github.elpideus.diffusicraft.worldgen.feature.UndergrowthFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.WaterfallFeature;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import io.github.elpideus.diffusicraft.worldgen.material.ModOres;
@@ -97,6 +98,7 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("lianas"), LianaFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("erratic"), ErraticFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("rockfall"), RockfallFeature.CODEC);
+		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("undergrowth"), UndergrowthFeature.CODEC);
 		TerrainFields.register();
 		addHollowFeatures();
 		addLoneGiants();
@@ -148,13 +150,14 @@ public final class DiffusicraftWorldgen {
 	}
 
 	/**
-	 * Lets the vines of vanilla's jungles grow down from the crowns towards the floor, after the trees and the giants
-	 * ({@link LianaFeature}). Only in Diffusicraft worlds; its own jungles have them too.
+	 * Grows thickets of shrubs and ferns on the floors of vanilla's jungles ({@link UndergrowthFeature}), and lets their
+	 * vines grow down from the crowns towards the floor ({@link LianaFeature}), after the trees and the giants. Only in
+	 * Diffusicraft worlds; its own jungles have them too.
 	 */
 	private static void addLianas() {
-		addFeatures("lianas", Biomes.JUNGLE, "jungle_lianas");
-		addFeatures("lianas", Biomes.SPARSE_JUNGLE, "sparse_jungle_lianas");
-		addFeatures("lianas", Biomes.BAMBOO_JUNGLE, "sparse_jungle_lianas");
+		addFeatures("lianas", Biomes.JUNGLE, "jungle_undergrowth", "jungle_lianas");
+		addFeatures("lianas", Biomes.SPARSE_JUNGLE, "sparse_jungle_undergrowth", "sparse_jungle_lianas");
+		addFeatures("lianas", Biomes.BAMBOO_JUNGLE, "sparse_jungle_undergrowth", "sparse_jungle_lianas");
 	}
 
 	/**
