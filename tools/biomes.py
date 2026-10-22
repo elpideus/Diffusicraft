@@ -445,6 +445,8 @@ FEATURES["redwood"] = giant("redwood", "mangrove_wood", "spruce_leaves", 110, 23
 FEATURES["giant_oak"] = giant("oak", "oak_wood", "oak_leaves", 40, 64)
 FEATURES["kapok"] = giant("kapok", "jungle_wood", "jungle_leaves", 80, 130)
 
+# The falls of the rivers where they step down, with pools at their feet (see RiverFallFeature.java).
+FEATURES["river_falls"] = {"type": f"{NS}:river_falls", "deepest_pool": 4}
 # Waterfalls down the steep faces of wet lands, in a chunk of four at most (see WaterfallFeature.java).
 FEATURES["waterfall"] = {"type": f"{NS}:waterfall", "min_drop": 8, "chance": 0.25}
 # Boulders: the erratics the ice left in the cold lands, in a chunk of seven at most, and the rocks fallen at the feet
@@ -595,6 +597,7 @@ PLACED = {
     "sparse_jungle_lianas": lianas(ours("sparse_lianas"), lone=True),
     # In no biome: Java places them after vanilla's water springs in Diffusicraft worlds, in this order (see
     # DiffusicraftWorldgen.AFTER_SPRINGS). Each feature picks its place in the chunk itself.
+    "river_falls": placed(ours("river_falls"), []),
     "waterfalls": placed(ours("waterfall"), []),
     "erratics": placed(ours("erratic"), []),
     "rockfall": placed(ours("rockfall"), []),

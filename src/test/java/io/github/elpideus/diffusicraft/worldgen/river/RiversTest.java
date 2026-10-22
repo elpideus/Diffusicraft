@@ -345,6 +345,157 @@ class RiversTest {
 		assertTrue(steepest < 3f, "the gorge's walls rise at most 3 blocks per block: " + steepest);
 	}
 
+	/** The valley of {@link ValleySource}, rising 800 m a cell between coarse rows 2 and 6: 3 m a pixel. */
+	private static TerrainField steepValley() {
+		return new TerrainField(1, new ValleySource() {
+			@Override
+			float height(double i, double j) {
+				return super.height(i, j) + 700f * (float) Math.clamp(i / TILE - 2.0, 0.0, 4.0);
+			}
+		});
+	}
+
+	@Test
+	void aSteepRiverFallsInStepsAndRunsOnBelowThem() {
+		TerrainField field = steepValley();
+		Rivers rivers = Rivers.of(field);
+		WorldScale scale = WorldScale.MEDIUM;
+		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
+		int x0 = VALLEY * blocksPerTile, z0 = 2 * blocksPerTile + blocksPerTile / 4;
+		int width = blocksPerTile, depth = 6 * blocksPerTile - blocksPerTile / 4 - z0;
+		boolean[] channel = new boolean[width * depth];
+		int[] water = new int[width * depth];
+		float[] surface = new float[width * depth];
+		// A chunk at a time, as the rivers keep the columns of one.
+		for (int cz = Math.floorDiv(z0, 16); cz <= Math.floorDiv(z0 + depth - 1, 16); cz++) {
+			for (int cx = Math.floorDiv(x0, 16); cx <= Math.floorDiv(x0 + width - 1, 16); cx++) {
+				for (int z = Math.max(z0, cz * 16); z < Math.min(z0 + depth, cz * 16 + 16); z++) {
+					for (int x = Math.max(x0, cx * 16); x < Math.min(x0 + width, cx * 16 + 16); x++) {
+						RiverColumn column = rivers.column(scale, x, z);
+						int k = (z - z0) * width + x - x0;
+						channel[k] = column.channel;
+						water[k] = column.waterTop;
+						surface[k] = column.river ? column.surface : field.surface(scale).y(x, z);
+					}
+				}
+			}
+		}
+		float above = (float) (CellRivers.FALL_SPLIT * CellRivers.FALL_MAX / scale.verticalMetersPerBlock()) + 3f;
+		float below = (float) ((1f - CellRivers.FALL_SPLIT) * CellRivers.FALL_MAX / scale.verticalMetersPerBlock()) + 3f;
+		int falls = 0, channels = 0, previous = Integer.MIN_VALUE;
+		for (int dz = 0; dz < depth; dz++) {
+			int top = Integer.MIN_VALUE;
+			for (int dx = 1; dx < width - 1; dx++) {
+				int k = dz * width + dx;
+				if (!channel[k]) {
+					continue;
+				}
+				channels++;
+				top = Math.max(top, water[k]);
+				// Where it crosses into another tile, the river comes down to the level the coarse map gives the
+				// crossing, and runs on at it.
+				double i = scale.toPixel(z0 + dz), border = Math.abs(i - Math.round(i / TILE) * TILE);
+				float terrain = field.surface(scale).y(x0 + dx, z0 + dz);
+				assertTrue(border < CellRivers.LO + 4 || water[k] - terrain < above && terrain - water[k] < below,
+					"the water at " + (x0 + dx) + ", " + (z0 + dz) + " keeps near its course: " + water[k] + " over "
+						+ terrain);
+				int[] neighbours = {k - 1, k + 1, k - width, k + width};
+				for (int n : neighbours) {
+					if (n < 0 || n >= channel.length) {
+						continue;
+					}
+					if (channel[n]) {
+						falls += water[n] >= water[k] + 2 ? 1 : 0;
+					} else {
+						assertTrue(surface[n] > water[k], "a bank holds the water at " + (x0 + dx) + ", " + (z0 + dz));
+					}
+				}
+			}
+			if (top != Integer.MIN_VALUE) {
+				assertTrue(top >= previous, "the water never rises downstream, at z " + (z0 + dz));
+				previous = top;
+			}
+		}
+		assertTrue(channels > 1000, "the valley has a river, channel columns: " + channels);
+		assertTrue(falls > 20, "the river falls in steps: " + falls + " columns at the foot of one");
+	}
+
+	@Test
+	void theBanksBesideAFallSlopeDownAlongTheRiver() {
+		TerrainField field = steepValley();
+		WorldScale scale = WorldScale.ULTRA;
+		// The highest fall of the river.
+		RiverNetwork network = new RiverNetwork(field);
+		float highest = 0f;
+		double fi = 0, fj = 0;
+		for (int ti = 2; ti < 6; ti++) {
+			float[] tile = field.paddedTile(ti, VALLEY);
+			CellRivers cell = CellRivers.build(tile, CellBasins.of(tile, field.paddedDrowned(ti, VALLEY), null),
+				network.flows(ti, VALLEY), field.seed(), ti, VALLEY, null);
+			for (int f = 0; f < cell.fallCount(); f++) {
+				float[] fall = cell.fall(f);
+				if (fall[2] - fall[3] > highest) {
+					highest = fall[2] - fall[3];
+					fi = ti * TILE + fall[0];
+					fj = VALLEY * TILE + fall[1];
+				}
+			}
+		}
+		assertTrue(highest >= CellRivers.FALL_MIN, "the river falls: " + highest + " m at most");
+		int reach = 160, size = 2 * reach;
+		int x0 = (int) Math.floor(fj / scale.pixelsPerBlock()) - reach;
+		int z0 = (int) Math.floor(fi / scale.pixelsPerBlock()) - reach;
+		Rivers rivers = Rivers.of(field);
+		boolean[] channel = new boolean[size * size];
+		int[] water = new int[size * size];
+		float[] surface = new float[size * size];
+		for (int cz = Math.floorDiv(z0, 16); cz <= Math.floorDiv(z0 + size - 1, 16); cz++) {
+			for (int cx = Math.floorDiv(x0, 16); cx <= Math.floorDiv(x0 + size - 1, 16); cx++) {
+				for (int z = Math.max(z0, cz * 16); z < Math.min(z0 + size, cz * 16 + 16); z++) {
+					for (int x = Math.max(x0, cx * 16); x < Math.min(x0 + size, cx * 16 + 16); x++) {
+						RiverColumn column = rivers.column(scale, x, z);
+						int k = (z - z0) * size + x - x0;
+						channel[k] = column.channel;
+						water[k] = column.waterTop;
+						surface[k] = column.river ? column.surface : field.surface(scale).y(x, z);
+					}
+				}
+			}
+		}
+		// How many channel columns lie in each box from the corner, to tell the columns far from the water.
+		int[] sum = new int[(size + 1) * (size + 1)];
+		for (int z = 0; z < size; z++) {
+			for (int x = 0; x < size; x++) {
+				sum[(z + 1) * (size + 1) + x + 1] = (channel[z * size + x] ? 1 : 0) + sum[z * (size + 1) + x + 1]
+					+ sum[(z + 1) * (size + 1) + x] - sum[z * (size + 1) + x];
+			}
+		}
+		int apart = 16, fall = 0, steepest = 0;
+		for (int z = apart; z < size - apart - 1; z++) {
+			for (int x = apart; x < size - apart - 1; x++) {
+				int k = z * size + x;
+				int[] neighbours = {k + 1, k + size};
+				for (int n : neighbours) {
+					if (channel[k] && channel[n]) {
+						fall = Math.max(fall, Math.abs(water[k] - water[n]));
+					}
+				}
+				int x1 = x - apart, z1 = z - apart, x2 = x + apart + 2, z2 = z + apart + 2;
+				int near = sum[z2 * (size + 1) + x2] - sum[z1 * (size + 1) + x2] - sum[z2 * (size + 1) + x1]
+					+ sum[z1 * (size + 1) + x1];
+				if (near == 0) {
+					for (int n : neighbours) {
+						steepest = Math.max(steepest, Math.round(Math.abs(surface[n] - surface[k])));
+					}
+				}
+			}
+		}
+		assertTrue(fall >= 16, "the river falls at least 16 blocks there: " + fall);
+		// Without the slope, the banks would step down as far as the water, in a wall across the valley.
+		assertTrue(steepest <= fall / 6, "the banks " + apart + " blocks from the water beside a fall of " + fall
+			+ " blocks step " + steepest + " blocks");
+	}
+
 	@Test
 	void lakesFillTheHollowsAndTheirShoresHoldThem() {
 		Rivers rivers = Rivers.of(field());

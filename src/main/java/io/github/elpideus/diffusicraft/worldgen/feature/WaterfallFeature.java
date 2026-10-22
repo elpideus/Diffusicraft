@@ -27,9 +27,9 @@ import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code diffusicraft:waterfall}: now and then, a stream that runs over the edge of a steep face in the chunk and falls
- * to its foot, down the head of a gorge it has cut, into a plunge pool or the water below. {@link Waterfall} lays it
- * out from the heightmaps, which know nothing of caves or of what is built.
+ * {@code diffusicraft:waterfall}: now and then, a stream that runs over the edge of a sheer cliff in the chunk and
+ * falls straight into the sea, a lake or a river at its foot. {@link Waterfall} lays it out from the heightmaps, which
+ * know nothing of caves or of what is built.
  *
  * <p>The wetter the climate, the likelier a chunk is to have one, and the wider it falls: none below {@value #DRY} mm
  * of rain a year, and {@code chance} of the chunks from {@value #WET} mm, where the cliffs are high enough. None where
@@ -40,7 +40,7 @@ import org.jspecify.annotations.Nullable;
  * pouring down once the chunk is loaded; ticks are scheduled at the lips and at the foot of the falls, so that the
  * game's water takes over from there. Before any of it is placed, the world is checked where the plan cannot see:
  * none is placed where a village or another structure on the surface stands, where the ground cut away would let a
- * cave's water or lava in, or where a cave under the stream or the pool would let their water out.
+ * cave's water or lava in, or where a cave under the stream would let its water out.
  */
 public record WaterfallFeature(int minDrop, float chance) implements Feature {
 	public static final MapCodec<WaterfallFeature> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(

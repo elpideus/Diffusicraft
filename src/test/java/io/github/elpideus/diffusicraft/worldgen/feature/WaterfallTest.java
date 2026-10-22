@@ -51,8 +51,8 @@ class WaterfallTest {
 	}
 
 	@Test
-	void aCliffTakesAWaterfallIntoAPoolAtItsFoot() {
-		Terrain cliff = new Terrain((x, z) -> x < 8 ? 100 : 60, NO_SEA, 0, 0);
+	void aCliffOverTheSeaFallsStraightIntoIt() {
+		Terrain cliff = new Terrain((x, z) -> x < 8 ? 100 : 40, 50, 0, 0);
 		int planned = 0;
 		for (long seed = 0; seed < 64; seed++) {
 			Waterfall fall = plan(cliff, seed);
@@ -62,12 +62,15 @@ class WaterfallTest {
 			planned++;
 			check(cliff, fall);
 			assertEquals(100, fall.y);
-			assertEquals(40, fall.drop);
+			assertEquals(50, fall.drop);
 			assertEquals(7, fall.lip.getX());
-			assertTrue(fall.pool, "no pool at the foot of a cliff on level ground");
 			assertTrue(fall.width >= 1 && fall.width <= MAX_WIDTH, fall.width + " wide");
-			assertEquals(fall.width * 39, fall.falling.size());
-			assertEquals(0, fall.gorge, "a gorge under a sheer cliff");
+			// From under the spill down to the sea, a block out from the edge.
+			assertEquals(fall.width * 49, fall.falling.size());
+			for (long pos : fall.falling) {
+				assertEquals(8, BlockPos.getX(pos));
+				assertTrue(BlockPos.getY(pos) >= 51, "falling under the sea at " + BlockPos.of(pos));
+			}
 		}
 		// The edge is one column in sixteen, and the plan tries 24 of them.
 		assertTrue(planned >= 40, planned + " waterfalls in 64 chunks along a cliff");
@@ -75,7 +78,7 @@ class WaterfallTest {
 
 	@Test
 	void aLongCliffTakesWideFalls() {
-		Terrain cliff = new Terrain((x, z) -> x < 8 ? 100 : 60, NO_SEA, 0, 0);
+		Terrain cliff = new Terrain((x, z) -> x < 8 ? 100 : 40, 50, 0, 0);
 		int planned = 0, widest = 0, width = 0;
 		for (long seed = 0; seed < 64; seed++) {
 			Waterfall fall = plan(cliff, Waterfall.WIDEST, seed);
@@ -96,8 +99,8 @@ class WaterfallTest {
 	@Test
 	void aWideFallBeatsAHigherNarrowOne() {
 		// A cliff whose edge is ragged where it is highest, at 112, its notches a block wide, and level beyond, at
-		// 106, over level ground at 60.
-		Terrain cliff = new Terrain((x, z) -> z < 8 ? x < 7 + (~z & 1) ? 112 : 60 : x < 8 ? 106 : 60, NO_SEA, 0, 0);
+		// 106, over the sea at 66.
+		Terrain cliff = new Terrain((x, z) -> z < 8 ? x < 7 + (~z & 1) ? 112 : 60 : x < 8 ? 106 : 60, 66, 0, 0);
 		int notched = 0, level = 0;
 		for (long seed = 0; seed < 512; seed++) {
 			Waterfall fall = plan(cliff, Waterfall.WIDEST, seed);
@@ -128,104 +131,58 @@ class WaterfallTest {
 		}
 	}
 
-	@Test
-	void aCliffOverTheSeaFallsIntoIt() {
-		Terrain cliff = new Terrain((x, z) -> x < 8 ? 100 : 40, 50, 0, 0);
-		int planned = 0;
-		for (long seed = 0; seed < 32; seed++) {
-			Waterfall fall = plan(cliff, seed);
-			if (fall != null) {
-				planned++;
-				check(cliff, fall);
-				assertTrue(!fall.pool, "a pool in the sea");
-				assertEquals(50, fall.drop);
-				for (long pos : fall.falling) {
-					assertTrue(BlockPos.getY(pos) >= 51, "falling under the sea at " + BlockPos.of(pos));
-				}
-			}
-		}
-		assertTrue(planned > 0);
-	}
-
-	@Test
-	void aSteepFaceTakesAWaterfallDownTheHeadOfAGorge() {
-		// Level ground at 100, then a face falling two blocks a block out, down to 40.
-		Terrain face = new Terrain((x, z) -> Math.max(40, 100 - 2 * Math.max(0, x - 7)), NO_SEA, 0, 0);
-		int planned = 0;
-		for (long seed = 0; seed < 64; seed++) {
-			Waterfall fall = plan(face, seed);
-			if (fall == null) {
-				continue;
-			}
-			planned++;
-			check(face, fall);
-			assertTrue(fall.gorge > 0, "no gorge down a face that slopes");
-			assertTrue(fall.pool, "no pool at the head of the gorge");
-			// Straight down, from the stream to the pool at the gorge's floor.
-			assertEquals(fall.width * (fall.drop - 1), fall.falling.size());
-			int foot = fall.y - fall.drop;
-			for (int out = 1; out <= fall.gorge + 1; out++) {
-				int x = fall.lip.getX() + out;
-				assertTrue(face.top(x, fall.lip.getZ()) >= foot, "the gorge cuts below its floor at " + x);
-			}
-		}
-		assertTrue(planned >= 40, planned + " waterfalls in 64 chunks along a face");
-	}
-
-	/** A mesa: a round, level top and steep sides, rough, with the sea over the lowest ground or none. */
+	/** A mesa: a round, level top and sheer sides, rough, over the sea. */
 	@Test
 	void everyWaterfallDownAMesaHoldsItsWater() {
-		int planned = 0, gorges = 0, seas = 0;
+		IntBinaryOperator mesa = (x, z) -> ((x - 8) * (x - 8) + (z - 8) * (z - 8) <= 100 ? 100 : 50) + (hash(x, z) & 1);
+		int planned = 0;
 		for (int width : new int[]{MAX_WIDTH, Waterfall.WIDEST}) {
-			for (int sea : new int[]{NO_SEA, 66}) {
-				for (int steep = 2; steep <= 4; steep++) {
-					int fall = steep;
-					IntBinaryOperator mesa = (x, z) -> Math.max(50, 100 - fall * Math.max(0,
-						(int) Math.sqrt((x - 8) * (x - 8) + (z - 8) * (z - 8)) - 10)) + (hash(x, z) & 1);
-					for (int cz = -1; cz <= 1; cz++) {
-						for (int cx = -1; cx <= 1; cx++) {
-							Terrain terrain = new Terrain(mesa, sea, cx * 16, cz * 16);
-							for (long seed = 0; seed < 8; seed++) {
-								Waterfall waterfall = plan(terrain, width, seed);
-								if (waterfall != null) {
-									planned++;
-									check(terrain, waterfall);
-									gorges += waterfall.gorge > 0 ? 1 : 0;
-									seas += sea != NO_SEA && waterfall.y - waterfall.drop == sea ? 1 : 0;
-								}
-							}
+			for (int cz = -1; cz <= 1; cz++) {
+				for (int cx = -1; cx <= 1; cx++) {
+					Terrain terrain = new Terrain(mesa, 66, cx * 16, cz * 16);
+					for (long seed = 0; seed < 8; seed++) {
+						Waterfall waterfall = plan(terrain, width, seed);
+						if (waterfall != null) {
+							planned++;
+							check(terrain, waterfall);
+							assertEquals(66, waterfall.y - waterfall.drop, "into the sea");
 						}
 					}
 				}
 			}
 		}
-		assertTrue(planned > 100 && gorges > 40 && seas > 0, planned + " waterfalls, " + gorges + " down gorges, "
-			+ seas + " to the sea");
+		assertTrue(planned > 20, planned + " waterfalls");
 	}
 
 	@Test
-	void slopesFinsAndCrestsTakeNone() {
+	void slopesFinsCrestsAndDryGroundTakeNone() {
 		IntBinaryOperator[] grounds = {
 			(x, z) -> 100 - x / 2,
-			// As steep as a staircase, but not steep enough to have cut a gorge.
 			(x, z) -> 100 - x,
+			// A face falling two blocks a block out into the sea, which a fall could reach only down a gorge.
+			(x, z) -> Math.max(40, 100 - 2 * Math.max(0, x - 7)),
 			(x, z) -> x == 7 ? 100 : 60,
-			// A ridge and a peak over level ground, in steps of ten. A staircase that went on would take waterfalls,
+			// A ridge and a peak over the sea, in steps of ten. A staircase that went on would take waterfalls,
 			// each step held by the next.
 			(x, z) -> Math.max(60, 100 - 10 * Math.abs(x - 7)),
 			(x, z) -> Math.max(60, 100 - 10 * Math.max(Math.abs(x - 7), Math.abs(z - 7))),
 		};
 		for (int k = 0; k < grounds.length; k++) {
-			Terrain terrain = new Terrain(grounds[k], NO_SEA, 0, 0);
+			Terrain terrain = new Terrain(grounds[k], 66, 0, 0);
 			for (long seed = 0; seed < 32; seed++) {
 				assertNull(plan(terrain, seed), "a waterfall on ground " + k + ", seed " + seed);
 			}
+		}
+		// A cliff over dry ground, where the falls would end on it.
+		Terrain dry = new Terrain((x, z) -> x < 8 ? 100 : 60, NO_SEA, 0, 0);
+		for (long seed = 0; seed < 32; seed++) {
+			assertNull(plan(dry, seed), "a waterfall onto dry ground, seed " + seed);
 		}
 	}
 
 	@Test
 	void theSameDrawLaysOutTheSameWaterfall() {
-		Terrain cliff = new Terrain((x, z) -> x < 8 ? 100 : 60, NO_SEA, 0, 0);
+		Terrain cliff = new Terrain((x, z) -> x < 8 ? 100 : 40, 50, 0, 0);
 		for (long seed = 0; seed < 16; seed++) {
 			Waterfall a = plan(cliff, seed), b = plan(cliff, seed);
 			assertEquals(a == null, b == null);
@@ -242,7 +199,7 @@ class WaterfallTest {
 	@Test
 	void everyWaterfallOnRoughGroundHoldsItsWater() {
 		IntBinaryOperator plateaus = (x, z) -> 60 + 9 * (hash(x >> 3, z >> 3) & 7) + (hash(x, z) & 1);
-		int planned = 0, pools = 0, seas = 0;
+		int planned = 0;
 		for (int width : new int[]{MAX_WIDTH, Waterfall.WIDEST}) {
 			for (int cz = -3; cz <= 3; cz++) {
 				for (int cx = -3; cx <= 3; cx++) {
@@ -252,16 +209,12 @@ class WaterfallTest {
 						if (fall != null) {
 							planned++;
 							check(terrain, fall);
-							pools += fall.pool ? 1 : 0;
-							seas += !fall.pool && fall.falling.longStream()
-								.anyMatch(pos -> terrain.water(BlockPos.getX(pos), BlockPos.getZ(pos)) != Waterfall.DRY) ? 1 : 0;
 						}
 					}
 				}
 			}
 		}
-		assertTrue(planned > 100 && pools > 0 && seas > 0, planned + " waterfalls, " + pools + " into pools of their own, "
-			+ seas + " into the sea");
+		assertTrue(planned > 40, planned + " waterfalls into the sea");
 	}
 
 	private static int hash(int a, int b) {
@@ -309,18 +262,16 @@ class WaterfallTest {
 				assertTrue(held, "the water at " + BlockPos.of(pos) + " runs out to " + BlockPos.of(next));
 			}
 		}
-		// Running water: over the edge, then down through the air to the pool, the water or the ground.
+		// Running water: over the edge, then down through the air into the water below.
 		for (long pos : fall.spilling) {
 			assertTrue(falling.contains(BlockPos.offset(pos, 0, -1, 0)), "nothing falls from " + BlockPos.of(pos));
 			assertEquals(fall.y, BlockPos.getY(pos));
 		}
 		for (long pos : fall.falling) {
 			int x = BlockPos.getX(pos), y = BlockPos.getY(pos), z = BlockPos.getZ(pos);
-			assertTrue(ground.top(x, z) < y || cut.contains(pos), "falls through the ground at " + BlockPos.of(pos));
-			long below = BlockPos.offset(pos, 0, -1, 0);
-			boolean solid = !cut.contains(below) && ground.top(x, z) >= y - 1;
-			assertTrue(falling.contains(below) || sources.contains(below) || solid || ground.water(x, z) == y - 1,
-				"the falls stop short at " + BlockPos.of(pos));
+			assertTrue(ground.top(x, z) < y, "falls through the ground at " + BlockPos.of(pos));
+			assertTrue(falling.contains(BlockPos.offset(pos, 0, -1, 0)) || ground.water(x, z) == y - 1,
+				"the falls stop short of the water at " + BlockPos.of(pos));
 		}
 		assertNotNull(fall.lip);
 	}

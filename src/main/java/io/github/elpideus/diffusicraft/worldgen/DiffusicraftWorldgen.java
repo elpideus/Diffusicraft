@@ -14,6 +14,7 @@ import io.github.elpideus.diffusicraft.worldgen.feature.ErraticFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.LianaFeature;
+import io.github.elpideus.diffusicraft.worldgen.feature.RiverFallFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.RockfallFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.UndergrowthFeature;
@@ -69,12 +70,12 @@ public final class DiffusicraftWorldgen {
 	private static final Set<ResourceKey<PlacedFeature>> LEFT_OUT = Set.of(OrePlacements.ORE_DIRT,
 		OrePlacements.ORE_GRAVEL, MiscOverworldPlacements.LAKE_LAVA_SURFACE);
 	/**
-	 * What Diffusicraft worlds place right after vanilla's water springs, in this order: their waterfalls, then the
-	 * erratics and the boulders fallen at the feet of cliffs, which stay out of the waterfalls' water; see
-	 * {@link #afterSprings}.
+	 * What Diffusicraft worlds place right after vanilla's water springs, in this order: the falls of their rivers and
+	 * their waterfalls, then the erratics and the boulders fallen at the feet of cliffs, which stay out of the falls'
+	 * water; see {@link #afterSprings}.
 	 */
-	public static final List<ResourceKey<PlacedFeature>> AFTER_SPRINGS = Stream.of("waterfalls", "erratics",
-		"rockfall").map(name -> ResourceKey.create(Registries.PLACED_FEATURE, Diffusicraft.id(name))).toList();
+	public static final List<ResourceKey<PlacedFeature>> AFTER_SPRINGS = Stream.of("river_falls", "waterfalls",
+		"erratics", "rockfall").map(name -> ResourceKey.create(Registries.PLACED_FEATURE, Diffusicraft.id(name))).toList();
 
 	private DiffusicraftWorldgen() {
 	}
@@ -95,6 +96,7 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("selenite_beam"), SeleniteBeamFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("giant_tree"), GiantTreeFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("waterfall"), WaterfallFeature.CODEC);
+		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("river_falls"), RiverFallFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("lianas"), LianaFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("erratic"), ErraticFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("rockfall"), RockfallFeature.CODEC);

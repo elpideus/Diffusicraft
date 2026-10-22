@@ -6,6 +6,8 @@ import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateColumn;
+import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
+import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -24,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,10 +35,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Creates a Diffusicraft world of the default size (1:1), looks for the wettest steep land near the spawn, and checks
- * that waterfalls stand there once its chunks are generated: falls of 8 blocks and more, spilling from still water
- * beside them, that keep their water while the chunks tick. Logs how wide they are, and saves views of the area and of
- * the tallest and the widest falls, from the front and from the side, to {@code build/run/clientGameTest/screenshots}.
+ * Creates a Diffusicraft world of the default size (1:1), looks for the wettest land near the spawn that stands steeply
+ * over water, and checks that waterfalls stand there once its chunks are generated: falls of 8 blocks and more,
+ * spilling from still water beside them, that keep their water while the chunks tick. Logs how wide they are, and saves
+ * views of the area and of the tallest and the widest falls, from the front and from the side, to
+ * {@code build/run/clientGameTest/screenshots}.
+ * The highest fall of the rivers near the spawn, where one steps down, is checked and viewed the same way.
  *
  * <p>Needs the Terrain Diffusion models, like {@link WorldGenerationGameTest}.
  */
@@ -45,7 +50,7 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 	private static final WorldScale SIZE = WorldScale.ULTRA;
 	private static final int TICKS_PER_MINUTE = 20 * 60;
 	private static final int RENDER_DISTANCE = 12;
-	/** How far from the spawn steep, wet land is looked for, and the blocks between the samples. */
+	/** How far from the spawn steep, wet land over water is looked for, and the blocks between the samples. */
 	private static final int SEARCH = 4096;
 	private static final int STRIDE = 128;
 	/** How far out from a sample its ground is compared, and how far apart the areas visited lie. */
@@ -55,6 +60,14 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 	/** Chunks to each side of an area's middle that are searched for falls. */
 	private static final int SCAN = 8;
 	private static final int MIN_FALL = 8;
+	/** The blocks between the first samples of the rivers searched for a fall, as far out as the areas. */
+	private static final int RIVER_STRIDE = 4;
+	/**
+	 * Where else to search the rivers for a fall, {@code -Pdiffusicraft.riverFallsAt=x,z}, as far as {@value #NEAR}
+	 * blocks around: at 1:1 the rivers lie tens of kilometres apart, and the spawn of the test's world has none near.
+	 */
+	private static final @Nullable String RIVER_FALLS_AT = System.getProperty("diffusicraft.riverFallsAt");
+	private static final int NEAR = 256;
 	private static final int[] DX = {1, 0, -1, 0};
 	private static final int[] DZ = {0, 1, 0, -1};
 
@@ -62,7 +75,7 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 	record Falls(BlockPos spill, int dx, int dz, int height, boolean pool) {
 	}
 
-	/** A sample of steep, wet land. */
+	/** A sample of steep, wet land over water. */
 	private record Area(BlockPos at, double score, float rain, int relief) {
 	}
 
@@ -99,9 +112,11 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 				}
 			});
 
+			checkRiverFall(context, world, probe);
 			List<Area> areas = findAreas(probe);
 			if (areas.isEmpty()) {
-				LOGGER.warn("No steep, wet land within {} blocks of the spawn {}; nothing to check", SEARCH, probe.spawn());
+				LOGGER.warn("No steep, wet land over water within {} blocks of the spawn {}; nothing to check", SEARCH,
+					probe.spawn());
 				return;
 			}
 			TerrainSurface surface = probe.field().surface(SIZE);
@@ -136,17 +151,123 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 				LOGGER.info("The falls at {} hold their water after the chunks have ticked", tallest.spill);
 				return;
 			}
-			throw new AssertionError("No waterfall in the " + areas.size() + " steepest, wettest areas near the spawn");
+			throw new AssertionError("No waterfall in the " + areas.size()
+				+ " steepest, wettest areas over water near the spawn");
 		}
 	}
 
 	/**
-	 * The steepest, wettest points within {@value #SEARCH} blocks of the spawn, at least {@value #APART} blocks apart:
-	 * the ground's greatest fall within {@value #REACH} blocks, weighted by how much of the waterfalls' full chance the
-	 * rain gives.
+	 * Finds the highest fall of the rivers near the spawn, or near {@link #RIVER_FALLS_AT}, views it and checks that
+	 * its curtain stands, from the river's water above the step down to the river below, and that it holds while the
+	 * chunks tick.
+	 */
+	private static void checkRiverFall(ClientGameTestContext context, TestSingleplayerContext world,
+									   WorldGenerationGameTest.Probe probe) {
+		BlockPos center = probe.spawn();
+		int reach = SEARCH;
+		if (RIVER_FALLS_AT != null) {
+			String[] at = RIVER_FALLS_AT.split(",");
+			center = new BlockPos(Integer.parseInt(at[0].trim()), 0, Integer.parseInt(at[1].trim()));
+			reach = NEAR;
+		}
+		Falls highest = findRiverFall(Rivers.of(probe.field()), center, reach);
+		if (highest == null) {
+			LOGGER.warn("No river falls {} blocks or more within {} blocks of {}", MIN_FALL + 1, reach, center);
+			return;
+		}
+		LOGGER.info("The highest river falls: {} blocks at {}", highest.height + 1, highest.spill);
+		showFalls(context, world, highest, "river-fall");
+		Falls found = world.getServer().computeOnServer(server -> fallsAt(server.overworld(), highest.spill));
+		if (found == null) {
+			throw new AssertionError("No curtain over the river's step at " + highest.spill);
+		}
+		List<Falls> beside = world.getServer().computeOnServer(server ->
+			findFalls(server.overworld(), ChunkPos.containing(highest.spill), 1));
+		Curtain curtain = curtains(beside).stream().filter(c -> c.middle.dx == found.dx && c.middle.dz == found.dz)
+			.max(Comparator.comparingInt(Curtain::width)).orElseThrow();
+		LOGGER.info("The river falls at {} are {} blocks high and {} wide", found.spill, found.height + 1,
+			curtain.width);
+		String problem = world.getServer().computeOnServer(server -> checkHolds(server.overworld(), found));
+		if (problem != null) {
+			throw new AssertionError(problem);
+		}
+	}
+
+	/**
+	 * The highest fall of the rivers within {@code reach} blocks of {@code center}, from the rivers' own
+	 * columns, or {@code null}: the column of a channel whose water stands more than {@value #MIN_FALL} blocks below
+	 * the water of a channel beside it, and spills from there. The channels are sampled every {@value #RIVER_STRIDE}
+	 * blocks, and every block between two samples whose water lies that far apart. Logs how far the water of the
+	 * samples next to each other along the channels lies apart.
+	 */
+	private static @Nullable Falls findRiverFall(Rivers rivers, BlockPos center, int reach) {
+		int n = 2 * reach / RIVER_STRIDE + 1;
+		int x0 = center.getX() - reach, z0 = center.getZ() - reach;
+		int[] coarse = water(rivers, x0, z0, RIVER_STRIDE, n, n);
+		// Pairs of samples whose water lies 0, 1, 2 to 5, 6 to 8 and 9 or more blocks apart.
+		int[] steps = new int[5];
+		Falls best = null;
+		for (int a = 0; a < n; a++) {
+			for (int b = 0; b < n; b++) {
+				for (int d = 0; d < 2; d++) {
+					int a2 = a + DZ[d], b2 = b + DX[d];
+					if (a2 >= n || b2 >= n || coarse[a * n + b] == Integer.MIN_VALUE
+						|| coarse[a2 * n + b2] == Integer.MIN_VALUE) {
+						continue;
+					}
+					int apart = Math.abs(coarse[a * n + b] - coarse[a2 * n + b2]);
+					steps[apart == 0 ? 0 : apart == 1 ? 1 : apart <= 5 ? 2 : apart <= MIN_FALL ? 3 : 4]++;
+					if (apart <= MIN_FALL) {
+						continue;
+					}
+					// The blocks between the two samples, and a few around.
+					int side = RIVER_STRIDE + 8, fx = x0 + b * RIVER_STRIDE - 4, fz = z0 + a * RIVER_STRIDE - 4;
+					int[] fine = water(rivers, fx, fz, 1, side, side);
+					for (int i = 1; i < side - 1; i++) {
+						for (int j = 1; j < side - 1; j++) {
+							int own = fine[i * side + j];
+							for (int k = 0; k < 4 && own != Integer.MIN_VALUE; k++) {
+								int up = fine[(i + DZ[k]) * side + j + DX[k]];
+								if (up != Integer.MIN_VALUE && up - own > MIN_FALL
+									&& (best == null || up - own - 1 > best.height)) {
+									// It spills at the top of the column below the step, away from the one above.
+									best = new Falls(new BlockPos(fx + j, up, fz + i), -DX[k], -DZ[k], up - own - 1,
+										false);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		LOGGER.info("River channels around {}: samples {} blocks apart whose water lies 0, 1, 2-5, 6-{} and more "
+			+ "blocks apart: {}; the highest falls: {}", center, RIVER_STRIDE, MIN_FALL, Arrays.toString(steps), best);
+		return best;
+	}
+
+	/**
+	 * The highest water block of the river channels, not the lakes, on a grid of {@code w} by {@code h} columns
+	 * {@code stride} blocks apart from {@code (x0, z0)}, row by row, or {@link Integer#MIN_VALUE} where none runs.
+	 */
+	private static int[] water(Rivers rivers, int x0, int z0, int stride, int w, int h) {
+		int[] water = new int[w * h];
+		for (int i = 0; i < h; i++) {
+			for (int j = 0; j < w; j++) {
+				RiverColumn column = rivers.column(SIZE, x0 + j * stride, z0 + i * stride);
+				water[i * w + j] = column.channel && !column.lake ? column.waterTop : Integer.MIN_VALUE;
+			}
+		}
+		return water;
+	}
+
+	/**
+	 * The steepest, wettest points over water within {@value #SEARCH} blocks of the spawn, at least {@value #APART}
+	 * blocks apart, as the waterfalls fall only into water: the ground's greatest height over the sea or a river
+	 * {@value #REACH} blocks away, weighted by how much of the waterfalls' full chance the rain gives.
 	 */
 	private static List<Area> findAreas(WorldGenerationGameTest.Probe probe) {
 		TerrainSurface surface = probe.field().surface(SIZE);
+		Rivers rivers = Rivers.of(probe.field());
 		List<Area> samples = new ArrayList<>();
 		for (int dz = -SEARCH; dz <= SEARCH; dz += STRIDE) {
 			for (int dx = -SEARCH; dx <= SEARCH; dx += STRIDE) {
@@ -159,7 +280,12 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 				float y = surface.y(x, z);
 				int relief = 0;
 				for (int d = 0; d < 4; d++) {
-					relief = Math.max(relief, (int) (y - surface.y(x + REACH * DX[d], z + REACH * DZ[d])));
+					int fx = x + REACH * DX[d], fz = z + REACH * DZ[d];
+					RiverColumn column = rivers.column(SIZE, fx, fz);
+					if (column.channel || surface.y(fx, fz) < SIZE.seaLevel()) {
+						int water = column.channel ? column.waterTop : SIZE.seaLevel() - 1;
+						relief = Math.max(relief, (int) (y - water));
+					}
 				}
 				if (y > SIZE.seaLevel() && relief >= REACH) {
 					samples.add(new Area(new BlockPos(x, 0, z), relief * wet, rain, relief));

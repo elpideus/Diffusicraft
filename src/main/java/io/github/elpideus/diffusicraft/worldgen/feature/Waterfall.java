@@ -8,18 +8,17 @@ import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Where a waterfall goes over a steep face in a chunk, block by block, worked out from the heights of the ground alone.
- * {@link WaterfallFeature} places it.
+ * Where a waterfall goes over a cliff in a chunk into the water at its foot, block by block, worked out from the
+ * heights of the ground and the water alone. {@link WaterfallFeature} places it.
  *
- * <p>A stream runs a few blocks over level ground to the edge of a face, sunk into the ground so that its banks hold
- * it, and spills over: up to {@value #WIDEST} blocks wide in the wettest land of a 1:1 world, and narrower in a smaller
- * world or a drier land ({@link #widest}). The face falls at least one and a half blocks for every block out, and
- * seldom sheer: where it slopes, the falls have cut a gorge back into it, a block wider than they are on either side,
- * whose floor lies level with the foot of the face, so that they drop straight down its head. They land in a plunge
- * pool they dig, or in the sea or a lake. The face must have land behind its edge that does not fall away, as the step
- * of a valley or a bench has, so no stream springs from a crest. The ground around the stream and the pool must hold
- * their water on every side, as the game's water spreads into any open block beside it, and no ground is cut away
- * from water beside it.
+ * <p>A stream runs a few blocks over level ground to the edge of a sheer cliff, sunk into the ground so that its banks
+ * hold it, and spills over: up to {@value #WIDEST} blocks wide in the wettest land of a 1:1 world, and narrower in a
+ * smaller world or a drier land ({@link #widest}). It falls straight down into water, the sea, a lake or a river, which
+ * carries it on. A cliff over dry ground takes none, nor does a face that slopes: the falls would end on the ground,
+ * or have to cut a gorge into the face. The rivers fall where they run steeply on their own. The cliff must have land
+ * behind its edge that does not fall away, as the step of a valley or a bench has, so no stream springs from a crest.
+ * The ground around the stream must hold its water on every side, as the game's water spreads into any open block
+ * beside it, and no ground is cut away from water beside it.
  *
  * <p>Everything lies within a few blocks of the chunk, in the 3×3 chunks a feature may write to. Pure, so it is
  * unit-tested without a world.
@@ -34,10 +33,11 @@ final class Waterfall {
 	 * the highest drop often takes a fall only a block or two wide, while a level edge beside it takes a wide one.
 	 */
 	private static final int CANDIDATES = 8;
-	/** Most blocks of ground cut away over the stream and the pool, to keep them level. */
-	static final int CUT = 3;
-	/** Longest gorge, from the edge to the foot of the face, in blocks. */
-	static final int MAX_RUN = 12;
+	/**
+	 * Most blocks of ground cut away over the stream, to keep it level: a block, so that the stream runs where the
+	 * ground is level already rather than in a notch cut into it.
+	 */
+	static final int CUT = 1;
 	/** Widest waterfall, in blocks, in the wettest land of a 1:1 world. */
 	static final int WIDEST = 12;
 	/**
@@ -45,10 +45,7 @@ final class Waterfall {
 	 * width, so that at 1:32 it is 3 blocks wide.
 	 */
 	private static final double NARROW = 0.4;
-	/**
-	 * How far outside the chunk a lip may lie, in blocks, so that the pool under it and the ground beside the pool lie
-	 * within the 3×3 chunks a feature may write to.
-	 */
+	/** How far outside the chunk a lip may lie, in blocks, so that its stream lies within the 3×3 chunks. */
 	private static final int REACH = 11;
 	/** Longest stream behind the edge, in blocks. */
 	static final int MAX_STREAM = 6;
@@ -66,28 +63,24 @@ final class Waterfall {
 		int water(int x, int z);
 	}
 
-	/** Water sources: the stream and the plunge pool. */
+	/** Water sources: the stream. */
 	final LongArrayList sources = new LongArrayList();
-	/** Ground cut away over the stream, the gorge and the pool. */
+	/** Ground cut away over the stream. */
 	final LongArrayList cut = new LongArrayList();
 	/** The water spilling over the edge, a block out from it. */
 	final LongArrayList spilling = new LongArrayList();
-	/** The falling water, from under the spill to the foot. */
+	/** The falling water, from under the spill down to the water below. */
 	final LongArrayList falling = new LongArrayList();
 	/** Where the water runs on once the chunk ticks: each lip of the stream, and the foot of each fall. */
 	final LongArrayList ticks = new LongArrayList();
 	/** The level of the stream, on the edge's ground. */
 	int y;
-	/** How far the gorge runs back from the foot of the face to the falls, in blocks: 0 under a sheer cliff. */
-	int gorge;
-	/** How far the water falls to the foot, the pool or the water below, in blocks. */
+	/** How far the water falls to the water below, in blocks. */
 	int drop;
 	/** How many blocks wide it falls. */
 	int width;
 	/** The middle of the edge. */
 	BlockPos lip;
-	/** Whether it falls into a pool of its own. */
-	boolean pool;
 	/** The lowest block of the chunk. */
 	private final int x0, z0;
 
@@ -111,8 +104,7 @@ final class Waterfall {
 	 * drops take, it is the one whose curtain of water is the largest, as wide times as tall.
 	 */
 	static @Nullable Waterfall plan(Ground ground, int x0, int z0, int minDrop, int maxWidth, RandomSource random) {
-		int[] xs = new int[ATTEMPTS], zs = new int[ATTEMPTS], dirs = new int[ATTEMPTS], runs = new int[ATTEMPTS];
-		int[] scores = new int[ATTEMPTS];
+		int[] xs = new int[ATTEMPTS], zs = new int[ATTEMPTS], dirs = new int[ATTEMPTS], drops = new int[ATTEMPTS];
 		int found = 0;
 		for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
 			int x = x0 + random.nextInt(16), z = z0 + random.nextInt(16);
@@ -120,39 +112,35 @@ final class Waterfall {
 				continue;
 			}
 			int top = ground.top(x, z);
-			int best = Integer.MIN_VALUE, dir = -1, run = 0;
+			int best = minDrop - 1, dir = -1;
 			for (int d = 0; d < 4; d++) {
-				int foot = face(ground, x, z, d, top, minDrop);
-				int score = foot > 0 ? score(top - level(ground, x + foot * DX[d], z + foot * DZ[d]), foot) : best;
-				if (score > best) {
-					best = score;
+				int water = ground.water(x + DX[d], z + DZ[d]);
+				if (water != DRY && top - water > best) {
+					best = top - water;
 					dir = d;
-					run = foot;
 				}
 			}
 			if (dir < 0) {
 				continue;
 			}
-			// Sorted best first.
+			// Sorted highest first.
 			int at = found++;
-			while (at > 0 && scores[at - 1] < best) {
+			while (at > 0 && drops[at - 1] < best) {
 				xs[at] = xs[at - 1];
 				zs[at] = zs[at - 1];
 				dirs[at] = dirs[at - 1];
-				runs[at] = runs[at - 1];
-				scores[at] = scores[at - 1];
+				drops[at] = drops[at - 1];
 				at--;
 			}
 			xs[at] = x;
 			zs[at] = z;
 			dirs[at] = dir;
-			runs[at] = run;
-			scores[at] = best;
+			drops[at] = best;
 		}
 		Waterfall best = null;
 		for (int k = 0; k < Math.min(found, CANDIDATES); k++) {
 			Waterfall fall = new Waterfall(x0, z0);
-			if (fall.build(ground, xs[k], zs[k], dirs[k], runs[k], minDrop, Math.clamp(maxWidth, 1, WIDEST), random)
+			if (fall.build(ground, xs[k], zs[k], dirs[k], minDrop, Math.clamp(maxWidth, 1, WIDEST), random)
 				&& (best == null || fall.width * fall.drop > best.width * best.drop)) {
 				best = fall;
 			}
@@ -161,55 +149,11 @@ final class Waterfall {
 	}
 
 	/**
-	 * How many blocks out from {@code (x, z)} towards {@code dir} the foot of the face below it lies, or 0 if there is
-	 * none: the column of the best {@linkplain #score score} with a drop of at least {@code minDrop}, down a face that
-	 * falls from the first block out, falls at least one and a half blocks for every block out, never rises, and ends
-	 * at water.
+	 * Lays out a waterfall from the edge at {@code (x, z)}, falling towards {@code dir} into the water a block out, a
+	 * third as wide as {@code maxWidth} to as wide; false if it cannot hold.
 	 */
-	private static int face(Ground ground, int x, int z, int dir, int top, int minDrop) {
-		int foot = 0, best = Integer.MIN_VALUE, prev = top;
-		for (int out = 1; out <= MAX_RUN; out++) {
-			int cx = x + out * DX[dir], cz = z + out * DZ[dir];
-			int level = level(ground, cx, cz);
-			if (level > prev || level == top) {
-				break;
-			}
-			int drop = top - level;
-			if (drop >= minDrop && 2 * drop >= 3 * out && score(drop, out) > best) {
-				best = score(drop, out);
-				foot = out;
-			}
-			if (ground.water(cx, cz) != DRY) {
-				break;
-			}
-			prev = level;
-		}
-		return foot;
-	}
-
-	/**
-	 * How good a fall of {@code drop} blocks at the head of a gorge {@code run} blocks long is: the higher the better,
-	 * and the shorter the gorge, so that a fall stands at the edge of a face rather than back from it, where a bench
-	 * lies level with the edge.
-	 */
-	private static int score(int drop, int run) {
-		return 2 * drop - run;
-	}
-
-	/** The height of the ground or of the water over it. */
-	private static int level(Ground ground, int x, int z) {
-		return Math.max(ground.top(x, z), ground.water(x, z));
-	}
-
-	/**
-	 * Lays out a waterfall from the edge at {@code (x, z)}, falling towards {@code dir} down a face whose foot lies
-	 * {@code run} blocks out, a third as wide as {@code maxWidth} to as wide; false if it cannot hold.
-	 */
-	private boolean build(Ground ground, int x, int z, int dir, int run, int minDrop, int maxWidth,
-						  RandomSource random) {
+	private boolean build(Ground ground, int x, int z, int dir, int minDrop, int maxWidth, RandomSource random) {
 		y = ground.top(x, z);
-		gorge = run - 1;
-		int foot = level(ground, x + run * DX[dir], z + run * DZ[dir]);
 		int dx = DX[dir], dz = DZ[dir];
 		// Along the edge.
 		int px = -dz, pz = dx;
@@ -226,11 +170,11 @@ final class Waterfall {
 		boolean up = true, down = true;
 		while (hi - lo + 1 < want && (up || down)) {
 			if (up) {
-				up = lip(ground, x + (hi + 1) * px, z + (hi + 1) * pz, dx, dz, minDrop, foot);
+				up = lip(ground, x + (hi + 1) * px, z + (hi + 1) * pz, dx, dz, minDrop);
 				hi += up ? 1 : 0;
 			}
 			if (down && hi - lo + 1 < want) {
-				down = lip(ground, x + (lo - 1) * px, z + (lo - 1) * pz, dx, dz, minDrop, foot);
+				down = lip(ground, x + (lo - 1) * px, z + (lo - 1) * pz, dx, dz, minDrop);
 				lo -= down ? 1 : 0;
 			}
 		}
@@ -273,92 +217,34 @@ final class Waterfall {
 			}
 		}
 
-		// The gorge, from the falls out to the foot of the face, a block wider than they are on either side where the
-		// ground lets it be.
-		LongOpenHashSet gorged = new LongOpenHashSet();
-		if (gorge > 0) {
-			if (!gorgeLine(ground, x, z, dx, dz, foot)) {
-				return false;
-			}
-			int from = gorgeLine(ground, x + (lo - 1) * px, z + (lo - 1) * pz, dx, dz, foot) ? lo - 1 : lo;
-			int to = gorgeLine(ground, x + (hi + 1) * px, z + (hi + 1) * pz, dx, dz, foot) ? hi + 1 : hi;
-			for (int j = from; j <= to; j++) {
-				for (int out = 1; out <= gorge; out++) {
-					int cx = x + out * dx + j * px, cz = z + out * dz + j * pz;
-					gorged.add(BlockPos.asLong(cx, 0, cz));
-					for (int cy = foot + 1; cy <= ground.top(cx, cz); cy++) {
-						cut.add(BlockPos.asLong(cx, cy, cz));
-					}
-				}
-			}
-		}
-		Ground carved = gorged.isEmpty() ? ground : new Carved(ground, gorged, foot);
-
-		// The pool at the foot of the falls, where every one of them lands on dry ground.
+		// The falls, from a block out from each lip down to the water.
 		int landing = Integer.MAX_VALUE;
-		boolean dry = true;
 		for (int j = lo; j <= hi; j++) {
 			int ox = x + dx + j * px, oz = z + dz + j * pz;
-			dry &= carved.water(ox, oz) == DRY;
-			landing = Math.min(landing, level(carved, ox, oz));
-		}
-		drop = y - landing;
-		LongOpenHashSet basin = dry ? basin(carved, x + dx, z + dz, lo, hi, px, pz, landing, drop) : null;
-		pool = basin != null;
-		if (pool) {
-			int depth = drop >= 30 ? 3 : 2;
-			for (long column : basin) {
-				int cx = BlockPos.getX(column), cz = BlockPos.getZ(column);
-				for (int cy = landing - depth + 1; cy <= landing; cy++) {
-					sources.add(BlockPos.asLong(cx, cy, cz));
-				}
-				for (int cy = landing + 1; cy <= carved.top(cx, cz); cy++) {
-					cut.add(BlockPos.asLong(cx, cy, cz));
-				}
-			}
-		}
-
-		// The falls, from a block out from each lip down to the pool, the water or the ground.
-		for (int j = lo; j <= hi; j++) {
-			int ox = x + dx + j * px, oz = z + dz + j * pz;
-			int bottom = (pool ? landing : level(carved, ox, oz)) + 1;
+			int water = ground.water(ox, oz);
+			landing = Math.min(landing, water);
 			spilling.add(BlockPos.asLong(ox, y, oz));
-			for (int cy = y - 1; cy >= bottom; cy--) {
+			for (int cy = y - 1; cy > water; cy--) {
 				falling.add(BlockPos.asLong(ox, cy, oz));
 			}
 			ticks.add(BlockPos.asLong(x + j * px, y, z + j * pz));
-			ticks.add(BlockPos.asLong(ox, bottom, oz));
+			ticks.add(BlockPos.asLong(ox, water + 1, oz));
 		}
+		drop = y - landing;
 		return drop >= minDrop && !opensOntoWater(ground);
 	}
 
 	/**
 	 * Whether a column beside the middle lip makes a lip too: no farther than {@value #REACH} blocks out of the chunk,
-	 * level with the middle lip and dry, over a drop of its own or a line of the gorge.
+	 * level with the middle lip and dry, over water well below it.
 	 */
-	private boolean lip(Ground ground, int x, int z, int dx, int dz, int minDrop, int foot) {
+	private boolean lip(Ground ground, int x, int z, int dx, int dz, int minDrop) {
 		if (x < x0 - REACH || x > x0 + 15 + REACH || z < z0 - REACH || z > z0 + 15 + REACH) {
 			return false;
 		}
-		int top = ground.top(x, z);
-		return top >= y && top <= y + CUT && ground.water(x, z) == DRY && (gorge > 0
-			? gorgeLine(ground, x, z, dx, dz, foot)
-			: level(ground, x + dx, z + dz) <= y - Math.max(2, minDrop / 2));
-	}
-
-	/**
-	 * Whether the columns out from {@code (x, z)} make a line of the gorge: dry, none of them much higher than the
-	 * stream, and none lower than its floor next to the falls, where the pool goes.
-	 */
-	private boolean gorgeLine(Ground ground, int x, int z, int dx, int dz, int foot) {
-		for (int out = 1; out <= gorge; out++) {
-			int cx = x + out * dx, cz = z + out * dz;
-			int top = ground.top(cx, cz);
-			if (ground.water(cx, cz) != DRY || top > y + CUT || out == 1 && top < foot) {
-				return false;
-			}
-		}
-		return true;
+		int top = ground.top(x, z), water = ground.water(x + dx, z + dz);
+		return top >= y && top <= y + CUT && ground.water(x, z) == DRY && water != DRY
+			&& water <= y - Math.max(2, minDrop / 2);
 	}
 
 	/** Whether any ground cut away has water beside it above the cut's floor, which would pour in. */
@@ -374,20 +260,6 @@ final class Waterfall {
 			}
 		}
 		return false;
-	}
-
-	/** The ground with the gorge cut into it: no column of it higher than its floor. */
-	private record Carved(Ground ground, LongOpenHashSet gorge, int floor) implements Ground {
-		@Override
-		public int top(int x, int z) {
-			int top = ground.top(x, z);
-			return gorge.contains(BlockPos.asLong(x, 0, z)) ? Math.min(top, floor) : top;
-		}
-
-		@Override
-		public int water(int x, int z) {
-			return ground.water(x, z);
-		}
 	}
 
 	/** Whether a row of the stream lies level with the lips, dry, between banks that hold it. */
@@ -412,58 +284,5 @@ final class Waterfall {
 			}
 		}
 		return true;
-	}
-
-	/**
-	 * The columns of a plunge pool at the foot of the falls, whose water stands at {@code foot}, or {@code null} if
-	 * the ground there cannot hold one under every fall. It starts as a disc around the falls, wider under a higher
-	 * one, of ground no lower than the water and not much higher, and loses every column the ground beside would let
-	 * the water out of.
-	 */
-	private static @Nullable LongOpenHashSet basin(Ground ground, int x, int z, int lo, int hi, int px, int pz,
-												   int foot, int drop) {
-		int radius = 2 + Math.min(2, drop / 20);
-		LongOpenHashSet basin = new LongOpenHashSet();
-		for (int j = lo; j <= hi; j++) {
-			int fx = x + j * px, fz = z + j * pz;
-			for (int dz = -radius; dz <= radius; dz++) {
-				for (int dx = -radius; dx <= radius; dx++) {
-					int cx = fx + dx, cz = fz + dz;
-					int top = ground.top(cx, cz);
-					if (dx * dx + dz * dz <= radius * radius + radius && top >= foot && top <= foot + CUT
-						&& ground.water(cx, cz) == DRY) {
-						basin.add(BlockPos.asLong(cx, 0, cz));
-					}
-				}
-			}
-		}
-		LongArrayList leaking = new LongArrayList();
-		do {
-			leaking.clear();
-			for (long column : basin) {
-				if (leaks(ground, basin, column, foot)) {
-					leaking.add(column);
-				}
-			}
-			basin.removeAll(leaking);
-		} while (!leaking.isEmpty());
-		for (int j = lo; j <= hi; j++) {
-			if (!basin.contains(BlockPos.asLong(x + j * px, 0, z + j * pz))) {
-				return null;
-			}
-		}
-		return basin;
-	}
-
-	/** Whether water standing at {@code foot} in a column of the basin would run out through a column beside it. */
-	private static boolean leaks(Ground ground, LongOpenHashSet basin, long column, int foot) {
-		int x = BlockPos.getX(column), z = BlockPos.getZ(column);
-		for (int d = 0; d < 4; d++) {
-			if (!basin.contains(BlockPos.asLong(x + DX[d], 0, z + DZ[d]))
-				&& level(ground, x + DX[d], z + DZ[d]) < foot) {
-				return true;
-			}
-		}
-		return false;
 	}
 }

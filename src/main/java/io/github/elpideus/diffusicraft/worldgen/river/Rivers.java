@@ -42,6 +42,12 @@ public final class Rivers {
 	 * run along the foot of the bank as a second stream.
 	 */
 	private static final int HOLD = 2;
+	/**
+	 * Blocks beside the water of a fall that drop sheer with it, as its lip. Past them, the banks slope from the upper
+	 * level down to the lower one along the river, as far again as they lie from the lip, so that the fall stands in a
+	 * notch that opens out, not in a wall across the valley.
+	 */
+	private static final float FALL_LIP = 3f;
 	/** Columns a thread keeps for the chunk it is generating, with a border of {@link #HOLD} blocks. */
 	private static final int SPAN = 16 + 2 * HOLD;
 
@@ -185,7 +191,8 @@ public final class Rivers {
 			out.bandBottom = Math.min(terrain, out.bed) - FOOTING;
 			return;
 		}
-		float bank = Math.clamp(BANK_RUN * Math.abs(terrain - top) + 2f, 2f, Math.max(2f, reach - 0.5f));
+		float foot = (float) Math.ceil(scale.surfaceY(bankLevel(hit, distance - halfWidth, blocksPerPixel)));
+		float bank = Math.clamp(BANK_RUN * Math.abs(terrain - foot) + 2f, 2f, Math.max(2f, reach - 0.5f));
 		float t = (distance - halfWidth) / bank;
 		if (t >= 1f) {
 			shore(scale, terrain, shore, out);
@@ -193,8 +200,25 @@ public final class Rivers {
 		}
 		float blend = t * t * (3f - 2f * t);
 		out.river = true;
-		out.surface = top + (terrain - top) * blend;
+		out.surface = foot + (terrain - foot) * blend;
 		out.bandBottom = Math.min(terrain, out.surface) - FOOTING;
+	}
+
+	/**
+	 * The level a bank {@code edge} blocks from the water slopes from: the river's own, but beside a fall, past its lip,
+	 * one that runs smoothly from the fall's upper level down to its lower along the river.
+	 */
+	private static float bankLevel(CellRivers.Hit hit, float edge, float blocksPerPixel) {
+		if (Float.isNaN(hit.fallAlong)) {
+			return hit.level;
+		}
+		float fan = Math.min(edge - FALL_LIP, hit.fallFan * blocksPerPixel), along = hit.fallAlong * blocksPerPixel;
+		if (fan <= 0f || Math.abs(along) >= fan) {
+			return hit.level;
+		}
+		float t = along / fan, middle = (hit.fallTop + hit.fallBottom) / 2f, half = (hit.fallTop - hit.fallBottom) / 2f;
+		float smooth = middle - half * t * (1.5f - 0.5f * t * t);
+		return hit.level + smooth - (hit.aboveFall ? hit.fallTop : hit.fallBottom);
 	}
 
 	/**

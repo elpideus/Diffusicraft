@@ -24,12 +24,19 @@ import java.util.List;
  * ({@link BlockLakes}) the same way, but only for their level: their paths follow the tile alone, so that a block can
  * draw the rivers of its tiles, which decide its lakes, without the lakes of the other blocks.
  *
+ * <p>Where a river runs steeply, it falls in steps ({@link Builder#falls}): it gathers the drop of a stretch into one
+ * fall and runs level on either side of it, held up above its course before the fall and sunk below it after, so that
+ * it neither cuts a trench down the slope nor stands far above it. Its banks slope along the river from the upper
+ * level down to the lower beside each fall ({@link Hit#fallAlong}), not in a wall across the valley. Some steep
+ * stretches run down in rapids instead, so that the falls come unevenly. The stretches never take in the ends of a path, where tiles meet, nor a river
+ * joining another or crossing a lake.
+ *
  * <p>Paths stay in the interior band, {@value #LO} pixels from the sides, and nothing reaches farther than
  * {@value #REACH} pixels from a river's water, which lies at most {@link Rivers#MAX_HALF_WIDTH} pixels from its path,
  * so every column of the tile is decided by this tile alone.
  */
 final class CellRivers {
-	static final CellRivers EMPTY = new CellRivers(new float[0], 0, new int[0][]);
+	static final CellRivers EMPTY = new CellRivers(new float[0], 0, new int[0][], new float[0]);
 
 	private static final int TILE = TerrainField.TILE;
 	private static final int PAD = TerrainField.PAD;
@@ -78,13 +85,42 @@ final class CellRivers {
 	private static final float POND_METERS = 25f;
 	private static final float MAX_POND_METERS = 300f;
 	private static final float SQRT2 = (float) Math.sqrt(2.0);
+	/**
+	 * Least slope of a stretch of river that falls, meters per pixel, and the least of every pixel of it, as a part of
+	 * that: a stretch that runs level for a pixel, as across a lake, does not fall.
+	 */
+	static final float FALL_SLOPE = 2.5f;
+	private static final float FALL_STEADY = 0.25f;
+	/** Lowest and highest fall, meters. */
+	static final float FALL_MIN = 6f;
+	static final float FALL_MAX = 30f;
+	/**
+	 * How far down a stretch's drop its fall stands: the river is held up above its course before the fall by this
+	 * part of the drop at most, and sunk below it after by the rest.
+	 */
+	static final float FALL_SPLIT = 0.6f;
+	/** Shortest and longest stretch whose drop one fall takes, pixels. */
+	private static final float FALL_SHORTEST = 3f;
+	private static final float FALL_LONGEST = 8f;
+	/** How far falls keep from the ends of a path, pixels. */
+	private static final float FALL_MARGIN = 4f;
+	/** Part of the stretches steep enough to fall that run down in rapids instead, so that falls do not come evenly. */
+	private static final float FALL_RAPIDS = 0.3f;
+	private static final long FALL_SALT = 0x66616C6C73L;
+	/** Farthest along the river the banks beside a fall slope from its upper level down to its lower, pixels. */
+	private static final float FALL_FAN = 4f;
 
-	// Per segment: ai, aj, bi, bj, level a, level b, discharge a, discharge b, ground a, ground b, pond radius (px).
-	private static final int STRIDE = 11;
+	// Per segment: ai, aj, bi, bj, level a, level b, discharge a, discharge b, ground a, ground b, pond radius (px),
+	// and the fall it lies beside: its number plus one, negative where the segment lies below it, or 0.
+	private static final int STRIDE = 12;
+	// Per fall: i, j of its lip, the way the river runs there (a unit vector), its upper and lower level, and how far
+	// along the river its banks slope (px).
+	private static final int FALL_STRIDE = 7;
 
 	private final float[] segments;
 	private final int count;
 	private final int[][] buckets;
+	private final float[] falls;
 
 	/** How wide a river of some discharge is, in pixels, at the world scale being generated. */
 	interface Width {
@@ -102,12 +138,24 @@ final class CellRivers {
 		float discharge;
 		/** Ground height under the centre line before any carving, meters. */
 		float ground;
+		/**
+		 * How far downstream of the lip of the fall the river runs beside the point lies, pixels along the way the river
+		 * runs there, or NaN where it runs beside none.
+		 */
+		float fallAlong;
+		/** The fall's upper and lower water level, meters, and how far along the river its banks slope, pixels. */
+		float fallTop;
+		float fallBottom;
+		float fallFan;
+		/** Whether the river runs beside the point above the fall, at its upper level, or below it. */
+		boolean aboveFall;
 	}
 
-	private CellRivers(float[] segments, int count, int[][] buckets) {
+	private CellRivers(float[] segments, int count, int[][] buckets, float[] falls) {
 		this.segments = segments;
 		this.count = count;
 		this.buckets = buckets;
+		this.falls = falls;
 	}
 
 	boolean isEmpty() {
@@ -116,6 +164,16 @@ final class CellRivers {
 
 	int segmentCount() {
 		return count;
+	}
+
+	int fallCount() {
+		return falls.length / FALL_STRIDE;
+	}
+
+	/** The tile-local pixel of the lip of fall {@code f}, and its upper and lower water level, meters. */
+	float[] fall(int f) {
+		int o = f * FALL_STRIDE;
+		return new float[]{falls[o], falls[o + 1], falls[o + 4], falls[o + 5]};
 	}
 
 	/**
@@ -132,6 +190,7 @@ final class CellRivers {
 		}
 		float[] s = segments;
 		double best = Double.POSITIVE_INFINITY;
+		int fall = 0;
 		for (int index : list) {
 			int o = index * STRIDE;
 			double ai = s[o], aj = s[o + 1], di = s[o + 2] - ai, dj = s[o + 3] - aj;
@@ -153,7 +212,18 @@ final class CellRivers {
 				hit.level = s[o + 4] + (s[o + 5] - s[o + 4]) * ft;
 				hit.discharge = discharge;
 				hit.ground = s[o + 8] + (s[o + 9] - s[o + 8]) * ft;
+				fall = (int) s[o + 11];
 			}
+		}
+		if (fall == 0) {
+			hit.fallAlong = Float.NaN;
+		} else {
+			int f = (Math.abs(fall) - 1) * FALL_STRIDE;
+			hit.fallAlong = (float) ((u - falls[f]) * falls[f + 2] + (v - falls[f + 1]) * falls[f + 3]);
+			hit.fallTop = falls[f + 4];
+			hit.fallBottom = falls[f + 5];
+			hit.fallFan = falls[f + 6];
+			hit.aboveFall = fall > 0;
 		}
 		return best < REACH;
 	}
@@ -244,9 +314,13 @@ final class CellRivers {
 		private final float[] discharge = new float[BAND * BAND];
 		private final float[] extra = new float[BAND * BAND];
 		private final boolean[] drawn = new boolean[BAND * BAND];
+		/** How many paths run through each pixel, which grows where one river joins another. */
+		private final int[] through = new int[BAND * BAND];
 		private final float[] pathLevel;
 		private float[] out = new float[STRIDE * 64];
 		private int count;
+		private float[] fallsOut = new float[FALL_STRIDE * 8];
+		private int fallCount;
 
 		Builder(float[] tile, CellBasins basins, CellFlows flows, long seed, int ti, int tj, float[] pathLevel) {
 			this.tile = tile;
@@ -326,7 +400,8 @@ final class CellRivers {
 			for (int target = 3; target >= CellFlows.SINK; target--) {
 				route(target);
 			}
-			return new CellRivers(Arrays.copyOf(out, count * STRIDE), count, index());
+			return new CellRivers(Arrays.copyOf(out, count * STRIDE), count, index(),
+				Arrays.copyOf(fallsOut, fallCount * FALL_STRIDE));
 		}
 
 		private void findNode(int side) {
@@ -418,6 +493,7 @@ final class CellRivers {
 					}
 					level[p] = Math.min(level[p], run);
 					discharge[p] += q;
+					through[p]++;
 					extra[p] = Math.max(extra[p], path.length > 1 ? gain * t / (path.length - 1) : gain);
 				}
 			}
@@ -436,11 +512,12 @@ final class CellRivers {
 				int root = roots[0];
 				float radius = Math.min(POND_METERS * (float) Math.sqrt(inTotal), MAX_POND_METERS) / 30f;
 				float i = LO + root / BAND + 0.5f, j = LO + root % BAND + 0.5f;
-				segment(i, j, i, j, level[root], level[root], inTotal, inTotal, h(root), h(root), radius);
+				segment(i, j, i, j, level[root], level[root], inTotal, inTotal, h(root), h(root), radius, 0f);
 			}
 			for (int p : touched) {
 				level[p] = Float.POSITIVE_INFINITY;
 				drawn[p] = false;
+				through[p] = 0;
 			}
 		}
 
@@ -449,7 +526,7 @@ final class CellRivers {
 			List<float[]> line = new ArrayList<>();
 			if (inSide >= 0) {
 				line.add(vertex(stubPoint(inSide, STRAIGHT), flows.inLevel[inSide], flows.inDischarge[inSide],
-					nodeGround[inSide]));
+					nodeGround[inSide], through[path[0]]));
 			}
 			boolean joined = false;
 			for (int t = 0; t < path.length; t++) {
@@ -457,7 +534,7 @@ final class CellRivers {
 				joined = drawn[p];
 				if (t % PATH_STEP == 0 || joined || t == path.length - 1) {
 					line.add(vertex(new float[]{LO + p / BAND + 0.5f, LO + p % BAND + 0.5f}, level[p],
-						discharge[p] + extra[p], h(p)));
+						discharge[p] + extra[p], h(p), through[p]));
 				}
 				if (joined) {
 					break;
@@ -467,25 +544,164 @@ final class CellRivers {
 			boolean exits = !joined && target >= 0;
 			if (exits) {
 				line.add(vertex(stubPoint(target, STRAIGHT), flows.outLevel[target], flows.outDischarge[target],
-					nodeGround[target]));
+					nodeGround[target], through[path[path.length - 1]]));
 			}
 			List<float[]> smooth = chaikin(line);
+			falls(smooth);
 			if (inSide >= 0) {
 				smooth.addFirst(vertex(stubPoint(inSide, -LO - 0.5f), flows.inLevel[inSide],
-					flows.inDischarge[inSide], nodeGround[inSide]));
+					flows.inDischarge[inSide], nodeGround[inSide], 0f));
 			}
 			if (exits) {
 				smooth.add(vertex(stubPoint(target, -LO - 0.5f), flows.outLevel[target], flows.outDischarge[target],
-					nodeGround[target]));
+					nodeGround[target], 0f));
 			}
 			for (int k = 0; k + 1 < smooth.size(); k++) {
 				float[] a = smooth.get(k), b = smooth.get(k + 1);
-				segment(a[0], a[1], b[0], b[1], a[2], b[2], a[3], b[3], a[4], b[4], 0f);
+				segment(a[0], a[1], b[0], b[1], a[OUT], b[2], a[3], b[3], a[4], b[4], 0f, a[FALL]);
 			}
 		}
 
-		private static float[] vertex(float[] at, float level, float discharge, float ground) {
-			return new float[]{at[0], at[1], level, discharge, ground};
+		/**
+		 * Gathers the drop of the steep stretches of a smoothed path into falls. A stretch runs from a vertex on for
+		 * {@value #FALL_SHORTEST} to {@value #FALL_LONGEST} pixels, as the seed picks, or less where the river would fall
+		 * more than {@value #FALL_MAX} m. It falls if its drop is {@value #FALL_MIN} m or more, at {@value #FALL_SLOPE} m
+		 * a pixel or more, steadily, and the next stretch starts where it ends; otherwise the next one starts a vertex
+		 * on. A part {@value #FALL_RAPIDS} of the stretches that would fall run down their course in rapids instead. The
+		 * fall stands at the vertex where the river would have come down {@value #FALL_SPLIT} of the drop: the water
+		 * reaches it at the level of the stretch's start and leaves it at the level of its end, which it keeps to the
+		 * end. A vertex's own level is the one the water reaches it at, and {@link #OUT} the one it leaves it at.
+		 */
+		private void falls(List<float[]> line) {
+			int n = line.size();
+			float[] natural = new float[n], along = new float[n];
+			for (int k = 0; k < n; k++) {
+				float[] v = line.get(k);
+				natural[k] = v[2];
+				if (k > 0) {
+					float[] previous = line.get(k - 1);
+					along[k] = along[k - 1] + (float) Math.hypot(v[0] - previous[0], v[1] - previous[1]);
+				}
+			}
+			float length = along[n - 1];
+			List<Integer> lips = new ArrayList<>();
+			int u = 0;
+			while (u < n && along[u] < FALL_MARGIN) {
+				u++;
+			}
+			while (u < n - 1) {
+				float stretch = FALL_SHORTEST + (FALL_LONGEST - FALL_SHORTEST) * unit(line.get(u), 0);
+				int w = u;
+				while (w + 1 < n && along[w] - along[u] < stretch) {
+					w++;
+				}
+				if (length - along[w] < FALL_MARGIN) {
+					break;
+				}
+				while (w > u + 1 && natural[u] - natural[w - 1] >= FALL_MAX) {
+					w--;
+				}
+				float drop = natural[u] - natural[w];
+				if (drop < FALL_MIN || drop < FALL_SLOPE * (along[w] - along[u]) || !steady(line, natural, along, u, w)) {
+					u++;
+					continue;
+				}
+				if (unit(line.get(u), 1) < FALL_RAPIDS) {
+					u = w;
+					continue;
+				}
+				float top = natural[u], bottom = natural[w], edge = top - FALL_SPLIT * drop;
+				int fall = u + 1;
+				while (fall < w && natural[fall] > edge) {
+					fall++;
+				}
+				for (int k = u + 1; k <= w; k++) {
+					float[] v = line.get(k);
+					v[2] = k <= fall ? top : bottom;
+					v[OUT] = k < fall ? top : k < w ? bottom : natural[k];
+				}
+				lips.add(fall);
+				u = w;
+			}
+			fans(line, along, lips);
+		}
+
+		/**
+		 * Keeps the {@code lips} of the falls of a path, and marks every segment within reach of one with it. The banks
+		 * of a fall slope along the river as far as {@value #FALL_FAN} pixels, half the way to the next fall, and never
+		 * past the ends of the path.
+		 */
+		private void fans(List<float[]> line, float[] along, List<Integer> lips) {
+			int n = line.size();
+			int first = fallCount;
+			for (int f = 0; f < lips.size(); f++) {
+				int lip = lips.get(f);
+				float before = f > 0 ? (along[lip] - along[lips.get(f - 1)]) / 2f : along[lip];
+				float after = f + 1 < lips.size() ? (along[lips.get(f + 1)] - along[lip]) / 2f : along[n - 1] - along[lip];
+				float[] v = line.get(lip), previous = line.get(lip - 1), next = line.get(Math.min(n - 1, lip + 1));
+				double di = next[0] - previous[0], dj = next[1] - previous[1], length = Math.hypot(di, dj);
+				if (fallsOut.length < (fallCount + 1) * FALL_STRIDE) {
+					fallsOut = Arrays.copyOf(fallsOut, fallsOut.length * 2);
+				}
+				int o = fallCount++ * FALL_STRIDE;
+				fallsOut[o] = v[0];
+				fallsOut[o + 1] = v[1];
+				fallsOut[o + 2] = (float) (di / length);
+				fallsOut[o + 3] = (float) (dj / length);
+				fallsOut[o + 4] = v[2];
+				fallsOut[o + 5] = v[OUT];
+				fallsOut[o + 6] = Math.min(FALL_FAN, Math.min(before, after));
+			}
+			for (int k = 0, f = 0; k + 1 < n && !lips.isEmpty(); k++) {
+				float middle = (along[k] + along[k + 1]) / 2f;
+				while (f + 1 < lips.size()
+					&& Math.abs(along[lips.get(f + 1)] - middle) < Math.abs(along[lips.get(f)] - middle)) {
+					f++;
+				}
+				int lip = lips.get(f);
+				float fan = fallsOut[(first + f) * FALL_STRIDE + 6];
+				if (Math.abs(middle - along[lip]) <= fan + along[k + 1] - along[k]) {
+					line.get(k)[FALL] = (k < lip ? 1 : -1) * (first + f + 1);
+				}
+			}
+		}
+
+		/**
+		 * Whether the river falls steadily from vertex {@code u} to {@code w}: every pixel of it at
+		 * {@value #FALL_STEADY} of {@value #FALL_SLOPE} m or more, and no other river joining it there or next to it.
+		 */
+		private static boolean steady(List<float[]> line, float[] natural, float[] along, int u, int w) {
+			float joins = line.get(u)[THROUGH];
+			for (int k = Math.max(0, u - 2); k <= Math.min(line.size() - 1, w + 2); k++) {
+				if (Math.abs(line.get(k)[THROUGH] - joins) > 0.01f) {
+					return false;
+				}
+			}
+			for (int k = u, j = u; k < w; k++) {
+				while (j < w && along[j] - along[k] < 1f) {
+					j++;
+				}
+				if (natural[k] - natural[j] < FALL_STEADY * FALL_SLOPE * (along[j] - along[k])) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/** The {@code k}th number from 0 to 1 of the world's seed, the tile and the place of vertex {@code v} in it. */
+		private float unit(float[] v, int k) {
+			long h = GeoNoise.hash(seed ^ FALL_SALT, ti, tj, k);
+			return (float) GeoNoise.unit(GeoNoise.hash(h, Float.floatToIntBits(v[0]), Float.floatToIntBits(v[1]), k));
+		}
+
+		/**
+		 * Attributes of a vertex past its place, level, discharge and ground: how many paths run through it, the level
+		 * the water leaves it at, and the fall the segment from it lies beside, as {@link #STRIDE} keeps it.
+		 */
+		private static final int THROUGH = 5, OUT = 6, FALL = 7;
+
+		private static float[] vertex(float[] at, float level, float discharge, float ground, float through) {
+			return new float[]{at[0], at[1], level, discharge, ground, through, level, 0f};
 		}
 
 		/** Chaikin's corner cutting, keeping both ends. Attributes are interpolated along with the position. */
@@ -517,7 +733,7 @@ final class CellRivers {
 		}
 
 		private void segment(float ai, float aj, float bi, float bj, float la, float lb, float qa, float qb, float ga,
-							 float gb, float pond) {
+							 float gb, float pond, float fall) {
 			if (out.length < (count + 1) * STRIDE) {
 				out = Arrays.copyOf(out, out.length * 2);
 			}
@@ -533,6 +749,7 @@ final class CellRivers {
 			out[o + 8] = ga;
 			out[o + 9] = gb;
 			out[o + 10] = pond;
+			out[o + 11] = fall;
 		}
 
 		/** Where a river with no inflow starts: off the middle, towards the stream that feeds the cell. */
