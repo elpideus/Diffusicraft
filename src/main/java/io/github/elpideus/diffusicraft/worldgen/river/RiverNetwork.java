@@ -969,11 +969,18 @@ final class RiverNetwork {
 		return ((long) i << 32) | (j & 0xffffffffL);
 	}
 
-	/** The value under {@code key}, computed once by the first thread that asks; the others wait for it. */
+	/**
+	 * The value under {@code key}, computed once by the first thread that asks; the others wait for it. A thread can be
+	 * handed other generation work while it waits for terrain inside {@code compute}, and that work can ask for the
+	 * same value: the thread computes it again for that question instead of waiting for itself.
+	 */
 	static <T> T once(Map<Long, CompletableFuture<T>> map, long key, Supplier<T> compute) {
 		CompletableFuture<T> future = map.get(key);
+		if (future instanceof Computing<T> computing && computing.thread == Thread.currentThread() && !future.isDone()) {
+			return compute.get();
+		}
 		if (future == null) {
-			CompletableFuture<T> mine = new CompletableFuture<>();
+			CompletableFuture<T> mine = new Computing<>();
 			future = map.putIfAbsent(key, mine);
 			if (future == null) {
 				future = mine;
@@ -996,5 +1003,10 @@ final class RiverNetwork {
 			}
 			throw e;
 		}
+	}
+
+	/** A value being computed, and the thread computing it. */
+	private static final class Computing<T> extends CompletableFuture<T> {
+		final Thread thread = Thread.currentThread();
 	}
 }

@@ -5,13 +5,19 @@ import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSource;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RiverNetworkTest {
@@ -140,5 +146,21 @@ class RiverNetworkTest {
 		}
 		assertTrue(largest > 16 && largest <= RiverNetwork.MAX_LAKE_CELLS, "largest lake: " + largest + " cells");
 		assertTrue(widest <= RiverNetwork.MAX_LAKE_SPAN, "widest lake: " + widest + " cells");
+	}
+
+	@Test
+	void aThreadAskingForWhatItIsComputingComputesItAgain() {
+		Map<Long, CompletableFuture<Integer>> map = new ConcurrentHashMap<>();
+		int[] calls = new int[1];
+		// The first computation asks for its own value, as other work run while it waits for terrain would.
+		Supplier<Integer> inner = () -> ++calls[0];
+		Supplier<Integer> outer = () -> {
+			calls[0]++;
+			return RiverNetwork.once(map, 1L, inner) + 10;
+		};
+		int value = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> RiverNetwork.once(map, 1L, outer));
+		assertEquals(12, value);
+		assertEquals(12, RiverNetwork.once(map, 1L, inner), "the first computation's value is kept");
+		assertEquals(2, calls[0]);
 	}
 }
