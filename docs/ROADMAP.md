@@ -155,8 +155,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   the river above into a pool of the river below, in a notch that opens out from the fall, rather than running down
   the slope or standing in a wall across the valley. Streams run over the edges of sheer cliffs in wet lands straight
   into the sea, a lake or a river at their foot, up to 12 blocks wide in the wettest land of a 1:1 world and 3 in a
-  Vanilla one. Both are placed whole, so that tall falls stand from the start. See
-  [WORLDGEN.md](WORLDGEN.md#waterfalls) and [Rivers](WORLDGEN.md#rivers).
+  Vanilla one. Both are placed whole, so that tall falls stand from the start. Vanilla's water springs no longer hang
+  threads of water down the cliffs onto dry ground. See [WORLDGEN.md](WORLDGEN.md#waterfalls) and
+  [Rivers](WORLDGEN.md#rivers).
 - **Denser jungles.** Vines hang from the jungle crowns down towards the floor as lianas, the old-growth jungle grows
   some 20 trees a chunk with large ferns under them, the free vines of the jungles hang under their canopy at any
   height, and thickets of leafy shrubs and ferns cover their floors between clearings. See

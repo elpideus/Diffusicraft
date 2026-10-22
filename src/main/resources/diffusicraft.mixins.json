@@ -18,6 +18,7 @@
 		"PlayerSpawnFinderMixin",
 		"RandomStateAccessor",
 		"RandomStateMixin",
+		"SpringFeatureMixin",
 		"dh.ChunkWrapperMixin",
 		"height.BlockPosMixin",
 		"height.ClientboundLevelChunkPacketDataMixin",
