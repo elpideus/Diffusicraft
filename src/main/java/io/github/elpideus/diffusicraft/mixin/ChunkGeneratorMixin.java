@@ -21,8 +21,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import java.util.Optional;
 
 /**
- * Leaves the vanilla features that Diffusicraft worlds do without out of their decoration, and adds their waterfalls
- * and boulders after vanilla's water springs; see {@link DiffusicraftWorldgen#leavesOut} and
+ * Leaves the vanilla features that Diffusicraft worlds do without out of their decoration, and adds the falls of their
+ * rivers and their boulders after vanilla's water springs; see {@link DiffusicraftWorldgen#leavesOut} and
  * {@link DiffusicraftWorldgen#afterSprings}. Biomes are shared by every world, so their lists cannot drop or add
  * them. The features keep their places in the order, so the others are seeded as before.
  */

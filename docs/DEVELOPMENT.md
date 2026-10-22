@@ -116,12 +116,14 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   Horizons the game has hung as the test closed the world, after all its checks: the render thread waits for the
   integrated server to stop while the server waits at Fabric's test barrier. Stop the game then. It needs the models.
 - [`WaterfallsGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WaterfallsGameTest.java) creates
-  an Ultra (1:1) world, looks for the wettest steep land within 4 km of the spawn and checks that waterfalls stand
-  there: falls of 8 blocks or more, spilling from still water, that keep their water and do not flood their foot while
-  the chunks tick. It logs how many blocks wide the falls of each area are, and saves a view of each area it visits
-  until one has falls, of the tallest falls from the front and the side (`diffusicraft-world-waterfall-front.png`,
-  `-side.png`) and, if they are wider than a block, of the widest (`diffusicraft-world-waterfall-wide-front.png`,
-  `-side.png`). It fails if none of the three areas has a waterfall. It needs the models.
+  an Ultra (1:1) world and checks the falls of its rivers, its only waterfalls, from the rivers' own columns: the
+  highest step of their water within 4 km of the spawn, 3 blocks or more, must stand as a curtain over it, and around it
+  and along the steepest straight reach without a fall of more than 8 blocks the river must keep its water within its
+  banks while the chunks tick. It logs how far apart the water of the channels' neighbouring columns lies, and saves
+  views of the falls (`diffusicraft-world-river-fall-front.png`, `-side.png`) and of the reach
+  (`diffusicraft-world-river-reach-front.png`, `-side.png`). The spawn of the test's seed has no river within 100 km, so
+  for that seed it goes to a steep river 100 km away; `-Pdiffusicraft.riverFallsAt=x,z` searches 256 blocks around
+  another place. It needs the models.
 - [`ReliefMapGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ReliefMapGameTest.java)
   creates a Medium world and checks its relief map without the pause menu's button, which would open a browser: the
   player's link, the page, the levels and the tiles around the player, coarse and in detail, whose colours it saves

@@ -37,7 +37,7 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `NoiseBasedChunkGenerator.createFluidPicker` and `createNoiseChunk`, the call to `clampToHeightAccessor` in
     `NoiseBasedChunkGenerator.iterateNoiseColumn`, the calls to `WorldCarver.isStartChunk` and `applyCarvingMask` in
     `NoiseBasedChunkGenerator.generateCarvers`, the call to `FeaturePlacer.placeWithBiomeCheck` in
-    `ChunkGenerator.applyBiomeDecoration` (which also places the waterfalls and boulders after `spring_water`), the
+    `ChunkGenerator.applyBiomeDecoration` (which also places the river falls and boulders after `spring_water`), the
     call to `WorldGenLevel.setBlock` in `SpringFeature.place`,
     `NoiseChunk.<init>` (its `aquifer` field, which every caller reads through `aquifer()`), `RandomState.create` and
     `createClimateSampler`, the interface added to `Climate.Sampler`, the `0.05F` in

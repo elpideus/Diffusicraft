@@ -699,41 +699,18 @@ vanilla's jungles have it only in Diffusicraft worlds.
 
 ### Waterfalls
 
-Two kinds of falls stand in the world: those of the rivers where the ground drops away under them (see
-[Rivers](#rivers)), and the waterfalls of the cliffs. `diffusicraft:waterfall` (`WaterfallFeature`) runs streams over the edges of sheer
-cliffs, mountainsides, scarps and sea cliffs, straight down into the sea, a lake or a river at their foot, which carries
-the water on. `Waterfall` lays one out from the heights of the ground and the water alone, as the chunk's heightmaps
-have them before the plants grow:
+Every fall in the world is a river's. The water of a river follows the ground in blocks (see Falls under
+[Rivers](#rivers)), so where the ground drops away under it, over a ledge, the step of a valley, a scarp or a sea cliff,
+the river falls with it into the water below, and a tributary that comes out over the side of a deeper valley falls
+into the river there. No stream is laid out for a fall: a cliff that no river runs over has none, and the water at the
+foot of a fall is the river's own, which runs on. `diffusicraft:river_falls` (`RiverFallFeature`) hangs the curtains
+and digs the pools under them.
 
-- **The cliff.** It tries 24 columns of the chunk for the edge of a cliff: a dry column beside one whose water stands
-  at least 8 blocks below its ground. A cliff over dry ground takes none, nor does a face that slopes: the falls would
-  end on the ground, or have to cut a gorge into the face. The eight highest edges are each laid out, and of the falls
-  that hold, the one with the largest curtain of water is kept, as wide times as tall: on a ragged edge the highest
-  drop often takes a fall a block or two wide, while a level stretch of the edge beside it takes a wide one. The land
-  4 and 8 blocks behind the edge must lie no lower than it less a block, as on a bench or the step of a valley, so no
-  stream springs from a crest or a fin.
-- **The stream.** As wide as the edge runs level, up to a width set by the size of the world and the rain: 12 blocks in
-  the wettest land at Ultra (1:1), 9 at Extreme, 7 at Grand, 5 at Large, 4 at Medium and 3 at Vanilla, and half that
-  where the rain is just enough for a waterfall. Each takes a third of its width to all of it. It runs one to six blocks
-  back from the edge, sunk into the ground (a block at most cut away over it, so that it runs where the ground is level
-  already) between banks that hold it, and ends against ground that holds it too. A lip that the ground beside would let
-  the water out of is left out, as the bank, and so is one more than 11 blocks out of the chunk.
-- **The falls.** The water spills a block out from each lip and falls straight down into the water below. No ground is
-  cut away beside water higher than the cut, which would pour in.
-
-The water is placed whole, from the lips to the foot, so that the falls stand in the world from the start rather than
-pouring down once the chunk is loaded, which takes a block every five ticks. The ticks scheduled at the lips and at
-the foot let the game's water take over from there. The heightmaps know nothing of caves or of what is built, so the
-feature checks the world first: no waterfall where a structure on the surface (a village, say) reaches into a chunk
-it would change, where the ground it cuts away has a fluid beside or over it (a cave's water or lava, or a spring),
-or where anything the water would run into lies beside or under the still water or under the foot of a fall.
-
-**Where.** In wet lands: none below 600 mm of rain a year, one chunk in four of those that have such a cliff from 2000
-mm, and in proportion between. None where the stream would freeze. Only in Diffusicraft worlds, whose climate the
-feature reads: `ChunkGeneratorMixin` places the falls of the rivers and then the waterfalls right after vanilla's water
-springs (`spring_water`), which nearly every land biome has, vanilla's, Diffusicraft's and other mods'
+**Where.** Only in Diffusicraft worlds: `ChunkGeneratorMixin` places the falls of the rivers right after vanilla's
+water springs (`spring_water`), which nearly every land biome has, vanilla's, Diffusicraft's and other mods'
 (`DiffusicraftWorldgen.AFTER_SPRINGS`). Added to the biomes instead, they would need a place in the order of features
-that every mod's biomes agree with. A biome without vanilla's springs has neither. The LOD mods do not draw them.
+that every mod's biomes agree with. A biome without vanilla's springs has no curtains, nor pools. The LOD mods do not
+draw them.
 
 **Vanilla's springs.** A water spring that vanilla sets in the face of a cliff, under the open sky, hangs a thread of
 water down the face that stops in a puddle at its foot; on the cliffs of a large world it falls hundreds of blocks.
@@ -904,8 +881,8 @@ place.
   third of the fall's height (1 to 4 blocks), out to a block for every four of its height past the first (3 at most),
   shallower farther out, wherever the ground holds the water beside and below; the bed's sediment lines its floor.
   The pools come out the same whichever chunk digs them. A lake takes a curtain where a river falls into it, but no
-  pool. The feature runs in every chunk of a Diffusicraft world, right after vanilla's springs and before the
-  waterfalls (`DiffusicraftWorldgen.AFTER_SPRINGS`), and not where a structure on the surface reaches into the chunk.
+  pool. The feature runs in every chunk of a Diffusicraft world, right after vanilla's springs
+  (`DiffusicraftWorldgen.AFTER_SPRINGS`), and not where a structure on the surface reaches into the chunk.
 - **Water and beds.** The material rule `diffusicraft:river` (`RiverRule`) fills the channel with water on a bed of
   sand and clay in the lowlands, and mostly gravel higher up. The valley, the channel and 3 blocks on each side, takes
   a river biome.
@@ -1451,7 +1428,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `RiverCourses` (the water of those paths in blocks), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), `RiverFallFeature` (`diffusicraft:river_falls`) and `RiverFalls` (the curtains and pools of the rivers' falls), `Springs` (vanilla's water springs left off the cliffs), `LianaFeature` (`diffusicraft:lianas`), `UndergrowthFeature` (`diffusicraft:undergrowth`) and `Thickets` (where it grows thick), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `RiverFallFeature` (`diffusicraft:river_falls`) and `RiverFalls` (the curtains and pools of the rivers' falls), `Springs` (vanilla's water springs left off the cliffs), `LianaFeature` (`diffusicraft:lianas`), `UndergrowthFeature` (`diffusicraft:undergrowth`) and `Thickets` (where it grows thick), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
@@ -1572,14 +1549,6 @@ Other searches still read the full terrain and can take a while on new land:
   on buttresses under an umbrella, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks
   that the LODs draw a biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of
   detail farther out, and as tall as the kapoks grow in a world of each size.
-- `WaterfallTest` lays out waterfalls over a sheer cliff straight into the sea, and none on slopes of one or two blocks
-  a block, fins, ridges and peaks, nor over dry ground. Along a long cliff they fall up to 12 blocks wide, as wide as
-  the wettest land of the largest world allows, and narrower in smaller worlds and drier lands. A wide fall from a
-  level edge wins over a higher one from a notch a block wide. On rough ground of plateaus and down the sheer sides of
-  mesas, at the narrowest and the widest, it checks that every waterfall's still water is held on every side and from
-  below, that the falls run down through the air into the water, that no ground is cut away from water beside it, that
-  the drop is high enough, and that the waterfall reads and writes only the chunks a feature may. The same draw lays out
-  the same one.
 - `RiverFallsTest` lays out the falls of a river over a step: a curtain from the higher water in the columns below the
   step alone, a pool deepest at its foot and shallower downstream, none above the step, under a step of a block or in a
   lake the river falls into, none deeper than allowed, and a pool across the side of a chunk dug alike on both sides.
@@ -1638,12 +1607,11 @@ Other searches still read the full terrain and can take a while on new land:
 - `BiomesGameTest`, a client game test that needs no models, lays out a plot of each of Diffusicraft's surface biomes
   on a superflat world, grows its plants and trees there as world generation would, and saves a view of each. The
   ground stays superflat grass, so the biomes' own ground and the plants that need sand are missing.
-- `WaterfallsGameTest`, a client game test that needs the models, creates an Ultra world, finds waterfalls on the
-  wettest land near the spawn that stands steeply over water and checks that they keep their water and do not flood their foot once the chunks
-  have ticked. It logs how many blocks wide the falls of each area are, and saves views of the tallest and of the widest
-  from the front and the side. It finds the highest fall of the rivers near the spawn from their columns too, or near
-  another place (`-Pdiffusicraft.riverFallsAt=x,z`: the test world's nearest rivers lie 100 km away), and checks that
-  its curtain stands over the step and holds.
+- `WaterfallsGameTest`, a client game test that needs the models, creates an Ultra world and checks the falls of its
+  rivers from their columns, near the spawn or near another place (`-Pdiffusicraft.riverFallsAt=x,z`; the test world's
+  nearest rivers lie 100 km away, and it goes to them): the highest step of their water must stand as a curtain over it,
+  and around it and along the steepest reach without a fall of more than 8 blocks the river must keep its water within
+  its banks once the chunks have ticked. It saves views of both from the front and the side.
 - `BouldersGameTest`, a client game test that needs the models, creates an Ultra world and finds boulders near the
   spawn: erratics on the nearest cold, level land, and rocks at the feet of the steepest land. It logs how many there
   are and how big, and saves a view of the biggest of each area.

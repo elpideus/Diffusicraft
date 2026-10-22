@@ -10,8 +10,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * Which of vanilla's water springs Diffusicraft worlds leave out: those that would spill out of a face under the open
  * sky and fall more than {@value #MAX_DROP} blocks onto dry ground. On the cliffs of a large world such a spring hangs
  * a thread of water down a wall of rock that stops in a puddle at its foot, where falls should run on as a river; the
- * falls Diffusicraft lays out itself ({@link WaterfallFeature}, {@link RiverFallFeature}) all fall into water. Springs
- * in caves and under overhangs stay, as do those that fall into water or only a few blocks.
+ * falls Diffusicraft lays out itself ({@link RiverFallFeature}) are those of its rivers, which run on below them.
+ * Springs in caves and under overhangs stay, as do those that fall into water or only a few blocks.
  */
 public final class Springs {
 	/** Most blocks a spring's water may fall freely onto dry ground. */
