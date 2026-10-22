@@ -650,6 +650,8 @@ blocks across at 1:1 and 24 to 40 at 1:32, and a kapok's to a third, 52 to 84 bl
 dome is lumpy; each limb takes the clumps on its side, and forks into a branch to each group of a few of them.
 
 Outside a Diffusicraft world, as on the superflat world of `TreesGameTest`, they grow to their height at 1:1.
+`TreesGameTest` plants the ancient oaks and kapoks itself (`GiantTreeStructure.plant`), since their structures grow
+only in Diffusicraft worlds.
 
 The clumps keep within six blocks of the wood, as leaves must to live, and large ones hold twigs of their own; the few
 leaves still farther out are placed persistent so that they do not decay. A giant grows after the smaller trees of its
@@ -1633,7 +1635,8 @@ Other searches still read the full terrain and can take a while on new land:
   CPU unless `-Pdiffusicraft.device` names another device.
 - `TreesGameTest`, a client game test that needs no models, plants three of each of Diffusicraft's trees on a
   superflat world, the giants too, each in its own biome for the colours of its leaves, and saves a view of each. The
-  giants grow twice, at their full height and as in a Vanilla world. A tree that never grows on open grass fails it.
+  giants grow twice, at their full height and as in a Vanilla world, and the ancient oaks and kapoks a chunk at a
+  time, as their structures' pieces are written in a world. A tree that never grows on open grass fails it.
 - `BiomesGameTest`, a client game test that needs no models, lays out a plot of each of Diffusicraft's surface biomes
   on a superflat world, grows its plants and trees there as world generation would, and saves a view of each. The
   ground stays superflat grass, so the biomes' own ground and the plants that need sand are missing.

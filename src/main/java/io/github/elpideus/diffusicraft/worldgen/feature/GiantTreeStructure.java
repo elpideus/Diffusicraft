@@ -13,6 +13,7 @@ import net.minecraft.util.valueproviders.IntProvider;
 import net.minecraft.util.valueproviders.IntProviders;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -136,6 +137,33 @@ public final class GiantTreeStructure extends Structure {
 		for (long pos : blocks.leaves) {
 			out.accept(BlockPos.getX(pos), BlockPos.getY(pos), BlockPos.getZ(pos), false);
 		}
+	}
+
+	/**
+	 * Grows a giant with its foot at {@code base}, the block over the ground, as tall as it grows in a world of
+	 * {@code scale}, and writes it a chunk at a time as its piece does, without asking anything of the land: for the
+	 * game tests, whose worlds are not Diffusicraft's. Tells whether there was room for it under the top of the world.
+	 */
+	public boolean plant(WorldGenLevel level, RandomSource random, BlockPos base, WorldScale scale) {
+		int height = Math.min((int) Math.round(this.height.sample(random) * GiantTree.size(scale)),
+			level.getMaxY() - base.getY() - GiantTreeFeature.HEADROOM);
+		if (height < GiantTreeFeature.MIN_HEIGHT * GiantTree.size(scale)) {
+			return false;
+		}
+		long seed = random.nextLong();
+		GiantTree plan = GiantTree.plan(form, height, GiantTree.reach(form, height), RandomSource.create(seed));
+		BoundingBox box = new BoundingBox(base.getX() - plan.reach, base.getY() - GiantTreeFeature.ROOTS,
+			base.getZ() - plan.reach, base.getX() + plan.reach, base.getY() + plan.top(), base.getZ() + plan.reach);
+		GiantTreePiece piece = new GiantTreePiece(form, wood, leaves, base, height, plan.reach, seed, box);
+		int lastX = SectionPos.blockToSectionCoord(box.maxX()), lastZ = SectionPos.blockToSectionCoord(box.maxZ());
+		for (int chunkZ = SectionPos.blockToSectionCoord(box.minZ()); chunkZ <= lastZ; chunkZ++) {
+			for (int chunkX = SectionPos.blockToSectionCoord(box.minX()); chunkX <= lastX; chunkX++) {
+				piece.place(level, new BoundingBox(SectionPos.sectionToBlockCoord(chunkX), box.minY(),
+					SectionPos.sectionToBlockCoord(chunkZ), SectionPos.sectionToBlockCoord(chunkX, 15), box.maxY(),
+					SectionPos.sectionToBlockCoord(chunkZ, 15)));
+			}
+		}
+		return true;
 	}
 
 	/** Receives the blocks of a giant, relative to the foot of its trunk, the block just over the ground. */

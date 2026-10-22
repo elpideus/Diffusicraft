@@ -147,9 +147,11 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   few hundred blocks across, in the same climate: birch stands, glades and dark woods in the forest, bogs in the flat
   hollows of the taiga and pines on its rises. The variants vanilla's weirdness picks come in patches of at most a
   thousand blocks at every size. See [WORLDGEN.md](WORLDGEN.md#sub-biomes).
-- **Giant trees.** Redwoods 110 to 230 blocks tall, ancient oaks up to 64 with crowns 40 blocks across, and kapoks
-  rising over the jungle canopy on buttresses, in groves of their own on level land (redwood forests, ancient
-  woodlands, old-growth jungle) and alone here and there in forests, taigas, jungles and on the plains. The LOD mods
+- **Giant trees.** Redwoods 110 to 230 blocks tall, ancient oaks 48 to 80 under crowns 58 to 96 blocks across, and
+  kapoks 80 to 130 rising over the jungle canopy on buttresses to umbrellas 52 to 84 across, in groves of their own on
+  level land (redwood forests, ancient woodlands, old-growth jungle) and alone here and there in forests, taigas,
+  jungles and on the plains. The oaks and kapoks grow as structures, written a chunk at a time, so their crowns reach
+  past the 3×3 chunks a feature may write to. All shrink with the world, to about two fifths at 1:32. The LOD mods
   draw them too. See [WORLDGEN.md](WORLDGEN.md#giant-trees).
 - **Waterfalls.** The water of the rivers follows the ground in blocks, so a river falls wherever the ground drops
   away under it, over ledges, the steps of valleys, scarps and sea cliffs, into a pool of the river below, and runs
@@ -169,14 +171,6 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   by 5 cm RMS. See [PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 
 ## Next
-
-### Fantasy terrain
-
-Play at 1:1 showed real terrain to be dull at walking scale. Diffusicraft keeps the real data as its base and adds the
-drama on top, at every size:
-
-- **Great trees.** Broadleaf giants a hundred blocks tall and more, whose crowns would reach past the 3×3 chunks a
-  feature may write to: they would need a structure, written chunk by chunk.
 
 ### Height beyond 4064 blocks
 
