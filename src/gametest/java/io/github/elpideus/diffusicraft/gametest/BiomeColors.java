@@ -81,6 +81,8 @@ final class BiomeColors {
 		Map.entry("diffusicraft:juniper_woodland", 0x8a9a5e),
 		Map.entry("diffusicraft:stony_desert", 0xa39a86),
 		Map.entry("diffusicraft:shrub_steppe", 0x9fa27a),
+		Map.entry("diffusicraft:thorn_scrub", 0xb09a55),
+		Map.entry("diffusicraft:prairie", 0xa8c060),
 		Map.entry("diffusicraft:redwood_forest", 0x6a3a22),
 		Map.entry("diffusicraft:ancient_woodland", 0x3f7a26),
 		Map.entry("diffusicraft:old_growth_jungle", 0x1f6a1a)

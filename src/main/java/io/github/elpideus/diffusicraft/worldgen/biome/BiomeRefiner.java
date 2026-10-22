@@ -80,11 +80,17 @@ import java.util.Set;
  *   <li><b>Forest-steppe</b> and <b>steppe</b> where the summers are too dry for closed woods, on land humid enough
  *       by the year's rain: where the warmest month reaches {@value #STEPPE_SUMMER} °C and the year averages
  *       {@value #PERMAFROST} to 18 °C, the summer's rain decides (see {@link BiomeClimate#summerMoisture}). With less
- *       than it takes back, groves of birch and oak stand among the meadow-steppe, as from Ukraine to the Altai, in
- *       Manchuria and in the aspen parkland of the Canadian prairies; with less than {@value #STEPPE_MOISTURE} of it,
+ *       than it takes back, groves of birch and oak stand among the meadow-steppe, as from Ukraine to the Altai and in
+ *       the aspen parkland of the Canadian prairies; with less than {@value #STEPPE_MOISTURE} of it,
  *       only grass, as around Astana and Orenburg. A mountainside's meadow stays in the steppe's climate and opens into
  *       forest-steppe in the other. Colder years keep the taiga: the ground is frozen a little way down and holds the
  *       snowmelt, so that larches and spruces grow on 250 mm at Yakutsk and Fairbanks.</li>
+ *   <li><b>Prairie</b> in the same climates where the warmest month reaches {@value #PRAIRIE_SUMMER} °C, on ground
+ *       wetter than the steppe's but with less than {@value #PRAIRIE_MOISTURE} of the summer's rain the trees take
+ *       back: tall grass where the woods give way to the forest-steppe in cooler summers. Hot summers dry the grass
+ *       for the fires, and the fires and the grazers keep the trees off ground their climate would wood, as from
+ *       Illinois to Kansas, on the Songnen plain round Harbin and on the western pampas. The fires die out on broken
+ *       ground: from {@value #PRAIRIE_RELIEF} m of relief the hills stand wooded over the grass, as the Ozarks do.</li>
  *   <li><b>Mixed forest</b>: vanilla's forests and taigas where the year averages {@value #MIXED_COOLEST} to
  *       {@value #MIXED_WARMEST} °C, the warmest month reaches {@value #OAK_SUMMER} °C and the coldest falls below
  *       {@value #MIXED_COLDEST} °C. Oaks, limes and birches grow among the spruces and pines there, as in southern
@@ -111,6 +117,11 @@ import java.util.Set;
  *       as on the ranges of the Great Basin, the mesas of the Colorado Plateau, the foothills of the Tien Shan and the
  *       hills of Anatolia and Iran.</li>
  *   <li><b>Steppe</b>: semi-arid grassland cooler than 18 °C.</li>
+ *   <li><b>Thorn scrub</b>: semi-arid land from 18 °C with less than {@value #THORN_ARIDITY} of the rain of the
+ *       aridity threshold, the driest savannas. The long dry season and the browsers keep the grass short and the
+ *       woody plants low, thorny and in thickets: the Sahel, the Caatinga and the Chaco, the thorn forests of India
+ *       and Tamaulipas, the bushland of Kenya. Where the rain comes close to the threshold, vanilla's savanna stays.
+ *       Mediterranean ground with the same rain is maquis, which comes first.</li>
  *   <li><b>Shrub steppe</b>: the steppe that is nearly desert, with less than {@value #SHRUB_ARIDITY} of the rain of
  *       the aridity threshold, or whose rain falls in the cool season, where the coldest month stays above
  *       {@value #WINTER_RAIN_COLDEST} °C. Winter's rain soaks deep while little of it evaporates, and it waters the long
@@ -151,6 +162,8 @@ public final class BiomeRefiner {
 	public static final String REDWOOD_FOREST = "diffusicraft:redwood_forest";
 	public static final String ANCIENT_WOODLAND = "diffusicraft:ancient_woodland";
 	public static final String OLD_GROWTH_JUNGLE = "diffusicraft:old_growth_jungle";
+	public static final String THORN_SCRUB = "diffusicraft:thorn_scrub";
+	public static final String PRAIRIE = "diffusicraft:prairie";
 	public static final String SAVANNA = "minecraft:savanna";
 	public static final String SWAMP = "minecraft:swamp";
 	public static final String MANGROVE_SWAMP = "minecraft:mangrove_swamp";
@@ -164,7 +177,8 @@ public final class BiomeRefiner {
 	public static final List<String> TARGETS = List.of(TUNDRA, ALPINE_TUNDRA, CLOUD_FOREST, TEMPERATE_RAINFOREST,
 		MAQUIS, COLD_DESERT, STEPPE, MOORLAND, HEATH, SALT_FLAT, PARAMO, PUNA, MONSOON_FOREST, LAUREL_FOREST, BOG,
 		FJORD, LARCH_TAIGA, DESERT_SCRUB, MIXED_FOREST, FOREST_STEPPE, FOREST_TUNDRA, JUNIPER_WOODLAND, STONY_DESERT,
-		SHRUB_STEPPE, SAVANNA, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS, SNOWY_SLOPES);
+		SHRUB_STEPPE, THORN_SCRUB, PRAIRIE, SAVANNA, SWAMP, MANGROVE_SWAMP, FOREST, BIRCH_FOREST, TAIGA, SNOWY_PLAINS,
+		SNOWY_SLOPES);
 
 	/**
 	 * The foot of the subalpine belt: where the warmest month passes this, °C, some 600 m below the tree line, a humid
@@ -203,6 +217,11 @@ public final class BiomeRefiner {
 	 * twentieth of the water the sun could take back.
 	 */
 	static final float SCRUB_ARIDITY = 0.15f;
+	/**
+	 * Precipitation over the aridity threshold below which hot, semi-arid land is thorn scrub rather than savanna: the
+	 * drier part of the semi-arid tropics, toward the deserts.
+	 */
+	static final float THORN_ARIDITY = 0.7f;
 	/** The driest deserts are stony from this height above the low ground around, in meters; sand lies below. */
 	static final float ERG_ABOVE = 20f;
 	/** Coldest month above which a swamp at sea level is a mangrove, °C. */
@@ -248,6 +267,12 @@ public final class BiomeRefiner {
 	 * from the ground.
 	 */
 	static final float STEPPE_SUMMER = 17f;
+	/** Warmest month from which the grassland between the steppe and the woods is prairie, °C: Köppen's hot summer. */
+	static final float PRAIRIE_SUMMER = 22f;
+	/** Summer moisture below which, where the summers are hot, fires and grazers keep the woods off: prairie. */
+	static final float PRAIRIE_MOISTURE = 1.5f;
+	/** Relief from which the ground is too broken for the prairie's fires to run, in meters: the hills stay wooded. */
+	static final float PRAIRIE_RELIEF = 60f;
 	/**
 	 * Annual mean below which the ground is frozen a little way down, °C: it holds the snowmelt, and the taiga grows on
 	 * little rain.
@@ -462,6 +487,9 @@ public final class BiomeRefiner {
 				}
 				return shrubSteppe(c, aridity) ? SHRUB_STEPPE : STEPPE;
 			}
+			if (kind == Kind.LAND && aridity < THORN_ARIDITY) {
+				return THORN_SCRUB;
+			}
 		}
 		return null;
 	}
@@ -546,14 +574,21 @@ public final class BiomeRefiner {
 		return c.warmestMonth() < FOREST_TUNDRA_WARMEST && aridity >= 1f;
 	}
 
-	/** Steppe or forest-steppe where the summers are too dry for closed woods, or {@code null}. */
+	/**
+	 * Steppe, prairie or forest-steppe where the summers are too dry for closed woods, or hot enough for the fires to
+	 * keep them off, or {@code null}.
+	 */
 	static @Nullable String drySummer(BiomeClimate c) {
-		if (c.warmestMonth() < STEPPE_SUMMER || c.temperature < PERMAFROST || c.temperature >= 18f) {
+		float warmest = c.warmestMonth();
+		if (warmest < STEPPE_SUMMER || c.temperature < PERMAFROST || c.temperature >= 18f) {
 			return null;
 		}
 		float moisture = c.summerMoisture();
 		if (moisture < STEPPE_MOISTURE) {
 			return STEPPE;
+		}
+		if (warmest >= PRAIRIE_SUMMER && moisture < PRAIRIE_MOISTURE && c.relief < PRAIRIE_RELIEF) {
+			return PRAIRIE;
 		}
 		return moisture < FOREST_STEPPE_MOISTURE ? FOREST_STEPPE : null;
 	}

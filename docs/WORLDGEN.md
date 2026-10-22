@@ -381,13 +381,15 @@ Some adjustments move biomes away from vanilla's defaults:
   humid; it is steppe. So the [refiner](#refined-biomes) also takes the threshold at the warmest month's temperature,
   `20 T_warm + 140` mm (`BiomeClimate.summerMoisture`). Where the warmest month reaches 17 °C and the year averages −2
   to 18 °C, land humid by the year's ratio but with less rain than that is forest-steppe, and with less than 0.7 of it
-  steppe. Cooler summers take little water back. Colder years keep the taiga: the ground is frozen a little way down and
-  holds the snowmelt, so that larches and spruces grow on 250 mm at Yakutsk and Fairbanks. Of real places, this puts
-  Astana, Orenburg, Volgograd and Saskatoon in the steppe; Kharkiv, Omsk, Novosibirsk, Krasnoyarsk, Edmonton, Winnipeg,
-  Budapest and Harbin in the forest-steppe; and Moscow, Kyiv, Warsaw, Berlin, Paris, Ottawa and Minneapolis in the
-  forest. It errs by a few hundred kilometres at the edges: the grassland around Odessa and Regina comes out as
-  forest-steppe, and so do the hills around Beijing, while Voronezh, Kursk and Kazan, on the forest-steppe's northern
-  edge, come out as forest. Vanilla's table still reads the year's ratio.
+  steppe. Where the warmest month reaches 22 °C, Köppen's hot summer, land with less than 1.5 of it is prairie instead
+  of forest-steppe or woods, wherever the ground is unbroken enough for the fires to run. Cooler summers take little
+  water back. Colder years keep the taiga: the ground is frozen a little way down and holds the snowmelt, so that larches
+  and spruces grow on 250 mm at Yakutsk and Fairbanks. Of real places, this puts Astana, Orenburg, Volgograd and
+  Saskatoon in the steppe; Kharkiv, Omsk, Novosibirsk, Krasnoyarsk, Edmonton, Winnipeg and Budapest in the
+  forest-steppe; Des Moines, Wichita and Harbin in the prairie; and Moscow, Kyiv, Warsaw, Berlin, Paris, Ottawa,
+  Minneapolis and Saint Louis in the forest. It errs by a few hundred kilometres at the edges: the grassland around
+  Odessa and Regina comes out as forest-steppe, and so do the hills around Beijing, while Voronezh, Kursk and Kazan, on
+  the forest-steppe's northern edge, come out as forest. Vanilla's table still reads the year's ratio.
 - **Snow.** Snowy slopes and peaks need temperatures below 1 °C. A warmer mountain is moved into the plateau and
   forest bands. Between 1 and 8 °C, a summit more than 250 m above the land around it becomes stony peaks; a lower
   one keeps the woods of its own band. Vanilla gives stony peaks only to its warm band, which gives jungle wherever
@@ -406,7 +408,7 @@ Vanilla's table sees five bands of temperature and humidity and nothing of the s
 taiga, or a Mediterranean coast from a monsoon one. So the biome source, `diffusicraft:climate` (`ClimateBiomeSource`),
 takes vanilla's pick and hands it to `BiomeRefiner` with the column's whole climate (`BiomeClimate`): annual mean,
 temperature seasonality, precipitation and its seasonality, elevation, relief and the variant noise. The refiner may
-swap it for one of twenty-four new biomes, or for another of vanilla's. The first rule that matches wins:
+swap it for one of twenty-six new biomes, or for another of vanilla's. The first rule that matches wins:
 
 | Biome | Climate | Replaces |
 |---|---|---|
@@ -417,7 +419,7 @@ swap it for one of twenty-four new biomes, or for another of vanilla's. The firs
 | **Salt flat** | Desert (aridity below 0.5) with less than 4 m of relief on a basin's floor, below the 5th percentile of the ground within 7.7 km: the dry beds of old lakes, up on the cold Altiplano too. About 3% of the driest deserts, where flat ground anywhere made 57% | Plains, forests, taigas, savannas, deserts |
 | **Páramo**, **puna** | Tropical mountains (little seasonality) from 2500 m where the year averages below 10 °C. Every month is a growing season there, so the tree line follows the year rather than the summer, and the cloud forest gives way to them. Páramo with at least three times the rain of the aridity threshold, as in the northern Andes or on Mount Kenya; puna where it is drier, as on the Altiplano or Mauna Kea | Any land, peaks included |
 | **Tundra**, **alpine tundra** | Beyond the tree line: warmest month below 10 °C. Alpine on mountains | Any land, peaks included |
-| *(montane forest)* | Humid mountainsides (aridity at least 1) below the subalpine belt, where the warmest month passes 14 °C, some 600 m below the tree line. Vanilla's plateau row puts meadows there between the woods of its lowland row, in strips along every valley side; they become those woods: forest-steppe where the summers are too dry for closed woods (the meadow stays in the steppe's climate), mixed forest in its climate; elsewhere forest, and with at least twice the rain of the aridity threshold birch forest, or taiga below 5 °C. Semi-arid mountainsides get juniper woodland (see below). Meadows stay in the subalpine belt and on ground drier still | Meadows |
+| *(montane forest)* | Humid mountainsides (aridity at least 1) below the subalpine belt, where the warmest month passes 14 °C, some 600 m below the tree line. Vanilla's plateau row puts meadows there between the woods of its lowland row, in strips along every valley side; they become those woods: forest-steppe where the summers are too dry for closed woods, or prairie where they are hot and the ground unbroken (the meadow stays in the steppe's climate), mixed forest in its climate; elsewhere forest, and with at least twice the rain of the aridity threshold birch forest, or taiga below 5 °C. Semi-arid mountainsides get juniper woodland (see below). Meadows stay in the subalpine belt and on ground drier still | Meadows |
 | **Monsoon forest** | Frost-free lowland (coldest month at least 15 °C) with at least the rain of the aridity threshold. Vanilla only has temperate woods for it between its savannas and its jungles; jungles count too where the rain is strongly seasonal (BIO15 at least 80 %) and below 2000 mm, as in India and Thailand. Wetter jungles stay, as in the Amazon | Forests and taigas, jungles |
 | *(savanna)* | The same frost-free land (coldest month at least 15 °C) with at least the rain of the aridity threshold. Vanilla puts its plains there wherever its humidity is low, about half of the wet-and-dry tropics in the worlds surveyed, but grassland that warm, with a dry season, is savanna, as in the Cerrado around Brasília, the Llanos and around Darwin | Plains, sunflower plains |
 | **Laurel forest** | Jungle where the coldest month falls below 15 °C, so frost can come. Vanilla's jungles start at a yearly mean of 15 °C, which takes in the humid subtropics, as around Shanghai or Atlanta | Jungles |
@@ -428,7 +430,8 @@ swap it for one of twenty-four new biomes, or for another of vanilla's. The firs
 | **Maquis** | 12–21 °C, coldest month 2–15 °C, 250–1000 mm of strongly seasonal rain, below 1200 m. Where frost never comes, the rain comes with the summer instead, as the aridity threshold has it, and grows savanna and dry woods, as on the uplands of Malawi; before, maquis took a quarter of seed 42's hot deserts, most of them frost-free | The same, deserts and meadows too, but no other slopes |
 | **Heath** | Oceanic lowland below 300 m: 6–12 °C, coldest month above −4 °C, 550–1100 mm of rain. Only where the variant noise is below −0.3, so it comes in patches among the woods | Plains, forests, taigas, savannas |
 | **Forest-tundra** | From the tree line to where the warmest month reaches 13 °C, the northern edge of the closed forest, with at least the rain of the aridity threshold. The taiga thins out there over a hundred kilometres or more into clumps of stunted black spruce and crooked birch on lichen and moss, as along Hudson Bay, in northern Quebec and Labrador, on the Kola Peninsula and in Iceland. Vanilla puts its taigas, forests and snowy plains there. On a mountainside it is the belt of scattered, wind-bent trees just below the tree line | Snowy plains, snowy taigas, ice spikes, plains, forests, taigas, savannas |
-| **Forest-steppe**, **steppe** | Humid by the year's rain (aridity at least 1), but not by the summer's: the warmest month reaches 17 °C, the year averages −2 to 18 °C, and less rain falls than the threshold at the warmest month's temperature (see [Summer moisture](#summer-moisture)). Groves of birch and oak among the meadow-steppe, as from Ukraine to the Altai, in Manchuria and in the aspen parkland of the Canadian prairies; with less than 0.7 of that rain, steppe, as around Astana and Orenburg | Plains, forests, taigas, savannas; on humid mountainsides, meadows (see the montane forest) |
+| **Forest-steppe**, **steppe** | Humid by the year's rain (aridity at least 1), but not by the summer's: the warmest month reaches 17 °C, the year averages −2 to 18 °C, and less rain falls than the threshold at the warmest month's temperature (see [Summer moisture](#summer-moisture)). Groves of birch and oak among the meadow-steppe, as from Ukraine to the Altai and in the aspen parkland of the Canadian prairies; with less than 0.7 of that rain, steppe, as around Astana and Orenburg | Plains, forests, taigas, savannas; on humid mountainsides, meadows (see the montane forest) |
+| **Prairie** | The forest-steppe's climates where the warmest month reaches 22 °C, Köppen's hot summer, with less than 1.5 of the summer's rain: where the woods would give way to the forest-steppe in cooler summers, and on ground their climate would wood. Hot summers dry the grass for the fires, and the fires and the grazers keep the trees off, as from Illinois to Kansas, on the Songnen plain round Harbin and on the western pampas. The fires die out on broken ground: from 60 m of relief the hills stand wooded over the grass, as the Ozarks do. Saint Louis, with more rain, stays forest. Seed 2024 had three-quarters of its land with hot summers and cold winters (Dfa) there, and its swamps the rest | Plains, forests, taigas, savannas; flat meadows |
 | **Mixed forest** | 3.5–9 °C, warmest month at least 16 °C, coldest month below −1 °C, with at least the rain of the aridity threshold, as in southern Finland and Sweden, around Moscow, by the Great Lakes and in Manchuria. Oaks and birches grow among the spruces and pines there. Vanilla draws its line between taiga and forest at 5 °C, through the middle of that belt, and grows one or the other on either side of it. The oak needs a summer warm enough to ripen its acorns; milder winters favour the beech, and the forest is broadleaf, as in Denmark and around Berlin, which vanilla's forest already is | Forests, birch forests and taigas; on humid mountainsides, meadows (see the montane forest) |
 | *(taiga)* | Below 3.5 °C, with at least the rain of the aridity threshold. Vanilla grows its forest of oaks and birches down to −5 °C wherever the rain is moderate, and its taiga only where it is wetter, but only spruces, pines, firs, larches and birches stand those winters: the boreal forest, as around Kirov and at Fort Smith. Before, vanilla's forest made a sixth of the boreal land of seed 42 | Forests |
 | **Cold desert** | Desert (aridity below 0.5) cooler than 12 °C | Plains, forests, taigas, savannas, deserts; snowy plains, snowy taigas and ice spikes beyond the snow and ice |
@@ -437,6 +440,7 @@ swap it for one of twenty-four new biomes, or for another of vanilla's. The firs
 | **Juniper woodland** | Semi-arid (aridity 0.6 to 1), 3–18 °C, on rugged ground: at least 60 m of relief, or a mountainside's meadow below the subalpine belt. Junipers and pinyon pines root in the cracks of the rock, where the water gathers that the grass of the plains takes first. So the ranges of the Great Basin, the mesas of the Colorado Plateau, the foothills of the Tien Shan and the hills of Anatolia and Iran are open woods above the steppe of their valleys | Plains, forests, taigas, savannas; on semi-arid mountainsides, meadows |
 | **Shrub steppe** | Semi-arid and cooler than 18 °C where the ground is too flat, too dry or too cold for junipers, and either nearly desert (aridity below 0.65) or watered in the cool season (the coldest month above 2 °C, from which the aridity threshold takes the rain to fall in winter). Winter's rain soaks deep while little of it evaporates and waters the long roots of shrubs; summer's wets only the top of the soil, which the grass takes first. So sagebrush and saltbush cover the Great Basin and the Columbia Plateau, the steppe of Patagonia and the wormwood steppe of Kazakhstan. In the worlds surveyed, a third of the semi-arid steppe, and three-quarters in a drier one | Plains, forests, taigas, savannas; snowy plains, snowy taigas and ice spikes beyond the snow and ice |
 | **Steppe** | The rest of the semi-arid land cooler than 18 °C: summer rain, and more of it, as on the Great Plains and in Mongolia; and where the summers are drier still (see the forest-steppe). Vanilla's frozen band puts snowy plains on such ground, as it does on the wetter ground of the larches, but so little snow falls there that it lies thin and blows away: the cold steppe of the Chuya basin below the Altai and of Mongolia's basins, which freezes deep in winter. Seed 7 had 2% of its land there | Plains, forests, taigas, savannas; snowy plains, snowy taigas and ice spikes beyond the snow and ice |
+| **Thorn scrub** | Semi-arid land from 18 °C with less than 0.7 of the rain of the aridity threshold: the driest savannas, toward the deserts, as in the Sahel, the Caatinga, the Chaco, the rain shadow of the Deccan, Tamaulipas and the bush of Kenya. Thorn bushes, low mesquites and acacias grow there among grass too thin to carry the savanna's fires, under the odd baobab. Vanilla's savanna stays from 0.7 to the threshold, and the maquis comes first. Seed 1 had two-fifths of its hot semi-arid land there, as much as the savanna kept | Plains, forests, taigas, savannas |
 
 Frozen and warm oceans, shores, rivers, caves and the mushroom fields are never touched, and neither is any biome a mod adds to the
 table: only vanilla's own biomes are refined. `BiomeRefiner` is pure and unit-tested.
@@ -487,7 +491,9 @@ the colours:
 | Steppe | Plains | Grass, dry grass, tulips and poppies, a lone oak or birch | Grass with patches of coarse dirt over loess |
 | Shrub steppe | Plains | Sagebrush a stride or two apart, as waist-high mounds of silvery leaves and low bushes, over dry bunchgrass, paintbrush and globemallow (tulips), wild onion (alliums), dead bushes and the odd boulder; wild horses and burros, sheep, jackrabbits (rabbits), foxes and coyotes (wolves) | Grass with bare coarse dirt and gravel over loess, rock where it is steep |
 | Juniper woodland | Plains | Junipers, pinyon pines and young junipers a few strides apart over bunchgrass, sagebrush (bushes), dead bushes, paintbrush and globemallow (tulips), wild onion (alliums) and the odd cornflower, boulders; wild horses and burros, bighorns (goats), rabbits, foxes and coyotes (wolves). Its villages are the desert's, which look like adobe pueblos | Grass with coarse dirt and gravel, rock where it is steep |
+| Prairie | Plains | Tall grass waist-high and thick, with short and dry grass, wild onion (alliums), sunflowers, ox-eye daisies, dandelions (coneflowers), pink tulips (blazing star) and cornflowers (lupins); a lone oak or big oak in one chunk in twenty, sugar cane and fireflies by the water; herds of bison (cows) and horses, sheep, chickens, pigs, rabbits, foxes and wolves | Grass over loess |
 | Forest-steppe | Plains | Groves of birches (aspens), oaks and the odd big oak or pine, with fallen leaves and now and then a fallen trunk, among tall grass, cornflowers (sage), ox-eye daisies, poppies, dandelions (buttercups) and azure bluets; a lone tree here and there, bushes; the plains' farm animals, with horses, rabbits and foxes | Grass |
+| Thorn scrub | Savanna | Thorn bushes, low creosote, mesquites and the odd acacia, alone and in thickets, and a baobab in one chunk in eight; bushes, dry grass, dandelions and alliums, columnar cacti on the sand, dead bushes, fireflies by the water; armadillos, goats, rabbits, donkeys, chickens and horses | Grass with coarse dirt, red laterite and drifts of red sand, laterite below |
 | Moorland | Plains | Heather, moor grass and cottongrass, granite tors, the odd birch or spruce, berries | Grass with bare peat and sphagnum (moss), peat below |
 | Heath | Plains | Heather and grass under scattered birches with bees, Scots pines and junipers | Grass with sandy coarse dirt and podzol |
 | Salt flat | Desert | Nothing | Salt crust over rock salt |
@@ -512,7 +518,8 @@ its top with water wherever the water is held on every side. The larches are spr
 the biome's light green, in narrow, open cones; their reindeer lichen is pale moss. The junipers are acacia wood, grey
 like their weathered bark, under oak leaves that take the biome's grey-green, on short, forking stems; the pinyons are
 round crowns of spruce. The mountain birches of the forest-tundra are birch on a short, bending trunk, and its black
-spruces the bog's.
+spruces the bog's. The thorn bushes of the thorn scrub are wide, low mounds of acacia leaves on a short stem of acacia
+log, and its baobabs acacia wood, a 2×2 trunk a dozen blocks tall under a flat, spreading acacia crown.
 
 The redwood forest, the ancient woodland and the old-growth jungle are no climate's own: they come only as
 [patches](#sub-biomes) of the woods around them, on level land, and carry the groves of [giant trees](#giant-trees).
@@ -549,9 +556,10 @@ ground is the column's height over the mean of the land around (over 1.4 km of r
 0 at its edge, for each unit of height on the wrong side:
 
 - **low**, the lower half of the land, where the water gathers: dark forest and old spruce, the groves of the plains
-  and the steppe, the bamboo of the jungle, the gallery forests of the savanna;
-- **high**, the upper half, which dries out first: pines, light woods, open jungle, shrub steppe and junipers, stony
-  desert, tundra on the exposed rises of the forest-tundra;
+  and the steppe, the bamboo of the jungle, the gallery forests of the savanna and the prairie, the savanna of the thorn
+  scrub;
+- **high**, the upper half, which dries out first: pines, light woods, open jungle, shrub steppe and junipers, thorn
+  scrub, stony desert and desert scrub, tundra on the exposed rises of the forest-tundra;
 - **wet**, flat hollows, where the water stands: bogs, which also shrink from 10 m of relief and are gone by 25 m;
 - **flat**, level land at any height, where the giants stand: the groves of giant trees, which shrink from 25 m of
   relief and are gone by 60 m, so they keep to the plains and the broad valleys. The old-growth jungle of the sparse
@@ -561,7 +569,8 @@ ground is the column's height over the mean of the land around (over 1.4 km of r
 as the refiner's bogs do (warmest month below 20 °C, at least the rain of the aridity threshold, below 1500 m, not in
 the maquis). Trees in the snowy plains and the meadows need summers at least 1 °C past the tree line, ice spikes summers
 short of it. The dry forests of the savanna need frost-free land with at least the rain of the aridity threshold,
-jungle in the monsoon forest 1500 mm, and junipers in the shrub steppe their own climate (see the refiner); the
+jungle in the monsoon forest 1500 mm, thorn scrub in the savanna less than the rain of the aridity threshold, desert
+scrub in the thorn scrub less than 0.65 of it, and junipers in the shrub steppe their own climate (see the refiner); the
 juniper woodland's patches are steppe or shrub steppe, whichever its climate would have. Redwoods need mild winters
 and rain, a coldest month of −12 °C or more and at least 700 mm, as on the coasts where real redwoods grow: the
 redwood groves of the boreal forest keep to its milder, wetter edges, and the temperate rainforest has them anywhere.
@@ -579,6 +588,7 @@ The families, with the share of the patches each sibling takes; the other patche
 | Dappled forest | Forest 10% (low), plains 10%, birch forest 5% |
 | Plains | Sunflower plains 12%, forest 12% (low), flower forest 5%, dappled forest 5%, birch forest 4% (low), ancient woodland 6% (flat) |
 | Sunflower plains | Plains 16%, forest 8% (low), ancient woodland 4% (flat) |
+| Prairie | Forest 10% (low), sunflower plains 8%, ancient woodland 3% (flat) |
 | Ancient woodland | Forest 14%, flower forest 6%, plains 6% |
 | Taiga | Old-growth spruce taiga 10% (low), old-growth pine taiga 10% (high), bog 10% (wet), birch forest 8%, redwood forest 4% (flat, mild) |
 | Old-growth spruce taiga | Taiga 14% (high), bog 6% (wet), redwood forest 8% (flat, mild) |
@@ -592,7 +602,8 @@ The families, with the share of the patches each sibling takes; the other patche
 | Sparse jungle | Jungle 14% (low), bamboo jungle 4% (low), old-growth jungle 4% (low) |
 | Bamboo jungle | Jungle 18%, old-growth jungle 6% (flat) |
 | Old-growth jungle | Jungle 12%, bamboo jungle 6% (low) |
-| Savanna | Monsoon forest 8% (low), sparse jungle 4% (low) |
+| Savanna | Monsoon forest 8% (low), sparse jungle 4% (low), thorn scrub 8% (high, semi-arid) |
+| Thorn scrub | Savanna 12% (low), desert scrub 6% (high, nearly desert) |
 | Desert | Stony desert 6% (high) |
 | Desert scrub | Desert 10% (low), stony desert 6% (high) |
 | Mixed forest | Taiga 10% (high), birch forest 10%, forest 10% (low), bog 5% (wet), flower forest 3%, redwood forest 4% (flat, mild) |

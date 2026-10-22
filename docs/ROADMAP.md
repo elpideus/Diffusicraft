@@ -194,10 +194,10 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 ### Biomes
 
-- **More real-world biomes.** A survey of the land of two worlds by rough Köppen class finds a fitting biome in every
-  class now. What is left needs more than the yearly figures: the prairie and the pampas, which fires and grazers keep
-  from the forest their climate would grow; the thorn scrub of the driest savannas; and whether the rain of a climate
-  between the Mediterranean and the monsoon falls in summer or in winter, which the data has no month for.
+- **More real-world biomes.** A survey of the land of four worlds by rough Köppen class finds a fitting biome in every
+  class now, with the prairie where hot summers burn the woods back and the thorn scrub of the driest savannas. What
+  is left needs more than the yearly figures: whether the rain of a climate between the Mediterranean and the monsoon
+  falls in summer or in winter, which the data has no month for.
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
 

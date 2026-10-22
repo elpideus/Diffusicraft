@@ -369,6 +369,71 @@
               "if_true": {
                 "type": "minecraft:biome",
                 "biome_is": [
+                  "diffusicraft:thorn_scrub"
+                ]
+              },
+              "then_run": {
+                "type": "minecraft:sequence",
+                "sequence": [
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": "minecraft:on_ceiling",
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:coarse_dirt"
+                    }
+                  },
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:noise_threshold",
+                      "noise": "minecraft:surface",
+                      "min_threshold": 0.45,
+                      "max_threshold": 1.7976931348623157e+308
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:red_sand"
+                    }
+                  },
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:noise_threshold",
+                      "noise": "minecraft:surface",
+                      "min_threshold": -1.7976931348623157e+308,
+                      "max_threshold": -0.45
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "diffusicraft:laterite"
+                    }
+                  },
+                  {
+                    "type": "minecraft:condition",
+                    "if_true": {
+                      "type": "minecraft:noise_threshold",
+                      "noise": "minecraft:surface",
+                      "min_threshold": -1.7976931348623157e+308,
+                      "max_threshold": -0.1
+                    },
+                    "then_run": {
+                      "type": "minecraft:block",
+                      "result_state": "minecraft:coarse_dirt"
+                    }
+                  },
+                  {
+                    "type": "minecraft:block",
+                    "result_state": "minecraft:grass_block"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "minecraft:condition",
+              "if_true": {
+                "type": "minecraft:biome",
+                "biome_is": [
                   "diffusicraft:stony_desert"
                 ]
               },
@@ -1178,7 +1243,8 @@
                     "type": "minecraft:biome",
                     "biome_is": [
                       "diffusicraft:steppe",
-                      "diffusicraft:shrub_steppe"
+                      "diffusicraft:shrub_steppe",
+                      "diffusicraft:prairie"
                     ]
                   },
                   "then_run": {
@@ -1200,7 +1266,8 @@
                       "diffusicraft:cloud_forest",
                       "diffusicraft:monsoon_forest",
                       "diffusicraft:laurel_forest",
-                      "diffusicraft:old_growth_jungle"
+                      "diffusicraft:old_growth_jungle",
+                      "diffusicraft:thorn_scrub"
                     ]
                   },
                   "then_run": {

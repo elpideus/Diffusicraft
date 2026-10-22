@@ -232,11 +232,12 @@ class BiomeRefinerTest {
 		// The valley floor below Cedar City, as flat as the Great Plains: sagebrush.
 		assertEquals(BiomeRefiner.SHRUB_STEPPE,
 			BiomeRefiner.refine("minecraft:plains", climate(9.9f, 9f, 280f, 30f, 1700f, 20f)));
-		// The dry hills of Mongolia are too cold for junipers, the hills of the Sahel too hot, and the hills of the
-		// Great Basin's driest ranges too dry.
+		// The dry hills of Mongolia are too cold for junipers, the hills of the Sahel too hot (thorn scrub grows there),
+		// and the hills of the Great Basin's driest ranges too dry.
 		assertEquals(BiomeRefiner.STEPPE,
 			BiomeRefiner.refine("minecraft:taiga", climate(0f, 13f, 200f, 60f, 1500f, 120f)));
-		assertNull(BiomeRefiner.refine("minecraft:savanna", climate(26f, 4f, 450f, 100f, 500f, 100f)));
+		assertEquals(BiomeRefiner.THORN_SCRUB,
+			BiomeRefiner.refine("minecraft:savanna", climate(26f, 4f, 450f, 100f, 500f, 100f)));
 		assertEquals(BiomeRefiner.COLD_DESERT,
 			BiomeRefiner.refine("minecraft:plains", climate(10f, 9f, 180f, 30f, 1600f, 100f)));
 	}
@@ -268,7 +269,7 @@ class BiomeRefinerTest {
 			BiomeRefiner.refine("minecraft:plains", climate(5.2f, 12.4f, 380f, 25f, 100f, 20f)));
 		assertEquals(BiomeRefiner.STEPPE,
 			BiomeRefiner.refine("minecraft:taiga", climate(8.5f, 10.8f, 380f, 20f, 100f, 20f)));
-		// Groves among the meadow-steppe: Kharkiv, Omsk, Edmonton's aspen parkland, Budapest and Harbin.
+		// Groves among the meadow-steppe: Kharkiv, Omsk, Edmonton's aspen parkland and Budapest.
 		assertEquals(BiomeRefiner.FOREST_STEPPE,
 			BiomeRefiner.refine("minecraft:forest", climate(7.7f, 9.4f, 520f, 25f, 150f, 30f)));
 		assertEquals(BiomeRefiner.FOREST_STEPPE,
@@ -277,13 +278,37 @@ class BiomeRefinerTest {
 			BiomeRefiner.refine("minecraft:plains", climate(4.2f, 9.9f, 456f, 70f, 670f, 30f)));
 		assertEquals(BiomeRefiner.FOREST_STEPPE,
 			BiomeRefiner.refine("minecraft:birch_forest", climate(11.1f, 7.7f, 560f, 20f, 110f, 30f)));
-		assertEquals(BiomeRefiner.FOREST_STEPPE,
-			BiomeRefiner.refine("minecraft:taiga", climate(4.8f, 14.5f, 530f, 110f, 150f, 40f)));
 		// Fairbanks gets less rain than Astana, but its ground is frozen below: taiga.
 		assertNull(BiomeRefiner.refine("minecraft:taiga", climate(-2.3f, 14.1f, 280f, 60f, 140f, 40f)));
 		// Moscow, with as warm a summer and more rain, stays forest.
 		assertEquals(BiomeRefiner.MIXED_FOREST,
 			BiomeRefiner.refine("minecraft:forest", climate(5.8f, 9f, 710f, 30f, 150f, 30f)));
+	}
+
+	@Test
+	void hotSummersBurnTheWoodsIntoPrairie() {
+		// Des Moines, Wichita and Harbin: rain enough for woods, but summers hot enough to dry the grass for the fires.
+		assertEquals(BiomeRefiner.PRAIRIE,
+			BiomeRefiner.refine("minecraft:plains", climate(10.5f, 10.8f, 900f, 45f, 290f, 30f)));
+		assertEquals(BiomeRefiner.PRAIRIE,
+			BiomeRefiner.refine("minecraft:forest", climate(13.9f, 9.9f, 870f, 40f, 400f, 40f)));
+		assertEquals(BiomeRefiner.PRAIRIE,
+			BiomeRefiner.refine("minecraft:taiga", climate(4.8f, 14.5f, 530f, 110f, 150f, 40f)));
+		// The fires die out in the hills of the Ozarks, and Saint Louis gets rain enough for the woods to win.
+		assertNull(BiomeRefiner.refine("minecraft:forest", climate(13.9f, 9.9f, 870f, 40f, 400f, 120f)));
+		assertNull(BiomeRefiner.refine("minecraft:forest", climate(14f, 9f, 1050f, 30f, 150f, 40f)));
+	}
+
+	@Test
+	void theDriestSavannasAreThornScrub() {
+		// Niamey, in the Sahel, and Petrolina, in the Caatinga: one short wet season, and thorn bush between the trees.
+		BiomeClimate niamey = climate(29.6f, 3.6f, 540f, 120f, 210f, 30f);
+		assertEquals(BiomeRefiner.THORN_SCRUB, BiomeRefiner.refine("minecraft:savanna", niamey));
+		assertEquals(BiomeRefiner.THORN_SCRUB, BiomeRefiner.refine("minecraft:plains", niamey));
+		assertEquals(BiomeRefiner.THORN_SCRUB,
+			BiomeRefiner.refine("minecraft:savanna", climate(26.5f, 1f, 550f, 90f, 380f, 30f)));
+		// Ouagadougou, wetter, keeps vanilla's savanna.
+		assertNull(BiomeRefiner.refine("minecraft:savanna", climate(28.5f, 2.5f, 750f, 110f, 300f, 30f)));
 	}
 
 	@Test

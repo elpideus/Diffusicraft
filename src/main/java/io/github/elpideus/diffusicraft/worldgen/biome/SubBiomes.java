@@ -12,9 +12,11 @@ import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.BOG;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.FOREST_STEPPE;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.JUNIPER_WOODLAND;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.OLD_GROWTH_JUNGLE;
+import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.PRAIRIE;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.REDWOOD_FOREST;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.SHRUB_STEPPE;
 import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.STEPPE;
+import static io.github.elpideus.diffusicraft.worldgen.biome.BiomeRefiner.THORN_SCRUB;
 
 /**
  * Sub-biomes: patches of a biome's siblings inside it, a few hundred blocks across, as real land varies within one
@@ -112,6 +114,10 @@ public final class SubBiomes {
 	private static final Predicate<BiomeClimate> JUNIPERS = c -> BiomeRefiner.juniperWoodland(c, c.aridity());
 	private static final Predicate<BiomeClimate> SHRUBS = c -> BiomeRefiner.shrubSteppe(c, c.aridity());
 	private static final Predicate<BiomeClimate> GRASS = SHRUBS.negate();
+	/** Less rain than the ground needs: semi-arid or drier. */
+	private static final Predicate<BiomeClimate> SEMI_ARID = c -> c.aridity() < 1f;
+	/** Nearly desert. */
+	private static final Predicate<BiomeClimate> NEAR_DESERT = c -> c.aridity() < BiomeRefiner.SHRUB_ARIDITY;
 	/** Mild and wet enough for redwoods: not the hard winters nor the dry summers of the inland taiga. */
 	private static final Predicate<BiomeClimate> REDWOODS = c -> c.coldestMonth() >= -12f && c.precipitation >= 700f;
 
@@ -164,6 +170,12 @@ public final class SubBiomes {
 			of(0.16f, "minecraft:plains"),
 			of(0.08f, "minecraft:forest", Ground.LOW),
 			of(0.04f, ANCIENT_WOODLAND, Ground.FLAT)),
+		// Sunflowers in the tall grass, gallery forests along the streams, where the fires do not reach, and here and
+		// there the great oaks of an oak opening.
+		family(PRAIRIE,
+			of(0.10f, "minecraft:forest", Ground.LOW),
+			of(0.08f, "minecraft:sunflower_plains"),
+			of(0.03f, ANCIENT_WOODLAND, Ground.FLAT)),
 		family(ANCIENT_WOODLAND,
 			of(0.14f, "minecraft:forest"),
 			of(0.06f, "minecraft:flower_forest"),
@@ -212,10 +224,16 @@ public final class SubBiomes {
 		family(OLD_GROWTH_JUNGLE,
 			of(0.12f, "minecraft:jungle"),
 			of(0.06f, "minecraft:bamboo_jungle", Ground.LOW)),
-		// Islands of dry forest and gallery forests along the streams, where the fires do not reach.
+		// Islands of dry forest and gallery forests along the streams, where the fires do not reach, and thorn bush on
+		// the dry rises of the semi-arid savanna.
 		family("minecraft:savanna",
 			of(0.08f, BiomeRefiner.MONSOON_FOREST, Ground.LOW, TROPICAL),
-			of(0.04f, "minecraft:sparse_jungle", Ground.LOW, TROPICAL)),
+			of(0.04f, "minecraft:sparse_jungle", Ground.LOW, TROPICAL),
+			of(0.08f, THORN_SCRUB, Ground.HIGH, SEMI_ARID)),
+		// Savanna in the hollows, where the water gathers, and desert scrub on the rises where it nears the desert.
+		family(THORN_SCRUB,
+			of(0.12f, "minecraft:savanna", Ground.LOW),
+			of(0.06f, BiomeRefiner.DESERT_SCRUB, Ground.HIGH, NEAR_DESERT)),
 		family("minecraft:desert",
 			of(0.06f, BiomeRefiner.STONY_DESERT, Ground.HIGH)),
 		family(BiomeRefiner.DESERT_SCRUB,

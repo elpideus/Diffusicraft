@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:random_selector",
+  "default": "diffusicraft:thorn_bush_checked",
+  "features": [
+    {
+      "chance": 0.3,
+      "feature": "diffusicraft:desert_shrub_checked"
+    },
+    {
+      "chance": 0.25,
+      "feature": "diffusicraft:mesquite_checked"
+    },
+    {
+      "chance": 0.06,
+      "feature": "minecraft:acacia_checked"
+    }
+  ]
+}

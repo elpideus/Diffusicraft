@@ -308,6 +308,15 @@ FEATURES = {
     "mesquite": tree("acacia_log", {"type": "minecraft:forking_trunk_placer", "base_height": 2, "height_rand_a": 1,
                                     "height_rand_b": 1}, "acacia_leaves",
                      {"type": "minecraft:acacia_foliage_placer", "radius": 2, "offset": 0}, two_layers(1, 0, 2)),
+    # Thorn bushes, catclaw, mimosa and the young acacias of the thorn scrub: a dense mound on a stem or two, as tall
+    # as a man or a little taller.
+    "thorn_bush": tree("acacia_log", straight(2, 1, 0), "acacia_leaves",
+                       {"type": "minecraft:bush_foliage_placer", "height": 1, "offset": 0, "radius": 2},
+                       two_layers(0, 0, 0)),
+    # Baobabs and bottle trees: a fat, bare trunk under a flat crown of short branches, standing over the scrub.
+    "baobab": tree("acacia_wood", {"type": "minecraft:giant_trunk_placer", "base_height": 9, "height_rand_a": 3,
+                                   "height_rand_b": 0}, "acacia_leaves",
+                   {"type": "minecraft:acacia_foliage_placer", "radius": 3, "offset": 0}, two_layers(1, 1, 2)),
     # Junipers: short and bushy on a few crooked, grey stems, their scaly foliage grey-green.
     "juniper": tree("acacia_log", {"type": "minecraft:forking_trunk_placer", "base_height": 2, "height_rand_a": 1,
                                    "height_rand_b": 1}, "oak_leaves",
@@ -361,6 +370,12 @@ FEATURES = {
                                                                    "persistent": "true"}}, 1)]),
     # Desert marigolds and sand verbena, after the rain.
     "desert_flowers": simple([("dandelion", 3), ("allium", 1)]),
+    # Big bluestem, switchgrass and Indiangrass, head-high by the end of the summer.
+    "prairie_grass": simple([("tall_grass", 6), ("short_grass", 3), ("short_dry_grass", 1)]),
+    # Blazing stars (alliums), sunflowers, fleabane (ox-eye daisies), goldenrod and black-eyed Susans (dandelions),
+    # coneflowers (pink tulips) and spiderwort (cornflowers).
+    "prairie_flowers": simple([("allium", 3), ("sunflower", 1), ("oxeye_daisy", 2), ("dandelion", 3),
+                               ("pink_tulip", 2), ("cornflower", 1)]),
     # Lilies of the valley and wood anemones, which flower in the spring before the trees come into leaf.
     "woodland_flowers": simple([("lily_of_the_valley", 3), ("azure_bluet", 2)]),
     "boulder": boulder("stone", ["sand", "gravel", "coarse_dirt"]),
@@ -473,6 +488,7 @@ PLACED = {
     "polylepis_checked": checked(ours("polylepis"), "oak_sapling"),
     "desert_shrub_checked": checked(ours("desert_shrub"), "acacia_sapling"),
     "mesquite_checked": checked(ours("mesquite"), "acacia_sapling"),
+    "thorn_bush_checked": checked(ours("thorn_bush"), "acacia_sapling"),
     "juniper_checked": checked(ours("juniper"), "oak_sapling"),
     "pinyon_checked": checked(ours("pinyon"), "spruce_sapling"),
     "boulders": scattered(ours("boulder"), chance=4),
@@ -499,6 +515,12 @@ PLACED = {
     "trees_paramo": trees(ours("trees_paramo"), {0: 2, 1: 3, 2: 3, 4: 2}, "oak_sapling"),
     "trees_puna": trees(ours("polylepis"), {0: 16, 1: 1}, "oak_sapling"),
     "trees_desert_scrub": trees(ours("trees_desert_scrub"), {1: 2, 2: 3, 3: 3, 4: 1}, "acacia_sapling"),
+    # Thickets with bare ground and dry grass between them, a few bushes standing alone, and a baobab every few chunks.
+    "trees_thorn_scrub": groves(ours("trees_thorn_scrub"), 8, "acacia_sapling", size=32, offset=-0.2),
+    "lone_trees_thorn_scrub": trees(ours("trees_thorn_scrub"), {0: 2, 1: 3, 2: 2}, "acacia_sapling"),
+    "baobabs": trees(ours("baobab"), {0: 7, 1: 1}, "acacia_sapling"),
+    # Bur oaks standing alone in the grass, a chunk in twenty.
+    "trees_prairie": trees(ours("trees_prairie"), {0: 19, 1: 1}, "oak_sapling"),
     "trees_mixed_forest": trees(ours("trees_mixed_forest"), {10: 9, 11: 1}, "spruce_sapling"),
     # Under the giants: a few spruces, firs and fallen trunks; oaks and birches far apart, as in a wood pasture; and
     # the jungle's own trees, thinned out by the shade.
@@ -551,6 +573,10 @@ PLACED = {
     "patch_desert_bush": patch("minecraft:bush", 16, spread=6, count=1),
     "patch_scrub_grass": patch(ours("scrub_grass"), 32, count=2),
     "patch_desert_flowers": patch(ours("desert_flowers"), 32, spread=6, chance=6),
+    "patch_thorn_scrub_grass": patch(ours("scrub_grass"), 32, count=4),
+    "patch_thorn_scrub_bush": patch("minecraft:bush", 24, spread=5, count=2),
+    "patch_prairie_grass": patch(ours("prairie_grass"), 64, count=8),
+    "patch_prairie_flowers": patch(ours("prairie_flowers"), 48, spread=6, count=2),
     # Cacti grow only on the sand.
     "columnar_cacti": patch(ours("columnar_cactus"), 3, spread=6, chance=3, survive="cactus"),
     "patch_woodland_flowers": patch(ours("woodland_flowers"), 32, spread=6, chance=3),
@@ -658,6 +684,14 @@ FEATURES["trees_paramo"] = {"type": "minecraft:random_selector", "default": ours
 # Creosote bush and saltbush, and mesquite here and there.
 FEATURES["trees_desert_scrub"] = {"type": "minecraft:random_selector", "default": ours("desert_shrub_checked"),
                                   "features": [{"chance": 0.12, "feature": ours("mesquite_checked")}]}
+# Thorn bushes, low thorny mounds and mesquites, with now and then an acacia standing over them.
+FEATURES["trees_thorn_scrub"] = {"type": "minecraft:random_selector", "default": ours("thorn_bush_checked"),
+                                 "features": [{"chance": 0.3, "feature": ours("desert_shrub_checked")},
+                                              {"chance": 0.25, "feature": ours("mesquite_checked")},
+                                              {"chance": 0.06, "feature": "minecraft:acacia_checked"}]}
+# Bur oaks, broad and low, which the prairie's fires do not kill.
+FEATURES["trees_prairie"] = {"type": "minecraft:random_selector", "default": "minecraft:oak_checked",
+                             "features": [{"chance": 0.4, "feature": "minecraft:fancy_oak_checked"}]}
 # Norway spruce and Scots pine, with birches and aspens, and oaks, limes and maples, which drop their leaves on the
 # needles: the conifers and the broadleaves each make up about half of the trees. Now and then a fallen trunk.
 FEATURES["trees_mixed_forest"] = {"type": "minecraft:random_selector", "default": "minecraft:spruce_checked",
@@ -902,6 +936,25 @@ BIOMES = {
                  "minecraft:is_overworld", "minecraft:spawns_gold_rabbits",
                  "minecraft:spawns_warm_variant_farm_animals", "minecraft:stronghold_biased_to"],
     },
+    # Tropical thorn scrub: thickets of thorn bushes, mesquite and acacia as tall as a man, over red earth, dry grass
+    # and drifts of red sand where the cacti grow, with a baobab standing over it all every few chunks. The driest
+    # savannas, the Sahel, the Caatinga and the Chaco, the thorn forests of India and of Tamaulipas, and the bushland of
+    # Kenya. Armadillos, as in the Chaco; goats and donkeys, as in the Sahel; guinea fowl (chickens).
+    "thorn_scrub": {
+        "template": "savanna", "temperature": 2.0, "downfall": 0.1,
+        "effects": {"grass_color": "#aea558", "foliage_color": "#8e9446", "dry_foliage_color": "#a8865a"},
+        "creatures": [spawn("armadillo", 8, 1, 2), spawn("goat", 6, 1, 3), spawn("rabbit", 6, 2, 3),
+                      spawn("donkey", 4, 1, 3), spawn("chicken", 4, 2, 4), spawn("horse", 2, 2, 4)],
+        "vegetation": ["minecraft:glow_lichen", "baobabs", "trees_thorn_scrub", "lone_trees_thorn_scrub",
+                       "patch_thorn_scrub_bush", "patch_thorn_scrub_grass", "patch_desert_flowers", "columnar_cacti",
+                       "minecraft:patch_dead_bush_2", "minecraft:patch_firefly_bush_near_water"],
+        "tags": ["c:is_savanna", "c:is_dry/overworld", "c:is_hot/overworld",
+                 "minecraft:has_structure/abandoned_camp_savanna", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/pillager_outpost", "minecraft:has_structure/ruined_portal_standard",
+                 "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_savanna",
+                 "minecraft:is_overworld", "minecraft:is_savanna", "minecraft:spawns_warm_variant_farm_animals",
+                 "minecraft:spawns_warm_variant_frogs", "minecraft:stronghold_biased_to"],
+    },
     "steppe": {
         "template": "plains", "temperature": 0.65, "downfall": 0.25,
         "effects": {"grass_color": "#a9b15e", "foliage_color": "#93a04c", "dry_foliage_color": "#a68a52"},
@@ -966,6 +1019,23 @@ BIOMES = {
                  "minecraft:has_structure/ruined_portal_standard", "minecraft:has_structure/trial_chambers",
                  "minecraft:has_structure/village_plains", "minecraft:is_overworld",
                  "minecraft:stronghold_biased_to"],
+    },
+    # Tallgrass prairie: a sea of grass head-high by the end of the summer, bright with wildflowers and sunflowers, a
+    # lone bur oak here and there, on deep black soil over loess. The fires and the grazers keep the trees off ground
+    # their climate would wood: the tallgrass prairie from Illinois to Kansas and the pampas of Argentina and Uruguay.
+    # Bison (cows), wild horses, prairie chickens (chickens), rabbits, foxes and coyotes (wolves).
+    "prairie": {
+        "template": "plains", "temperature": 0.8, "downfall": 0.5,
+        "effects": {"grass_color": "#a0b75a", "foliage_color": "#7f9f4a", "dry_foliage_color": "#a88c52"},
+        "creatures": [spawn("cow", 12, 4, 8), spawn("horse", 6, 2, 6), spawn("sheep", 4, 4), spawn("chicken", 6, 4),
+                      spawn("pig", 2, 4), spawn("rabbit", 6, 2, 3), spawn("fox", 2, 2, 3), spawn("wolf", 1, 2, 4)],
+        "vegetation": ["minecraft:glow_lichen", "minecraft:patch_tall_grass_2", "trees_prairie",
+                       "minecraft:patch_grass_plain", "patch_prairie_grass", "patch_prairie_flowers",
+                       "minecraft:patch_sugar_cane", "minecraft:patch_firefly_bush_near_water"],
+        "tags": ["c:is_plains", "c:is_temperate/overworld", "minecraft:has_structure/mineshaft",
+                 "minecraft:has_structure/pillager_outpost", "minecraft:has_structure/ruined_portal_standard",
+                 "minecraft:has_structure/trial_chambers", "minecraft:has_structure/village_plains",
+                 "minecraft:is_overworld", "minecraft:stronghold_biased_to"],
     },
     "moorland": {
         "template": "plains", "temperature": 0.4, "downfall": 0.9,
@@ -1220,7 +1290,7 @@ SUBSOIL = {"type": "minecraft:not", "invert": {
 # Laterite: the red, leached soil of the tropics, and the red earths of the humid subtropics.
 TROPICAL = ["minecraft:jungle", "minecraft:sparse_jungle", "minecraft:bamboo_jungle", "minecraft:savanna",
             "minecraft:savanna_plateau", "minecraft:windswept_savanna", "cloud_forest", "monsoon_forest",
-            "laurel_forest", "old_growth_jungle"]
+            "laurel_forest", "old_growth_jungle", "thorn_scrub"]
 SURFACE_RULE = sequence(
     when("minecraft:on_floor", when("minecraft:not_underwater", sequence(
         # Scree and bare rock between the alpine grass.
@@ -1250,6 +1320,11 @@ SURFACE_RULE = sequence(
         when(biome_is("desert_scrub"), sequence(
             when("minecraft:on_ceiling", block("coarse_dirt")), when(noise(0.2), block("sand")),
             when(noise(hi=-0.45), block("gravel")), block("coarse_dirt"))),
+        # Red earth and coarse dirt between the thickets, and drifts of red sand where the cacti grow.
+        when(biome_is("thorn_scrub"), sequence(
+            when("minecraft:on_ceiling", block("coarse_dirt")), when(noise(0.45), block("red_sand")),
+            when(noise(hi=-0.45), block(ours("laterite"))), when(noise(hi=-0.1), block("coarse_dirt")),
+            block("grass_block"))),
         # Gravel pavement, bare sandstone where it is steep and on the hamada, and sand the wind has left.
         when(biome_is("stony_desert"), sequence(
             when(STEEP, block("sandstone")), when("minecraft:on_ceiling", block("sandstone")),
@@ -1304,7 +1379,7 @@ SURFACE_RULE = sequence(
         when(SUBSOIL, sequence(
             when(biome_is("moorland", "tundra", "forest_tundra", "paramo"), block(ours("peat"))),
             when(biome_is("maquis"), block(ours("terra_rossa"))),
-            when(biome_is("steppe", "shrub_steppe"), block(ours("loess"))),
+            when(biome_is("steppe", "shrub_steppe", "prairie"), block(ours("loess"))),
             when(biome_is(*TROPICAL), block(ours("laterite"))))),
     )),
 )

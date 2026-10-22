@@ -178,6 +178,22 @@ class SubBiomesTest {
 	}
 
 	@Test
+	void thornScrubKeepsToTheRisesOfTheSemiAridSavanna() {
+		BiomeClimate sahel = inPatchOf("minecraft:savanna", BiomeRefiner.THORN_SCRUB, temperate());
+		sahel.temperature = 27f;
+		sahel.seasonality = 3f;
+		sahel.precipitation = 600f;
+		sahel.precipitationSeasonality = 110f;
+		sahel.elevation = sahel.meanElevation + 20f;
+		assertEquals(BiomeRefiner.THORN_SCRUB, SubBiomes.vary("minecraft:savanna", sahel));
+		sahel.elevation = sahel.meanElevation - 20f;
+		assertNull(SubBiomes.vary("minecraft:savanna", sahel), "a hollow");
+		sahel.elevation = sahel.meanElevation + 20f;
+		sahel.precipitation = 1200f;
+		assertNull(SubBiomes.vary("minecraft:savanna", sahel), "a humid savanna");
+	}
+
+	@Test
 	void noTreesGrowInPatchesBeyondTheTreeLine() {
 		BiomeClimate ice = inPatchOf("minecraft:snowy_plains", "minecraft:snowy_taiga", boreal());
 		ice.temperature = -20f;
