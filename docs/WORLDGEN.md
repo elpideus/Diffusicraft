@@ -699,8 +699,8 @@ vanilla's jungles have it only in Diffusicraft worlds.
 
 ### Waterfalls
 
-Two kinds of falls stand in the world: those of the rivers where they step down a steep valley (see [Rivers](#rivers)),
-and the waterfalls of the cliffs. `diffusicraft:waterfall` (`WaterfallFeature`) runs streams over the edges of sheer
+Two kinds of falls stand in the world: those of the rivers where the ground drops away under them (see
+[Rivers](#rivers)), and the waterfalls of the cliffs. `diffusicraft:waterfall` (`WaterfallFeature`) runs streams over the edges of sheer
 cliffs, mountainsides, scarps and sea cliffs, straight down into the sea, a lake or a river at their foot, which carries
 the water on. `Waterfall` lays one out from the heights of the ground and the water alone, as the chunk's heightmaps
 have them before the plants grow:
@@ -880,19 +880,23 @@ place.
   at Ultra, gets steeper walls: a gorge. Where the water steps down, the banks within 2 blocks of the step rise above
   the higher water, which would otherwise spill over them and run beside the river as a second stream, and the water
   falls over the step (see Falls).
-- **Falls.** Where a river runs steeply, `CellRivers` gathers its drop into falls rather than letting it run down the
-  slope block by block. Along each smoothed path, a stretch of 3 to 8 pixels (90 to 240 m), as the seed picks, falls if
-  it drops 6 m or more at 2.5 m a pixel or more, and steadily, with no pixel of it dropping less than a quarter of
-  that and no river joining it there. The whole drop of the stretch, 30 m at most, goes into one fall, which stands
-  where the river would have come down 60% of it: the water runs level from the start of the stretch to the fall,
-  held up above its course by at most about 60% of the drop, and level from the fall to the end, sunk below it by 40%
-  at most, so that it neither cuts a trench down the slope nor stands far above it. The next stretch starts where it
-  ends. The banks would step down with the water, in a wall across the whole valley; instead, past a lip of 3 blocks
-  beside the water that drops sheer with it, they slope from the upper level down to the lower along the river, as far
-  each way as they lie from the lip, out to 4 pixels and never past halfway to the next fall (`Rivers.bankLevel`). The
-  fall stands in a notch that opens out from it, sheer beside the curtain and gentler farther out. Three stretches in ten that would fall run down their course in rapids instead, so the falls come unevenly, and
-  none comes within 4 pixels of the ends of a path, where it crosses into the next tile at the level the coarse map
-  gives. The ground's rules would leave a wall of still water at each step, so `diffusicraft:river_falls`
+- **Falls.** The paths and their levels follow the terrain in pixels 30 m across, whose slopes are smooth, but the
+  ground in blocks has ledges and cliffs, knolls and gullies. A river held to its smooth level would cut a trench
+  through every rise of that ground, run on a dyke over every dip and fall nowhere, or, held level and then dropped,
+  come down a slope in a staircase of falls. So at each size of world `RiverCourses` sets the water by the ground
+  instead, every block along each path: the river's depth below the lowest ground across its channel, and never
+  rising. Where the ground drops away, the river falls with it, as far as the ground drops; where it slopes, the river
+  runs down it a block at a time. A rise in its way it cuts through, at most 3 m (2 blocks) deeper than it usually
+  lies, or down to its smooth level where that lies deeper, as through a ridge the smooth level breaches. Only over a
+  hollow before a lesser rise does the water stand above the ground, never above its smooth level, on banks built up
+  to hold it. Some levels are fixed. Within 4 blocks of a side of its tile a river keeps the level the coarse map
+  gives the crossing, which the tile beyond has too, and comes down to it at most half a block per block, in rapids,
+  or as steeply as its smooth level where that is steeper. It stands no lower than a lake it crosses, nor than the
+  sea, and ends no lower than the river it joins or the pond it ends in, so a tributary that comes out above its
+  river falls into it; the river it joins stays below the level the tributary came into the tile at, so the
+  tributary never has to rise to reach it. The courses of a tile are worked out once per size of world, when its
+  first column is asked for, and kept with the tile's rivers. The ground's rules would leave a wall of still water at
+  each step, so `diffusicraft:river_falls`
   (`RiverFallFeature`, laid out by `RiverFalls` from the rivers' columns) hangs a curtain there: every column of the
   lower water beside the higher takes water flowing over the edge at the top of the step and falling water below it
   down to its own, as the game's water settles where it runs off a ledge, so nothing flows once the chunk is loaded. A
@@ -1445,7 +1449,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the vanilla features Diffusicraft worlds leave out and the falls they add after vanilla's water springs, the water springs they leave off the cliffs, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
-| `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
+| `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `RiverCourses` (the water of those paths in blocks), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), `RiverFallFeature` (`diffusicraft:river_falls`) and `RiverFalls` (the curtains and pools of the rivers' falls), `Springs` (vanilla's water springs left off the cliffs), `LianaFeature` (`diffusicraft:lianas`), `UndergrowthFeature` (`diffusicraft:undergrowth`) and `Thickets` (where it grows thick), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
@@ -1524,11 +1528,10 @@ Other searches still read the full terrain and can take a while on new land:
   discharge is the runoff upstream, that neighbouring cells agree on every crossing, that pits are breached, that a
   fjord up the valley ends its rivers instead of being breached to the coast, that the way out of a lake by the coast
   stays above the sea, that a river meets itself across tile borders, that the banks hold the water where it steps down,
-  in the river and in the lakes it fills along its valley, that a river down a steep slope falls in steps and runs on
-  below them, never far above or below the ground and never rising downstream, that 16 blocks out from the water the
-  banks beside a fall of 64 blocks at Ultra step a sixth of its height at most rather than standing as a wall, that a
-  ridge the coarse map misses gets a
-  gorge whose walls rise less than 2 blocks per block, that lakes fill the hollows between the hills and their shores
+  in the river and in the lakes it fills along its valley, that a river down a steep slope runs down it with the
+  ground, 2 blocks at most a block, never far above or below the ground and never rising downstream, that a river
+  falls over a ledge of 80 m in its way and runs on in the ground above and below it, that a ridge the coarse map
+  misses gets a gorge whose walls rise less than 3 blocks per block, that lakes fill the hollows between the hills and their shores
   hold them, that a dry climate leaves the hollows dry, that every thread gets the same rivers, that a thread asked
   about another chunk while it computes a column keeps that column's chunk, and that the width grows with the discharge.
 - `GreatLakeTest` sinks a bowl 500 m deep into the slope of the analytic valley, on the coarse map and the fine

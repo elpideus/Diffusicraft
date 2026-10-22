@@ -18,7 +18,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * discharge, like real rivers, and is widened at the smaller scales so that streams are still visible.
  *
  * <p>A column near a river is cut down to the water, or built up where the ground lies below it, with banks that
- * blend into the terrain around. Closed basins of the fine terrain hold lakes ({@link CellLakes}): the rivers fill the
+ * blend into the terrain around. The water follows the ground in blocks ({@link RiverCourses}), so the rivers fall
+ * where it drops away, over the ledges and cliffs in their way. Closed basins of the fine terrain hold lakes ({@link CellLakes}): the rivers fill the
  * basins they cross, and the rain the others. Basins that reach past the sides of a tile are found over blocks of two
  * by two tiles ({@link BlockLakes}), so the rivers and lakes of a tile need the terrain of the eight tiles around it.
  * The depressions of the coarse map hold the largest lakes ({@link GreatLake}), found over all their tiles, which a
@@ -42,12 +43,6 @@ public final class Rivers {
 	 * run along the foot of the bank as a second stream.
 	 */
 	private static final int HOLD = 2;
-	/**
-	 * Blocks beside the water of a fall that drop sheer with it, as its lip. Past them, the banks slope from the upper
-	 * level down to the lower one along the river, as far again as they lie from the lip, so that the fall stands in a
-	 * notch that opens out, not in a wall across the valley.
-	 */
-	private static final float FALL_LIP = 3f;
 	/** Columns a thread keeps for the chunk it is generating, with a border of {@link #HOLD} blocks. */
 	private static final int SPAN = 16 + 2 * HOLD;
 
@@ -173,7 +168,9 @@ public final class Rivers {
 		float distance = hit.distance * blocksPerPixel;
 		float halfWidth = hit.halfWidth * blocksPerPixel;
 		float reach = CellRivers.REACH * blocksPerPixel;
-		int waterTop = (int) Math.ceil(scale.surfaceY(hit.level)) - 1;
+		// The water of a river follows the ground in blocks; that of a pond lies at its level.
+		int waterTop = (hit.path < 0 ? (int) Math.ceil(scale.surfaceY(hit.level))
+			: courses(cell, ti, tj, scale).top(hit.path, hit.along)) - 1;
 		float top = waterTop + 1;
 
 		out.level = hit.level;
@@ -191,8 +188,7 @@ public final class Rivers {
 			out.bandBottom = Math.min(terrain, out.bed) - FOOTING;
 			return;
 		}
-		float foot = (float) Math.ceil(scale.surfaceY(bankLevel(hit, distance - halfWidth, blocksPerPixel)));
-		float bank = Math.clamp(BANK_RUN * Math.abs(terrain - foot) + 2f, 2f, Math.max(2f, reach - 0.5f));
+		float bank = Math.clamp(BANK_RUN * Math.abs(terrain - top) + 2f, 2f, Math.max(2f, reach - 0.5f));
 		float t = (distance - halfWidth) / bank;
 		if (t >= 1f) {
 			shore(scale, terrain, shore, out);
@@ -200,25 +196,8 @@ public final class Rivers {
 		}
 		float blend = t * t * (3f - 2f * t);
 		out.river = true;
-		out.surface = foot + (terrain - foot) * blend;
+		out.surface = top + (terrain - top) * blend;
 		out.bandBottom = Math.min(terrain, out.surface) - FOOTING;
-	}
-
-	/**
-	 * The level a bank {@code edge} blocks from the water slopes from: the river's own, but beside a fall, past its lip,
-	 * one that runs smoothly from the fall's upper level down to its lower along the river.
-	 */
-	private static float bankLevel(CellRivers.Hit hit, float edge, float blocksPerPixel) {
-		if (Float.isNaN(hit.fallAlong)) {
-			return hit.level;
-		}
-		float fan = Math.min(edge - FALL_LIP, hit.fallFan * blocksPerPixel), along = hit.fallAlong * blocksPerPixel;
-		if (fan <= 0f || Math.abs(along) >= fan) {
-			return hit.level;
-		}
-		float t = along / fan, middle = (hit.fallTop + hit.fallBottom) / 2f, half = (hit.fallTop - hit.fallBottom) / 2f;
-		float smooth = middle - half * t * (1.5f - 0.5f * t * t);
-		return hit.level + smooth - (hit.aboveFall ? hit.fallTop : hit.fallBottom);
 	}
 
 	/**
@@ -341,6 +320,12 @@ public final class Rivers {
 	/** The lakes of tile {@code (ti, tj)}. */
 	CellLakes lakes(int ti, int tj) {
 		return network == null ? CellLakes.EMPTY : cell(ti, tj, chunks.get()).lakes;
+	}
+
+	/** Where the water of the rivers of tile {@code (ti, tj)}, whose cell is {@code cell}, stands at a world size. */
+	private RiverCourses courses(Cell cell, int ti, int tj, WorldScale scale) {
+		return RiverNetwork.once(cell.courses, scale.ordinal(), () -> RiverCourses.of(cell.rivers, cell.lakes, ti, tj,
+			scale, field.surface(scale)::y, width(scale)));
 	}
 
 	private Cell cell(int ti, int tj, ChunkColumns cache) {
@@ -503,6 +488,8 @@ public final class Rivers {
 	private static final class Cell extends Used {
 		final CellRivers rivers;
 		final CellLakes lakes;
+		/** Where the water of the rivers stands, by world size. */
+		final Map<Long, CompletableFuture<RiverCourses>> courses = new ConcurrentHashMap<>();
 
 		Cell(CellRivers rivers, CellLakes lakes) {
 			this.rivers = rivers;
