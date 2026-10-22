@@ -851,18 +851,22 @@ place.
   blocks at Ultra and to 10 over the cube root of the meters per block at the other sizes: 8, 6, 5, 4 and 3 blocks
   down to Vanilla. It shelves towards the banks.
 - **Columns.** `Rivers.column` says what a river does to a column. The channel is cut down to the water, or built up on
-  a footing 4 blocks deep where the river runs above the ground. Banks blend into the terrain over 1.5 blocks across per
-  block of height, out to 24 pixels (720 m) from the water at most, which keeps every column inside the tile whose river
-  shapes it. A valley cut deeper than that reach can span at 1.5 blocks per block, from some 160 m at Vanilla to 310 m
-  at Ultra, gets steeper walls: a gorge. Where the water steps down, the banks within 2 blocks of the step rise above
+  a footing 4 blocks deep where the river runs above the ground. Banks cut into higher ground blend into it over 1.5
+  blocks across per block of height, out to 24 pixels (720 m) from the water at most, which keeps every column inside
+  the tile whose river shapes it. A valley cut deeper than that reach can span at 1.5 blocks per block, from some 160 m
+  at Vanilla to 310 m at Ultra, gets steeper walls: a gorge. Where the ground lies below the water, as on the downhill
+  side of a river along a hillside, the bank stays as high as the water for 3 blocks and then falls 2 blocks per block
+  to the ground, so the river rests on the slope rather than on an embankment over it. Where the water steps down, the
+  banks within 2 blocks of the step rise above
   the higher water, which would otherwise spill over them and run beside the river as a second stream, and the water
   falls over the step (see Falls).
 - **Falls.** The paths and their levels follow the terrain in pixels 30 m across, whose slopes are smooth, but the
   ground in blocks has ledges and cliffs, knolls and gullies. A river held to its smooth level would cut a trench
   through every rise of that ground, run on a dyke over every dip and fall nowhere, or, held level and then dropped,
   come down a slope in a staircase of falls. So at each size of world `RiverCourses` sets the water by the ground
-  instead, every block along each path: the river's depth below the lowest ground across its channel, and never
-  rising. Where the ground drops away, the river falls with it, as far as the ground drops; where it slopes, the river
+  instead, every block along each path: the river's depth below the lowest ground across its channel and the 2 blocks
+  of bank on each side, there and for the next 2 blocks downstream, whose banks rise above its water where it steps
+  down, so that no bank stands out of the slope; and never rising. Where the ground drops away, the river falls with it, as far as the ground drops; where it slopes, the river
   runs down it a block at a time. A rise in its way it cuts through, at most 3 m (2 blocks) deeper than it usually
   lies, or down to its smooth level where that lies deeper, as through a ridge the smooth level breaches. Only over a
   hollow before a lesser rise does the water stand above the ground, never above its smooth level, on banks built up
@@ -1506,8 +1510,8 @@ Other searches still read the full terrain and can take a while on new land:
   fjord up the valley ends its rivers instead of being breached to the coast, that the way out of a lake by the coast
   stays above the sea, that a river meets itself across tile borders, that the banks hold the water where it steps down,
   in the river and in the lakes it fills along its valley, that a river down a steep slope runs down it with the
-  ground, 2 blocks at most a block, never far above or below the ground and never rising downstream, that a river
-  falls over a ledge of 80 m in its way and runs on in the ground above and below it, that a ridge the coarse map
+  ground, 2 blocks at most a block, never far above or below the ground and never rising downstream, that the banks of
+  a steeper one stand at most 2 blocks over the ground, that a river falls over a ledge of 80 m in its way and runs on in the ground above and below it, that a ridge the coarse map
   misses gets a gorge whose walls rise less than 3 blocks per block, that lakes fill the hollows between the hills and their shores
   hold them, that a dry climate leaves the hollows dry, that every thread gets the same rivers, that a thread asked
   about another chunk while it computes a column keeps that column's chunk, and that the width grows with the discharge.

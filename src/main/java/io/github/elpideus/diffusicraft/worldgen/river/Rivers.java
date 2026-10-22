@@ -33,6 +33,8 @@ public final class Rivers {
 	static final float MAX_HALF_WIDTH = 8f;
 	/** How much steeper than one block per block, horizontally, the banks are: horizontal blocks per block of height. */
 	private static final float BANK_RUN = 1.5f;
+	/** The same for the side of a bank built up on ground below the water, which falls steeply to the ground. */
+	private static final float LEVEE_RUN = 0.5f;
 	/** Blocks beyond the water that still count as the river's valley for biomes. */
 	private static final float VALLEY = 3f;
 	/** Blocks of ground built under a river that runs above the terrain, below the lower of bed and ground. */
@@ -42,7 +44,7 @@ public final class Rivers {
 	 * runs over the step into the air above the lower water. A bank lower than the higher water would let it out, to
 	 * run along the foot of the bank as a second stream.
 	 */
-	private static final int HOLD = 2;
+	static final int HOLD = 2;
 	/** Columns a thread keeps for the chunk it is generating, with a border of {@link #HOLD} blocks. */
 	private static final int SPAN = 16 + 2 * HOLD;
 
@@ -188,7 +190,21 @@ public final class Rivers {
 			out.bandBottom = Math.min(terrain, out.bed) - FOOTING;
 			return;
 		}
-		float bank = Math.clamp(BANK_RUN * Math.abs(terrain - top) + 2f, 2f, Math.max(2f, reach - 0.5f));
+		if (terrain < top) {
+			// Ground below the water: a bank as high as the water reaches past the columns that hold it, and its side
+			// falls steeply to the ground, so that a river along a hillside rests on the hillside rather than on an
+			// embankment over it.
+			float levee = top - Math.max(0f, distance - halfWidth - HOLD - 1) / LEVEE_RUN;
+			if (levee <= terrain) {
+				shore(scale, terrain, shore, out);
+				return;
+			}
+			out.river = true;
+			out.surface = levee;
+			out.bandBottom = terrain - FOOTING;
+			return;
+		}
+		float bank = Math.clamp(BANK_RUN * (terrain - top) + 2f, 2f, Math.max(2f, reach - 0.5f));
 		float t = (distance - halfWidth) / bank;
 		if (t >= 1f) {
 			shore(scale, terrain, shore, out);
@@ -197,7 +213,7 @@ public final class Rivers {
 		float blend = t * t * (3f - 2f * t);
 		out.river = true;
 		out.surface = top + (terrain - top) * blend;
-		out.bandBottom = Math.min(terrain, out.surface) - FOOTING;
+		out.bandBottom = out.surface - FOOTING;
 	}
 
 	/**

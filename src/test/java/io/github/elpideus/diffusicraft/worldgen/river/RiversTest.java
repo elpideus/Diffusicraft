@@ -461,6 +461,35 @@ class RiversTest {
 	}
 
 	@Test
+	void theBanksOfASteepRiverLieInTheSlope() {
+		// The valley rises 2500 m a cell, nearly 10 m a pixel: four blocks down for every five across at 1:16, where the
+		// river comes down in steps of a block or two.
+		TerrainField field = new TerrainField(1, new ValleySource() {
+			@Override
+			float height(double i, double j) {
+				return super.height(i, j) + 2500f * (float) Math.clamp(i / TILE - 2.0, 0.0, 4.0);
+			}
+		});
+		WorldScale scale = WorldScale.MEDIUM;
+		int blocksPerTile = (int) Math.round(TILE / scale.pixelsPerBlock());
+		Box box = new Box(field, scale, VALLEY * blocksPerTile + blocksPerTile / 16, 3 * blocksPerTile,
+			blocksPerTile - blocksPerTile / 8, blocksPerTile);
+		int channels = 0;
+		float highest = 0f;
+		for (int k = 0; k < box.channel.length; k++) {
+			if (box.channel[k]) {
+				channels++;
+			} else if (fromSide(scale, box.z0 + k / box.width) > 16) {
+				highest = Math.max(highest, box.surface[k] - box.terrain[k]);
+			}
+		}
+		assertTrue(channels > 1000, "the valley has a river, channel columns: " + channels);
+		// Away from the sides of the tiles, the banks rise above the ground no more than the block that holds the water
+		// where it steps down: neither a wall along the steps nor an embankment where the ground falls away.
+		assertTrue(highest <= 2f, "the banks stand at most 2 blocks over the ground: " + highest);
+	}
+
+	@Test
 	void aRiverFallsOverALedgeInItsWay() {
 		// A ledge 80 m high across the valley, in the middle of its tile, between two terraces that keep the heights of
 		// the tile's sides, where the rivers cross them, so the coarse map does not see it.

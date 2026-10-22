@@ -10,12 +10,13 @@ import io.github.elpideus.diffusicraft.worldgen.WorldScale;
  * <p>The paths and levels of the rivers ({@link CellRivers}) follow the terrain in pixels 30 m wide, whose slopes are
  * smooth. The ground in blocks has ledges and cliffs, knolls and gullies. A river held to its smooth level would cut a
  * trench through every rise of that ground, run on a dyke over every dip, and fall nowhere. So its water follows the
- * ground instead, {@link CellRivers#DROP} below the lowest ground across its channel, and never rises. Where the ground
- * drops away, over a ledge or a cliff, the river falls with it to the ground below. Where the ground slopes, the water
- * runs down it in steps of a block. Where the ground rises in its way, the river cuts through, at most {@link #CUT}
- * meters deeper than it usually lies below the ground, or down to its smooth level where that lies deeper, as through
- * a ridge the smooth level breaches. Only over a hollow before a lesser rise does the water stand above the ground, on
- * banks built up to hold it, and never above its smooth level.
+ * ground instead, {@link CellRivers#DROP} below the lowest ground across its channel and the banks that hold it, there
+ * and for {@link Rivers#HOLD} blocks downstream, whose banks rise above it where it steps down, so that no bank stands
+ * out of the slope; and it never rises. Where the ground drops away, over a ledge or a cliff, the river falls with it
+ * to the ground below. Where the ground slopes, the water runs down it in steps of a block. Where the ground rises in
+ * its way, the river cuts through, at most {@link #CUT} meters deeper than it usually lies below the ground, or down
+ * to its smooth level where that lies deeper, as through a ridge the smooth level breaches. Only over a hollow before
+ * a lesser rise does the water stand above the ground, on banks built up to hold it, and never above its smooth level.
  *
  * <p>Some levels are fixed. Within {@link #EDGE} blocks of a side of the tile, a river keeps its smooth level, which
  * the tile beyond that side gives it too, so that the two tiles' water meets. A river that leaves across a side comes
@@ -200,6 +201,14 @@ final class RiverCourses {
 			Path path = paths[p];
 			int n = path.n;
 			float[] floor = new float[n], ceiling = new float[n], low = new float[n], smooth = new float[n];
+			// The lowest ground across the channel and the banks that hold its water (Rivers#hold).
+			float[] across = new float[n];
+			for (int k = 0; k < n; k++) {
+				double half = width.halfWidthPixels(path.discharge[k]), banks = half + Rivers.HOLD * pixelsPerBlock;
+				across[k] = path.fixed[k] ? Float.POSITIVE_INFINITY : (float) Math.min(ground(path.u[k], path.v[k]),
+					Math.min(Math.min(beside(path, k, half), beside(path, k, -half)),
+						Math.min(beside(path, k, banks), beside(path, k, -banks))));
+			}
 			for (int k = 0; k < n; k++) {
 				float level = scale.surfaceY(path.meters[k]);
 				smooth[k] = level;
@@ -210,10 +219,14 @@ final class RiverCourses {
 					low[k] = Float.POSITIVE_INFINITY;
 					continue;
 				}
-				double u = path.u[k], v = path.v[k], half = width.halfWidthPixels(path.discharge[k]);
-				double across = Math.min(ground(u, v), Math.min(ground(u - half * path.dv[k], v + half * path.du[k]),
-					ground(u + half * path.dv[k], v - half * path.du[k])));
-				low[k] = (float) across - (scale.surfaceY(path.meters[k] + CellRivers.DROP) - level);
+				// A bank rises above the water as far as Rivers#HOLD blocks upstream of it, so the water lies below the
+				// ground of the banks that far downstream.
+				float ground = across[k];
+				for (int a = k + 1; a <= Math.min(k + Rivers.HOLD, n - 1); a++) {
+					ground = Math.min(ground, across[a]);
+				}
+				low[k] = ground - (scale.surfaceY(path.meters[k] + CellRivers.DROP) - level);
+				double u = path.u[k], v = path.v[k];
 				float lake = lakes.level((int) Math.floor(u), (int) Math.floor(v));
 				floor[k] = Float.isNaN(lake) ? Math.min(low[k] - cut, level) : scale.surfaceY(lake);
 			}
@@ -255,6 +268,11 @@ final class RiverCourses {
 				path.water[k] = water;
 			}
 			return path.water;
+		}
+
+		/** The ground {@code d} pixels left of sample {@code k} of {@code path}, or right where {@code d} is negative. */
+		private double beside(Path path, int k, double d) {
+			return ground(path.u[k] - d * path.dv[k], path.v[k] + d * path.du[k]);
 		}
 
 		/** The ground at tile-local pixel {@code (u, v)}, in blocks, or the lake there, whichever is higher. */
