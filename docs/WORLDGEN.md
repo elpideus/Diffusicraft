@@ -1543,4 +1543,5 @@ Other searches still read the full terrain and can take a while on new land:
   ground stays superflat grass, so the biomes' own ground and the plants that need sand are missing.
 - `WaterfallsGameTest`, a client game test that needs the models, creates an Ultra world, finds waterfalls on the
   wettest steep land near the spawn and checks that they keep their water and do not flood their foot once the chunks
-  have ticked. It saves views of the tallest from the front and the side.
+  have ticked. It logs how many blocks wide the falls of each area are, and saves views of the tallest and of the widest
+  from the front and the side.

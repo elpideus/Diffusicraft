@@ -112,12 +112,13 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   creates an Ultra (1:1) world and goes to the highest ground within 123 km of the spawn. It checks that the chunks
   there, which are filled only up to their ground, hold all of it, saves two views of the summit and logs how long
   their chunks took. It needs the models.
-- [`WaterfallsGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WaterfallsGameTest.java)
-  creates an Ultra (1:1) world, looks for the wettest steep land within 4 km of the spawn and checks that waterfalls
-  stand there: falls of 8 blocks or more, spilling from still water, that keep their water and do not flood their
-  foot while the chunks tick. It saves a view of each area it visits until one has falls, and of the tallest falls
-  from the front and the side (`diffusicraft-world-waterfall-front.png`, `-side.png`). It fails if none of the three
-  areas has a waterfall. It needs the models.
+- [`WaterfallsGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WaterfallsGameTest.java) creates
+  an Ultra (1:1) world, looks for the wettest steep land within 4 km of the spawn and checks that waterfalls stand
+  there: falls of 8 blocks or more, spilling from still water, that keep their water and do not flood their foot while
+  the chunks tick. It logs how many blocks wide the falls of each area are, and saves a view of each area it visits
+  until one has falls, of the tallest falls from the front and the side (`diffusicraft-world-waterfall-front.png`,
+  `-side.png`) and, if they are wider than a block, of the widest (`diffusicraft-world-waterfall-wide-front.png`,
+  `-side.png`). It fails if none of the three areas has a waterfall. It needs the models.
 - [`ReliefMapGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ReliefMapGameTest.java)
   creates a Medium world and checks its relief map without the pause menu's button, which would open a browser: the
   player's link, the page, the levels and the tiles around the player, coarse and in detail, whose colours it saves

@@ -25,13 +25,17 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Creates a Diffusicraft world of the default size (1:1), looks for the wettest steep land near the spawn, and checks
  * that waterfalls stand there once its chunks are generated: falls of 8 blocks and more, spilling from still water
- * beside them, that keep their water while the chunks tick. Saves views of the area and of the tallest falls, from the
- * front and from the side, to {@code build/run/clientGameTest/screenshots}.
+ * beside them, that keep their water while the chunks tick. Logs how wide they are, and saves views of the area and of
+ * the tallest and the widest falls, from the front and from the side, to {@code build/run/clientGameTest/screenshots}.
  *
  * <p>Needs the Terrain Diffusion models, like {@link WorldGenerationGameTest}.
  */
@@ -114,8 +118,17 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 				if (found.isEmpty()) {
 					continue;
 				}
+				List<Curtain> curtains = curtains(found);
+				LOGGER.info("Area {}: {} waterfalls, blocks wide: {}", k, curtains.size(),
+					curtains.stream().map(Curtain::width).toList());
 				Falls tallest = found.getFirst();
-				showFalls(context, world, tallest);
+				showFalls(context, world, tallest, "waterfall");
+				Curtain widest = curtains.getFirst();
+				if (widest.width > 1) {
+					LOGGER.info("The widest falls, {} blocks wide, spill at {} and drop {}", widest.width,
+						widest.middle.spill, widest.middle.height);
+					showFalls(context, world, widest.middle, "waterfall-wide");
+				}
 				String problem = world.getServer().computeOnServer(server -> checkHolds(server.overworld(), tallest));
 				if (problem != null) {
 					throw new AssertionError(problem);
@@ -222,8 +235,47 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 		return fluid.is(FluidTags.WATER) && !fluid.isSource() && fluid.getValue(FlowingFluid.FALLING);
 	}
 
-	/** Views the falls from the front, a little below their middle, and from high to one side. */
-	private static void showFalls(ClientGameTestContext context, TestSingleplayerContext world, Falls falls) {
+	/** Falls side by side over the same edge: the spill in their middle, and how many spills wide they are. */
+	record Curtain(Falls middle, int width) {
+	}
+
+	/** The falls of {@code found} grouped side by side over their edges, widest first, then tallest. */
+	static List<Curtain> curtains(List<Falls> found) {
+		Map<BlockPos, Falls> spills = new HashMap<>();
+		found.forEach(falls -> spills.put(falls.spill, falls));
+		Set<BlockPos> seen = new HashSet<>();
+		List<Curtain> curtains = new ArrayList<>();
+		for (Falls falls : found) {
+			if (!seen.add(falls.spill)) {
+				continue;
+			}
+			// Along the edge, both ways, while the next spill falls the same way.
+			List<Falls> row = new ArrayList<>(List.of(falls));
+			for (int side : new int[]{1, -1}) {
+				BlockPos next = falls.spill.offset(-falls.dz * side, 0, falls.dx * side);
+				Falls beside;
+				while ((beside = spills.get(next)) != null && beside.dx == falls.dx && beside.dz == falls.dz
+					&& seen.add(next)) {
+					if (side > 0) {
+						row.add(beside);
+					} else {
+						row.addFirst(beside);
+					}
+					next = next.offset(-falls.dz * side, 0, falls.dx * side);
+				}
+			}
+			curtains.add(new Curtain(row.get(row.size() / 2), row.size()));
+		}
+		curtains.sort(Comparator.comparingInt(Curtain::width).thenComparingInt(c -> c.middle.height).reversed());
+		return curtains;
+	}
+
+	/**
+	 * Views the falls from the front, a little below their middle, and from high to one side, as {@code name-front}
+	 * and {@code name-side}.
+	 */
+	private static void showFalls(ClientGameTestContext context, TestSingleplayerContext world, Falls falls,
+								  String name) {
 		BlockPos middle = falls.spill.below(falls.height / 2);
 		int out = Math.max(24, falls.height);
 		BlockPos front = middle.offset(falls.dx * out, -falls.height / 6, falls.dz * out);
@@ -234,8 +286,7 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 			double vx = middle.getX() - clear.getX(), vy = middle.getY() - clear.getY(), vz = middle.getZ() - clear.getZ();
 			float yaw = (float) Math.toDegrees(Math.atan2(-vx, vz));
 			float pitch = (float) Math.toDegrees(Math.atan2(-vy, Math.hypot(vx, vz)));
-			WorldGenerationGameTest.view(context, world, clear, yaw, pitch,
-				camera == front ? "waterfall-front" : "waterfall-side");
+			WorldGenerationGameTest.view(context, world, clear, yaw, pitch, name + (camera == front ? "-front" : "-side"));
 		}
 	}
 
