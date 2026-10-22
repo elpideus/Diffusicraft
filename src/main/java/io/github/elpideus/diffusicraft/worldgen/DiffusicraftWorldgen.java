@@ -12,6 +12,7 @@ import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
 import io.github.elpideus.diffusicraft.worldgen.feature.DiffusicraftWorldFilter;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
+import io.github.elpideus.diffusicraft.worldgen.feature.LianaFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.WaterfallFeature;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
@@ -86,9 +87,11 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("selenite_beam"), SeleniteBeamFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("giant_tree"), GiantTreeFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("waterfall"), WaterfallFeature.CODEC);
+		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("lianas"), LianaFeature.CODEC);
 		TerrainFields.register();
 		addHollowFeatures();
 		addLoneGiants();
+		addLianas();
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
 			LevelStem overworld = server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getValue(LevelStem.OVERWORLD);
 			HeightTemperature.set(overworld != null && usesModels(overworld.generator()) ? 0f : 1f);
@@ -133,6 +136,16 @@ public final class DiffusicraftWorldgen {
 		addFeatures("giant", Biomes.OLD_GROWTH_SPRUCE_TAIGA, "lone_redwood");
 		addFeatures("giant", Biomes.OLD_GROWTH_PINE_TAIGA, "lone_redwood");
 		addFeatures("giant", Biomes.JUNGLE, "lone_kapok");
+	}
+
+	/**
+	 * Lets the vines of vanilla's jungles grow down from the crowns towards the floor, after the trees and the giants
+	 * ({@link LianaFeature}). Only in Diffusicraft worlds; its own jungles have them too.
+	 */
+	private static void addLianas() {
+		addFeatures("lianas", Biomes.JUNGLE, "jungle_lianas");
+		addFeatures("lianas", Biomes.SPARSE_JUNGLE, "sparse_jungle_lianas");
+		addFeatures("lianas", Biomes.BAMBOO_JUNGLE, "sparse_jungle_lianas");
 	}
 
 	/**

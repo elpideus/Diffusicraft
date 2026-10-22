@@ -205,11 +205,13 @@
       "minecraft:brown_mushroom_normal",
       "minecraft:red_mushroom_normal",
       "minecraft:patch_firefly_bush_near_water",
-      "minecraft:vines",
       "minecraft:patch_melon",
       "diffusicraft:trees_old_growth_jungle",
       "diffusicraft:rainforest_moss",
-      "diffusicraft:kapoks"
+      "diffusicraft:kapoks",
+      "diffusicraft:canopy_vines",
+      "diffusicraft:lianas",
+      "diffusicraft:patch_large_fern"
     ],
     [
       "minecraft:freeze_top_layer"

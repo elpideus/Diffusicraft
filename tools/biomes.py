@@ -176,6 +176,23 @@ def giants(feature, chance=None, counts=None, lone=False):
                                         {"type": "minecraft:biome"}])
 
 
+def lianas(feature, lone=False):
+    """Lianas: once per chunk, from its corner, over all its columns (see LianaFeature.java). `lone` ones grow in
+    vanilla's biomes, and only in Diffusicraft worlds."""
+    placement = [{"type": f"{NS}:diffusicraft_world"}] if lone else []
+    return placed(feature, placement + [{"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING"},
+                                        {"type": "minecraft:biome"}])
+
+
+def canopy(feature, count, depth=16):
+    """Free vines among the crowns: `count` tries per chunk, down to `depth` blocks below the top of the canopy.
+    Vanilla's jungles scatter theirs between y = 64 and 100, which misses the crowns of most jungles that stand higher."""
+    return placed(feature, [{"type": "minecraft:count", "count": count}, {"type": "minecraft:in_square"},
+                            {"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING"},
+                            {"type": "minecraft:offset", "x": 0, "y": uniform(-depth, -1), "z": 0},
+                            {"type": "minecraft:biome"}])
+
+
 def hollow(feature, surface, count):
     """Features of the Grand Hollows' floors or ceilings: `count` columns per chunk, each moved onto a floor or a
     ceiling of the Grand Hollow it crosses (see HollowSurfacePlacement.java). Vanilla's way of finding cave floors
@@ -389,6 +406,9 @@ FEATURES["grotto_pool"] = {
     "replaceable": "#minecraft:lush_ground_replaceable", "surface": "floor", "vegetation_chance": 0.0,
     "vegetation_feature": placed("minecraft:glow_lichen", []), "vertical_range": 4, "xz_radius": uniform(3, 7)}
 FEATURES["selenite_beam"] = {"type": f"{NS}:selenite_beam"}
+# Lianas: the vines that hang from the crowns, grown down towards the floor (see LianaFeature.java).
+FEATURES["lianas"] = {"type": f"{NS}:lianas", "chance": 0.6}
+FEATURES["sparse_lianas"] = {"type": f"{NS}:lianas", "chance": 0.3}
 # Columnar cacti, saguaros and cardones: twice a man's height, and in flower now and then.
 FEATURES["columnar_cactus"] = {
     "type": "minecraft:block_column", "direction": "up", "prioritize_tip": False,
@@ -467,7 +487,7 @@ PLACED = {
     # the jungle's own trees, thinned out by the shade.
     "trees_redwood_forest": trees(ours("trees_redwood_forest"), {3: 3, 4: 2, 6: 1}, "spruce_sapling"),
     "trees_ancient_woodland": trees(ours("trees_ancient_woodland"), {1: 2, 2: 3, 3: 1}, "oak_sapling"),
-    "trees_old_growth_jungle": trees(ours("trees_old_growth_jungle"), {12: 9, 14: 1}, "jungle_sapling"),
+    "trees_old_growth_jungle": trees(ours("trees_old_growth_jungle"), {20: 9, 24: 1}, "jungle_sapling"),
     "trees_forest_steppe": groves(ours("trees_forest_steppe"), 16, "birch_sapling"),
     "lone_trees_forest_steppe": trees(ours("trees_forest_steppe"), {0: 3, 1: 1}, "birch_sapling"),
     # Clumps of trees where the snow drifts deepest and shelters them, with open tundra between.
@@ -543,6 +563,12 @@ PLACED = {
     "lone_giant_oak": giants(ours("giant_oak"), chance=24, lone=True),
     "lone_redwood": giants(ours("redwood"), chance=16, lone=True),
     "lone_kapok": giants(ours("kapok"), chance=10, lone=True),
+    # After the giants, whose crowns get vines and whose vines grow too, as do the free ones. The vanilla jungles' lianas
+    # are only in Diffusicraft worlds: Java adds them (see DiffusicraftWorldgen.addLianas).
+    "canopy_vines": canopy("minecraft:vines", 64),
+    "lianas": lianas(ours("lianas")),
+    "jungle_lianas": lianas(ours("lianas"), lone=True),
+    "sparse_jungle_lianas": lianas(ours("sparse_lianas"), lone=True),
     # In no biome: Java places them after vanilla's water springs in Diffusicraft worlds (see
     # DiffusicraftWorldgen.waterfallsAfter). The feature picks its face in the chunk itself.
     "waterfalls": placed(ours("waterfall"), []),
@@ -691,7 +717,8 @@ BIOMES = {
         "local": ["minecraft:forest_rock"],
         "vegetation": ["minecraft:glow_lichen", "trees_cloud_forest", "rainforest_moss", "minecraft:patch_large_fern",
                        "minecraft:patch_grass_jungle", "minecraft:brown_mushroom_normal",
-                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water"],
+                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water", "canopy_vines",
+                       "lianas"],
         "tags": ["c:is_wet/overworld", "c:is_dense_vegetation/overworld", "c:is_temperate/overworld", "c:is_rare",
                  "c:is_tree/jungle", "c:primary_wood_type/jungle", "minecraft:has_structure/jungle_temple",
                  "minecraft:has_structure/mineshaft", "minecraft:has_structure/trail_ruins",
@@ -750,9 +777,9 @@ BIOMES = {
         "template": "jungle", "temperature": 0.95, "downfall": 0.95,
         "effects": {"grass_color": "#4e9f2c", "foliage_color": "#3f9a22"},
         "vegetation": ["minecraft:glow_lichen", "trees_old_growth_jungle", "minecraft:flower_warm",
-                       "minecraft:patch_grass_jungle", "minecraft:brown_mushroom_normal",
-                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water", "minecraft:vines",
-                       "minecraft:patch_melon", "rainforest_moss", "kapoks"],
+                       "minecraft:patch_grass_jungle", "minecraft:patch_large_fern", "minecraft:brown_mushroom_normal",
+                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water",
+                       "minecraft:patch_melon", "rainforest_moss", "kapoks", "canopy_vines", "lianas"],
         "tags": ["c:is_wet/overworld", "c:is_hot/overworld", "c:is_dense_vegetation/overworld", "c:is_old_growth",
                  "c:is_rare", "c:is_jungle", "c:is_tree/jungle", "c:primary_wood_type/jungle",
                  "minecraft:has_structure/jungle_temple", "minecraft:has_structure/mineshaft",

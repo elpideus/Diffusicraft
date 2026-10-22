@@ -475,11 +475,11 @@ the colours:
 |---|---|---|---|
 | Tundra | Snowy plains | Dwarf birch scrub, moss mats, berry bushes, boulders | Grass with coarse dirt and podzol over peat |
 | Alpine tundra | Meadow | Knee-high krummholz spruce, alpine flowers, moss, boulders | Grass broken by gravel scree and bare rock |
-| Cloud forest | Jungle | Vine-hung canopy trees, gnarled oaks, ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
+| Cloud forest | Jungle | Canopy trees and gnarled oaks hung with [lianas](#lianas), ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
 | Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, now and then a redwood, ferns, moss, mushrooms; light fog | Grass and podzol |
 | Redwood forest | Old-growth spruce taiga | [Redwoods](#giant-trees) 110 to 230 blocks tall at 1:1, one or two in most chunks, over spruces, mega spruces and fallen trunks, large ferns, moss, mushrooms, berries; fog (256 blocks) | Grass with deep needle litter (podzol) and coarse dirt |
 | Ancient woodland | Forest | [Ancient oaks](#giant-trees) 40 to 64 blocks tall at 1:1 in every other chunk, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
-| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1 in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, with vines, melons and moss | Grass, red laterite below |
+| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1 in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, some 20 to a chunk, hung with [lianas](#lianas); large ferns, melons and moss | Grass, red laterite below |
 | Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass and terra rossa on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
@@ -665,6 +665,24 @@ open land, show a lone giant oak a hundred blocks or so apart where the ground i
 stand of them.
 
 The LOD mods draw the giants too (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
+
+### Lianas
+
+Vanilla's jungle trees hang their vines four blocks or so below a leaf, so that its jungles show open air under their
+crowns. `diffusicraft:lianas` (`LianaFeature`) lets those vines grow down towards the floor, as they would over the
+years. It runs once per chunk, after the trees and the giants, over every column of the chunk. Each vine with a face on
+a side that hangs over air grows, with the feature's chance, at least halfway down to whatever is below it, and to the
+floor at most. The vines it adds keep the faces on the sides of the vine they hang from, which is what holds them: as
+in vanilla, a vine with a face on a side stays wherever the vine over it has that face. A vine under a leaf, with only
+its face on top, holds nothing below it and stays as it is.
+
+The chance is 60% in the old-growth jungle, the cloud forest and vanilla's jungle, and 30% in vanilla's sparse and
+bamboo jungles. Vanilla's jungles have them only in Diffusicraft worlds.
+
+Vanilla's jungles scatter free vines between y = 64 and 100 as well, which misses the crowns of most jungles in a
+Diffusicraft world, since they stand higher. The old-growth jungle and the cloud forest place theirs within 16 blocks
+under the top of the canopy instead, 64 tries a chunk (`canopy_vines`), about as thick as vanilla's, and on the
+umbrellas of the kapoks too, whose lianas fall forty blocks and more.
 
 ### Waterfalls
 
@@ -1364,7 +1382,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `WaterfallFeature` (`diffusicraft:waterfall`) and `Waterfall` (where a waterfall goes), `LianaFeature` (`diffusicraft:lianas`), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
 | `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
