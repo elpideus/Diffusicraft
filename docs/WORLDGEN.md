@@ -673,13 +673,15 @@ sea cliffs, and lets them fall to the foot down the head of a gorge they have cu
 heights of the ground alone, as the chunk's heightmaps have them before the plants grow:
 
 - **The face.** It tries 24 columns of the chunk for the edge of a face: ground that falls from the next column out,
-  never rises, and drops at least 8 blocks within 12, at one and a half blocks or more for every block out. The foot
-  is the column that scores best, two points for each block of drop less one for each block out, so that a fall
-  stands at the edge rather than back across a bench; water ends the face. The four best edges are tried in turn.
-  The land 4 and 8 blocks behind the edge must lie no lower than it less a block, as on a bench or the step of a
-  valley, so no stream springs from a crest or a fin. Sheer cliffs are rare in the real terrain, whose steepest
-  mountainsides fall a block or two at a time: at 1:1 a chunk in six or so has such a face, against one in two
-  hundred with a single drop of 8 blocks.
+  never rises, and drops at least 8 blocks within 12, at one and a half blocks or more for every block out. The foot is
+  the column that scores best, two points for each block of drop less one for each block out, so that a fall stands at
+  the edge rather than back across a bench; water ends the face. The eight best edges are each laid out, and of the
+  falls that hold, the one with the largest curtain of water is kept, as wide times as tall: on a ragged edge the
+  highest drop often takes a fall a block or two wide, while a level stretch of the edge beside it takes a wide one. The
+  land 4 and 8 blocks behind the edge must lie no lower than it less a block, as on a bench or the step of a valley, so
+  no stream springs from a crest or a fin. Sheer cliffs are rare in the real terrain, whose steepest mountainsides fall
+  a block or two at a time: at 1:1 a chunk in six or so has such a face, against one in two hundred with a single drop
+  of 8 blocks.
 - **The stream.** As wide as the edge runs level, up to a width set by the size of the world and the rain: 12 blocks
   in the wettest land at Ultra (1:1), 9 at Extreme, 7 at Grand, 5 at Large, 4 at Medium and 3 at Vanilla, and half
   that where the rain is just enough for a waterfall. Each takes a third of its width to all of it. It runs one to
@@ -1484,11 +1486,12 @@ Other searches still read the full terrain and can take a while on new land:
 - `WaterfallTest` lays out waterfalls over a straight cliff, into a pool of their own on level ground and into the sea,
   down the head of a gorge cut into a steep face, never below its floor, and none on slopes of one block a block, fins,
   ridges and peaks. Along a long cliff they fall up to 12 blocks wide, as wide as the wettest land of the largest world
-  allows, and narrower in smaller worlds and drier lands. On rough ground of plateaus and down the steep sides of mesas,
-  with the sea at their foot or not, and at the narrowest and the widest, it checks that every waterfall's still water
-  is held on every side and from below, that the falls run down through the air to their foot, that no ground is cut
-  away from water beside it, that the drop is high enough, and that the waterfall reads and writes only the chunks a
-  feature may. The same draw lays out the same one.
+  allows, and narrower in smaller worlds and drier lands. A wide fall from a level edge wins over a higher one from a
+  notch a block wide. On rough ground of plateaus and down the steep sides of mesas, with the sea at their foot or not,
+  and at the narrowest and the widest, it checks that every waterfall's still water is held on every side and from
+  below, that the falls run down through the air to their foot, that no ground is cut away from water beside it, that
+  the drop is high enough, and that the waterfall reads and writes only the chunks a feature may. The same draw lays out
+  the same one.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

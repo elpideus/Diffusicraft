@@ -29,8 +29,11 @@ final class Waterfall {
 	static final int DRY = Integer.MIN_VALUE;
 	/** Columns tried for the edge of a cliff in each chunk. */
 	static final int ATTEMPTS = 24;
-	/** The highest drops checked in turn, until one takes a waterfall. */
-	private static final int CANDIDATES = 4;
+	/**
+	 * The highest drops laid out, of which the waterfall with the largest curtain of water is kept: on a ragged edge
+	 * the highest drop often takes a fall only a block or two wide, while a level edge beside it takes a wide one.
+	 */
+	private static final int CANDIDATES = 8;
 	/** Most blocks of ground cut away over the stream and the pool, to keep them level. */
 	static final int CUT = 3;
 	/** Longest gorge, from the edge to the foot of the face, in blocks. */
@@ -104,8 +107,8 @@ final class Waterfall {
 
 	/**
 	 * A waterfall over a cliff of the chunk whose lowest block is at {@code (x0, z0)}, at least {@code minDrop} blocks
-	 * tall and at most {@code maxWidth} wide, or {@code null} if no cliff of it takes one. The highest drops are tried
-	 * first.
+	 * tall and at most {@code maxWidth} wide, or {@code null} if no cliff of it takes one. Of the falls the highest
+	 * drops take, it is the one whose curtain of water is the largest, as wide times as tall.
 	 */
 	static @Nullable Waterfall plan(Ground ground, int x0, int z0, int minDrop, int maxWidth, RandomSource random) {
 		int[] xs = new int[ATTEMPTS], zs = new int[ATTEMPTS], dirs = new int[ATTEMPTS], runs = new int[ATTEMPTS];
@@ -146,13 +149,15 @@ final class Waterfall {
 			runs[at] = run;
 			scores[at] = best;
 		}
+		Waterfall best = null;
 		for (int k = 0; k < Math.min(found, CANDIDATES); k++) {
 			Waterfall fall = new Waterfall(x0, z0);
-			if (fall.build(ground, xs[k], zs[k], dirs[k], runs[k], minDrop, Math.clamp(maxWidth, 1, WIDEST), random)) {
-				return fall;
+			if (fall.build(ground, xs[k], zs[k], dirs[k], runs[k], minDrop, Math.clamp(maxWidth, 1, WIDEST), random)
+				&& (best == null || fall.width * fall.drop > best.width * best.drop)) {
+				best = fall;
 			}
 		}
-		return null;
+		return best;
 	}
 
 	/**

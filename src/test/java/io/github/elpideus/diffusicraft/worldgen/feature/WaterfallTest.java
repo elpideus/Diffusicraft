@@ -94,6 +94,30 @@ class WaterfallTest {
 	}
 
 	@Test
+	void aWideFallBeatsAHigherNarrowOne() {
+		// A cliff whose edge is ragged where it is highest, at 112, its notches a block wide, and level beyond, at
+		// 106, over level ground at 60.
+		Terrain cliff = new Terrain((x, z) -> z < 8 ? x < 7 + (~z & 1) ? 112 : 60 : x < 8 ? 106 : 60, NO_SEA, 0, 0);
+		int notched = 0, level = 0;
+		for (long seed = 0; seed < 512; seed++) {
+			Waterfall fall = plan(cliff, Waterfall.WIDEST, seed);
+			if (fall == null) {
+				continue;
+			}
+			check(cliff, fall);
+			if (fall.y == 112) {
+				assertEquals(1, fall.width, "wider than a notch");
+				notched++;
+			} else {
+				level++;
+			}
+		}
+		// A notch takes the falls only in a chunk where no column of the level edge was tried: had the highest drop
+		// been kept, it would take them wherever one of its columns was.
+		assertTrue(level >= 3 * notched, notched + " falls from the notches, " + level + " from the level edge");
+	}
+
+	@Test
 	void theWidestFallsAreInTheWettestLandOfTheLargestWorld() {
 		assertEquals(Waterfall.WIDEST, Waterfall.widest(WorldScale.ULTRA, 1));
 		assertEquals(3, Waterfall.widest(WorldScale.VANILLA, 1));
