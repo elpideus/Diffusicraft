@@ -266,9 +266,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 
 			// The tallest Grand Hollow of each biome nearby, lit up and looking up at the ceiling. The glowworm
 			// grotto by its own light too. Each must grow its own blocks.
-			for (Map.Entry<String, BlockPos> biome : findHollowBiomes(probe).entrySet()) {
+			for (Map.Entry<String, HollowRun> biome : findHollowBiomes(probe).entrySet()) {
 				String name = "hollow-" + biome.getKey().substring(biome.getKey().indexOf(':') + 1);
-				BlockPos at = biome.getValue();
+				BlockPos at = biome.getValue().middle();
 				view(context, world, at, 0f, 0f, name);
 				view(context, world, at, 0f, -40f, name + "-up");
 				if (biome.getKey().equals(HollowBiomes.GLOWWORM_GROTTO)) {
@@ -277,7 +277,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 					world.getServer().runCommand("effect give @a minecraft:night_vision infinite 0 true");
 				}
 				String lifeProblem = world.getServer().computeOnServer(server ->
-					checkHollowLife(server.overworld(), biome.getKey(), at));
+					checkHollowLife(server.overworld(), biome.getKey(), biome.getValue()));
 				problem = problem != null ? problem : lifeProblem;
 			}
 
@@ -404,15 +404,25 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		HollowBiomes.DRIPSTONE_CAVES, Blocks.POINTED_DRIPSTONE);
 
 	/**
-	 * Finds, for each biome of the Grand Hollows within 4 km of the spawn, the column with the tallest open run of a
-	 * Grand Hollow of that biome, and returns the middle of that run.
+	 * How far out from the tallest run of a Grand Hollow its biome's own block is looked for, in blocks. That run lies
+	 * over the deepest part of the cavern, where its lake gathers: in the world test's seed the mushroom forest's lake
+	 * leaves no mushrooms within 32 blocks of it, and hundreds of stems within 96.
 	 */
-	private static Map<String, BlockPos> findHollowBiomes(Probe probe) {
+	private static final int LIFE_REACH = 96;
+
+	/** The open run of a Grand Hollow in a column: its middle, and how many blocks tall it is. */
+	private record HollowRun(BlockPos middle, int height) {
+	}
+
+	/**
+	 * Finds, for each biome of the Grand Hollows within 4 km of the spawn, the column with the tallest open run of a
+	 * Grand Hollow of that biome, and returns that run.
+	 */
+	private static Map<String, HollowRun> findHollowBiomes(Probe probe) {
 		long start = System.nanoTime();
 		Hollows hollows = Hollows.of(probe.hollowsSeed, probe.minY);
 		Hollows.Column column = new Hollows.Column();
-		Map<String, BlockPos> best = new TreeMap<>();
-		Map<String, Integer> bestRun = new TreeMap<>();
+		Map<String, HollowRun> best = new TreeMap<>();
 		// On the coarse map, which is enough to place the hollows under the ground and spares the model 64 km² of land.
 		CoarseClimate.call(() -> {
 			BiomeResolver resolver = probe.biomes.createResolver(
@@ -432,9 +442,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 						if (run >= 24) {
 							int middle = y - run / 2;
 							String biome = biomeAt(resolver, x, middle, z);
-							if (HOLLOW_LIFE.containsKey(biome) && run > bestRun.getOrDefault(biome, 0)) {
-								bestRun.put(biome, run);
-								best.put(biome, new BlockPos(x, middle, z));
+							HollowRun was = best.get(biome);
+							if (HOLLOW_LIFE.containsKey(biome) && (was == null || run > was.height())) {
+								best.put(biome, new HollowRun(new BlockPos(x, middle, z), run));
 							}
 						}
 						run = 0;
@@ -443,27 +453,33 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			}
 			return null;
 		});
-		LOGGER.info("Grand Hollow biomes within 4 km in {} ms: {} (open runs {})",
-			(System.nanoTime() - start) / 1_000_000L, best, bestRun);
+		LOGGER.info("Grand Hollow biomes within 4 km in {} ms: {}", (System.nanoTime() - start) / 1_000_000L, best);
 		return best;
 	}
 
-	/** A problem if the Grand Hollow at a point grows none of its biome's own block within 32 blocks, else null. */
-	private static @Nullable String checkHollowLife(ServerLevel level, String biome, BlockPos at) {
+	/**
+	 * A problem if a Grand Hollow grows none of its biome's own block within {@link #LIFE_REACH} blocks of its run,
+	 * from below its floor to above its ceiling, else null. Its floor may lie a hundred blocks and more below the
+	 * middle of the run.
+	 */
+	private static @Nullable String checkHollowLife(ServerLevel level, String biome, HollowRun run) {
 		Block life = HOLLOW_LIFE.get(biome);
+		BlockPos at = run.middle();
+		int reach = run.height() / 2 + 32;
+		int bottom = Math.max(at.getY() - reach, level.getMinY()), top = Math.min(at.getY() + reach, level.getMaxY());
 		int count = 0;
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-		for (int y = Math.max(at.getY() - 64, level.getMinY()); y <= Math.min(at.getY() + 64, level.getMaxY()); y++) {
-			for (int z = at.getZ() - 32; z <= at.getZ() + 32; z++) {
-				for (int x = at.getX() - 32; x <= at.getX() + 32; x++) {
+		for (int y = bottom; y <= top; y++) {
+			for (int z = at.getZ() - LIFE_REACH; z <= at.getZ() + LIFE_REACH; z++) {
+				for (int x = at.getX() - LIFE_REACH; x <= at.getX() + LIFE_REACH; x++) {
 					if (level.getBlockState(pos.set(x, y, z)).is(life)) {
 						count++;
 					}
 				}
 			}
 		}
-		LOGGER.info("The {} at {} has {} blocks of {} within 32 blocks", biome, at, count,
-			BuiltInRegistries.BLOCK.getKey(life));
+		LOGGER.info("The {} at {}, {} blocks tall, has {} blocks of {} within {} blocks", biome, at, run.height(), count,
+			BuiltInRegistries.BLOCK.getKey(life), LIFE_REACH);
 		return count > 0 ? null : "The " + biome + " at " + at + " grows no " + BuiltInRegistries.BLOCK.getKey(life);
 	}
 
