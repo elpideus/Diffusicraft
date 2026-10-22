@@ -1524,17 +1524,17 @@ Other searches still read the full terrain and can take a while on new land:
 - `WorldGenerationGameTest` is a client game test and needs the models. It checks that Diffusicraft is the default world
   type, creates a world at the Medium size (1:16), which its checks were made for, and checks that a player can stand at
   the world spawn, and that the heightmaps count all of Diffusicraft's full blocks. It then saves a biome map, a height
-  map, in-game views around the spawn and views of the largest river near the spawn, the steepest cliff, the tallest sea
-  cliff, each of Diffusicraft's biomes within 24 km or, for those of other latitudes, along the meridian towards the
-  equator, the tallest Grand Hollow, a lava sea nearby and the tallest Grand Hollow of each cave biome within 4 km, all
-  at noon, to `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, the face of the sea cliff
-  (not an arch, which is open halfway up) sheer above the water, though a cave may open into it there and caves and
-  ravines below it, and each cave biome must hold its own blocks: silk, selenite, mushrooms, moss or dripstone. Around
-  the spawn no sand or gravel may hang over open space, the rock under the soil may hold no dirt or gravel down to the
-  first cave, and on gentle ground outside limestone, chalk and marble the soil must go deeper than vanilla's dirt on
-  average. Run with Tech Reborn (`-PdevMods=techreborn`), it checks that the geology places Tech Reborn's tin, lead,
-  silver, uranium, rubies, sapphires and bauxite, and not its Nether sphalerite. It generates on the CPU unless
-  `-Pdiffusicraft.device` names another device.
+  map, in-game views around the spawn and views of the largest river near the spawn if there is one, the steepest cliff,
+  the tallest sea cliff, each of Diffusicraft's biomes within 24 km or, for those of other latitudes, along the meridian
+  towards the equator, the tallest Grand Hollow, a lava sea nearby and the tallest Grand Hollow of each cave biome
+  within 4 km, all at noon, to `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, the face
+  of the sea cliff (not an arch, which is open halfway up) sheer above the water, though a cave may open into it there
+  and caves and ravines below it, and each cave biome must hold its own blocks: silk, selenite, mushrooms, moss or
+  dripstone. Around the spawn no sand or gravel may hang over open space, the rock under the soil may hold no dirt or
+  gravel down to the first cave, and on gentle ground outside limestone, chalk and marble the soil must go deeper than
+  vanilla's dirt on average. Run with Tech Reborn (`-PdevMods=techreborn`), it checks that the geology places Tech
+  Reborn's tin, lead, silver, uranium, rubies, sapphires and bauxite, and not its Nether sphalerite. It generates on the
+  CPU unless `-Pdiffusicraft.device` names another device.
 - `TreesGameTest`, a client game test that needs no models, plants three of each of Diffusicraft's trees on a
   superflat world, the giants too, each in its own biome for the colours of its leaves, and saves a view of each. The
   giants grow twice, at their full height and as in a Vanilla world. A tree that never grows on open grass fails it.

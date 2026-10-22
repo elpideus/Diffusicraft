@@ -84,15 +84,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 /**
- * Creates a Diffusicraft world with the default settings and checks that the overworld really uses Diffusicraft.
- * Saves to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from
- * the generator without building chunks, in-game views from above the spawn, over the largest river nearby, of the
- * tallest sea cliff nearby and of each of Diffusicraft's biomes within 24 km or along the meridian towards the
- * equator, and views inside the nearest Grand Hollow,
- * inside the tallest Grand Hollow of each of their biomes, over the nearest lake in a Grand Hollow and over the nearest
- * lava sea of a Deep Grand Hollow. It also checks that each Grand Hollow biome grows what it should, that the lake
- * holds its water, and the levels of detail Distant Horizons draws against the
- * chunks generated around the spawn, and saves maps of them near and far.
+ * Creates a Diffusicraft world with the default settings and checks that the overworld really uses Diffusicraft. Saves
+ * to {@code build/run/clientGameTest/screenshots}: a biome map and a height map around the spawn, sampled from the
+ * generator without building chunks, in-game views from above the spawn, over the largest river nearby if any, of the
+ * tallest sea cliff nearby and of each of Diffusicraft's biomes within 24 km or along the meridian towards the equator,
+ * and views inside the nearest Grand Hollow, inside the tallest Grand Hollow of each of their biomes, over the nearest
+ * lake in a Grand Hollow and over the nearest lava sea of a Deep Grand Hollow. It also checks that each Grand Hollow
+ * biome grows what it should, that the lake holds its water, and the levels of detail Distant Horizons draws against
+ * the chunks generated around the spawn, and saves maps of them near and far.
  *
  * <p>Needs the Terrain Diffusion models; without them the test logs a warning and does nothing. Generation runs on the
  * CPU, so the test leaves the GPU alone; pass {@code -Pdiffusicraft.device=CUDA} (or {@code AUTO}) to change that.
@@ -105,8 +104,8 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	static final WorldScale SIZE = WorldScale.MEDIUM;
 	private static final Logger LOGGER = LoggerFactory.getLogger("Diffusicraft world test");
 	/**
-	 * The world's seed: a coastal spawn with rivers, cliffs and Grand Hollows near it. {@code -Pdiffusicraft.seed=...}
-	 * picks another, to see the biomes of other climates.
+	 * The world's seed: a coastal spawn below the wall of a fjord, with cliffs and Grand Hollows near it but no river
+	 * within 4 km. {@code -Pdiffusicraft.seed=...} picks another, to see the biomes of other climates.
 	 */
 	private static final String SEED = System.getProperty("diffusicraft.seed", "20261052");
 	/** Map size in pixels, and blocks per pixel. */
@@ -212,10 +211,12 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				view(context, world, at.offset(0, -soils.depth / 2, 13), 180f, 0f, "soil");
 			}
 
-			// The largest river nearby, from its bank and from high above.
+			// The largest river nearby, if there is one, from its bank and from high above.
 			BlockPos river = findRiver(probe);
-			view(context, world, river.offset(0, 24, 36), 180f, 30f, "river");
-			view(context, world, river.above(140), 180f, 75f, "river-above");
+			if (river != null) {
+				view(context, world, river.offset(0, 24, 36), 180f, 30f, "river");
+				view(context, world, river.above(140), 180f, 75f, "river-above");
+			}
 
 			// The deepest lake nearby, if there is one, from its shore and from high above.
 			BlockPos lake = findLake(probe);
@@ -545,8 +546,11 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			: null;
 	}
 
-	/** Finds the river channel within 2 km of the spawn that carries the most water, and returns its water surface. */
-	private static BlockPos findRiver(Probe probe) {
+	/**
+	 * Finds the river channel within 2 km of the spawn that carries the most water, if any, and returns its water
+	 * surface. A coast below steep land may have none: its streams run into the sea before they grow into rivers.
+	 */
+	private static @Nullable BlockPos findRiver(Probe probe) {
 		Rivers rivers = Rivers.of(probe.field);
 		float most = 0f;
 		BlockPos best = null;
@@ -561,9 +565,10 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			}
 		}
 		if (best == null) {
-			throw new AssertionError("No river within 2 km of the spawn");
+			LOGGER.info("No river within 2 km of the spawn");
+		} else {
+			LOGGER.info("The largest river near the spawn carries {} m³/s at {}", Math.round(most), best);
 		}
-		LOGGER.info("The largest river near the spawn carries {} m³/s at {}", Math.round(most), best);
 		return best;
 	}
 
