@@ -76,10 +76,17 @@ any in the world:
   show up to a third more canopy. A column is under the highest crown that reaches it, with the trunk drawn only in
   the nearest LODs. The wider columns of farther LODs are under a canopy as often as the ground is.
 - **Giants.** [Giant trees](WORLDGEN.md#giant-trees) reach so far from their trunks that on the small trees' grid each
-  column would look over hundreds of cells for them, so they are scattered on a grid of their own, whose cells are as
-  wide as their own share of the ground. A column under both is under the giant's crown; the small trees under it are
-  not drawn, as the LODs keep one crown a column. Their trunks, several blocks wide, are drawn one or two levels of
-  detail farther out than a small tree's. They are drawn as tall as they grow in a world of that size.
+  column would look over hundreds of cells for them, so the redwoods, which grow as features, are scattered on a grid
+  of their own, whose cells are as wide as their own share of the ground. The ancient oaks and the kapoks grow as
+  structures, and `worldgen.lod.GreatTrees` stands them where the world grows them: in the chunks their structure set
+  gives, clear of the villages, with the sapling each chunk draws, where the biome at the foot is the structure's and
+  the LOD's ground there is dry and level. That ground is not quite the chunks' (the farthest LODs read the coarse
+  map), so now and then a giant shows that the world does not grow, or the other way round. Their crowns are those of
+  16 trees grown of each structure at heights spread over its range, each giant taking the one nearest its height, so
+  they stand at about their heights but are not quite their own shapes; they reach out over the water too. A column
+  under both is under the giant's crown; the small trees under it are not drawn, as the LODs keep one crown a column.
+  Their trunks, several blocks wide, are drawn one or two levels of detail farther out than a small tree's. They are
+  drawn as tall as they grow in a world of that size.
 
 **Trees of biome mods.** Biome mods often grow trees with features of their own rather than Minecraft's tree feature;
 Biomes O' Plenty does for nearly all of its trees. Those features are placed whole on the same stand-in, standing on

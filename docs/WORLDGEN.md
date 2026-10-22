@@ -478,8 +478,8 @@ the colours:
 | Cloud forest | Jungle | Canopy trees and gnarled oaks hung with [lianas](#lianas), over an [undergrowth](#undergrowth) of shrubs of oak leaves, ferns, moss; dense fog (128 blocks) | Grass and podzol over laterite |
 | Temperate rainforest | Old-growth spruce taiga | Giant and mega spruces, now and then a redwood, ferns, moss, mushrooms; light fog | Grass and podzol |
 | Redwood forest | Old-growth spruce taiga | [Redwoods](#giant-trees) 110 to 230 blocks tall at 1:1, one or two in most chunks, over spruces, mega spruces and fallen trunks, large ferns, moss, mushrooms, berries; fog (256 blocks) | Grass with deep needle litter (podzol) and coarse dirt |
-| Ancient woodland | Forest | [Ancient oaks](#giant-trees) 40 to 64 blocks tall at 1:1 in every other chunk, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
-| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1 in every other chunk, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, some 20 to a chunk, hung with [lianas](#lianas), over a nearly closed [undergrowth](#undergrowth) of shrubs and large ferns; melons and moss | Grass, red laterite below |
+| Ancient woodland | Forest | [Ancient oaks](#giant-trees) 48 to 80 blocks tall at 1:1, one to every 3×3 chunks, over oaks, big oaks and birches far apart, as in a wood pasture, and fallen trunks; flowers, bushes, mushrooms | Grass with leaf mould (podzol) |
+| Old-growth jungle | Jungle | [Kapoks](#giant-trees) 80 to 130 blocks tall at 1:1, one to most 3×3 chunks, rising out of a canopy of jungle trees, mega jungle trees and jungle bushes, some 20 to a chunk, hung with [lianas](#lianas), over a nearly closed [undergrowth](#undergrowth) of shrubs and large ferns; melons and moss | Grass, red laterite below |
 | Maquis | Plains | Evergreen scrub, olives, stone pines, cypresses, bushes, alliums | Thin grass and terra rossa on limestone |
 | Cold desert | Desert | Sagebrush, dry grass, scattered boulders; rain and snow | Sand with gravel and coarse dirt, sandstone below |
 | Desert scrub | Desert | Creosote and saltbush mounds, low mesquites, columnar cacti and vanilla's on the sand, dry grass, dead bushes, desert marigolds and sand verbena, boulders; rabbits, armadillos and the odd camel | Coarse dirt with gravel pavement and drifts of sand, sandstone below |
@@ -615,17 +615,20 @@ LOD mods and the [relief map](MAP.md) all see the same ones.
 
 ### Giant trees
 
-`diffusicraft:giant_tree` (`GiantTreeFeature`) grows trees far taller than any of vanilla's, as a fantasy of real
-giants, in three forms. Each is a trunk that tapers from a flared foot, and limbs that carry the leaves in clumps
+`diffusicraft:giant_tree`, a feature (`GiantTreeFeature`) and a structure (`GiantTreeStructure`), grows trees far
+taller than any of vanilla's, as a fantasy of real giants, in three forms. Each is a trunk that tapers from a flared foot, and limbs that carry the leaves in clumps
 (`GiantTree`, which draws the shape before it meets the world):
 
 - **Redwoods**, 110 to 230 blocks tall, of mangrove wood for its red-brown bark under spruce needles: a straight
   column, bare for half its height or more, under a narrow cone of short, drooping branches and a spire, its foot
   flaring into ribs. Coast redwoods reach 116 m; these are twice that.
-- **Ancient oaks**, 40 to 64 blocks tall, of oak: a short, massive trunk that forks into great limbs under a broad
-  dome, the lower limbs reaching out wide and nearly level, the upper ones climbing into the top of the dome.
+- **Ancient oaks**, 48 to 80 blocks tall, of oak, as one grows in the open: a short, massive trunk that forks low into
+  five to seven great limbs and a leader. The limbs rise steeply, then reach out nearly level and fork into branches
+  under a broad, lumpy dome of clumps, wider than it is tall and open inside, so that the limbs show from under it.
+  On the larger ones, a long limb or two sweeps out low under the dome.
 - **Kapoks**, 80 to 130 blocks tall, of jungle wood: the emergents of the rainforest, a pale, unbranched column on
-  plank buttresses that rises over the canopy to a flat umbrella some 35 blocks across.
+  plank buttresses that rises over the canopy to a flat umbrella, on limbs that leave the trunk nearly level and
+  climb toward their ends.
 
 These are their heights at 1:1. The smaller the world, the smaller the giants, though far less than the land, which
 is some sixteen times lower at 1:32 than at 1:1: each halving of the world takes about a sixth off their height
@@ -634,47 +637,65 @@ shapes follow the height, so a smaller giant is a smaller tree of the same build
 
 | Size | Of the height at 1:1 | Redwoods | Ancient oaks | Kapoks |
 |---|---|---|---|---|
-| Ultra (1:1) | 100% | 110 to 230 | 40 to 64 | 80 to 130 |
-| Extreme (1:2) | 84% | 92 to 193 | 34 to 54 | 67 to 109 |
-| Grand (1:4) | 71% | 78 to 163 | 28 to 45 | 57 to 92 |
-| Large (1:8) | 59% | 65 to 137 | 24 to 38 | 48 to 77 |
-| Medium (1:16) | 50% | 55 to 115 | 20 to 32 | 40 to 65 |
-| Vanilla (1:32) | 42% | 46 to 97 | 17 to 27 | 34 to 55 |
+| Ultra (1:1) | 100% | 110 to 230 | 48 to 80 | 80 to 130 |
+| Extreme (1:2) | 84% | 92 to 193 | 40 to 67 | 67 to 109 |
+| Grand (1:4) | 71% | 78 to 163 | 34 to 57 | 57 to 92 |
+| Large (1:8) | 59% | 65 to 137 | 29 to 48 | 48 to 77 |
+| Medium (1:16) | 50% | 55 to 115 | 24 to 40 | 40 to 65 |
+| Vanilla (1:32) | 42% | 46 to 97 | 20 to 34 | 34 to 55 |
+
+The crowns spread with the height (`GiantTree.reach`): an oak's to six tenths of its height on every side, 58 to 96
+blocks across at 1:1 and 24 to 40 at 1:32, and a kapok's to a third, 52 to 84 blocks across at 1:1 and 22 to 36 at
+1:32. A broad crown is clumps spread evenly over the shell of a spheroid, each sunk a little into it, so that the
+dome is lumpy; each limb takes the clumps on its side, and forks into a branch to each group of a few of them.
 
 Outside a Diffusicraft world, as on the superflat world of `TreesGameTest`, they grow to their height at 1:1.
 
 The clumps keep within six blocks of the wood, as leaves must to live, and large ones hold twigs of their own; the few
 leaves still farther out are placed persistent so that they do not decay. A giant grows after the smaller trees of its
-biome and through their crowns, as an emergent does, looking down through up to 32 blocks of leaves and plants for
-its ground. It needs soil under its foot, ground within 6 blocks of level around it and no water: its roots fill down
-to the ground where it falls away a little, but not off a cliff. It does not grow under another giant's crown, nor
-against another's foot. The height is cut to fit under the top of the world.
+biome and through their crowns, as an emergent does. It needs ground within 6 blocks of level around its foot and no
+water: its roots fill down to the ground where it falls away a little, but not off a cliff. The height is cut to fit
+under the top of the world.
 
-A feature writes only in the 3×3 chunks around its own, so a giant reaches at most 21 blocks out from its trunk, about
-42 blocks across, and each is placed near the middle of its chunk, where it has the most room. That is why the oaks
-stay at 64 blocks and the redwoods, whose crowns are narrow, take the height.
+A feature writes only in the 3×3 chunks around its own, so a redwood, a feature, reaches at most 21 blocks out from its
+trunk, about 42 blocks across, and each is placed near the middle of its chunk, where it has the most room. Its crown
+is narrow, so it takes the height. It looks down through up to 32 blocks of leaves and plants for its ground, needs
+soil there, and does not grow under another giant's crown, nor against another's foot.
+
+The ancient oaks and the kapoks spread broad crowns, so they grow as structures, whose crowns are not held to those
+chunks. The structure's one piece (`GiantTreePiece`) keeps the draws of the tree rather than its blocks; as each chunk
+it reaches is decorated, it plans the tree again and lays the blocks of that chunk and of the six blocks around it,
+which tell how far each leaf lies from the wood, and writes that chunk's share. A structure is drawn before its chunk
+has any blocks, so it reads the land from the generator: the structure's biome at the foot, dry ground there and on a
+ring around the foot, and that ring within 6 blocks of level. It grows in the step `top_layer_modification`, after
+every smaller tree, and only in Diffusicraft worlds. The jungles' [undergrowth](#undergrowth) and [lianas](#lianas)
+run in that step too, after it, so that its roots stand in the undergrowth and the kapoks' umbrellas hang with lianas.
 
 **Where.** The groves are biomes of their own, which come as [patches](#sub-biomes) of the woods around them on level
 land: redwood forests in the mild, wet taiga and the temperate rainforest, ancient woodlands in the forests and on the
-plains, old-growth jungle in the jungle. Redwoods stand in two chunks of three there, and the oaks and kapoks in every
-other chunk. Outside the groves, lone giants grow here and there, and only in Diffusicraft worlds (the placement filter
-`diffusicraft:diffusicraft_world`): a redwood in one in 6 chunks of the temperate rainforest and in one in 16 of the
-old-growth spruce and pine taigas, an ancient oak in one in 24 of vanilla's forests (flower, birch and dark forests too)
-and one in 48 of its plains and sunflower plains, and a kapok in one in 10 of its jungles. So the plains, the largest
-open land, show a lone giant oak a hundred blocks or so apart where the ground is level, and their ancient woodlands a
-stand of them.
+plains, old-growth jungle in the jungle. Redwoods stand in two chunks of three there. The oaks and kapoks come from one
+structure set, `diffusicraft:giant_trees`, which gives one chunk in each cell of 3×3 chunks, none within 6 chunks of
+where a village may stand. Each of its structures grows in its own biomes (the biome tag
+`diffusicraft:has_structure/<structure>`), so each chunk grows the giant of its biome: an ancient oak in every such
+chunk of an ancient woodland, a kapok in 7 of 10 of the old-growth jungle's. Outside the groves, lone giants grow here
+and there, and only in Diffusicraft worlds: a redwood in one in 6 chunks of the temperate rainforest and in one in 16
+of the old-growth spruce and pine taigas (the placement filter `diffusicraft:diffusicraft_world`), an ancient oak in
+one in 24 of vanilla's forests (flower, birch and dark forests too) and one in 48 of its plains and sunflower plains,
+and a kapok in one in 10 of its jungles. So the plains, the largest open land, show a lone giant oak a hundred blocks
+or so apart where the ground is level, and their ancient woodlands a stand of them.
 
-The LOD mods draw the giants too (see [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
+The LOD mods draw the giants too, the ancient oaks and the kapoks where the world grows them (see
+[COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
 
 ### Lianas
 
 Vanilla's jungle trees hang their vines four blocks or so below a leaf, so that its jungles show open air under their
 crowns. `diffusicraft:lianas` (`LianaFeature`) lets those vines grow down towards the floor, as they would over the
-years. It runs once per chunk, after the trees and the giants, over every column of the chunk. Each vine with a face on
-a side that hangs over air grows, with the feature's chance, at least halfway down to whatever is below it, and to the
-floor at most. The vines it adds keep the faces on the sides of the vine they hang from, which is what holds them: as
-in vanilla, a vine with a face on a side stays wherever the vine over it has that face. A vine under a leaf, with only
-its face on top, holds nothing below it and stays as it is.
+years. It runs once per chunk, after the trees and the giants, in the last step (`top_layer_modification`), over every
+column of the chunk. Each vine with a face on a side that hangs over air grows, with the feature's chance, at least
+halfway down to whatever is below it, and to the floor at most. The vines it adds keep the faces on the sides of the
+vine they hang from, which is what holds them: as in vanilla, a vine with a face on a side stays wherever the vine over
+it has that face. A vine under a leaf, with only its face on top, holds nothing below it and stays as it is.
 
 The chance is 60% in the old-growth jungle, the cloud forest and vanilla's jungle, and 30% in vanilla's sparse and
 bamboo jungles. Vanilla's jungles have them only in Diffusicraft worlds.
@@ -1432,10 +1453,10 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `RiverCourses` (the water of those paths in blocks), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
-| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` (`diffusicraft:giant_tree`) and `GiantTree` (the giant trees' shapes), `RiverFallFeature` (`diffusicraft:river_falls`) and `RiverFalls` (the curtains and pools of the rivers' falls), `Springs` (vanilla's water springs left off the cliffs), `LianaFeature` (`diffusicraft:lianas`), `UndergrowthFeature` (`diffusicraft:undergrowth`) and `Thickets` (where it grows thick), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
+| `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` and `GiantTreeStructure` (both `diffusicraft:giant_tree`), `GiantTreePiece` (a giant written a chunk at a time) and `GiantTree` (the giant trees' shapes), `RiverFallFeature` (`diffusicraft:river_falls`) and `RiverFalls` (the curtains and pools of the rivers' falls), `Springs` (vanilla's water springs left off the cliffs), `LianaFeature` (`diffusicraft:lianas`), `UndergrowthFeature` (`diffusicraft:undergrowth`) and `Thickets` (where it grows thick), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
-| `worldgen/lod/` | `LodSampler`, `LodColumn` and `TreeCover`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
+| `worldgen/lod/` | `LodSampler`, `LodColumn`, `TreeCover` and `GreatTrees`: columns of the finished surface and its trees without chunks, for LOD mods; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust, glowworm silk and selenite |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
@@ -1548,11 +1569,16 @@ Other searches still read the full terrain and can take a while on new land:
   line, that other biomes and columns outside the patches stay, and that the seed sets the patches. The groves of
   giants keep to level land, and redwoods to mild, wet climates.
 - `GiantTreeTest` grows every form of giant tree at its least and most height, at 1:1 and at 1:32, and checks that it
-  keeps within its reach and height, that the same draw grows the same tree, that all its wood hangs together from
-  the foot, that at least 97% of its leaves live on the wood, that redwoods stand bare under their crowns and kapoks
-  on buttresses under an umbrella, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks
+  keeps within its reach and height, as a structure and as a feature, that the same draw grows the same tree, that a
+  tree laid chunk by chunk is the whole tree, that all its wood hangs together from the foot, that at least 97% of its
+  leaves live on the wood, that redwoods stand bare under their crowns, that ancient oaks spread domes nearly as wide
+  as they are tall, open inside, over a bare trunk, that kapoks stand on buttresses under an umbrella half as wide as
+  they are tall, and that a 230-block redwood takes milliseconds to grow. `TreeCoverTest` checks
   that the LODs draw a biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of
-  detail farther out, and as tall as the kapoks grow in a world of each size.
+  detail farther out, and as tall as the kapoks grow in a world of each size. `GreatTreesTest` checks that the LODs
+  stand the structures' giants at the feet their chunks draw, with their trunks there and nowhere else, only the
+  giant of the biome at the foot, none under water, on steep ground or in chunks the set does not place in, crowns
+  wider than a feature's at 1:1 that shrink at 1:32, and leaves that stay put as the ground rises under them.
 - `RiverFallsTest` lays out the falls of a river over a step: a curtain from the higher water in the columns below the
   step alone, a pool deepest at its foot and shallower downstream, none above the step, under a step of a block or in a
   lake the river falls into, none deeper than allowed, and a pool across the side of a chunk dug alike on both sides.

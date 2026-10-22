@@ -1,0 +1,27 @@
+{
+  "type": "diffusicraft:giant_tree",
+  "biomes": "#diffusicraft:has_structure/kapok",
+  "spawn_overrides": {},
+  "step": "top_layer_modification",
+  "form": "kapok",
+  "wood": {
+    "id": "minecraft:jungle_wood",
+    "properties": {
+      "axis": "y"
+    }
+  },
+  "leaves": {
+    "id": "minecraft:jungle_leaves",
+    "properties": {
+      "distance": "7",
+      "persistent": "false",
+      "waterlogged": "false"
+    }
+  },
+  "height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 80,
+    "max_inclusive": 130
+  },
+  "chance": 0.7
+}

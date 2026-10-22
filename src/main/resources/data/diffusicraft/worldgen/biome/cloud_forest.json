@@ -185,13 +185,13 @@
       "minecraft:patch_firefly_bush_near_water",
       "diffusicraft:trees_cloud_forest",
       "diffusicraft:rainforest_moss",
-      "diffusicraft:cloud_undergrowth",
-      "diffusicraft:canopy_vines",
-      "diffusicraft:lianas",
       "diffusicraft:patch_large_fern"
     ],
     [
-      "minecraft:freeze_top_layer"
+      "minecraft:freeze_top_layer",
+      "diffusicraft:cloud_undergrowth",
+      "diffusicraft:canopy_vines",
+      "diffusicraft:lianas"
     ]
   ],
   "has_precipitation": true,

@@ -1,0 +1,27 @@
+{
+  "type": "diffusicraft:giant_tree",
+  "biomes": "#diffusicraft:has_structure/lone_giant_oak_plains",
+  "spawn_overrides": {},
+  "step": "top_layer_modification",
+  "form": "oak",
+  "wood": {
+    "id": "minecraft:oak_wood",
+    "properties": {
+      "axis": "y"
+    }
+  },
+  "leaves": {
+    "id": "minecraft:oak_leaves",
+    "properties": {
+      "distance": "7",
+      "persistent": "false",
+      "waterlogged": "false"
+    }
+  },
+  "height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 48,
+    "max_inclusive": 80
+  },
+  "chance": 0.1875
+}

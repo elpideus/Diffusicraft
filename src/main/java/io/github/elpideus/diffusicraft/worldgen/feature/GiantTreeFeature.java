@@ -20,6 +20,8 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Predicate;
+
 /**
  * {@code diffusicraft:giant_tree}: a tree a hundred blocks tall or more, of one of the {@link Form forms}: a redwood,
  * an ancient oak or a kapok. {@link GiantTree} gives its shape.
@@ -31,7 +33,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A feature writes only in the 3×3 chunks around its own, so the crown reaches at most as far as the nearest edge
  * of those chunks, and {@link GiantTree#MAX_REACH} blocks: about 40 blocks across. Placed nearer the middle of its
- * chunk, a tree has more room. The height is cut to fit under the top of the world.
+ * chunk, a tree has more room. The height is cut to fit under the top of the world. That is room enough for the narrow
+ * crowns of the redwoods; the broadleaf giants of the data pack grow as structures instead ({@link
+ * GiantTreeStructure}), which this feature still places in the LOD mods' stand-in world and the game tests.
  *
  * <p>The heights of the data pack are a 1:1 world's. The smaller the world, the smaller the giants, though much less
  * than the land: see {@link GiantTree#size}. Outside a Diffusicraft world they grow to their full height.
@@ -45,16 +49,16 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 	).apply(instance, GiantTreeFeature::new));
 
 	/** Lowest a giant of full size grows: less room than this under the top of the world, and it does not grow. */
-	private static final int MIN_HEIGHT = 40;
+	static final int MIN_HEIGHT = 40;
 
 	/** Room kept free over the top of the tree, in blocks. */
-	private static final int HEADROOM = 6;
+	static final int HEADROOM = 6;
 	/** Leaves and plants over the ground through which a giant still finds it, in blocks: higher is another's crown. */
 	private static final int UNDERSTOREY = 32;
 	/** Most the ground around the foot may rise or fall, in blocks. */
-	private static final int UNEVEN = 6;
+	static final int UNEVEN = 6;
 	/** Deepest the roots reach down to the ground, in blocks. */
-	private static final int ROOTS = 12;
+	static final int ROOTS = 12;
 
 	/** The forms a giant takes. */
 	public enum Form implements StringRepresentable {
@@ -105,11 +109,13 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		if (height < MIN_HEIGHT * size) {
 			return false;
 		}
-		GiantTree tree = GiantTree.grow(form, height, room(origin), random);
+		GiantTree.Blocks tree = GiantTree.grow(form, height, room(origin), random);
 		if (!levelAround(level, base, tree.footReach + 2)) {
 			return false;
 		}
-		write(level, base, origin, tree);
+		int chunkX = SectionPos.blockToSectionCoord(origin.getX());
+		int chunkZ = SectionPos.blockToSectionCoord(origin.getZ());
+		write(level, base, tree, wood, leaves, pos -> writable(level, pos, chunkX, chunkZ));
 		return true;
 	}
 
@@ -174,20 +180,23 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		return Math.min(GiantTree.MAX_REACH, Math.min(Math.min(x + 16, 31 - x), Math.min(z + 16, 31 - z)) - 1);
 	}
 
-	private void write(WorldGenLevel level, BlockPos base, BlockPos origin, GiantTree tree) {
-		int chunkX = SectionPos.blockToSectionCoord(origin.getX());
-		int chunkZ = SectionPos.blockToSectionCoord(origin.getZ());
+	/**
+	 * Writes a tree's blocks with its foot at {@code base}, those of them that are {@code writable}, through the plants
+	 * and smaller trees there.
+	 */
+	static void write(WorldGenLevel level, BlockPos base, GiantTree.Blocks tree, BlockState wood, BlockState leaves,
+					  Predicate<BlockPos> writable) {
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 		for (long relative : tree.wood) {
 			at(pos, base, relative);
-			if (writable(level, pos, chunkX, chunkZ) && grownThrough(level.getBlockState(pos), true)) {
+			if (writable.test(pos) && grownThrough(level.getBlockState(pos), true)) {
 				level.setBlock(pos, wood, 2);
 			}
 		}
 		// The roots, down to the ground where it falls away under the foot.
 		for (long relative : tree.foot) {
 			at(pos, base, relative);
-			for (int depth = 1; depth <= ROOTS && writable(level, pos.move(0, -1, 0), chunkX, chunkZ); depth++) {
+			for (int depth = 1; depth <= ROOTS && writable.test(pos.move(0, -1, 0)); depth++) {
 				BlockState state = level.getBlockState(pos);
 				if (!grownThrough(state, true) || state.is(wood.getBlock())) {
 					break;
@@ -198,7 +207,7 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		Long2IntOpenHashMap distances = tree.distances();
 		for (long relative : tree.leaves) {
 			at(pos, base, relative);
-			if (writable(level, pos, chunkX, chunkZ) && grownThrough(level.getBlockState(pos), false)) {
+			if (writable.test(pos) && grownThrough(level.getBlockState(pos), false)) {
 				// Leaves too far from the wood to live on it are kept alive.
 				int distance = distances.getOrDefault(relative, LeavesBlock.DECAY_DISTANCE);
 				BlockState leaf = leaves.hasProperty(LeavesBlock.DISTANCE) ? leaves

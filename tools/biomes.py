@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes Diffusicraft's biomes: the ones the climate refines vanilla's picks into (see BiomeRefiner.java), their trees
-and plants, their ground (a material rule) and their tags.
+and plants, their ground (a material rule) and their tags, and the giant trees that grow as structures.
 
 The files are committed; run this after changing a biome and commit the result:
 
@@ -440,10 +440,9 @@ def giant(form, wood, foliage, lo, hi):
 
 
 # Giant trees, fantasy giants of real ones: coast redwoods twice their height, in the red-brown bark of mangrove
-# wood; ancient oaks; and kapoks, the emergents of the rainforest.
+# wood; ancient oaks; and kapoks, the emergents of the rainforest. The redwoods' crowns are narrow enough for a
+# feature; the oaks and kapoks are structures (see STRUCTURES).
 FEATURES["redwood"] = giant("redwood", "mangrove_wood", "spruce_leaves", 110, 230)
-FEATURES["giant_oak"] = giant("oak", "oak_wood", "oak_leaves", 40, 64)
-FEATURES["kapok"] = giant("kapok", "jungle_wood", "jungle_leaves", 80, 130)
 
 # The falls of the rivers where they step down, with pools at their feet (see RiverFallFeature.java).
 FEATURES["river_falls"] = {"type": f"{NS}:river_falls", "deepest_pool": 4}
@@ -571,24 +570,20 @@ PLACED = {
     "hollow_lush_clay": hollow("minecraft:lush_caves_clay", "floor", 3),
     "hollow_cave_vines": hollow("minecraft:cave_vine", "ceiling", 32),
     "hollow_spore_blossoms": hollow("minecraft:spore_blossom", "ceiling", 4),
-    # The giants, after every smaller tree, whose crowns they grow through. Groves of them in their own biomes, and
+    # The redwoods, after every smaller tree, whose crowns they grow through. Groves of them in their own biomes, and
     # lone ones elsewhere: Java adds the lone ones to vanilla's biomes (see DiffusicraftWorldgen.addLoneGiants).
     "redwoods": giants(ours("redwood"), counts={0: 1, 1: 2}),
-    "giant_oaks": giants(ours("giant_oak"), chance=2),
-    "kapoks": giants(ours("kapok"), chance=2),
     "rainforest_redwoods": giants(ours("redwood"), chance=6),
-    "lone_giant_oak_plains": giants(ours("giant_oak"), chance=48, lone=True),
-    "lone_giant_oak": giants(ours("giant_oak"), chance=24, lone=True),
     "lone_redwood": giants(ours("redwood"), chance=16, lone=True),
-    "lone_kapok": giants(ours("kapok"), chance=10, lone=True),
-    # The floors of the rainforests, under the trees and the giants: once per chunk, as the lianas. The vanilla
-    # jungles' undergrowth is only in Diffusicraft worlds: Java adds it (see DiffusicraftWorldgen.addLianas).
+    # The floors of the rainforests, under the trees and the giants: once per chunk, as the lianas, and in the last
+    # step, top_layer_modification, after the oaks and kapoks that grow as structures early in it. The vanilla jungles'
+    # undergrowth is only in Diffusicraft worlds: Java adds it (see DiffusicraftWorldgen.addLianas).
     "undergrowth": lianas(ours("undergrowth")),
     "cloud_undergrowth": lianas(ours("cloud_undergrowth")),
     "jungle_undergrowth": lianas(ours("jungle_undergrowth"), lone=True),
     "sparse_jungle_undergrowth": lianas(ours("sparse_undergrowth"), lone=True),
-    # After the giants, whose crowns get vines and whose vines grow too, as do the free ones. The vanilla jungles' lianas
-    # are only in Diffusicraft worlds: Java adds them (see DiffusicraftWorldgen.addLianas).
+    # After the giants, in the last step too, whose crowns get vines and whose vines grow too, as do the free ones. The
+    # vanilla jungles' lianas are only in Diffusicraft worlds: Java adds them (see DiffusicraftWorldgen.addLianas).
     "canopy_vines": canopy("minecraft:vines", 64),
     "lianas": lianas(ours("lianas")),
     "jungle_lianas": lianas(ours("lianas"), lone=True),
@@ -694,6 +689,35 @@ FEATURES["trees_steppe"] = {"type": "minecraft:random_selector", "default": "min
                             "features": [{"chance": 0.4, "feature": "minecraft:birch_checked"}]}
 
 
+def great_tree(form, wood, foliage, lo, hi, biomes, chance=1.0):
+    """A giant tree whose crown spreads wider than a feature may write: a structure, written a chunk at a time (see
+    GiantTreeStructure.java). `lo` to `hi` blocks tall at 1:1, less in smaller worlds; in `biomes`, with `chance` in
+    each chunk the set gives it. It grows after every smaller tree, whose crowns it grows through."""
+    return {"type": f"{NS}:giant_tree", "biomes": biomes, "spawn_overrides": {}, "step": "top_layer_modification",
+            "form": form, "wood": log(wood), "leaves": leaves(foliage), "height": uniform(lo, hi), "chance": chance}
+
+
+# The broadleaf giants: the ancient oaks and the kapoks, in groves in their own biomes and alone in vanilla's, where they
+# grow only in Diffusicraft worlds. Each has a biome tag of its own, which lists `biomes`.
+STRUCTURES = {
+    "giant_oak": great_tree("oak", "oak_wood", "oak_leaves", 48, 80, [ours("ancient_woodland")]),
+    "lone_giant_oak": great_tree("oak", "oak_wood", "oak_leaves", 48, 80,
+                                 ["minecraft:forest", "minecraft:flower_forest", "minecraft:birch_forest",
+                                  "minecraft:dark_forest"], 0.375),
+    "lone_giant_oak_plains": great_tree("oak", "oak_wood", "oak_leaves", 48, 80,
+                                        ["minecraft:plains", "minecraft:sunflower_plains"], 0.1875),
+    "kapok": great_tree("kapok", "jungle_wood", "jungle_leaves", 80, 130, [ours("old_growth_jungle")], 0.7),
+    "lone_kapok": great_tree("kapok", "jungle_wood", "jungle_leaves", 80, 130, ["minecraft:jungle"], 0.9),
+}
+# One set for them all, a chunk in each cell of 3 by 3, so that no two stand closer than a chunk apart: in each biome
+# only its own giant grows. Not in a village.
+GIANT_TREES = {
+    "placement": {"type": "minecraft:random_spread", "exclusion_zone": {"chunk_count": 6,
+                                                                        "other_set": "minecraft:villages"},
+                  "salt": 1529730183, "separation": 1, "spacing": 3},
+    "structures": [{"structure": ours(name), "weight": 1} for name in STRUCTURES]}
+
+
 def spawn(mob, weight, lo, hi=None):
     return {"type": mc(mob), "count": lo if hi is None else uniform(lo, hi), "weight": weight}
 
@@ -703,7 +727,8 @@ CAVE_TAGS = ["c:is_cave", "c:is_underground", "minecraft:has_structure/mineshaft
              "minecraft:has_structure/trial_chambers", "minecraft:is_overworld", "minecraft:stronghold_biased_to"]
 
 # Each biome: its vanilla template, what it changes, the vegetation it grows and the tags it carries. `fog` is the
-# distance at which the fog closes in, in blocks; `without` lists the template's features it leaves out.
+# distance at which the fog closes in, in blocks; `without` lists the template's features it leaves out; `top` lists
+# the features it adds to the last step, after the giants that grow as structures.
 BIOMES = {
     "tundra": {
         "template": "snowy_plains", "temperature": 0.2, "downfall": 0.3,
@@ -743,8 +768,8 @@ BIOMES = {
         "local": ["minecraft:forest_rock"],
         "vegetation": ["minecraft:glow_lichen", "trees_cloud_forest", "rainforest_moss", "minecraft:patch_large_fern",
                        "minecraft:patch_grass_jungle", "minecraft:brown_mushroom_normal",
-                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water", "cloud_undergrowth",
-                       "canopy_vines", "lianas"],
+                       "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water"],
+        "top": ["cloud_undergrowth", "canopy_vines", "lianas"],
         "tags": ["c:is_wet/overworld", "c:is_dense_vegetation/overworld", "c:is_temperate/overworld", "c:is_rare",
                  "c:is_tree/jungle", "c:primary_wood_type/jungle", "minecraft:has_structure/jungle_temple",
                  "minecraft:has_structure/mineshaft", "minecraft:has_structure/trail_ruins",
@@ -791,7 +816,7 @@ BIOMES = {
         "vegetation": ["minecraft:glow_lichen", "minecraft:forest_flowers", "trees_ancient_woodland",
                        "minecraft:patch_bush", "minecraft:flower_default", "minecraft:patch_grass_forest",
                        "minecraft:brown_mushroom_normal", "minecraft:red_mushroom_normal",
-                       "minecraft:patch_firefly_bush_near_water", "patch_woodland_flowers", "giant_oaks"],
+                       "minecraft:patch_firefly_bush_near_water", "patch_woodland_flowers"],
         "tags": ["c:is_temperate/overworld", "c:is_forest", "c:is_old_growth", "c:is_rare", "c:is_tree/deciduous",
                  "c:primary_wood_type/oak", "minecraft:has_structure/abandoned_camp_forest",
                  "minecraft:has_structure/mineshaft", "minecraft:has_structure/ruined_portal_standard",
@@ -805,8 +830,8 @@ BIOMES = {
         "vegetation": ["minecraft:glow_lichen", "trees_old_growth_jungle", "minecraft:flower_warm",
                        "minecraft:patch_grass_jungle", "minecraft:patch_large_fern", "minecraft:brown_mushroom_normal",
                        "minecraft:red_mushroom_normal", "minecraft:patch_firefly_bush_near_water",
-                       "minecraft:patch_melon", "rainforest_moss", "kapoks", "undergrowth", "canopy_vines",
-                       "lianas"],
+                       "minecraft:patch_melon", "rainforest_moss"],
+        "top": ["undergrowth", "canopy_vines", "lianas"],
         "tags": ["c:is_wet/overworld", "c:is_hot/overworld", "c:is_dense_vegetation/overworld", "c:is_old_growth",
                  "c:is_rare", "c:is_jungle", "c:is_tree/jungle", "c:primary_wood_type/jungle",
                  "minecraft:has_structure/jungle_temple", "minecraft:has_structure/mineshaft",
@@ -1366,7 +1391,8 @@ def features_of(name, spec, template, placed, copies):
     steps = [[f for f in template["features"][s] if f not in without] if s < len(template["features"]) else []
              for s in range(STEPS)]
     steps[VEGETAL_DECORATION] = []
-    for step, key in ((LOCAL_MODIFICATIONS, "local"), (VEGETAL_DECORATION, "vegetation")):
+    for step, key in ((LOCAL_MODIFICATIONS, "local"), (VEGETAL_DECORATION, "vegetation"),
+                      (TOP_LAYER_MODIFICATION, "top")):
         steps[step] += spec.get(key, [])
     for step, features in enumerate(steps):
         vanilla, own = [], []
@@ -1439,6 +1465,10 @@ def main():
         write(f"{namespace}/tags/worldgen/biome/{path}.json", {"replace": False, "values": members})
     write(f"{NS}/tags/worldgen/biome/refinements.json",
           {"replace": False, "values": [ours(n) for n in BIOMES] + REFINED_VANILLA})
+    for name, structure in STRUCTURES.items():
+        write(f"{NS}/tags/worldgen/biome/has_structure/{name}.json", {"replace": False, "values": structure["biomes"]})
+        write(f"{NS}/worldgen/structure/{name}.json", dict(structure, biomes=f"#{NS}:has_structure/{name}"))
+    write(f"{NS}/worldgen/structure_set/giant_trees.json", GIANT_TREES)
     write(f"{NS}/worldgen/material_rule/biome_surface.json", SURFACE_RULE)
     write(f"{NS}/worldgen/material_rule/biome_caves.json", CAVE_RULE)
 

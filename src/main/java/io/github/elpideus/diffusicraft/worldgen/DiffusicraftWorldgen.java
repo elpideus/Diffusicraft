@@ -12,6 +12,8 @@ import io.github.elpideus.diffusicraft.worldgen.density.SurfaceFunction;
 import io.github.elpideus.diffusicraft.worldgen.feature.DiffusicraftWorldFilter;
 import io.github.elpideus.diffusicraft.worldgen.feature.ErraticFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
+import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreePiece;
+import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeStructure;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.LianaFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.RiverFallFeature;
@@ -99,6 +101,8 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("erratic"), ErraticFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("rockfall"), RockfallFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("undergrowth"), UndergrowthFeature.CODEC);
+		Registry.register(BuiltInRegistries.STRUCTURE_TYPE, Diffusicraft.id("giant_tree"), GiantTreeStructure.TYPE);
+		Registry.register(BuiltInRegistries.STRUCTURE_PIECE, Diffusicraft.id("giant_tree"), GiantTreePiece.TYPE);
 		TerrainFields.register();
 		addHollowFeatures();
 		addLoneGiants();
@@ -133,43 +137,45 @@ public final class DiffusicraftWorldgen {
 	}
 
 	/**
-	 * Gives vanilla's plains and woods a giant tree now and then, over the trees of their own: ancient oaks on the
-	 * plains and in the broadleaf woods, redwoods among the old spruce, kapoks over the jungle. They grow only in
-	 * Diffusicraft worlds ({@link DiffusicraftWorldFilter}); its own groves of giants are biomes of their own.
+	 * Gives vanilla's old spruce woods a redwood now and then, over the trees of their own. They grow only in
+	 * Diffusicraft worlds ({@link DiffusicraftWorldFilter}); its own groves of giants are biomes of their own. The lone
+	 * ancient oaks of the plains and woods and the kapoks of the jungle are structures ({@link GiantTreeStructure}),
+	 * which their biome tags place.
 	 */
 	private static void addLoneGiants() {
-		addFeatures("giant", Biomes.PLAINS, "lone_giant_oak_plains");
-		addFeatures("giant", Biomes.SUNFLOWER_PLAINS, "lone_giant_oak_plains");
-		for (ResourceKey<Biome> woods : List.of(Biomes.FOREST, Biomes.FLOWER_FOREST, Biomes.BIRCH_FOREST,
-			Biomes.DARK_FOREST)) {
-			addFeatures("giant", woods, "lone_giant_oak");
-		}
 		addFeatures("giant", Biomes.OLD_GROWTH_SPRUCE_TAIGA, "lone_redwood");
 		addFeatures("giant", Biomes.OLD_GROWTH_PINE_TAIGA, "lone_redwood");
-		addFeatures("giant", Biomes.JUNGLE, "lone_kapok");
 	}
 
 	/**
 	 * Grows thickets of shrubs and ferns on the floors of vanilla's jungles ({@link UndergrowthFeature}), and lets their
-	 * vines grow down from the crowns towards the floor ({@link LianaFeature}), after the trees and the giants. Only in
-	 * Diffusicraft worlds; its own jungles have them too.
+	 * vines grow down from the crowns towards the floor ({@link LianaFeature}), after the trees and the giants: in the
+	 * last step, after the kapoks, which grow as structures early in it. Only in Diffusicraft worlds; its own jungles
+	 * have them too.
 	 */
 	private static void addLianas() {
-		addFeatures("lianas", Biomes.JUNGLE, "jungle_undergrowth", "jungle_lianas");
-		addFeatures("lianas", Biomes.SPARSE_JUNGLE, "sparse_jungle_undergrowth", "sparse_jungle_lianas");
-		addFeatures("lianas", Biomes.BAMBOO_JUNGLE, "sparse_jungle_undergrowth", "sparse_jungle_lianas");
+		GenerationStep.Decoration last = GenerationStep.Decoration.TOP_LAYER_MODIFICATION;
+		addFeatures("lianas", Biomes.JUNGLE, last, "jungle_undergrowth", "jungle_lianas");
+		addFeatures("lianas", Biomes.SPARSE_JUNGLE, last, "sparse_jungle_undergrowth", "sparse_jungle_lianas");
+		addFeatures("lianas", Biomes.BAMBOO_JUNGLE, last, "sparse_jungle_undergrowth", "sparse_jungle_lianas");
+	}
+
+	/** Adds features to the end of a biome's vegetation, in the order given (see the other {@code addFeatures}). */
+	private static void addFeatures(String name, ResourceKey<Biome> biome, String... features) {
+		addFeatures(name, biome, GenerationStep.Decoration.VEGETAL_DECORATION, features);
 	}
 
 	/**
-	 * Adds features to the end of a biome's vegetation, in the order given. One modification for them all: Fabric
-	 * applies modifications in the order of their ids, and the game requires every biome to agree on one order of
-	 * features, so features added one by one could follow each other the other way round from Diffusicraft's biomes.
+	 * Adds features to the end of a step of a biome, in the order given. One modification for them all: Fabric applies
+	 * modifications in the order of their ids, and the game requires every biome to agree on one order of features, so
+	 * features added one by one could follow each other the other way round from Diffusicraft's biomes.
 	 */
-	private static void addFeatures(String name, ResourceKey<Biome> biome, String... features) {
+	private static void addFeatures(String name, ResourceKey<Biome> biome, GenerationStep.Decoration step,
+									String... features) {
 		BiomeModifications.create(Diffusicraft.id(name + "_" + biome.identifier().getPath())).add(
 			ModificationPhase.ADDITIONS, BiomeSelectors.includeByKey(biome), context -> {
 				for (String feature : features) {
-					context.getGenerationSettings().addFeature(GenerationStep.Decoration.VEGETAL_DECORATION,
+					context.getGenerationSettings().addFeature(step,
 						ResourceKey.create(Registries.PLACED_FEATURE, Diffusicraft.id(feature)));
 				}
 			});
