@@ -31,9 +31,10 @@ import org.jspecify.annotations.Nullable;
  * to its foot, down the head of a gorge it has cut, into a plunge pool or the water below. {@link Waterfall} lays it
  * out from the heightmaps, which know nothing of caves or of what is built.
  *
- * <p>The wetter the climate, the likelier a chunk is to have one: none below {@value #DRY} mm of rain a year, and
- * {@code chance} of the chunks from {@value #WET} mm, where the cliffs are high enough. None where the water would
- * freeze, which would leave the falls without their stream. Only in Diffusicraft worlds, whose climate it reads.
+ * <p>The wetter the climate, the likelier a chunk is to have one, and the wider it falls: none below {@value #DRY} mm
+ * of rain a year, and {@code chance} of the chunks from {@value #WET} mm, where the cliffs are high enough. None where
+ * the water would freeze, which would leave the falls without their stream. Only in Diffusicraft worlds, whose climate
+ * it reads.
  *
  * <p>The water is placed whole, down to the foot, so that the falls stand in the world from the start rather than
  * pouring down once the chunk is loaded; ticks are scheduled at the lips and at the foot of the falls, so that the
@@ -68,10 +69,12 @@ public record WaterfallFeature(int minDrop, float chance) implements Feature {
 		int x0 = SectionPos.sectionToBlockCoord(SectionPos.blockToSectionCoord(origin.getX()));
 		int z0 = SectionPos.sectionToBlockCoord(SectionPos.blockToSectionCoord(origin.getZ()));
 		float rain = ClimateColumn.at(world.field(), world.scale(), x0 + 8, z0 + 8).column.precipitation;
-		if (random.nextFloat() >= chance * Math.clamp((rain - DRY) / (WET - DRY), 0f, 1f)) {
+		float wetness = Math.clamp((rain - DRY) / (WET - DRY), 0f, 1f);
+		if (random.nextFloat() >= chance * wetness) {
 			return false;
 		}
-		Waterfall fall = Waterfall.plan(new LevelGround(level), x0, z0, minDrop, random);
+		Waterfall fall = Waterfall.plan(new LevelGround(level), x0, z0, minDrop,
+			Waterfall.widest(world.scale(), wetness), random);
 		if (fall == null || !level.getBiome(fall.lip).value().warmEnoughToRain(fall.lip, level.getSeaLevel())
 			|| nearStructure(level, fall) || !holds(level, fall)) {
 			return false;

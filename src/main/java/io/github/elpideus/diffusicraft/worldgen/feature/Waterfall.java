@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.feature;
 
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -10,8 +11,9 @@ import org.jspecify.annotations.Nullable;
  * Where a waterfall goes over a steep face in a chunk, block by block, worked out from the heights of the ground alone.
  * {@link WaterfallFeature} places it.
  *
- * <p>A stream one to three blocks wide runs a few blocks over level ground to the edge of a face, sunk into the ground
- * so that its banks hold it, and spills over. The face falls at least one and a half blocks for every block out, and
+ * <p>A stream runs a few blocks over level ground to the edge of a face, sunk into the ground so that its banks hold
+ * it, and spills over: up to {@value #WIDEST} blocks wide in the wettest land of a 1:1 world, and narrower in a smaller
+ * world or a drier land ({@link #widest}). The face falls at least one and a half blocks for every block out, and
  * seldom sheer: where it slopes, the falls have cut a gorge back into it, a block wider than they are on either side,
  * whose floor lies level with the foot of the face, so that they drop straight down its head. They land in a plunge
  * pool they dig, or in the sea or a lake. The face must have land behind its edge that does not fall away, as the step
@@ -33,8 +35,18 @@ final class Waterfall {
 	static final int CUT = 3;
 	/** Longest gorge, from the edge to the foot of the face, in blocks. */
 	static final int MAX_RUN = 12;
-	/** Widest waterfall, in blocks. */
-	static final int MAX_WIDTH = 3;
+	/** Widest waterfall, in blocks, in the wettest land of a 1:1 world. */
+	static final int WIDEST = 12;
+	/**
+	 * How fast the widest waterfall narrows with the world: each halving of its size takes this power of two off its
+	 * width, so that at 1:32 it is 3 blocks wide.
+	 */
+	private static final double NARROW = 0.4;
+	/**
+	 * How far outside the chunk a lip may lie, in blocks, so that the pool under it and the ground beside the pool lie
+	 * within the 3×3 chunks a feature may write to.
+	 */
+	private static final int REACH = 11;
 	/** Longest stream behind the edge, in blocks. */
 	static final int MAX_STREAM = 6;
 	/** How far back the land behind the edge must not fall away, in blocks. */
@@ -73,15 +85,29 @@ final class Waterfall {
 	BlockPos lip;
 	/** Whether it falls into a pool of its own. */
 	boolean pool;
+	/** The lowest block of the chunk. */
+	private final int x0, z0;
 
-	private Waterfall() {
+	private Waterfall(int x0, int z0) {
+		this.x0 = x0;
+		this.z0 = z0;
+	}
+
+	/**
+	 * The widest a waterfall falls in a world of {@code scale}, in land whose {@code wetness} runs from 0, where the
+	 * rain is just enough for one, to 1 in the wettest: half as wide in the first as in the last.
+	 */
+	static int widest(WorldScale scale, float wetness) {
+		double width = WIDEST * Math.pow(scale.ratio(), -NARROW) * (0.5 + 0.5 * Math.clamp(wetness, 0f, 1f));
+		return Math.clamp(Math.round(width), 1, WIDEST);
 	}
 
 	/**
 	 * A waterfall over a cliff of the chunk whose lowest block is at {@code (x0, z0)}, at least {@code minDrop} blocks
-	 * tall, or {@code null} if no cliff of it takes one. The highest drops are tried first.
+	 * tall and at most {@code maxWidth} wide, or {@code null} if no cliff of it takes one. The highest drops are tried
+	 * first.
 	 */
-	static @Nullable Waterfall plan(Ground ground, int x0, int z0, int minDrop, RandomSource random) {
+	static @Nullable Waterfall plan(Ground ground, int x0, int z0, int minDrop, int maxWidth, RandomSource random) {
 		int[] xs = new int[ATTEMPTS], zs = new int[ATTEMPTS], dirs = new int[ATTEMPTS], runs = new int[ATTEMPTS];
 		int[] scores = new int[ATTEMPTS];
 		int found = 0;
@@ -121,8 +147,8 @@ final class Waterfall {
 			scores[at] = best;
 		}
 		for (int k = 0; k < Math.min(found, CANDIDATES); k++) {
-			Waterfall fall = new Waterfall();
-			if (fall.build(ground, xs[k], zs[k], dirs[k], runs[k], minDrop, random)) {
+			Waterfall fall = new Waterfall(x0, z0);
+			if (fall.build(ground, xs[k], zs[k], dirs[k], runs[k], minDrop, Math.clamp(maxWidth, 1, WIDEST), random)) {
 				return fall;
 			}
 		}
@@ -172,9 +198,10 @@ final class Waterfall {
 
 	/**
 	 * Lays out a waterfall from the edge at {@code (x, z)}, falling towards {@code dir} down a face whose foot lies
-	 * {@code run} blocks out; false if it cannot hold.
+	 * {@code run} blocks out, a third as wide as {@code maxWidth} to as wide; false if it cannot hold.
 	 */
-	private boolean build(Ground ground, int x, int z, int dir, int run, int minDrop, RandomSource random) {
+	private boolean build(Ground ground, int x, int z, int dir, int run, int minDrop, int maxWidth,
+						  RandomSource random) {
 		y = ground.top(x, z);
 		gorge = run - 1;
 		int foot = level(ground, x + run * DX[dir], z + run * DZ[dir]);
@@ -189,7 +216,7 @@ final class Waterfall {
 
 		// The lips, grown from the middle to either side, then trimmed where the ground beside them would let the
 		// stream out: a lip left out is then the bank.
-		int want = 1 + random.nextInt(MAX_WIDTH);
+		int want = Math.max(1, (int) Math.round(maxWidth * (0.35 + 0.65 * random.nextDouble())));
 		int lo = 0, hi = 0;
 		boolean up = true, down = true;
 		while (hi - lo + 1 < want && (up || down)) {
@@ -301,10 +328,13 @@ final class Waterfall {
 	}
 
 	/**
-	 * Whether a column beside the middle lip makes a lip too: level with it and dry, over a drop of its own or a line
-	 * of the gorge.
+	 * Whether a column beside the middle lip makes a lip too: no farther than {@value #REACH} blocks out of the chunk,
+	 * level with the middle lip and dry, over a drop of its own or a line of the gorge.
 	 */
 	private boolean lip(Ground ground, int x, int z, int dx, int dz, int minDrop, int foot) {
+		if (x < x0 - REACH || x > x0 + 15 + REACH || z < z0 - REACH || z > z0 + 15 + REACH) {
+			return false;
+		}
 		int top = ground.top(x, z);
 		return top >= y && top <= y + CUT && ground.water(x, z) == DRY && (gorge > 0
 			? gorgeLine(ground, x, z, dx, dz, foot)

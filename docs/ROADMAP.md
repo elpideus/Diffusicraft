@@ -151,9 +151,10 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   rising over the jungle canopy on buttresses, in groves of their own on level land (redwood forests, ancient
   woodlands, old-growth jungle) and alone here and there in forests, taigas, jungles and on the plains. The LOD mods
   draw them too. See [WORLDGEN.md](WORLDGEN.md#giant-trees).
-- **Waterfalls.** Streams one to three blocks wide run over the edges of steep faces in wet lands and fall straight
-  down the heads of gorges they have cut, to plunge pools of their own or the water below, placed whole so that tall
-  falls stand from the start. See [WORLDGEN.md](WORLDGEN.md#waterfalls).
+- **Waterfalls.** Streams run over the edges of steep faces in wet lands and fall straight down the heads of gorges
+  they have cut, to plunge pools of their own or the water below, placed whole so that tall falls stand from the
+  start. They are up to 12 blocks wide in the wettest land of a 1:1 world and 3 in a Vanilla one. See
+  [WORLDGEN.md](WORLDGEN.md#waterfalls).
 - **Half-precision decoder.** On NVIDIA GPUs the decoder runs in fp16, which makes terrain 1.2× faster and moves it
   by 5 cm RMS. See [PERFORMANCE.md](PERFORMANCE.md#half-precision-decoder).
 

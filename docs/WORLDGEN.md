@@ -680,9 +680,13 @@ heights of the ground alone, as the chunk's heightmaps have them before the plan
   valley, so no stream springs from a crest or a fin. Sheer cliffs are rare in the real terrain, whose steepest
   mountainsides fall a block or two at a time: at 1:1 a chunk in six or so has such a face, against one in two
   hundred with a single drop of 8 blocks.
-- **The stream.** One to three blocks wide, running one to six blocks back from the edge, sunk into the ground (up to
-  3 blocks of it cut away) between banks that hold it, and ending against ground that holds it too. A lip that the
-  ground beside would let the water out of is left out, as the bank.
+- **The stream.** As wide as the edge runs level, up to a width set by the size of the world and the rain: 12 blocks
+  in the wettest land at Ultra (1:1), 9 at Extreme, 7 at Grand, 5 at Large, 4 at Medium and 3 at Vanilla, and half
+  that where the rain is just enough for a waterfall. Each takes a third of its width to all of it. It runs one to
+  six blocks back from the edge, sunk into the ground (up to 3 blocks of it cut away) between banks that hold it, and
+  ends against ground that holds it too. A lip that the ground beside would let the water out of is left out, as the
+  bank, and so is one more than 11 blocks out of the chunk, whose pool would reach past the chunks a feature may
+  change.
 - **The gorge.** Where the face slopes, every column between the edge and the foot is cut down to the foot's level,
   a block wider than the falls on either side where the ground lets it: a slot whose walls are as tall as the fall at
   its head and die away at its mouth. No line of it may hold water, rise more than 3 blocks over the stream, or lie
@@ -1478,11 +1482,13 @@ Other searches still read the full terrain and can take a while on new land:
   that the LODs draw a biome of kapoks as tall crowns over a good share of the ground, with their trunks a level of
   detail farther out, and as tall as the kapoks grow in a world of each size.
 - `WaterfallTest` lays out waterfalls over a straight cliff, into a pool of their own on level ground and into the sea,
-  down the head of a gorge cut into a steep face, never below its floor, and none on slopes of one block a block,
-  fins, ridges and peaks. On rough ground of plateaus and down the steep sides of mesas, with the sea at their foot
-  or not, it checks that every waterfall's still water is held on every side and from below, that the falls run down
-  through the air to their foot, that no ground is cut away from water beside it, that the drop is high enough, and
-  that the waterfall reads and writes only the chunks a feature may. The same draw lays out the same one.
+  down the head of a gorge cut into a steep face, never below its floor, and none on slopes of one block a block, fins,
+  ridges and peaks. Along a long cliff they fall up to 12 blocks wide, as wide as the wettest land of the largest world
+  allows, and narrower in smaller worlds and drier lands. On rough ground of plateaus and down the steep sides of mesas,
+  with the sea at their foot or not, and at the narrowest and the widest, it checks that every waterfall's still water
+  is held on every side and from below, that the falls run down through the air to their foot, that no ground is cut
+  away from water beside it, that the drop is high enough, and that the waterfall reads and writes only the chunks a
+  feature may. The same draw lays out the same one.
 - `ClimateColumnTest` checks that the south face of a ridge is warmer and drier than its north face, by as much as
   its slope calls for, and that its east and west faces are alike. `ClimateMappingTest` checks how much a slope
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.

@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.feature;
 
+import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -15,6 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WaterfallTest {
 	private static final int MIN_DROP = 8;
+	/** As wide as the waterfalls of a Vanilla world fall at most. */
+	private static final int MAX_WIDTH = 3;
 	private static final int NO_SEA = Integer.MIN_VALUE + 1;
 
 	/**
@@ -40,7 +43,11 @@ class WaterfallTest {
 	}
 
 	private static Waterfall plan(Terrain terrain, long seed) {
-		return Waterfall.plan(terrain, terrain.x0, terrain.z0, MIN_DROP, RandomSource.create(seed));
+		return plan(terrain, MAX_WIDTH, seed);
+	}
+
+	private static Waterfall plan(Terrain terrain, int maxWidth, long seed) {
+		return Waterfall.plan(terrain, terrain.x0, terrain.z0, MIN_DROP, maxWidth, RandomSource.create(seed));
 	}
 
 	@Test
@@ -58,12 +65,43 @@ class WaterfallTest {
 			assertEquals(40, fall.drop);
 			assertEquals(7, fall.lip.getX());
 			assertTrue(fall.pool, "no pool at the foot of a cliff on level ground");
-			assertTrue(fall.width >= 1 && fall.width <= Waterfall.MAX_WIDTH, fall.width + " wide");
+			assertTrue(fall.width >= 1 && fall.width <= MAX_WIDTH, fall.width + " wide");
 			assertEquals(fall.width * 39, fall.falling.size());
 			assertEquals(0, fall.gorge, "a gorge under a sheer cliff");
 		}
 		// The edge is one column in sixteen, and the plan tries 24 of them.
 		assertTrue(planned >= 40, planned + " waterfalls in 64 chunks along a cliff");
+	}
+
+	@Test
+	void aLongCliffTakesWideFalls() {
+		Terrain cliff = new Terrain((x, z) -> x < 8 ? 100 : 60, NO_SEA, 0, 0);
+		int planned = 0, widest = 0, width = 0;
+		for (long seed = 0; seed < 64; seed++) {
+			Waterfall fall = plan(cliff, Waterfall.WIDEST, seed);
+			if (fall != null) {
+				planned++;
+				check(cliff, fall);
+				assertTrue(fall.width <= Waterfall.WIDEST, fall.width + " wide");
+				widest = Math.max(widest, fall.width);
+				width += fall.width;
+			}
+		}
+		assertTrue(planned >= 40, planned + " waterfalls in 64 chunks along a cliff");
+		// From a third as wide as the widest to as wide, where the cliff runs on.
+		assertEquals(Waterfall.WIDEST, widest);
+		assertTrue(width >= 6 * planned, width / (double) planned + " blocks wide on average");
+	}
+
+	@Test
+	void theWidestFallsAreInTheWettestLandOfTheLargestWorld() {
+		assertEquals(Waterfall.WIDEST, Waterfall.widest(WorldScale.ULTRA, 1));
+		assertEquals(3, Waterfall.widest(WorldScale.VANILLA, 1));
+		assertEquals(Waterfall.WIDEST / 2, Waterfall.widest(WorldScale.ULTRA, 0));
+		for (int k = 1; k < WorldScale.values().length; k++) {
+			WorldScale smaller = WorldScale.values()[k - 1], larger = WorldScale.values()[k];
+			assertTrue(Waterfall.widest(larger, 0.5f) >= Waterfall.widest(smaller, 0.5f), larger + " narrower");
+		}
 	}
 
 	@Test
@@ -114,28 +152,30 @@ class WaterfallTest {
 	@Test
 	void everyWaterfallDownAMesaHoldsItsWater() {
 		int planned = 0, gorges = 0, seas = 0;
-		for (int sea : new int[]{NO_SEA, 66}) {
-			for (int steep = 2; steep <= 4; steep++) {
-				int fall = steep;
-				IntBinaryOperator mesa = (x, z) -> Math.max(50, 100 - fall * Math.max(0,
-					(int) Math.sqrt((x - 8) * (x - 8) + (z - 8) * (z - 8)) - 10)) + (hash(x, z) & 1);
-				for (int cz = -1; cz <= 1; cz++) {
-					for (int cx = -1; cx <= 1; cx++) {
-						Terrain terrain = new Terrain(mesa, sea, cx * 16, cz * 16);
-						for (long seed = 0; seed < 8; seed++) {
-							Waterfall waterfall = plan(terrain, seed);
-							if (waterfall != null) {
-								planned++;
-								check(terrain, waterfall);
-								gorges += waterfall.gorge > 0 ? 1 : 0;
-								seas += sea != NO_SEA && waterfall.y - waterfall.drop == sea ? 1 : 0;
+		for (int width : new int[]{MAX_WIDTH, Waterfall.WIDEST}) {
+			for (int sea : new int[]{NO_SEA, 66}) {
+				for (int steep = 2; steep <= 4; steep++) {
+					int fall = steep;
+					IntBinaryOperator mesa = (x, z) -> Math.max(50, 100 - fall * Math.max(0,
+						(int) Math.sqrt((x - 8) * (x - 8) + (z - 8) * (z - 8)) - 10)) + (hash(x, z) & 1);
+					for (int cz = -1; cz <= 1; cz++) {
+						for (int cx = -1; cx <= 1; cx++) {
+							Terrain terrain = new Terrain(mesa, sea, cx * 16, cz * 16);
+							for (long seed = 0; seed < 8; seed++) {
+								Waterfall waterfall = plan(terrain, width, seed);
+								if (waterfall != null) {
+									planned++;
+									check(terrain, waterfall);
+									gorges += waterfall.gorge > 0 ? 1 : 0;
+									seas += sea != NO_SEA && waterfall.y - waterfall.drop == sea ? 1 : 0;
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-		assertTrue(planned > 50 && gorges > 20 && seas > 0, planned + " waterfalls, " + gorges + " down gorges, "
+		assertTrue(planned > 100 && gorges > 40 && seas > 0, planned + " waterfalls, " + gorges + " down gorges, "
 			+ seas + " to the sea");
 	}
 
@@ -179,22 +219,24 @@ class WaterfallTest {
 	void everyWaterfallOnRoughGroundHoldsItsWater() {
 		IntBinaryOperator plateaus = (x, z) -> 60 + 9 * (hash(x >> 3, z >> 3) & 7) + (hash(x, z) & 1);
 		int planned = 0, pools = 0, seas = 0;
-		for (int cz = -3; cz <= 3; cz++) {
-			for (int cx = -3; cx <= 3; cx++) {
-				Terrain terrain = new Terrain(plateaus, 66, cx * 16, cz * 16);
-				for (long seed = 0; seed < 10; seed++) {
-					Waterfall fall = plan(terrain, seed);
-					if (fall != null) {
-						planned++;
-						check(terrain, fall);
-						pools += fall.pool ? 1 : 0;
-						seas += !fall.pool && fall.falling.longStream()
-							.anyMatch(pos -> terrain.water(BlockPos.getX(pos), BlockPos.getZ(pos)) != Waterfall.DRY) ? 1 : 0;
+		for (int width : new int[]{MAX_WIDTH, Waterfall.WIDEST}) {
+			for (int cz = -3; cz <= 3; cz++) {
+				for (int cx = -3; cx <= 3; cx++) {
+					Terrain terrain = new Terrain(plateaus, 66, cx * 16, cz * 16);
+					for (long seed = 0; seed < 10; seed++) {
+						Waterfall fall = plan(terrain, width, seed);
+						if (fall != null) {
+							planned++;
+							check(terrain, fall);
+							pools += fall.pool ? 1 : 0;
+							seas += !fall.pool && fall.falling.longStream()
+								.anyMatch(pos -> terrain.water(BlockPos.getX(pos), BlockPos.getZ(pos)) != Waterfall.DRY) ? 1 : 0;
+						}
 					}
 				}
 			}
 		}
-		assertTrue(planned > 50 && pools > 0 && seas > 0, planned + " waterfalls, " + pools + " into pools of their own, "
+		assertTrue(planned > 100 && pools > 0 && seas > 0, planned + " waterfalls, " + pools + " into pools of their own, "
 			+ seas + " into the sea");
 	}
 
