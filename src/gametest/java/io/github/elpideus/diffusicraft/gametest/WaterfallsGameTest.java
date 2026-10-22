@@ -94,14 +94,13 @@ public class WaterfallsGameTest implements FabricClientGameTest {
 		OnnxModel.Device device = OnnxModel.Device.valueOf(System.getProperty("diffusicraft.device", "CPU"));
 		Resources.get().updateConfig(config -> config.device = device);
 
-		try (TestSingleplayerContext world = context.worldBuilder()
+		try (TestSingleplayerContext world = GameTests.createAnyway(context.worldBuilder()
 			.setUseConsistentSettings(false)
 			.adjustSettings(ui -> {
 				ui.setSeed(SEED);
 				ui.setGameMode(WorldCreationUiState.SelectedGameMode.CREATIVE);
 				WorldSizes.select(ui, SIZE);
-			})
-			.create()) {
+			}))) {
 			WorldGenerationGameTest.Probe probe = world.getServer().computeOnServer(server ->
 				WorldGenerationGameTest.Probe.of(server.overworld()));
 			world.getServer().runCommand("weather clear");

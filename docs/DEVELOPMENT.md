@@ -111,7 +111,10 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
 - [`UltraWorldGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/UltraWorldGameTest.java)
   creates an Ultra (1:1) world and goes to the highest ground within 123 km of the spawn. It checks that the chunks
   there, which are filled only up to their ground, hold all of it, saves two views of the summit and logs how long
-  their chunks took. It needs the models.
+  their chunks took. With Distant Horizons or Voxy in the run (`-PdevMods=distanthorizons`), it also checks that the
+  chat warned once on arrival that they cannot hold the level whole, and saves a view of the chat. With Distant
+  Horizons the game has hung as the test closed the world, after all its checks: the render thread waits for the
+  integrated server to stop while the server waits at Fabric's test barrier. Stop the game then. It needs the models.
 - [`WaterfallsGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/WaterfallsGameTest.java) creates
   an Ultra (1:1) world, looks for the wettest steep land within 4 km of the spawn and checks that waterfalls stand
   there: falls of 8 blocks or more, spilling from still water, that keep their water and do not flood their foot while

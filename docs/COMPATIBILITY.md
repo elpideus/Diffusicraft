@@ -31,7 +31,7 @@ shows the highest ground cut flat, while the chunks around the player are whole 
 - on the Create World screen, the size slider turns yellow on those sizes and its tooltip says what each mod will do;
 - pressing Create on one of them asks first, and names the largest size they hold whole (Grand);
 - entering a level taller than they hold, in any world or on any server, says it once in the chat, per level and
-  connection;
+  connection (checked in game with Distant Horizons on Ultra, by `UltraWorldGameTest`);
 - a server that hands Distant Horizons Diffusicraft's generator logs it for each such level.
 
 ## Distant Horizons

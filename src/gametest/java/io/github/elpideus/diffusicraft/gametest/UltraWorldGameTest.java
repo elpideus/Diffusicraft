@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.gametest;
 
+import io.github.elpideus.diffusicraft.client.worldgen.FarTerrainLimits;
 import io.github.elpideus.diffusicraft.client.worldgen.WorldSizes;
 import io.github.elpideus.diffusicraft.height.SharedContainerData;
 import io.github.elpideus.diffusicraft.runtime.Resources;
@@ -10,10 +11,13 @@ import io.github.elpideus.diffusicraft.worldgen.lod.LodSampler;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
+import net.minecraft.client.multiplayer.chat.GuiMessage;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,6 +32,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -38,7 +43,8 @@ import java.util.stream.IntStream;
  * checks that the chunks there hold all of it: their ground against the levels of detail, which come from the terrain
  * directly, and the summit against the highest ground the terrain gives. Saves views of the summit to
  * {@code build/run/clientGameTest/screenshots} and logs how long their chunks took and what they cost in memory, and
- * checks that the sections stored with fewer bits per block than vanilla's survive saving and sending.
+ * checks that the sections stored with fewer bits per block than vanilla's survive saving and sending. With Distant
+ * Horizons or Voxy installed, which cannot hold an Ultra level whole, it checks that the chat said so on arrival.
  *
  * <p>Needs the Terrain Diffusion models, like {@link WorldGenerationGameTest}.
  */
@@ -70,15 +76,18 @@ public class UltraWorldGameTest implements FabricClientGameTest {
 		Resources.get().updateConfig(config -> config.device = device);
 
 		long start = System.nanoTime();
-		try (TestSingleplayerContext world = context.worldBuilder()
+		try (TestSingleplayerContext world = GameTests.createAnyway(context.worldBuilder()
 			.setUseConsistentSettings(false)
 			.adjustSettings(ui -> {
 				ui.setSeed(SEED);
 				ui.setGameMode(WorldCreationUiState.SelectedGameMode.CREATIVE);
 				WorldSizes.select(ui, WorldScale.ULTRA);
-			})
-			.create()) {
+			}))) {
 			LOGGER.info("Ultra world loaded in {} s", (System.nanoTime() - start) / 1_000_000_000L);
+			String warned = checkWarnings(context);
+			if (context.computeOnClient(mc -> !FarTerrainLimits.warnings(WorldScale.ULTRA).isEmpty())) {
+				context.takeScreenshot("diffusicraft-world-ultra-chat");
+			}
 			WorldGenerationGameTest.Probe probe = world.getServer()
 				.computeOnServer(server -> WorldGenerationGameTest.Probe.of(server.overworld()));
 			start = System.nanoTime();
@@ -104,10 +113,47 @@ public class UltraWorldGameTest implements FabricClientGameTest {
 			String problem = checkGround(world, probe, summit, summitY);
 			logCost(world, summit);
 			problem = problem != null ? problem : checkNarrowSections(world, summit);
+			problem = problem != null ? problem : warned;
 			if (problem != null) {
 				throw new AssertionError(problem);
 			}
 		}
+	}
+
+	/**
+	 * Checks that the chat warned once on arrival about each installed far-terrain mod that cannot hold the level
+	 * whole ({@link FarTerrainLimits}).
+	 *
+	 * @return what is wrong with it, or {@code null}
+	 */
+	@SuppressWarnings("unchecked")
+	private static @Nullable String checkWarnings(ClientGameTestContext context) {
+		context.waitTicks(20);
+		return context.computeOnClient(mc -> {
+			List<String> expected = FarTerrainLimits.warnings(WorldScale.ULTRA).stream().map(Component::getString)
+				.toList();
+			if (expected.isEmpty()) {
+				LOGGER.info("No far-terrain mod limits Ultra here: no warning in the chat");
+				return null;
+			}
+			List<String> chat;
+			try {
+				Field field = ChatComponent.class.getDeclaredField("allMessages");
+				field.setAccessible(true);
+				chat = ((List<GuiMessage>) field.get(mc.gui.hud.getChat())).stream()
+					.map(message -> message.content().getString()).toList();
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError(e);
+			}
+			for (String warning : expected) {
+				long shown = chat.stream().filter(line -> line.equals("[Diffusicraft] " + warning)).count();
+				if (shown != 1) {
+					return "The chat showed the warning \"" + warning + "\" " + shown + " times, not once: " + chat;
+				}
+			}
+			LOGGER.info("The chat warned on arrival: {}", expected);
+			return null;
+		});
 	}
 
 	/**

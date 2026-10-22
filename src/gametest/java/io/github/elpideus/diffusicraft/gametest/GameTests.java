@@ -1,11 +1,18 @@
 package io.github.elpideus.diffusicraft.gametest;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.fabricmc.fabric.api.client.gametest.v1.world.TestWorldBuilder;
+import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.components.tabs.Tab;
 import net.minecraft.client.gui.components.tabs.TabNavigationBar;
+import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -19,8 +26,38 @@ import java.util.List;
  */
 final class GameTests {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Diffusicraft game test");
+	private static volatile boolean createAnyway;
+
+	static {
+		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+			if (createAnyway && mc.gui.screen() instanceof ConfirmScreen confirm
+				&& hasKey(confirm.getTitle(), "diffusicraft.limits.title")) {
+				for (GuiEventListener child : confirm.children()) {
+					if (child instanceof AbstractButton button && hasKey(button.getMessage(), "diffusicraft.limits.create")) {
+						LOGGER.info("Creating the world anyway: {}", confirm.getNarrationMessage().getString());
+						button.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
+						return;
+					}
+				}
+			}
+		});
+	}
 
 	private GameTests() {
+	}
+
+	/**
+	 * Creates the world, answering Create Anyway if Create asks first because an installed far-terrain mod cannot
+	 * hold it whole: the test thread waits inside {@code create()} and cannot answer. The tests of tall worlds run
+	 * with Distant Horizons or Voxy that way.
+	 */
+	static TestSingleplayerContext createAnyway(TestWorldBuilder builder) {
+		createAnyway = true;
+		try {
+			return builder.create();
+		} finally {
+			createAnyway = false;
+		}
 	}
 
 	/** Whether the filter leaves {@code test} out. The test then returns at once. */
