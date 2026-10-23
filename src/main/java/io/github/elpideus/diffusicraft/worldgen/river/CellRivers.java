@@ -33,7 +33,7 @@ import java.util.List;
  * so every column of the tile is decided by this tile alone.
  */
 final class CellRivers {
-	static final CellRivers EMPTY = new CellRivers(new float[0], 0, new int[0][], new int[0]);
+	static final CellRivers EMPTY = new CellRivers(new float[0], 0, new int[0][], new int[0], Pixels.NONE);
 
 	private static final int TILE = TerrainField.TILE;
 	private static final int PAD = TerrainField.PAD;
@@ -102,6 +102,7 @@ final class CellRivers {
 	private final int count;
 	private final int[][] buckets;
 	private final int[] paths;
+	private final Pixels pixels;
 
 	/** How wide a river of some discharge is, in pixels, at the world scale being generated. */
 	interface Width {
@@ -124,11 +125,27 @@ final class CellRivers {
 		float along;
 	}
 
-	private CellRivers(float[] segments, int count, int[][] buckets, int[] paths) {
+	/**
+	 * The pixels the rivers run through before their paths are smoothed: path {@code p} runs through tile-local pixels
+	 * {@code pixel[start[p]]} to {@code pixel[start[p + 1] - 1]}, numbered row by row over the tile, at water levels
+	 * {@code level}, from where it enters the band or starts to where it leaves the band or reaches a river drawn
+	 * before it. Before its first pixel it lies at {@code before[p]}: the level at which it crosses the side, or
+	 * infinite where it starts at a source, whose level follows the ground.
+	 */
+	record Pixels(int[] start, int[] pixel, float[] level, float[] before) {
+		static final Pixels NONE = new Pixels(new int[1], new int[0], new float[0], new float[0]);
+
+		int paths() {
+			return start.length - 1;
+		}
+	}
+
+	private CellRivers(float[] segments, int count, int[][] buckets, int[] paths, Pixels pixels) {
 		this.segments = segments;
 		this.count = count;
 		this.buckets = buckets;
 		this.paths = paths;
+		this.pixels = pixels;
 	}
 
 	boolean isEmpty() {
@@ -174,6 +191,11 @@ final class CellRivers {
 	/** The path that path {@code p} joins, at the end of its last segment, or -1. */
 	int joins(int p) {
 		return paths[p * PATH_STRIDE + 4];
+	}
+
+	/** The pixels the rivers run through, if {@link #paths} drew them; null if {@link #build} did. */
+	Pixels pixels() {
+		return pixels;
 	}
 
 	/**
@@ -228,7 +250,15 @@ final class CellRivers {
 		if (flows.isEmpty()) {
 			return EMPTY;
 		}
-		return new Builder(tile, basins, flows, seed, ti, tj, pathLevel).build();
+		return new Builder(tile, basins, flows, seed, ti, tj, pathLevel, false).build();
+	}
+
+	/** Routes the rivers as {@link #build} does, and keeps the {@link #pixels} they run through. */
+	static CellRivers paths(float[] tile, CellBasins basins, CellFlows flows, long seed, int ti, int tj) {
+		if (flows.isEmpty()) {
+			return EMPTY;
+		}
+		return new Builder(tile, basins, flows, seed, ti, tj, null, true).build();
 	}
 
 	/**
@@ -310,8 +340,15 @@ final class CellRivers {
 		private int count;
 		private int[] pathsOut = new int[PATH_STRIDE * 8];
 		private int pathCount;
+		/** The pixels of the paths, as {@link Pixels} has them, if kept; null if not. */
+		private int[] pixelStart;
+		private int[] pixelOut;
+		private float[] pixelLevel;
+		private float[] pixelBefore;
+		private int pixelCount;
 
-		Builder(float[] tile, CellBasins basins, CellFlows flows, long seed, int ti, int tj, float[] pathLevel) {
+		Builder(float[] tile, CellBasins basins, CellFlows flows, long seed, int ti, int tj, float[] pathLevel,
+				boolean keepPixels) {
 			this.tile = tile;
 			this.basins = basins;
 			this.flows = flows;
@@ -319,6 +356,12 @@ final class CellRivers {
 			this.ti = ti;
 			this.tj = tj;
 			this.pathLevel = pathLevel;
+			if (keepPixels) {
+				pixelStart = new int[9];
+				pixelOut = new int[1024];
+				pixelLevel = new float[1024];
+				pixelBefore = new float[8];
+			}
 		}
 
 		/** Elevation of tile-local pixel {@code (i, j)}; the margin allows -32 to 287. */
@@ -389,8 +432,11 @@ final class CellRivers {
 			for (int target = 3; target >= CellFlows.SINK; target--) {
 				route(target);
 			}
+			Pixels pixels = pixelStart == null ? null : new Pixels(Arrays.copyOf(pixelStart, pathCount + 1),
+				Arrays.copyOf(pixelOut, pixelCount), Arrays.copyOf(pixelLevel, pixelCount),
+				Arrays.copyOf(pixelBefore, pathCount));
 			return new CellRivers(Arrays.copyOf(out, count * STRIDE), count, index(),
-				Arrays.copyOf(pathsOut, pathCount * PATH_STRIDE));
+				Arrays.copyOf(pathsOut, pathCount * PATH_STRIDE), pixels);
 		}
 
 		private void findNode(int side) {
@@ -524,6 +570,7 @@ final class CellRivers {
 					line.add(vertex(new float[]{LO + p / BAND + 0.5f, LO + p % BAND + 0.5f}, level[p],
 						discharge[p] + extra[p], h(p)));
 				}
+				keepPixel(p);
 				if (joins >= 0) {
 					break;
 				}
@@ -559,6 +606,28 @@ final class CellRivers {
 			pathsOut[o + 2] = inSide >= 0 ? 1 : 0;
 			pathsOut[o + 3] = joins >= 0 ? JOIN : exits ? EXIT : target == CellFlows.SEA ? SEA : POND;
 			pathsOut[o + 4] = joins;
+			if (pixelStart != null) {
+				if (pixelBefore.length == index) {
+					pixelStart = Arrays.copyOf(pixelStart, 2 * index + 1);
+					pixelBefore = Arrays.copyOf(pixelBefore, 2 * index);
+				}
+				pixelBefore[index] = inSide >= 0 ? flows.inLevel[inSide] : Float.POSITIVE_INFINITY;
+				pixelStart[index + 1] = pixelCount;
+			}
+		}
+
+		/** Keeps band pixel {@code p} of the path being drawn, and its level, if the pixels are kept. */
+		private void keepPixel(int p) {
+			if (pixelOut == null) {
+				return;
+			}
+			if (pixelCount == pixelOut.length) {
+				pixelOut = Arrays.copyOf(pixelOut, 2 * pixelCount);
+				pixelLevel = Arrays.copyOf(pixelLevel, 2 * pixelCount);
+			}
+			pixelOut[pixelCount] = (LO + p / BAND) * TILE + LO + p % BAND;
+			pixelLevel[pixelCount] = level[p];
+			pixelCount++;
 		}
 
 		/** A vertex: its place, level, discharge and ground. */

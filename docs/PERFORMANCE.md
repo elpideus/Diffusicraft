@@ -129,12 +129,12 @@ generation asks for them:
   view. A new world therefore waits for five by five tiles at least before its first chunk. Those 25 tiles take some
   two minutes on the CPU at 5 s a tile, and about 14 s on the GPU; with blocks of two by two tiles alone, nine tiles
   took 45 s and 5 s. The lakes themselves cost little: a block of four tiles takes about 30 ms on one core and a block
-  of nine about 65 ms, and there is one block of each size per tile. Where the rain would fill one of its basins, the
-  block draws the rivers of the tiles the water reaches, some 12 ms a tile with rivers, to tell whether one drains it;
-  that adds 2 to 4 ms a tile on average. A tile in or next to a lake of the coarse map also waits for all the lake's
-  tiles, up to 64, which the prefetcher computes right after the lake's first tile in the plan, then the lake's water
-  from them. The largest lakes take 23 to 27 s on the GPU, all but a second of it for their tiles, and some five minutes
-  on the CPU.
+  of nine about 65 ms, and there is one block of each size per tile. Where one of its basins could hold a lake, the
+  block draws the rivers of the tiles the basin reaches, some 12 ms a tile with rivers, to tell whether one feeds or
+  drains it; that adds 2 to 4 ms a tile on average. A tile in or next to a lake of the coarse map also waits for all the
+  lake's tiles, up to 64, which the prefetcher computes right after the lake's first tile in the plan, then the lake's
+  water from them. The largest lakes take 23 to 27 s on the GPU, all but a second of it for their tiles, and some five
+  minutes on the CPU.
 - **In the background.** One thread at the lowest priority computes the planned tiles one at a time, and switches to
   a newer plan as soon as one arrives. Model runs take turns, so a tile that chunk generation needs right away takes
   up to twice as long while the prefetcher works. Planning the earliest tiles first keeps that rare.

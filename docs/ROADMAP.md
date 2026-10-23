@@ -188,11 +188,9 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
   tiles near the origin of seed 42 would take more than a minute on the GPU and some 13 minutes on the CPU. Filling them
   only as far as a lake of 16 tiles, with a cut through the rest, was tried and dropped
   ([WORLDGEN.md](WORLDGEN.md#rivers)). Where such a basin lies in a valley the ice drowned behind a step, it keeps the
-  sea's level instead of a lake above it. Also the basins across tiles that a river crosses inside a tile rather than
-  across a side, which stay dry: the river's level there depends on the lakes of the blocks around, which would take the
-  terrain of 7 × 7 tiles rather than 5 × 5. Most of the widest basins stay dry this way where rivers run. And a way out
-  for the lakes of valleys the ice drowned behind a step in cells whose 5th percentile lies below the sea, which end
-  their rivers as fjords do: the coarse map cannot tell the two apart.
+  sea's level instead of a lake above it. And a way out for the lakes of valleys the ice drowned behind a step in cells
+  whose 5th percentile lies below the sea, which end their rivers as fjords do: the coarse map cannot tell the two
+  apart.
 
 ### Biomes
 

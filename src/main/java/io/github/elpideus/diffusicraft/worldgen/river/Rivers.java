@@ -427,13 +427,14 @@ public final class Rivers {
 
 	/**
 	 * The rivers of tile {@code (ti, tj)} drawn without the lakes of the blocks around, which run where the tile's own
-	 * rivers do, at levels that may differ: the blocks need them to tell which of their basins a river drains.
+	 * rivers do, nowhere higher, and the pixels they run through: the blocks need them to tell which of their basins a
+	 * river feeds or drains.
 	 */
 	private CellRivers paths(int ti, int tj) {
 		Paths drawn = RiverNetwork.once(paths, RiverNetwork.key(ti, tj), () -> {
 			float[] tile = field.paddedTile(ti, tj);
-			return new Paths(CellRivers.build(tile, CellBasins.of(tile, field.paddedDrowned(ti, tj), null),
-				network.flows(ti, tj), field.seed(), ti, tj, null));
+			return new Paths(CellRivers.paths(tile, CellBasins.of(tile, field.paddedDrowned(ti, tj), null),
+				network.flows(ti, tj), field.seed(), ti, tj));
 		});
 		drawn.lastUse = clock.incrementAndGet();
 		if (paths.size() > MAX_CELLS) {

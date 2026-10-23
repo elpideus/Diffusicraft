@@ -20,14 +20,15 @@ import java.util.function.IntFunction;
  * block can join a basin to a hollow beside it that reaches past its sides, where a smaller one keeps it apart.
  *
  * <p>Such a lake is fed by a river when a river crosses one of the block's inner sides through it, near the node
- * where it crosses ({@link CellRivers#node}): it fills to that river's level, and at most to {@link CellRivers#DROP}
- * below its spill, where the river flows on out of it. The rivers of its tiles see it as the surface of its water, as
- * they see the tile's own lakes, though only for their level. Any other basin is filled by the rain, as in
- * {@link CellLakes}, unless a river passes within reach of its water, lower than it, and would drain it. The block
- * draws the rivers of its tiles to tell: their paths follow each tile alone ({@link CellBasins#surface}), so the
- * block needs neither its own lakes nor those of the other blocks to draw them. A river that crosses such a basin
- * away from the nodes, inside one tile, leaves it dry: the river cannot feed it, as its level depends on the lakes of
- * the other blocks.
+ * where it crosses ({@link CellRivers#node}), or runs into it inside a tile: it fills to the lowest level at which a
+ * river enters it, and at most to {@link CellRivers#DROP} below its spill, where the river flows on out of it. The
+ * rivers of its tiles see it as the surface of its water, as they see the tile's own lakes, though only for their
+ * level. The block draws the rivers of its tiles to find where they enter its basins ({@link CellRivers#paths}).
+ * Their paths follow each tile alone ({@link CellBasins#surface}), so the block needs neither its own lakes nor those
+ * of the other blocks to draw them. Those lakes only raise the ground the rivers see, so drawn without them a river
+ * lies nowhere higher than the tile's own: it reaches the lake at its level or above, and runs on through it at that
+ * level, the surface of the water. Any other basin is filled by the rain, as in {@link CellLakes}, unless a river
+ * passes within reach of its water and would drain it.
  *
  * <p>A lake larger than a block of three by three tiles stays dry, unless it lies in a depression of the coarse map
  * ({@link GreatLake}).
@@ -40,10 +41,11 @@ final class BlockLakes {
 	private static final int SPAN = TerrainField.SPAN;
 	private static final int EDGE = CellBasins.EDGE;
 	/**
-	 * Pixels around a crossing node that its river reaches: the straight part of the river, which runs
-	 * {@link CellRivers#STRAIGHT} pixels into each tile, and the widest a river gets on either side of it.
+	 * Pixels around a crossing node that its river reaches: the river outside the band where the tiles route their
+	 * rivers ({@link CellRivers#LO}), which runs straight from the node {@link CellRivers#STRAIGHT} pixels into each
+	 * tile and on to the band, and the widest a river gets on either side of it.
 	 */
-	private static final int REACH_ALONG = (int) CellRivers.STRAIGHT;
+	private static final int REACH_ALONG = CellRivers.LO;
 	private static final int REACH_ACROSS = (int) Rivers.MAX_HALF_WIDTH;
 	private static final int[] DI = {-1, -1, -1, 0, 0, 1, 1, 1};
 	private static final int[] DJ = {-1, 0, 1, -1, 1, -1, 0, 1};
@@ -105,17 +107,17 @@ final class BlockLakes {
 		Painter painter = new Painter(size);
 		int[] label = new int[window * window];
 		int[] pixels = new int[window * window];
-		int lakes = 0;
+		int lakes = 0, id = 0;
 		for (int first = 0; first < fill.length; first++) {
 			if (label[first] != 0 || !(fill[first] > e[first])) {
 				continue;
 			}
-			// Gather the basin, as in CellBasins.
-			int count = 0, low = first, tile = -1;
+			// Gather the basin, as in CellBasins, and the tiles whose band it reaches, where their rivers are routed.
+			int count = 0, low = first, tile = -1, band = 0;
 			boolean inside = true, ownTile = true;
 			float river = Float.NaN;
 			pixels[count++] = first;
-			label[first] = 1;
+			label[first] = ++id;
 			for (int head = 0; head < count; head++) {
 				int k = pixels[head];
 				int i = k / window - PAD, j = k % window - PAD;
@@ -129,6 +131,9 @@ final class BlockLakes {
 				}
 				if (t != tile || li < EDGE || lj < EDGE || li >= TILE - EDGE || lj >= TILE - EDGE) {
 					ownTile = false;
+				}
+				if (li >= CellRivers.LO && lj >= CellRivers.LO && li < CellRivers.HI && lj < CellRivers.HI) {
+					band |= 1 << t;
 				}
 				if (e[k] < e[low]) {
 					low = k;
@@ -144,7 +149,7 @@ final class BlockLakes {
 					}
 					int m = ni * window + nj;
 					if (label[m] == 0 && fill[m] > e[m]) {
-						label[m] = 1;
+						label[m] = id;
 						pixels[count++] = m;
 					}
 				}
@@ -153,6 +158,17 @@ final class BlockLakes {
 			if (!inside || ownTile || count < CellBasins.MIN_PIXELS || !(spill > 0f)
 				|| spill - floor < CellBasins.MIN_DEPTH) {
 				continue;
+			}
+			for (int t = 0; t < n * n; t++) {
+				if ((band >> t & 1) != 0 && !flows[t].isEmpty()) {
+					if (drawn[t] == null) {
+						drawn[t] = rivers.apply(t);
+					}
+					float in = entry(n, drawn[t].pixels(), t, label, id);
+					if (!Float.isNaN(in) && !(river <= in)) {
+						river = in;
+					}
+				}
 			}
 			float water;
 			boolean fed = !Float.isNaN(river);
@@ -181,6 +197,32 @@ final class BlockLakes {
 			lakes++;
 		}
 		return lakes == 0 ? EMPTY : painter.runs(lakes);
+	}
+
+	/**
+	 * The lowest level at which a river of tile {@code t} of the block, which runs through {@code pixels}, enters
+	 * basin {@code id}, as {@code label} has the basins over the window: the level just before the pixel where it first
+	 * reaches the basin. Infinite if only rivers that start in the basin reach it, and NaN if none does. A river that
+	 * leaves the basin and comes back has crossed its rim, no lower than the spill, so it comes back at the lake's
+	 * level, unless it runs down beyond the rim first, which a path that seeks low ground seldom does.
+	 */
+	private static float entry(int n, CellRivers.Pixels pixels, int t, int[] label, int id) {
+		int window = n * TILE + 2 * PAD, i0 = t / n * TILE + PAD, j0 = t % n * TILE + PAD;
+		float lowest = Float.NaN;
+		for (int p = 0; p < pixels.paths(); p++) {
+			float before = pixels.before()[p];
+			for (int q = pixels.start()[p]; q < pixels.start()[p + 1]; q++) {
+				int pixel = pixels.pixel()[q];
+				if (label[(i0 + pixel / TILE) * window + j0 + pixel % TILE] == id) {
+					if (!(lowest <= before)) {
+						lowest = before;
+					}
+					break;
+				}
+				before = pixels.level()[q];
+			}
+		}
+		return lowest;
 	}
 
 	/**

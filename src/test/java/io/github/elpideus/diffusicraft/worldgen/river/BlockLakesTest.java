@@ -12,6 +12,7 @@ import java.util.function.IntFunction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BlockLakesTest {
@@ -87,8 +88,8 @@ class BlockLakesTest {
 			masks[t] = paddedDrowned(drowned, bi + t / n, bj + t % n);
 			crossings[t] = flows.of(bi + t / n, bj + t % n);
 		}
-		IntFunction<CellRivers> rivers = t -> CellRivers.build(tiles[t], CellBasins.of(tiles[t], masks[t], null),
-			crossings[t], SEED, bi + t / n, bj + t % n, null);
+		IntFunction<CellRivers> rivers = t -> CellRivers.paths(tiles[t], CellBasins.of(tiles[t], masks[t], null),
+			crossings[t], SEED, bi + t / n, bj + t % n);
 		return BlockLakes.build(n, tiles, masks, crossings, rivers, climate, bi, bj);
 	}
 
@@ -358,5 +359,82 @@ class BlockLakesTest {
 		CellLakes west = lakes(terrain, DOWN, HALF, 0, 0, new float[SPAN * SPAN]);
 		assertEquals(95f, west.level(128, TILE - 1), 0f);
 		assertAgree(west, 0, 0, lakes(terrain, DOWN, HALF, 0, 1, new float[SPAN * SPAN]), 0, 1);
+	}
+
+	/**
+	 * A plateau at 100 m with a bowl 10 m deep and 60 pixels across, 20 pixels into tile (0, 1) from its west side,
+	 * and a valley 5 m deep down tile (0, 1) at tile-local column 56, which runs through the bowl and carries the river
+	 * of {@link #down}. The valley drains the bowl at 95 m.
+	 */
+	private static final Terrain BOWL_ON_A_VALLEY = (i, j) ->
+		Math.min(bowl(128, TILE + 20, 60f, 10f).at(i, j), Math.abs(j - TILE - 56) <= 1 ? 95f : 100f);
+
+	/** A river down tile (0, 1), in from its north side at {@code level} and out of its south side at 85 m. */
+	private static Flows down(float level) {
+		return (ti, tj) -> {
+			if (ti != 0 || tj != 1) {
+				return CellFlows.NONE;
+			}
+			CellFlows flows = new CellFlows();
+			flows.addIn(0, 1, level, 10f);
+			flows.addOut(1, 85f, 10f);
+			return flows;
+		};
+	}
+
+	@Test
+	void aRiverIntoTheBowlInsideATileFillsItBelowItsSpill() {
+		Flows flows = down(99f);
+		float[] raise = new float[SPAN * SPAN];
+		CellLakes east = lakes(BOWL_ON_A_VALLEY, flows, 0, 1, raise);
+		CellLakes west = lakes(BOWL_ON_A_VALLEY, flows, 0, 0, new float[SPAN * SPAN]);
+		assertEquals(95f - CellRivers.DROP, east.level(128, 40), 0f);
+		assertTrue(east.runFed(east.run(128, 40)));
+		assertEquals(95f - CellRivers.DROP, west.level(128, TILE - 1), 0f);
+		assertAgree(west, 0, 0, east, 0, 1);
+		// The tile's rivers run through the lake at its level; drawn alone, as the block draws them, they run lower.
+		float[] tile = paddedTile(BOWL_ON_A_VALLEY, 0, 1);
+		CellRivers over = CellRivers.build(tile, CellBasins.of(tile, raise), flows.of(0, 1), SEED, 0, 1, null);
+		CellRivers alone = CellRivers.paths(tile, CellBasins.of(tile), flows.of(0, 1), SEED, 0, 1);
+		CellRivers.Hit a = new CellRivers.Hit(), b = new CellRivers.Hit();
+		int under = 0;
+		boolean lower = false;
+		for (int i = 0; i < TILE; i++) {
+			for (int j = 0; j < TILE; j++) {
+				if (Float.isNaN(east.level(i, j)) || !over.nearest(i + 0.5, j + 0.5, CellLakes.WIDEST, a)
+					|| a.distance > 0.5f) {
+					continue;
+				}
+				assertEquals(95f - CellRivers.DROP, a.level, 1e-4f, "river at " + i + ", " + j);
+				assertTrue(alone.nearest(i + 0.5, j + 0.5, CellLakes.WIDEST, b));
+				lower |= b.level < a.level;
+				under++;
+			}
+		}
+		assertTrue(under > 0, "the river runs through the lake");
+		assertTrue(lower);
+	}
+
+	@Test
+	void aLowRiverIntoTheBowlInsideATileHoldsItAtItsOwnLevel() {
+		assertEquals(92f, lakes(BOWL_ON_A_VALLEY, down(92f), 0, 0, new float[SPAN * SPAN]).level(128, TILE - 1), 0f);
+		assertTrue(lakes(BOWL_ON_A_VALLEY, down(90.5f), 0, 0, new float[SPAN * SPAN]).isEmpty(),
+			"a river below the bottom leaves it dry");
+	}
+
+	@Test
+	void theBlocksKeepThePixelsTheRiversRunThrough() {
+		float[] tile = paddedTile(BOWL_ON_A_VALLEY, 0, 1);
+		CellRivers.Pixels pixels = CellRivers.paths(tile, CellBasins.of(tile), down(99f).of(0, 1), SEED, 0, 1)
+			.pixels();
+		assertEquals(1, pixels.paths());
+		assertEquals(99f, pixels.before()[0], 0f, "the river comes in at the level it crosses the side at");
+		int first = pixels.pixel()[0], last = pixels.pixel()[pixels.start()[1] - 1];
+		assertEquals(CellRivers.LO * TILE + CellRivers.node(tile, 0), first, "it enters the band below the node");
+		assertEquals((CellRivers.HI - 1) * TILE + CellRivers.node(tile, 1), last);
+		for (int q = 1; q < pixels.start()[1]; q++) {
+			assertTrue(pixels.level()[q] <= pixels.level()[q - 1], "the water never rises");
+		}
+		assertNull(CellRivers.build(tile, CellBasins.of(tile), down(99f).of(0, 1), SEED, 0, 1, null).pixels());
 	}
 }
