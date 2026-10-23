@@ -59,6 +59,7 @@ public final class Rivers {
 	private final Map<Long, CompletableFuture<Block>> blocks = new ConcurrentHashMap<>();
 	private final Map<Long, CompletableFuture<Block>> wideBlocks = new ConcurrentHashMap<>();
 	private final Map<Long, CompletableFuture<Paths>> paths = new ConcurrentHashMap<>();
+	private final Map<Long, CompletableFuture<Sea>> seas = new ConcurrentHashMap<>();
 	private final AtomicLong clock = new AtomicLong();
 	private final ThreadLocal<ChunkColumns> chunks = ThreadLocal.withInitial(ChunkColumns::new);
 
@@ -355,7 +356,7 @@ public final class Rivers {
 			return cache.cell;
 		}
 		Cell cell = RiverNetwork.once(cells, RiverNetwork.key(ti, tj), () -> {
-			CellFlows flows = network.flows(ti, tj);
+			CellFlows flows = flows(ti, tj);
 			float[] tile = field.paddedTile(ti, tj);
 			// The lakes of the blocks the tile lies in, four of two by two tiles and nine of three by three, and of the
 			// coarse map, and the ground their rivers see.
@@ -413,7 +414,7 @@ public final class Rivers {
 			for (int t = 0; t < n * n; t++) {
 				tiles[t] = field.paddedTile(bi + t / n, bj + t % n);
 				drowned[t] = field.paddedDrowned(bi + t / n, bj + t % n);
-				flows[t] = network.flows(bi + t / n, bj + t % n);
+				flows[t] = flows(bi + t / n, bj + t % n);
 			}
 			return new Block(BlockLakes.build(n, tiles, drowned, flows, t -> paths(bi + t / n, bj + t % n),
 				climate(), bi, bj));
@@ -434,13 +435,96 @@ public final class Rivers {
 		Paths drawn = RiverNetwork.once(paths, RiverNetwork.key(ti, tj), () -> {
 			float[] tile = field.paddedTile(ti, tj);
 			return new Paths(CellRivers.paths(tile, CellBasins.of(tile, field.paddedDrowned(ti, tj), null),
-				network.flows(ti, tj), field.seed(), ti, tj));
+				flows(ti, tj), field.seed(), ti, tj));
 		});
 		drawn.lastUse = clock.incrementAndGet();
 		if (paths.size() > MAX_CELLS) {
 			evict(paths);
 		}
 		return drawn.rivers;
+	}
+
+	/**
+	 * Where rivers enter and leave tile {@code (ti, tj)}: as the network has them ({@link RiverNetwork#flows}), but out
+	 * of a {@link RiverNetwork#MOUTH} whose sea lies at a side, outside the band its rivers run in, and nowhere in it.
+	 * The coarse map sends them to that sea all the same, and they would end in a pond short of it. They leave across
+	 * the side instead, at sea level, into the sea of the tile beyond, where its band has some: across the side whose
+	 * node lies lowest, if more than one would do. The tiles beside the mouth decide this alike, from its terrain and
+	 * theirs.
+	 */
+	CellFlows flows(int ti, int tj) {
+		CellFlows flows = network.flows(ti, tj);
+		int out = outlet(ti, tj, flows);
+		if (out >= 0) {
+			CellFlows through = new CellFlows();
+			for (CellFlows.Inflow inflow : flows.inflows) {
+				through.addIn(inflow.side(), out, flows.inLevel[inflow.side()], inflow.discharge());
+			}
+			through.addOut(out, 0f, inflow(flows));
+			flows = through;
+		}
+		for (int side = 0; side < 4; side++) {
+			int mi = ti + RiverNetwork.DI[side], mj = tj + RiverNetwork.DJ[side];
+			if (network.direction(mi, mj) == RiverNetwork.MOUTH) {
+				CellFlows mouth = network.flows(mi, mj);
+				if (outlet(mi, mj, mouth) == (side ^ 1)) {
+					flows = flows.isEmpty() ? new CellFlows() : flows;
+					flows.addIn(side, CellFlows.SEA, 0f, inflow(mouth));
+				}
+			}
+		}
+		return flows;
+	}
+
+	/**
+	 * The side across which the rivers of tile {@code (ti, tj)}, which the network has entering it as {@code flows},
+	 * leave it for the sea of the tile beyond ({@link #flows}), or -1 where they do not.
+	 */
+	private int outlet(int ti, int tj, CellFlows flows) {
+		if (flows.inflows.isEmpty() || network.direction(ti, tj) != RiverNetwork.MOUTH) {
+			return -1;
+		}
+		Sea own = sea(ti, tj);
+		int best = -1;
+		for (int side = 0; side < 4; side++) {
+			float node = own.node[side];
+			// Not across a side that a river already enters by.
+			if (Float.isNaN(node) || !Float.isNaN(flows.inLevel[side]) || best >= 0 && !(node < own.node[best])) {
+				continue;
+			}
+			if (sea(ti + RiverNetwork.DI[side], tj + RiverNetwork.DJ[side]).band) {
+				best = side;
+			}
+		}
+		return best;
+	}
+
+	/** Where tile {@code (ti, tj)} has sea, as its own basins have it. */
+	private Sea sea(int ti, int tj) {
+		Sea sea = RiverNetwork.once(seas, RiverNetwork.key(ti, tj), () -> {
+			float[] tile = field.paddedTile(ti, tj);
+			CellBasins basins = CellBasins.of(tile, field.paddedDrowned(ti, tj), null);
+			boolean band = CellRivers.seaInBand(basins);
+			float[] node = nan(4);
+			for (int side = 0; side < 4 && !band; side++) {
+				node[side] = CellRivers.seaNode(tile, basins, side);
+			}
+			return new Sea(band, node);
+		});
+		sea.lastUse = clock.incrementAndGet();
+		if (seas.size() > MAX_CELLS) {
+			evict(seas);
+		}
+		return sea;
+	}
+
+	/** The discharge of the rivers that enter by {@code flows}. */
+	private static float inflow(CellFlows flows) {
+		float total = 0f;
+		for (CellFlows.Inflow inflow : flows.inflows) {
+			total += inflow.discharge();
+		}
+		return total;
 	}
 
 	private static float[] nan(int length) {
@@ -540,6 +624,20 @@ public final class Rivers {
 
 		Paths(CellRivers rivers) {
 			this.rivers = rivers;
+		}
+	}
+
+	/**
+	 * Where a tile has sea: whether any lies in the band its rivers run in, and if none does, the height of the node of
+	 * each side where some lies at the side, or NaN.
+	 */
+	private static final class Sea extends Used {
+		final boolean band;
+		final float[] node;
+
+		Sea(boolean band, float[] node) {
+			this.band = band;
+			this.node = node;
 		}
 	}
 

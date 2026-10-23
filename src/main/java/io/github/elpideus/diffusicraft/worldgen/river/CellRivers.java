@@ -287,27 +287,49 @@ final class CellRivers {
 		return bestT;
 	}
 
-	/** The lower of the two pixels on either side of a side, at position {@code t} along it. */
-	private static float sideHeight(float[] tile, int side, int t) {
-		int inside, outside;
-		switch (side) {
-			case 0 -> {
-				inside = pad(0, t);
-				outside = pad(-1, t);
-			}
-			case 1 -> {
-				inside = pad(TILE - 1, t);
-				outside = pad(TILE, t);
-			}
-			case 2 -> {
-				inside = pad(t, 0);
-				outside = pad(t, -1);
-			}
-			default -> {
-				inside = pad(t, TILE - 1);
-				outside = pad(t, TILE);
+	/**
+	 * Whether the band where the rivers of a tile run holds any of the sea of its {@code basins}: where none does, a
+	 * river bound for the sea ends in a pond.
+	 */
+	static boolean seaInBand(CellBasins basins) {
+		for (int i = LO; i < HI; i++) {
+			for (int j = LO; j < HI; j++) {
+				if (basins.sea(pad(i, j))) {
+					return true;
+				}
 			}
 		}
+		return false;
+	}
+
+	/**
+	 * The height of the node of a side of the padded elevation {@code tile} where the tile has sea there, by its
+	 * {@code basins}, outside the band its rivers run in; NaN where it has none.
+	 */
+	static float seaNode(float[] tile, CellBasins basins, int side) {
+		int t = node(tile, side);
+		return basins.sea(inside(side, t)) ? sideHeight(tile, side, t) : Float.NaN;
+	}
+
+	/** Index in the padded tile of the pixel just inside a side, at position {@code t} along it. */
+	private static int inside(int side, int t) {
+		return switch (side) {
+			case 0 -> pad(0, t);
+			case 1 -> pad(TILE - 1, t);
+			case 2 -> pad(t, 0);
+			default -> pad(t, TILE - 1);
+		};
+	}
+
+	/** The lower of the two pixels on either side of a side, at position {@code t} along it. */
+	private static float sideHeight(float[] tile, int side, int t) {
+		int inside = inside(side, t);
+		int outside = inside + switch (side) {
+			case 0 -> -SPAN;
+			case 1 -> SPAN;
+			case 2 -> -1;
+			default -> 1;
+		};
 		return Math.min(tile[inside], tile[outside]);
 	}
 

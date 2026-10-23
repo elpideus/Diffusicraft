@@ -189,8 +189,10 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
   only as far as a lake of 16 tiles, with a cut through the rest, was tried and dropped
   ([WORLDGEN.md](WORLDGEN.md#rivers)). Where such a basin lies in a valley the ice drowned behind a step, it keeps the
   sea's level instead of a lake above it. And a way out for the lakes of valleys the ice drowned behind a step in cells
-  whose 5th percentile lies below the sea, which end their rivers as fjords do: the coarse map cannot tell the two
-  apart.
+  whose 5th percentile lies below the sea, which end their rivers as fjords do, since the coarse map cannot tell the two
+  apart, where neither their tile nor the tiles beside it have sea that rivers reach: one of the 26 cells that end
+  rivers in a window of 40 by 80 tiles of seed 42 still ends them in such a lake, with 170 m³/s. Rivers whose sea lies
+  only by a side of their tile already cross into the sea beyond.
 
 ### Biomes
 

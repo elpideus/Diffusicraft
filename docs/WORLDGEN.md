@@ -878,7 +878,10 @@ place.
   follow the tile alone: the lakes of the blocks around and the great lakes (see below), which a river crosses in the
   same way, set only the river's level, and under their water the path follows the floor. The blocks can then draw the
   rivers of their tiles without one another's lakes. A river bound for the sea runs on to water that drains into it,
-  past the valleys the ice drowned behind a step.
+  past the valleys the ice drowned behind a step. Paths keep 32 pixels (960 m) from the sides but where they cross one,
+  so the sea of a cell that ends its rivers can lie by a side of its tile, out of their reach. They then leave across
+  that side at sea level, into the tile beyond, if that tile has sea within the reach of its own rivers: across the
+  lowest such side, if more than one would do. The tiles on both sides decide this alike, from the terrain of both.
 - **Width and depth.** About 4√Q meters wide for a discharge of Q m³/s, like real rivers. The smaller sizes widen them
   by the square root of their meters per block over 1.6, so they stay visible: 1.1 times at Extreme, 1.6 at Grand, 2.2
   at Large, 3.2 at Medium and 4.5 at Vanilla. Nothing gets wider than 480 m. The depth grows with the width, up to 10
@@ -999,8 +1002,11 @@ place.
   discharge never leaves. In three other windows of 12 by 12 tiles it changed nothing. The hollows of a great lake's
   tiles that do not hold water at its level stay dry, and so do those whose water spills past the padding of its tiles.
   The coarse map cannot tell a fjord open to the sea from a valley the ice drowned behind a step: a cell whose 5th
-  percentile lies below the sea ends its rivers either way, so where its tile has no sea, only such a trough, the river
-  ends in the trough's lake, which has no way out. Three of the 144 cells of seed 42's most glaciated coast do.
+  percentile lies below the sea ends its rivers either way. Where its tile has sea only by a side, they cross into the
+  sea beyond (see Paths), but where neither its tile nor the tiles beside it have sea within the reach of their rivers,
+  only such a trough, the river ends in the trough's lake, which has no way out. Of the 26 cells that end rivers in a
+  window of 40 by 80 tiles of seed 42 at (−50, 0), four did so before their rivers crossed into the sea beyond, and one,
+  with 170 m³/s, still does.
 
 ### Coasts
 

@@ -221,6 +221,77 @@ class RiversTest {
 	}
 
 	@Test
+	void riversOfAMouthWhoseSeaLiesOutsideTheirBandLeaveForTheSeaBeyond() {
+		// A fjord along the valley floor of cell 1, whose head lies 16 pixels into cell 2: short of the band that the
+		// rivers of cell 2 run in. The coarse map has both cells as mouths, as the fjord drowned their 5th percentiles.
+		int head = 2 * TILE + 16;
+		TerrainSource source = new ValleySource() {
+			@Override
+			float height(double i, double j) {
+				boolean fjord = i >= TILE + 40 && i < head && Math.abs(j - (VALLEY + 0.5) * TILE) < 40;
+				return fjord ? -50f : super.height(i, j);
+			}
+
+			@Override
+			public float[] coarse(int ci0, int cj0, int ci1, int cj1) {
+				float[] out = super.coarse(ci0, cj0, ci1, cj1);
+				int w = cj1 - cj0, plane = (ci1 - ci0) * w;
+				for (int ci = 1; ci <= 2; ci++) {
+					if (ci0 <= ci && ci < ci1 && cj0 <= VALLEY && VALLEY < cj1) {
+						int k = (ci - ci0) * w + VALLEY - cj0;
+						out[COARSE_ELEVATION * plane + k] = elevation((ci + 0.5) * TILE, (VALLEY + 0.5) * TILE);
+						out[COARSE_LOW_ELEVATION * plane + k] = ci == 1 ? -50f : -10f;
+					}
+				}
+				return out;
+			}
+		};
+		TerrainField field = new TerrainField(1, source);
+		RiverNetwork network = new RiverNetwork(field);
+		assertEquals(RiverNetwork.MOUTH, network.direction(1, VALLEY));
+		assertEquals(RiverNetwork.MOUTH, network.direction(2, VALLEY));
+		Rivers rivers = Rivers.of(field);
+
+		CellFlows mouth = rivers.flows(2, VALLEY);
+		assertFalse(mouth.inflows.isEmpty(), "the rivers of the valley run into the mouth");
+		for (CellFlows.Inflow inflow : mouth.inflows) {
+			assertEquals(0, inflow.target(), "a river leaves the mouth across its side by the fjord");
+		}
+		assertEquals(0f, mouth.outLevel[0], "at sea level");
+		CellFlows fjord = rivers.flows(1, VALLEY);
+		assertEquals(0f, fjord.inLevel[1], "the fjord takes it at sea level");
+		assertEquals(mouth.outDischarge[0], fjord.inDischarge[1], 1e-3f);
+		assertTrue(fjord.inflows.contains(new CellFlows.Inflow(1, CellFlows.SEA, fjord.inDischarge[1])));
+
+		float[] tile = field.paddedTile(2, VALLEY);
+		CellRivers drawn = CellRivers.paths(tile, CellBasins.of(tile, field.paddedDrowned(2, VALLEY), null), mouth,
+			1, 2, VALLEY);
+		int exits = 0;
+		for (int p = 0; p < drawn.pathCount(); p++) {
+			assertNotEquals(CellRivers.POND, drawn.ending(p), "no river ends in a pond short of the fjord");
+			exits += drawn.ending(p) == CellRivers.EXIT ? 1 : 0;
+		}
+		assertTrue(exits > 0, "a river leaves for the fjord");
+		tile = field.paddedTile(1, VALLEY);
+		CellBasins basins = CellBasins.of(tile, field.paddedDrowned(1, VALLEY), null);
+		drawn = CellRivers.paths(tile, basins, fjord, 1, 1, VALLEY);
+		assertEquals(sidePaths(CellRivers.paths(tile, basins, network.flows(1, VALLEY), 1, 1, VALLEY)) + 1,
+			sidePaths(drawn), "the river from the mouth runs on into the fjord");
+		for (int p = 0; p < drawn.pathCount(); p++) {
+			assertNotEquals(CellRivers.POND, drawn.ending(p), "and to its sea");
+		}
+	}
+
+	/** How many of the paths of {@code rivers} enter across a side. */
+	private static int sidePaths(CellRivers rivers) {
+		int n = 0;
+		for (int p = 0; p < rivers.pathCount(); p++) {
+			n += rivers.startsAtSide(p) ? 1 : 0;
+		}
+		return n;
+	}
+
+	@Test
 	void theWayOutOfALakeByTheCoastFallsToTheSeaNotItsFloor() {
 		// A hollow one cell up a valley too warm for glaciers, 15 m above the sea: a lake that spills over the coast.
 		RiverNetwork network = new RiverNetwork(new TerrainField(1, withLow(1, VALLEY, 15f, 20f)));
