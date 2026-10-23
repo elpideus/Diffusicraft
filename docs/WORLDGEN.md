@@ -112,12 +112,12 @@ Uplift: raises the mountains over their valley floors
 TerrainField: 256² pixel tiles, Catmull-Rom elevation, plus an 8-pixel grid of
    │          mean elevation, relief and sea-level climate, and the distance to the coastline
    ▼
-TerrainSurface: the ground in blocks for one scale, with roughness from 1:8 up, ledges, sea cliffs and stacks,
-   │            and gullies at 1:4 and up
+TerrainSurface: the ground in blocks for one scale, eased down to the sea, with roughness from 1:8 up, ledges,
+   │            sea cliffs and islets, and gullies at 1:4 and up
    ▼
 density functions: diffusicraft:surface, diffusicraft:climate,
    │                diffusicraft:hollows (the Hollows model), diffusicraft:river (the Rivers model),
-   │                diffusicraft:coast (the sea cliffs and stacks, block by block)
+   │                diffusicraft:coast (the sea cliffs and islets, block by block)
    ▼
 noise settings diffusicraft:<scale>: noise router, aquifers, material rule diffusicraft:<scale>
    ▼                                  (vanilla's surface rules + diffusicraft:strata, the Geology model,
@@ -796,7 +796,7 @@ The settings set `final_density` to vanilla's overworld density, with these chan
 - the caves are vanilla's, but fewer, with more of them noodles (below);
 - deeper than 25 blocks below the surface, the density is the minimum of the caves and
   [the Hollows](#the-hollows);
-- [the sea cliffs and stacks](#coasts) are set block by block: `diffusicraft:<scale>/coast_fill` and `coast_carve`;
+- [the sea cliffs and islets](#coasts) are set block by block: `diffusicraft:<scale>/coast_fill` and `coast_carve`;
 - [the rivers](#rivers) come last: `diffusicraft:<scale>/river_fill` builds the ground up under them and
   `river_carve` cuts it down to their water, so their beds seal any cave below.
 
@@ -1021,43 +1021,67 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   45 to 120 m, at least 5 blocks. Inside the band, continentalness is the height above the sea, so vanilla picks its
   beach, snowy beach or stony shore as it would. Before, the band went by height alone, and it covered most of the low
   coastal plains of the smaller worlds, far inland. Low, wet, flat land past the beach is still a swamp, or a bog.
-- **Sea cliffs.** At 30 m per pixel the terrain's coasts are gentle: the steepest is a slope, which the density's
-  4-block cells would smear further. So `TerrainSurface` builds cliffs where high land meets the sea. Across a strip 60
-  m wide (at least 6 blocks: 6 at Vanilla and Medium, 7.5 at Large, 15 at Grand, 30 at Extreme and 60 at Ultra), it
-  gathers the rise of the ground into one face. Seaward of the face is a shelf a block above the water; landward, the
-  ground at the end of the strip. The face wanders across the strip with noise 3 strips long, and the cliff fades into
-  the ground's own details over the last 30% of the strip. A cliff needs:
-  - land at least 4 m above the sea at the end of the strip, and 15 m for a full cliff (1.5 and 3 blocks at least);
+- **The land's slope.** The model's coasts are steps. It learnt them from maps whose sea floor was sampled far more
+  coarsely than their land, so where hills or mountains meet the sea the ground climbs a hundred meters within a pixel
+  or two of the coastline, and with the heights exaggerated it stood in the world as a wall: on the fjord coast of one
+  spawn at Ultra, the ground 60 blocks inland stood a median 77 blocks above the sea, and 306 on a tenth of the coast.
+  Real coasts mostly ease down to the water, over a beach, a strip of lowland or the foot of a slope. So `CoastSlope`
+  holds the land within the coast's reach (360 m) under an envelope that climbs from the waterline at the coast's
+  slope, from 0.3 to 0.6 m per meter (17° to 31°, which the heights make 25° to 43° at Ultra) by noise 2.5 km across,
+  and bends up by 360 m more over the reach, so that by the reach any ground gets through: the first slope above the
+  water is gentle, the rise the coast took is pushed inland, and a mountain still stands behind. The envelope is a
+  soft minimum, `t / (1 + t⁴)^¼` of its height for ground `t` times as high, which leaves ground well under it alone,
+  and the easing fades out over the last 30% of the reach. In the fjords, where the ice cut the land at sea level by
+  40 m or more, the envelope steepens to 0.7 m per meter (35°, 47° at Ultra): their sides stay steep, the rock
+  showing where the ledges and gullies cut them, but are no longer sheer for hundreds of blocks. The envelope never
+  falls under 2 m, so a steep shore keeps
+  a bank at the waterline rather than a flat flush with the water. The gradient of the eased ground is brought along
+  for the gullies and the ledges, which read the slope, and the beach band reads the eased ground. Everything is in
+  real meters, so the coasts have the same shape at every size and are exaggerated as the rest of the land is.
+- **Sea cliffs.** On stretches of coast here and there, `TerrainSurface` gathers the first of the rise of the eased
+  ground into a sea cliff. Across a strip 60 m wide (at least 6 blocks: 6 at Vanilla and Medium, 7.5 at Large, 15 at
+  Grand, 30 at Extreme and 60 at Ultra), the ground becomes a shelf a block above the water, then a face up to the
+  cliff's crest, then a bench at the crest until the eased ground climbs past it. The face takes at most 8 to 30 m of
+  the rise, by noise 2.5 km across (12 to 46 blocks at Ultra, at least 4 to 8 blocks in the smaller sizes); a lower
+  coast's whole rise. The face wanders across the strip with noise 3 strips long, and the cliff fades into the
+  ground's own details over the last 30% of the strip. A cliff needs:
+  - land at least 8 m above the sea at the end of the strip, and 20 m for a full cliff (1.5 and 3 blocks at least);
   - a straight coast, not a spit or a narrow inlet, where the gradient of the distance shrinks;
-  - a stretch of coast where noise 1.5 km across allows cliffs. They fade out over a few hundred meters between
-    stretches.
+  - a stretch of coast where noise 2.5 km across allows cliffs: a fifth of the coast has some cliff, and a twentieth
+    the whole face. They fade out over a few hundred meters between stretches.
 
-  The density takes the ground of the cliff columns, and of the sea within 5 blocks of them, block by block
-  (`CoastFunction`): `coast_fill` is solid from the lowest corner of the column's 4-block cell up to the exact ground,
-  and `coast_carve` is air above it. So the face is sheer, and the rivers, which come after, still cut through it. The
-  fill starts that low because deep in the rock a corner on the cliff is only as solid as its caves let it be, a
-  fraction of how empty a corner out at sea is: between them, the face would be undercut from the sea floor up to the
-  interpolated ground. Only the cells across a face reach down to the sea floor, so the caves under the cliff stay. The
-  top of a cliff is too high for the beach band and keeps the biome inland; the shelf at its foot is beach. Like other
-  cliffs, the face shows the rock (see [the ground](#the-ground)).
+  Before, the noise allowed cliffs on most of the coast, whole on a fifth, wherever the land stood 4 m high at the end
+  of the strip, and each took the whole rise of the ground within the strip into one face, which at mountain coasts
+  and in the fjords stood 100 to 470 blocks tall. The density takes the ground of the
+  cliff columns, and of the sea within 5 blocks of them, block by block (`CoastFunction`): `coast_fill` is solid from
+  the lowest corner of the column's 4-block cell up to the exact ground, and `coast_carve` is air above it. So the
+  face is sheer, and the rivers, which come after, still cut through it. The fill starts that low because deep in the
+  rock a corner on the cliff is only as solid as its caves let it be, a fraction of how empty a corner out at sea is:
+  between them, the face would be undercut from the sea floor up to the interpolated ground. Only the cells across a
+  face reach down to the sea floor, so the caves under the cliff stay. The top of a cliff is too high for the beach
+  band and keeps the biome inland; the shelf at its foot is beach. Like other cliffs, the face shows the rock (see
+  [the ground](#the-ground)).
 - **The sea floor.** The terrain's seas are flats near the shore: half of the sea 120 m from land is less than 0.3 m
   deep, and 480 m from land less than 3 m. A real sea floor deepens along a beach's equilibrium profile, `0.1 d^(2/3)`
   meters at `d` meters out (Dean's profile for fine sand): 2 m deep 100 m out and 5 m deep 360 m out. So the floor
   lies at least that deep out to `COAST_REACH`, and at least 5 m deep beyond it. Only Ultra and Extreme show it: 5
   blocks deep 360 blocks out at Ultra, under 2 at Extreme. In the smaller sizes the profile stays within the block of
   water the shallowest sea already has.
-- **Sea stacks and arches.** The sea cuts cliffs back and leaves the harder parts standing offshore. `TerrainSurface`
-  puts stacks off the cliffs: columns 6 to 25 m in radius, with sheer sides and a gently domed top, from half as high
-  as the cliff behind them to as high. A stack stands past at least 20 m of open water and at most 150 m beyond that.
-  The places for them lie on a jittered grid 150 m apart; each can hold a stack where it falls in that band, off a
-  cliff at least half whole, on a stretch of coast that noise 5 km across favours. Hashes alone keep places from
-  touching, before the terrain is read, so most places cost a few hashes. One stack in five is an arch: two to three
-  times longer along the coast than wide, with an opening through it across the coast, rounded at the top, from the sea
-  floor up to 40–60% of its height above the sea, under a roof at least 2 blocks thick. The density takes stacks and
-  the 5 blocks around them block by block, as it does cliffs, and leaves the opening empty: the sea fills it below its
-  level, the air above. The smaller worlds keep stacks 3 to 5 blocks across and 2 blocks off the coast, and arches
-  with an opening at least 3 blocks high. Vanilla has none: the coastline's distance reaches only 12 pixels, some 11 of
-  its blocks, too short for a stack past its open water.
+- **Islets.** Off rocky coasts lie islets, the skerries of a drowned rocky shore. `TerrainSurface` puts them on a
+  jittered grid 70 m apart, past at least 20 m of open water and within 240 m beyond it, off coasts whose land stands
+  8 to 20 m or more above the sea at the end of the strip, on the stretches of coast that noise 4 km across favours
+  and in the clusters that noise 350 m across gathers along them: at most 55% of the places, in the thick of a cluster
+  off the rockiest coast, and about a twentieth over all such coasts. Hashes alone rule out most places before the
+  terrain is read, so the open sea, which asks about every column, costs a few hashes a column. Each islet is a mound
+  8 to 30 m in radius, drawn out along the coast up to twice as long as wide, that rises from the sea floor to a
+  rounded top 2 to 12 m above the sea, no higher than three fifths of its radius or four fifths of the land behind
+  it, its sides steepest halfway up and taking the outer three quarters of the radius, inside an outline that noise
+  moves in and out by up to 40% of the radius; islets that meet merge. The density takes them and the 5 blocks
+  around them block by block, as it does cliffs. Only an islet's centre needs the distance to the coastline, so the
+  smaller worlds keep islets 4 to 8 blocks across, 2 blocks of water off the coast, within the 11 blocks of sea the
+  coastline's distance reaches at Vanilla. They took the place of the sea stacks and arches, columns with sheer sides
+  from half as high as the cliff behind them to as high, 70 to 340 blocks on the fjord coast above, which stood in
+  the water as smooth ovals.
 - **Fjords.** In the ice ages, glaciers flowing off cold mountain coasts cut their valleys far below the sea, which
   flooded them when the ice melted: the fjords of Norway, Patagonia, Alaska and New Zealand. The model draws those
   coasts smooth, so `Glaciation` wraps the terrain source and cuts the valleys after the fact. The ice cut each valley's
@@ -1139,10 +1163,12 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   of seed 42, 138 and 123 km square, the fjords and valleys drowned 1,492 and 939 km² of land joined to the sea, where
   without the arms they drowned 1,436 and 674. Half of that water lies more than 11 and 75 km from the old coast by
   water, and the farthest 152 and 169 km.
-- **Limits.** Distant Horizons' LODs show the cliffs, the sea floor and the stacks as the chunks do, except the
-  farthest, which read the coarse map: it has no coastline, so no beaches, cliffs, profile or stacks there. The LODs
-  hold one height per column, so arches show solid. The profile has no bars or troughs. Stacks have no notch at the
-  waterline, and no boulders lie around them. The drowned valleys have no sills: their troughs are deepest at the mouth,
+- **Limits.** Distant Horizons' LODs show the eased coasts, the cliffs, the sea floor and the islets as the chunks
+  do, except the farthest, which read the coarse map: it has no coastline, so no beaches, easing, cliffs, profile or
+  islets there. The profile has no bars or troughs. The islets take the biome of the sea around them, so they have no
+  beaches of their own. The easing reads the distance to the coastline, which reaches 360 m: a mountain that climbs
+  faster than the envelope lets through still stands steep beyond it, and the rise it took is pushed inland rather
+  than spread. The drowned valleys have no sills: their troughs are deepest at the mouth,
   where real ones are shallowest, and climb steadily inland; only the long fjords have sills. Those valleys end where
   they climb over a step or a saddle between coarse pixels. The trough beyond is a basin like any other, which a river
   or the rain fills above the sea (see [Rivers](#rivers)), as the ice left Mjøsa and Hornindalsvatnet behind their
@@ -1151,7 +1177,7 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   sea over ground down to 339 m below it. The rest keeps the sea's level and counts as fjord: 12 km² on the first coast
   in basins of a block that rivers drain (see the limits of [Rivers](#rivers)), and 30 km² on the second in a basin
   wider than a block. Under the lakes above the sea the ground still takes the shape of a coast at sea level, its
-  shelves, cliffs and stacks under the water. The long fjords follow the coarse map's valleys, 7.7 km to a pixel, not
+  shelves, cliffs and islets under the water. The long fjords follow the coarse map's valleys, 7.7 km to a pixel, not
   the fine terrain's: they cut straight through the spurs and saddles between. Arms branch only off the trunks, never
   off each other, so a fjord system is a trunk and its side valleys, without the further branches of the largest real
   ones.
@@ -1288,7 +1314,7 @@ Some biomes lay a soil of their own on top, to vanilla's depth: peat under the m
 bogs, whose pools it lines too, terra rossa under the maquis, loess under the steppes and laterite under the jungles, the
 monsoon and laurel forests, the savannas and the cloud forest. Peat, terra rossa and laterite also lie bare on top in
 patches. The profile goes on under them. Vanilla's plain dirt stays only as topsoil: below it lies the subsoil. Only the
-column's top run of ground gets a profile, so the floors of caves and the ground under arches and rivers keep what the
+column's top run of ground gets a profile, so the floors of caves and the ground under rivers keep what the
 biome gives them. Soils count as dirt (`#minecraft:dirt`), so saplings and plants grow on them as on dirt, and they dig
 with a shovel. Peat burns in a furnace for half as long as coal (`context_int_provider/cooking/time_peat.json`).
 
@@ -1473,7 +1499,7 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
-| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, stacks and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `CoastSlope` (the land eased down to the sea), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, islets and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the vanilla features Diffusicraft worlds leave out and the falls they add after vanilla's water springs, the water springs they leave off the cliffs, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `RiverCourses` (the water of those paths in blocks), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
@@ -1618,9 +1644,14 @@ Other searches still read the full terrain and can take a while on new land:
   faces the sun, and that the shaded side of a mountain is snowy where the sunny side is not.
 - `CoastlineTest` checks the distance to straight and round coasts, at sea and on land, that it is continuous across
   tile borders with its gradient, that a coast just outside a tile counts and that saddles follow the mean of their
-  corners. `SeaCliffTest` builds straight coasts: some stretches of a high one get cliffs, a full cliff's foot is a
-  shelf a block above the water, the cliff meets the ground at the end of its strip, a low coast gets none, and the
-  density takes every cliff column block by block.
+  corners. `CoastSlopeTest` checks the envelope the land is eased under: ground well under it keeps its height, steep
+  ground is held near it, it never falls under its least, the easing fades out by the reach and only ever climbs
+  inland, higher ground stays higher, the fjords keep steeper walls, and its rates match its differences.
+  `SeaCliffTest` builds straight coasts: some stretches of a high one get cliffs and fewer whole ones, no face is
+  taller than its cap, a full cliff's foot is a shelf a block above the water, the cliff meets the ground at the end
+  of its strip, the land eases down to the sea while a gentle coast keeps its shape, a low coast gets no cliffs and no
+  islets, the far levels of detail show the cliffs where the chunks have them, islets lie off a rocky coast past open
+  water and are mounds rather than columns, and the density takes every cliff and islet column block by block.
 - `GlaciationTest` checks that the lowering keeps heights in order and leaves high ground and the deep sea alone, that
   the trough climbs inland and spares valleys too high above it, that a cold mountain coast drowns its valleys under the
   ridges while a mild one keeps them, that gentle valleys drown six tiles inland but not beyond the ice's reach, that
@@ -1649,7 +1680,7 @@ Other searches still read the full terrain and can take a while on new land:
   the tallest sea cliff, each of Diffusicraft's biomes within 24 km or, for those of other latitudes, along the meridian
   towards the equator, the tallest Grand Hollow, a lava sea nearby and the tallest Grand Hollow of each cave biome
   within 4 km, all at noon, to `build/run/clientGameTest/screenshots`. The top of the cliff must be bare rock, the face
-  of the sea cliff (not an arch, which is open halfway up) sheer above the water, though a cave may open into it there
+  of the sea cliff sheer above the water, though a cave may open into it there
   and caves and ravines below it, and each cave biome must hold its own blocks: silk, selenite, mushrooms, moss or
   dripstone. Around the spawn no sand or gravel may hang over open space, the rock under the soil may hold no dirt or
   gravel down to the first cave, and on gentle ground outside limestone, chalk and marble the soil must go deeper than

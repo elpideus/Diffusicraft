@@ -114,8 +114,9 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   tributaries, widths that grow with the discharge, banks, beds and river biomes. Lakes fill the closed basins as far
   as the climate is wet enough. Shallow seas hold water, and coastal lowland keeps its cave entrances and ravines
   closed so they do not flood into canals. See [WORLDGEN.md](WORLDGEN.md#rivers).
-- **Coasts.** Beaches a real beach's width along the coastline, and sheer sea cliffs along stretches where high land
-  meets the sea, in every world, with sea stacks and arches off them; all but the farthest LODs show them. At Earth
+- **Coasts.** Beaches a real beach's width along the coastline, the land eased down to the water where the model
+  made a step of it, sea cliffs of 8 to 30 m along a few stretches of high coast, in every world, and islets off the
+  rocky coasts; all but the farthest LODs show them. At Earth
   1:1 the sea floor deepens away from the shore along a beach's profile. On cold mountain coasts the glaciers' valleys
   drown into fjords, with a biome of their own, and the longest run 100 km and more inland, over a sill into basins
   up to 1,200 m deep, with arms up their side valleys. The valleys they drowned behind a step hold lakes above the

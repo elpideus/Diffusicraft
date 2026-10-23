@@ -256,6 +256,16 @@ public final class TerrainField implements AutoCloseable {
 		return tile.coast(u, v);
 	}
 
+	/** How far glaciers lowered ground at sea level at a native pixel coordinate, in meters: {@link Column#iceCut}. */
+	public float iceCut(double i, double j) {
+		double u = i - 0.5, v = j - 0.5;
+		int iu = (int) Math.floor(u), iv = (int) Math.floor(v);
+		FieldTile tile = tile(Math.floorDiv(iu, TILE), Math.floorDiv(iv, TILE));
+		double gu = (u - tile.ti * (double) TILE) / GRID, gv = (v - tile.tj * (double) TILE) / GRID;
+		int a = Math.min((int) gu, GRID_POINTS - 2), b = Math.min((int) gv, GRID_POINTS - 2);
+		return tile.grid(ICE_CUT, a, b, (float) (gu - a), (float) (gv - b));
+	}
+
 	/** Variant noise at a position in real meters (block × meters per block). */
 	public float variant(double xMeters, double zMeters) {
 		return variantNoise.GetNoise((float) (xMeters / VARIANT_WAVELENGTH), (float) (zMeters / VARIANT_WAVELENGTH));

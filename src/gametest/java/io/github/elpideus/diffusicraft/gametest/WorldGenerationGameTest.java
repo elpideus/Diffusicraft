@@ -799,15 +799,12 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	private record SeaCliff(BlockPos top, BlockPos foot, double inlandX, double inlandZ) {
 	}
 
-	/**
-	 * Finds the tallest sea cliff within 2 km of the spawn that no river cuts through, if any. The top of its face is
-	 * not an arch, whose opening would leave it open halfway up.
-	 */
+	/** Finds the tallest sea cliff within 2 km of the spawn that no river cuts through, if any. */
 	private static @Nullable SeaCliff findSeaCliff(Probe probe) {
 		TerrainSurface surface = probe.field.surface(SIZE);
 		Rivers rivers = Rivers.of(probe.field);
 		double pixelsPerBlock = SIZE.pixelsPerBlock();
-		float[] inland = new float[2], hole = new float[2];
+		float[] inland = new float[2];
 		double tallest = 0;
 		int columns = 0;
 		SeaCliff best = null;
@@ -833,9 +830,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 				// The last column before the foot carries the top of the face.
 				int tx = fx + (int) Math.round(ux), tz = fz + (int) Math.round(uz);
 				double drop = surface.y(tx, tz) - surface.y(fx, fz);
-				if (drop > tallest && !rivers.column(SIZE, tx, tz).river
-					&& !rivers.column(SIZE, fx, fz).river
-					&& (Float.isNaN(surface.cliff(tx, tz, hole)) || Float.isNaN(hole[0]))) {
+				if (drop > tallest && !rivers.column(SIZE, tx, tz).river && !rivers.column(SIZE, fx, fz).river) {
 					tallest = drop;
 					best = new SeaCliff(new BlockPos(tx, (int) Math.ceil(surface.y(tx, tz)), tz),
 						new BlockPos(fx, (int) Math.ceil(surface.y(fx, fz)), fz), ux, uz);

@@ -49,7 +49,7 @@ included, on servers as in singleplayer.
 - the terrain's height, cut by the rivers, with water in their channels and lakes, and the sea up to its level; the
   nearest LODs, whose columns are at most 4 blocks apart, carry the ledges too, and the gullies from 1:4 up, smoothed
   over the 4-block cells the chunks interpolate over, as the chunks smooth them; all but the farthest, which read the
-  coarse map, carry the sea cliffs and stacks and the shape of the sea floor;
+  coarse map, carry the eased coasts, the sea cliffs, the islets and the shape of the sea floor;
 - the blocks at the top from the world's own material rules (soils, sand, gravel, snow, rock strata in cliffs), run on
   each column with the slope taken from its neighbours;
 - one rock sample for everything below, which shows in cliff faces;

@@ -10,12 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The height of the ground, in blocks: the terrain's elevation through the world's {@link WorldScale}, with the
- * knolls and small scarps of its {@link Roughness}, the {@link Gullies} cut into its slopes, the
- * {@link Geology#ledge ledges} of the sedimentary beds standing out of them, and cliffs along the sea. The density, the
- * materials, the rivers, the Hollows, the ceiling of each chunk and the levels of detail all read the ground here, so
- * they agree on where it is. The climate and the biomes keep the smooth elevation, except on the coast: the other
- * details are too small to change them.
+ * The height of the ground, in blocks: the terrain's elevation through the world's {@link WorldScale}, eased down to
+ * the sea along the coasts ({@link CoastSlope}), with the knolls and small scarps of its {@link Roughness}, the
+ * {@link Gullies} cut into its slopes, the {@link Geology#ledge ledges} of the sedimentary beds standing out of them,
+ * and cliffs along some of the sea's shores. The density, the materials, the rivers, the Hollows, the ceiling of each
+ * chunk and the levels of detail all read the ground here, so they agree on where it is. The climate and the biomes
+ * keep the smooth elevation, except on the coast: the other details are too small to change them.
  *
  * <p>They take their character from how much soil and plants cover the ground, which the climate decides: it takes
  * rain (by the same aridity the biomes use) and warmth. Deserts, tundra and the ground above the tree line are bare.
@@ -24,26 +24,30 @@ import java.util.List;
  * {@value #ROUGH_SHORE} blocks above the sea and from the inland end of the strip of cliffs, so the beaches stay
  * smooth, and it never lowers the ground to less than a block above the sea.
  *
- * <p>The terrain comes in pixels 30 m wide, too coarse for a cliff: its coasts are gentle slopes. Where the land
- * stands high a short way inland, on some stretches of coast, the rise is gathered into a cliff. The strip along the
- * coastline that {@link #cliffZone} measures becomes a beach or a rock shelf a block above the water, then a face, then
- * a flat top at the height of the ground where the strip ends. Noise moves the face across the strip, from the
- * waterline, where the cliff drops straight into the sea, to most of the way inland. The faces are too steep for the
- * terrain's interpolation between cells, so the density takes the columns of a cliff and those beside it one by one
- * ({@link #cliff}).
+ * <p>The coasts ease down to the water: the land within reach of the coastline is held under an envelope that climbs
+ * gently from the waterline and lets any ground through farther inland, so a hill or a mountain by the sea has a
+ * slope at its foot rather than a wall ({@link CoastSlope}). On some stretches of coast, where the land stands high a
+ * short way inland, the first part of the rise is gathered into a sea cliff. The strip along the coastline that
+ * {@link #cliffZone} measures becomes a beach or a rock shelf a block above the water, then a face up to the cliff's
+ * crest, then a bench at the crest until the ground climbs past it. A face takes at most {@value #CLIFF_HEIGHT_MIN} to
+ * {@value #CLIFF_HEIGHT_MAX} m of the rise, by the stretch of coast; a lower coast's whole rise. Noise moves the face
+ * across the strip, from the waterline, where the cliff drops straight into the sea, to most of the way inland. The
+ * faces are too steep for the terrain's interpolation between cells, so the density takes the columns of a cliff and
+ * those beside it one by one ({@link #cliff}).
  *
  * <p>The terrain's seas are flats near the shore, a metre deep or less for hundreds of meters, where real ones deepen
  * along a beach's equilibrium profile. Out to sea, the floor lies at least as deep as that profile reaches, up to
  * {@link TerrainField#COAST_REACH} from the coastline and as deep as it reaches there beyond it: 5 m. Only the two
  * largest sizes show it; the others keep the shallowest sea a block deep.
  *
- * <p>Off the cliffs stand sea stacks, the remains of headlands the sea has cut off: columns with sheer sides and a
- * gently domed top, 6 to 25 m in radius and from half as high as the cliff behind them to as high, past at least
- * 20 m of open water and within 150 m beyond it. The places for them lie on a jittered grid 150 m apart, and hashes
- * keep them from touching; noise along the coast picks some, more on some stretches of cliffs than on others. One in
- * five is an arch, two to three times longer along the coast than wide, with a rounded opening that the sea flows
- * through ({@code hole} in {@link #cliff(int, int, float[])}). The density takes stacks block by block, as it does
- * cliffs. The smaller worlds keep them at least 3 to 5 blocks wide, 2 blocks of water from the coast.
+ * <p>Off rocky coasts lie islets, the skerries of a drowned rocky shore: low mounds with an irregular outline, from
+ * a wash rock barely above the water to a hummock {@value #ISLET_HEIGHT_MAX} m high but no higher than three fifths
+ * of its radius, {@value #ISLET_RADIUS} to {@value #ISLET_RADIUS_MAX} m in radius, which rise from the sea floor with
+ * sloping sides, drawn out along the coast up to twice as long as wide, past at least
+ * {@value #ISLET_GAP} m of open water and within {@value #ISLET_BAND} m beyond it. The places for them lie on a
+ * jittered grid {@value #ISLET_SPACING} m apart; noise picks the stretches of coast that have them and gathers them
+ * into clusters, and islets that meet merge. The density takes them block by block, as it does cliffs, so the
+ * smaller worlds keep them at a few blocks across, within the 11 blocks of sea the smallest's coastline reaches.
  *
  * <p>Points are given in blocks, block {@code x} spanning {@code [x, x + 1)}, as {@link Erosion.Surface} has them.
  * Get one from {@link TerrainField#surface}; it holds no state of its own and is safe on any thread.
@@ -64,15 +68,26 @@ public final class TerrainSurface implements Erosion.Surface {
 	/** Narrowest that strip gets, in blocks, so that the smaller scales still have cliffs. */
 	private static final double CLIFF_ZONE_BLOCKS = 6;
 	/** Real wavelength of the noise that picks the stretches of coast with cliffs, in meters. */
-	private static final double CLIFF_WAVELENGTH = 1500;
+	private static final double CLIFF_WAVELENGTH = 2500;
+	/** The noise, in about [-1, 1], from which a stretch of coast has cliffs, and at which it has them whole. */
+	private static final double CLIFF_FROM = 0.2;
+	private static final double CLIFF_TO = 0.4;
 	/**
 	 * Real height of the ground at the inland end of the strip, in meters, below which there is no cliff and above which
 	 * the cliff is whole. In blocks, at least {@link #LOW_CLIFF_BLOCKS} and {@link #HIGH_CLIFF_BLOCKS}.
 	 */
-	private static final float LOW_CLIFF = 4;
-	private static final float HIGH_CLIFF = 15;
+	private static final float LOW_CLIFF = 8;
+	private static final float HIGH_CLIFF = 20;
 	private static final double LOW_CLIFF_BLOCKS = 1.5;
 	private static final double HIGH_CLIFF_BLOCKS = 3;
+	/**
+	 * Real height of the tallest face a cliff takes, in meters, on the stretches of coast with the lowest cliffs and
+	 * with the highest; in blocks, at least {@link #CLIFF_HEIGHT_BLOCKS_MIN} and {@link #CLIFF_HEIGHT_BLOCKS_MAX}.
+	 */
+	private static final float CLIFF_HEIGHT_MIN = 8;
+	private static final float CLIFF_HEIGHT_MAX = 30;
+	private static final double CLIFF_HEIGHT_BLOCKS_MIN = 4;
+	private static final double CLIFF_HEIGHT_BLOCKS_MAX = 8;
 	/** Where the face stands across the strip, as a share of its width: on average and how far noise moves it. */
 	private static final double FACE = 0.35;
 	private static final double FACE_SPREAD = 0.4;
@@ -88,51 +103,56 @@ public final class TerrainSurface implements Erosion.Surface {
 	 * (Dean's equilibrium profile, for fine sand).
 	 */
 	private static final double SHOREFACE = 0.1;
-	/** Real spacing of the places out to sea that can hold a stack, in meters, and the least in blocks. */
-	private static final double STACK_SPACING = 150;
-	private static final double STACK_SPACING_BLOCKS = 16;
-	/** Real radius of a stack, in meters, and in blocks at least, from the thinnest to the stoutest. */
-	private static final double STACK_RADIUS = 6;
-	private static final double STACK_RADIUS_MAX = 25;
-	private static final double STACK_RADIUS_BLOCKS = 1.5;
-	private static final double STACK_RADIUS_BLOCKS_MAX = 2.5;
-	/** Real open water between a stack and the coastline, in meters, and the least in blocks. */
-	private static final double STACK_GAP = 20;
-	private static final double STACK_GAP_BLOCKS = 2;
-	/** Real width of the band beyond that water where stacks stand, in meters, and the least in blocks. */
-	private static final double STACK_BAND = 150;
-	private static final double STACK_BAND_BLOCKS = 6;
-	/** The share of the places in the band that hold a stack, off the stretches of cliffs richest in them. */
-	private static final double STACK_SHARE = 0.6;
-	/** Real wavelength of the noise that picks those stretches, in meters. */
-	private static final double STACK_WAVELENGTH = 5000;
-	/** How far noise moves the outline of a stack in or out, as a share of its radius. */
-	private static final double STACK_ROUGHNESS = 0.2;
-	/** The share of stacks that are arches, and how many times longer than wide those are. */
-	private static final double ARCH_SHARE = 0.2;
-	private static final double ARCH_ASPECT = 2.2;
-	private static final double ARCH_ASPECT_MAX = 3;
-	/** Least height of an arch's opening above the sea, and of the rock over it, in blocks. */
-	private static final double ARCH_OPENING_BLOCKS = 3;
-	private static final double ARCH_ROOF_BLOCKS = 2;
+	/** Real spacing of the places out to sea that can hold an islet, in meters, and the least in blocks. */
+	private static final double ISLET_SPACING = 70;
+	private static final double ISLET_SPACING_BLOCKS = 10;
+	/** Real radius of an islet, in meters, and in blocks at least, from the smallest to the largest. */
+	private static final double ISLET_RADIUS = 8;
+	private static final double ISLET_RADIUS_MAX = 30;
+	private static final double ISLET_RADIUS_BLOCKS = 2;
+	private static final double ISLET_RADIUS_BLOCKS_MAX = 4;
+	/** Real open water between an islet and the coastline, in meters, and the least in blocks. */
+	private static final double ISLET_GAP = 20;
+	private static final double ISLET_GAP_BLOCKS = 2;
+	/** Real width of the band beyond that water where islets lie, in meters, and the least in blocks. */
+	private static final double ISLET_BAND = 240;
+	private static final double ISLET_BAND_BLOCKS = 10;
+	/** Real height of an islet's top above the sea, in meters, and in blocks at least, from the lowest to the highest. */
+	private static final float ISLET_HEIGHT_MIN = 2;
+	private static final float ISLET_HEIGHT_MAX = 12;
+	private static final double ISLET_HEIGHT_BLOCKS_MIN = 1.5;
+	private static final double ISLET_HEIGHT_BLOCKS_MAX = 4;
+	/** An islet's top stays this far below the land at the end of the strip, as a share of the land's height. */
+	private static final double ISLET_BELOW_LAND = 0.8;
+	/** The share of the places in the band that hold an islet, in the thick of a cluster off the rockiest coasts. */
+	private static final double ISLET_SHARE = 0.55;
+	/** Real wavelengths of the noise that picks the stretches of coast with islets, and of the clusters along them. */
+	private static final double ISLET_WAVELENGTH = 4000;
+	private static final double CLUSTER_WAVELENGTH = 350;
+	/** The most an islet's top stands above the sea, as a share of its radius: wide mounds, not columns. */
+	private static final double ISLET_STEEPNESS = 0.6;
+	/** The share of an islet's radius over which its sides fall from the top to the sea floor; the rest is top. */
+	private static final double ISLET_SIDES = 0.75;
+	/** How many times longer than wide an islet is along the coast, at most: the ice and the waves drew them out. */
+	private static final double ISLET_ASPECT_MAX = 2;
+	/** How far noise moves the outline of an islet in or out, as a share of its radius. */
+	private static final double ISLET_ROUGHNESS = 0.4;
 
 	/**
-	 * A sea stack or an arch, in blocks: its centre, the direction of the coast there, its radius and its half-length
-	 * along the coast, the height of its top, and for an arch the height of the opening above the sea and its
-	 * half-width along the coast (0 for a stack).
+	 * An islet, in blocks: its centre, the direction of the coast there, its half-width across the coast and its
+	 * half-length along it, and the height of its top.
 	 */
-	private record Stack(double x, double z, double tx, double tz, double radius, double length, double top,
-						 double opening, double span) {
+	private record Islet(double x, double z, double tx, double tz, double radius, double length, double top) {
 	}
 
 	/**
-	 * A place in a cell of the grid that can hold a stack, from the cell's hashes: the share it is drawn at, its centre,
-	 * its radius and its half-length along the coast, longer than the radius where it would be an arch.
+	 * A place in a cell of the grid that can hold an islet, from the cell's hashes: the share it is drawn at, its
+	 * centre, its half-width and its half-length along the coast.
 	 */
 	private record Place(int cellX, int cellZ, double chance, double x, double z, double radius, double length) {
 		/** The farthest the outline reaches from the centre. */
 		double extent() {
-			return length * (1 + STACK_ROUGHNESS);
+			return length * (1 + ISLET_ROUGHNESS);
 		}
 	}
 
@@ -144,25 +164,29 @@ public final class TerrainSurface implements Erosion.Surface {
 	private final double pixelsPerBlock;
 	private final double lowest;
 	private final double highest;
+	private final long slopeSeed;
 	private final long cliffSeed;
 	/** Width of the strip of cliffs in pixels, and the margin beyond it out to sea. */
 	private final double zone;
 	private final double margin;
 	private final double lowCliff;
 	private final double highCliff;
+	/** The tallest face a cliff takes, in blocks, on the stretches with the lowest cliffs and with the highest. */
+	private final double cliffHeightMin;
+	private final double cliffHeightMax;
 	/** The ground under a cliff, a block above the water. */
 	private final double shelf;
 	/** Whether the profile of the sea floor off the shore lies deeper anywhere than the shallowest sea. */
 	private final boolean shoreface;
 	private final int sea;
-	private final long stackSeed;
-	/** The stacks' spacing, open water, band and the farthest any reaches from its centre, in blocks. */
-	private final double stackSpacing;
-	private final double stackGap;
-	private final double stackBand;
-	private final double stackExtent;
-	/** Farthest out to sea, in pixels, that a stack or the margin around it reaches. */
-	private final double stackReach;
+	private final long isletSeed;
+	/** The islets' spacing, open water, band, heights and the farthest any reaches from its centre, in blocks. */
+	private final double isletSpacing;
+	private final double isletGap;
+	private final double isletBand;
+	private final double isletHeightMin;
+	private final double isletHeightMax;
+	private final double isletExtent;
 
 	TerrainSurface(TerrainField field, WorldScale scale) {
 		this.field = field;
@@ -174,28 +198,40 @@ public final class TerrainSurface implements Erosion.Surface {
 		this.pixelsPerBlock = scale.pixelsPerBlock();
 		this.lowest = scale.minSurfaceY();
 		this.highest = scale.maxSurfaceY();
+		this.slopeSeed = field.seed() ^ 0x5103E5EAL;
 		this.cliffSeed = field.seed() ^ 0x5EAC11FF5L;
 		this.zone = cliffZone(scale) * pixelsPerBlock;
 		this.margin = CLIFF_MARGIN * pixelsPerBlock;
 		this.sea = scale.seaLevel();
 		this.lowCliff = Math.max(scale.surfaceY(LOW_CLIFF) - sea, LOW_CLIFF_BLOCKS);
 		this.highCliff = Math.max(scale.surfaceY(HIGH_CLIFF) - sea, HIGH_CLIFF_BLOCKS);
+		this.cliffHeightMin = cliffHeightMin(scale);
+		this.cliffHeightMax = cliffHeightMax(scale);
 		this.shelf = sea + 0.5;
 		this.shoreface = shoreface(-Coastline.REACH) < sea - 1;
 		double mpb = scale.metersPerBlock();
-		this.stackSeed = field.seed() ^ 0x57AC4A2C11L;
-		this.stackSpacing = Math.max(STACK_SPACING / mpb, STACK_SPACING_BLOCKS);
-		this.stackGap = Math.max(STACK_GAP / mpb, STACK_GAP_BLOCKS);
-		this.stackBand = Math.max(STACK_BAND / mpb, STACK_BAND_BLOCKS);
-		this.stackExtent = radius(1) * ARCH_ASPECT_MAX * (1 + STACK_ROUGHNESS);
-		// The coastline's distance reads no farther than its reach: a stack stays inside it, margin and all.
-		double farthest = stackGap + radius(1) * (1 + STACK_ROUGHNESS) + stackBand + stackExtent + CLIFF_MARGIN;
-		this.stackReach = Math.min(farthest * pixelsPerBlock, Coastline.REACH - 1);
+		this.isletSeed = field.seed() ^ 0x57AC4A2C11L;
+		this.isletSpacing = Math.max(ISLET_SPACING / mpb, ISLET_SPACING_BLOCKS);
+		this.isletGap = Math.max(ISLET_GAP / mpb, ISLET_GAP_BLOCKS);
+		this.isletBand = Math.max(ISLET_BAND / mpb, ISLET_BAND_BLOCKS);
+		this.isletHeightMin = Math.max(scale.surfaceY(ISLET_HEIGHT_MIN) - sea, ISLET_HEIGHT_BLOCKS_MIN);
+		this.isletHeightMax = Math.max(scale.surfaceY(ISLET_HEIGHT_MAX) - sea, ISLET_HEIGHT_BLOCKS_MAX);
+		this.isletExtent = radius(1) * ISLET_ASPECT_MAX * (1 + ISLET_ROUGHNESS);
 	}
 
 	/** Width of the strip along the coastline that cliffs reshape at a scale, in blocks. */
 	public static double cliffZone(WorldScale scale) {
 		return Math.max(CLIFF_ZONE / scale.metersPerBlock(), CLIFF_ZONE_BLOCKS);
+	}
+
+	/** The tallest face a cliff takes at a scale, in blocks, on the stretches of coast with the lowest cliffs. */
+	static double cliffHeightMin(WorldScale scale) {
+		return Math.max(scale.surfaceY(CLIFF_HEIGHT_MIN) - scale.seaLevel(), CLIFF_HEIGHT_BLOCKS_MIN);
+	}
+
+	/** The tallest face a cliff takes at a scale, in blocks, on the stretches of coast with the highest cliffs. */
+	static double cliffHeightMax(WorldScale scale) {
+		return Math.max(scale.surfaceY(CLIFF_HEIGHT_MAX) - scale.seaLevel(), CLIFF_HEIGHT_BLOCKS_MAX);
 	}
 
 	/** The ground at the centre of column {@code (x, z)}. */
@@ -205,20 +241,16 @@ public final class TerrainSurface implements Erosion.Surface {
 
 	@Override
 	public double y(double x, double z) {
-		return y(x, z, null);
-	}
-
-	/** The ground at a point, with the opening of an arch through it in {@code hole}, if one is given. */
-	private double y(double x, double z, float[] hole) {
 		double i = z * pixelsPerBlock, j = x * pixelsPerBlock;
 		float[] gradient = new float[2];
 		float elevation = field.elevation(i, j, gradient);
+		float coast = field.coast(i, j);
+		elevation = eased(i, j, elevation, coast, gradient);
 		// Meters per pixel to blocks per block.
 		double rate = scale.surfaceRate(elevation) * pixelsPerBlock;
 		double gx = gradient[1] * rate, gz = gradient[0] * rate;
 		double y = scale.surfaceY(elevation);
 		double slope = Math.sqrt(gx * gx + gz * gz);
-		float coast = field.coast(i, j);
 		TerrainField.Column column = null;
 		double cover = 0;
 		if (roughness.any() && elevation > 0f && coast > zone) {
@@ -248,36 +280,60 @@ public final class TerrainSurface implements Erosion.Surface {
 				y = Math.min(y, sea - 1);
 			}
 		}
-		return Math.clamp(shore(x, z, i, j, coast, elevation, y, hole), lowest, highest);
+		return Math.clamp(shore(x, z, i, j, coast, elevation, y), lowest, highest);
 	}
 
 	/**
 	 * The ground at the centre of column {@code (x, z)} for the levels of detail too coarse for the gullies and the
-	 * ledges: the terrain's height with only the shapes of the shore. The arches are solid there.
+	 * ledges: the terrain's height with only the shapes of the shore.
 	 */
 	public float shore(int x, int z) {
 		double cx = x + 0.5, cz = z + 0.5, i = cz * pixelsPerBlock, j = cx * pixelsPerBlock;
-		float elevation = field.elevation(i, j);
+		float coast = field.coast(i, j);
+		float elevation = eased(i, j, field.elevation(i, j), coast, null);
 		double y = scale.surfaceY(elevation);
-		return (float) Math.clamp(shore(cx, cz, i, j, field.coast(i, j), elevation, y, null), lowest, highest);
+		return (float) Math.clamp(shore(cx, cz, i, j, coast, elevation, y), lowest, highest);
+	}
+
+	/**
+	 * The elevation at a point, {@code coast} pixels from the coastline, eased down to the sea ({@link CoastSlope}),
+	 * and, if {@code gradient} is given, its gradient in meters per pixel brought along with it.
+	 */
+	private float eased(double i, double j, float elevation, float coast, float[] gradient) {
+		if (elevation <= 0f || coast <= 0f || coast >= Coastline.REACH) {
+			return elevation;
+		}
+		double[] rates = gradient == null ? null : new double[2];
+		float eased = CoastSlope.ease(elevation, coast * WorldScale.METERS_PER_PIXEL, field.iceCut(i, j), slope(i, j),
+			rates);
+		if (gradient != null && eased != elevation) {
+			float[] normal = new float[2];
+			field.coast(i, j, normal);
+			double along = rates[1] * WorldScale.METERS_PER_PIXEL;
+			gradient[0] = (float) (rates[0] * gradient[0] + along * normal[0]);
+			gradient[1] = (float) (rates[0] * gradient[1] + along * normal[1]);
+		}
+		return eased;
+	}
+
+	/** The slope of the coast's envelope at a native pixel coordinate, in meters per meter. */
+	private double slope(double i, double j) {
+		return CoastSlope.slope(slopeSeed, j * WorldScale.METERS_PER_PIXEL, i * WorldScale.METERS_PER_PIXEL);
 	}
 
 	/**
 	 * The ground {@code y} at a point of the given elevation, {@code coast} pixels from the coastline, with the sea
-	 * cliffs, the profile of the sea floor and the stacks, and the opening of an arch in {@code hole} if one is given.
+	 * cliffs, the profile of the sea floor and the islets.
 	 */
-	private double shore(double x, double z, double i, double j, float coast, float elevation, double y, float[] hole) {
-		if (hole != null) {
-			hole[0] = hole[1] = Float.NaN;
-		}
+	private double shore(double x, double z, double i, double j, float coast, float elevation, double y) {
 		if (coast > 0f && coast < zone) {
 			y = sharpen(x, z, i, j, coast, y);
 		} else if (coast < 0f && elevation < 0f && shoreface) {
 			y = Math.min(y, shoreface(coast));
 		}
-		if (coast > -stackReach - 0.5 && coast < zone) {
-			for (Stack stack : stacks(x, z, 0)) {
-				y = stack(stack, x, z, y, hole);
+		if (coast < 0f) {
+			for (Islet islet : islets(x, z, 0)) {
+				y = islet(islet, x, z, y);
 			}
 		}
 		return y;
@@ -290,33 +346,23 @@ public final class TerrainSurface implements Erosion.Surface {
 
 	/**
 	 * The ground of column {@code (x, z)}, as {@link #y(int, int)} has it, where a cliff shapes it or stands beside it,
-	 * out to sea within {@link #CLIFF_MARGIN} blocks of the coastline, and on a stack and within that margin of it;
+	 * out to sea within {@link #CLIFF_MARGIN} blocks of the coastline, and on an islet and within that margin of it;
 	 * NaN elsewhere.
 	 */
 	public float cliff(int x, int z) {
-		return cliff(x, z, null);
-	}
-
-	/**
-	 * {@link #cliff(int, int)}, with the opening of an arch through the column in {@code hole}: water or air from
-	 * {@code hole[0]} up to {@code hole[1]}, both NaN where there is none.
-	 */
-	public float cliff(int x, int z, float[] hole) {
-		if (hole != null) {
-			hole[0] = hole[1] = Float.NaN;
-		}
 		double cx = x + 0.5, cz = z + 0.5, i = cz * pixelsPerBlock, j = cx * pixelsPerBlock;
 		float coast = field.coast(i, j);
 		boolean cliff = coast > -margin && coast < zone
 			&& strength(cx, cz, i, j, coast, new double[1], new float[2]) > 0;
-		if (!cliff && !(coast > -stackReach - 0.5 && coast < zone && !stacks(cx, cz, CLIFF_MARGIN).isEmpty())) {
+		if (!cliff && !(coast < margin && !islets(cx, cz, CLIFF_MARGIN).isEmpty())) {
 			return Float.NaN;
 		}
-		return (float) y(cx, cz, hole);
+		return (float) y(cx, cz);
 	}
 
 	/**
-	 * Gathers the rise of the ground across the strip of cliffs into a face, at a point {@code coast} pixels inland.
+	 * Gathers the first of the rise of the ground across the strip of cliffs into a face, at a point {@code coast}
+	 * pixels inland.
 	 */
 	private double sharpen(double x, double z, double i, double j, float coast, double y) {
 		double[] top = new double[1];
@@ -324,52 +370,71 @@ public final class TerrainSurface implements Erosion.Surface {
 		if (k <= 0) {
 			return y;
 		}
-		// The top stays the ground's own height at the end of the strip; it fades there into the ground's details.
+		// The crest stays the ground's own height at the end of the strip where that is low; it fades there into the
+		// ground's details.
 		k *= 1 - GeoNoise.smoothstep(0.7 * zone, zone, coast);
 		double wavelength = FACE_WAVELENGTH * zone / pixelsPerBlock;
 		double face = zone * (FACE + FACE_SPREAD * GeoNoise.fractal(cliffSeed + 1, x / wavelength, z / wavelength, 2));
-		double sharp = coast < face ? Math.min(y, shelf) : Math.max(y, top[0]);
+		double mpb = scale.metersPerBlock();
+		double tallest = lerp(GeoNoise.smoothstep(-0.5, 0.5,
+			GeoNoise.fractal(cliffSeed + 2, x * mpb / CLIFF_WAVELENGTH, z * mpb / CLIFF_WAVELENGTH, 2)),
+			cliffHeightMin, cliffHeightMax);
+		double crest = Math.min(top[0], sea + tallest);
+		double sharp = coast < face ? Math.min(y, shelf) : Math.max(y, crest);
 		return y + k * (sharp - y);
 	}
 
 	/**
-	 * How much of a cliff stands at a point {@code coast} pixels from the coastline, from 0 to 1, with the height of its
-	 * top in {@code top[0]}: the smooth ground inland along the coast's normal, where the strip ends. The normal, in
-	 * pixels along {@code i} and {@code j}, goes into {@code normal}.
+	 * How much of a cliff stands at a point {@code coast} pixels from the coastline, from 0 to 1: how {@link #rocky}
+	 * the coast is there, on a stretch of coast with cliffs. The height of the land at the end of the strip goes into
+	 * {@code top[0]} and the coast's normal, in pixels along {@code i} and {@code j}, into {@code normal}.
 	 */
 	private double strength(double x, double z, double i, double j, float coast, double[] top, float[] normal) {
+		double rocky = rocky(i, j, coast, top, normal);
+		if (rocky <= 0) {
+			return 0;
+		}
+		double mpb = scale.metersPerBlock();
+		return rocky * GeoNoise.smoothstep(CLIFF_FROM, CLIFF_TO,
+			GeoNoise.fractal(cliffSeed, x * mpb / CLIFF_WAVELENGTH, z * mpb / CLIFF_WAVELENGTH, 2));
+	}
+
+	/**
+	 * How rocky the coast is at a point {@code coast} pixels from the coastline, from 0 to 1: how far above the sea the
+	 * eased ground stands at the end of the strip, inland along the coast's normal, on a straight coast. That height
+	 * goes into {@code top[0]} and the normal, in pixels along {@code i} and {@code j}, into {@code normal}.
+	 */
+	private double rocky(double i, double j, float coast, double[] top, float[] normal) {
 		field.coast(i, j, normal);
 		// Between two coasts close together, as across a spit, the normal shrinks and turns: no cliffs there.
 		double length = Math.sqrt(normal[0] * normal[0] + normal[1] * normal[1]);
 		double straight = GeoNoise.smoothstep(0.5, 0.8, length);
 		if (straight <= 0) {
-			return 0;
-		}
-		double mpb = scale.metersPerBlock();
-		double stretch = GeoNoise.smoothstep(-0.3, 0.2,
-			GeoNoise.fractal(cliffSeed, x * mpb / CLIFF_WAVELENGTH, z * mpb / CLIFF_WAVELENGTH, 2));
-		if (stretch <= 0) {
+			top[0] = sea;
 			return 0;
 		}
 		double reach = (zone - coast) / length;
-		top[0] = scale.surfaceY(field.elevation(i + normal[0] * reach, j + normal[1] * reach));
-		return straight * stretch * GeoNoise.smoothstep(lowCliff, highCliff, top[0] - scale.seaLevel());
+		double ei = i + normal[0] * reach, ej = j + normal[1] * reach;
+		float elevation = CoastSlope.ease(field.elevation(ei, ej), zone * WorldScale.METERS_PER_PIXEL,
+			field.iceCut(ei, ej), slope(i, j), null);
+		top[0] = scale.surfaceY(elevation);
+		return straight * GeoNoise.smoothstep(lowCliff, highCliff, top[0] - sea);
 	}
 
-	/** The stacks whose outline comes within {@code reach} blocks of {@code (x, z)}: seldom more than one. */
-	private List<Stack> stacks(double x, double z, double reach) {
-		List<Stack> found = List.of();
-		double far = stackExtent + reach;
-		int x0 = (int) Math.floor((x - far) / stackSpacing), x1 = (int) Math.floor((x + far) / stackSpacing);
-		int z0 = (int) Math.floor((z - far) / stackSpacing), z1 = (int) Math.floor((z + far) / stackSpacing);
+	/** The islets whose outline comes within {@code reach} blocks of {@code (x, z)}: seldom more than one or two. */
+	private List<Islet> islets(double x, double z, double reach) {
+		List<Islet> found = List.of();
+		double far = isletExtent + reach;
+		int x0 = (int) Math.floor((x - far) / isletSpacing), x1 = (int) Math.floor((x + far) / isletSpacing);
+		int z0 = (int) Math.floor((z - far) / isletSpacing), z1 = (int) Math.floor((z + far) / isletSpacing);
 		for (int cellZ = z0; cellZ <= z1; cellZ++) {
 			for (int cellX = x0; cellX <= x1; cellX++) {
-				Stack stack = stack(cellX, cellZ, x, z, reach);
-				if (stack != null) {
+				Islet islet = islet(cellX, cellZ, x, z, reach);
+				if (islet != null) {
 					if (found.isEmpty()) {
 						found = new ArrayList<>(2);
 					}
-					found.add(stack);
+					found.add(islet);
 				}
 			}
 		}
@@ -377,143 +442,93 @@ public final class TerrainSurface implements Erosion.Surface {
 	}
 
 	/**
-	 * The stack of a cell of the grid of places that can hold one, if it has one whose outline comes within
+	 * The islet of a cell of the grid of places that can hold one, if it has one whose outline comes within
 	 * {@code reach} blocks of {@code (x, z)}; {@code null} otherwise. The hashes rule out most places before the
-	 * terrain is read.
+	 * terrain is read, so the open sea, which asks about every column, costs a few hashes a column.
 	 */
-	private Stack stack(int cellX, int cellZ, double x, double z, double reach) {
+	private Islet islet(int cellX, int cellZ, double x, double z, double reach) {
 		Place candidate = place(cellX, cellZ);
 		if (candidate == null) {
 			return null;
 		}
-		double px = candidate.x(), pz = candidate.z(), radius = candidate.radius(), length = candidate.length();
-		double extent = candidate.extent();
+		double px = candidate.x(), pz = candidate.z(), extent = candidate.extent();
 		double dx = x - px, dz = z - pz, near = extent + reach;
 		if (dx * dx + dz * dz > near * near) {
 			return null;
 		}
-		// Out to sea past open water, within the band, and with the margin around it inside the coastline's reach.
+		// Out to sea past open water, within the band, its centre within the coastline's reach: the columns of its
+		// outline and the margin around it need no distance of their own.
 		double i = pz * pixelsPerBlock, j = px * pixelsPerBlock;
 		float coast = field.coast(i, j);
-		double clear = stackGap + radius * (1 + STACK_ROUGHNESS), out = -coast / pixelsPerBlock;
-		if (out < clear || out > clear + stackBand || -coast + (extent + CLIFF_MARGIN) * pixelsPerBlock > stackReach) {
+		double clear = isletGap + extent, out = -coast / pixelsPerBlock;
+		if (out < clear || out > clear + isletBand || coast <= 0.5 - Coastline.REACH) {
 			return null;
 		}
-		// Off a cliff, on a stretch of coast with stacks.
+		// Off a rocky coast, on a stretch of coast with islets, in a cluster.
 		double[] top = new double[1];
 		float[] normal = new float[2];
-		double cliff = strength(px, pz, i, j, coast, top, normal);
-		double mpb = scale.metersPerBlock();
-		double stretch = GeoNoise.smoothstep(-0.3, 0.3,
-			GeoNoise.fractal(stackSeed, px * mpb / STACK_WAVELENGTH, pz * mpb / STACK_WAVELENGTH, 2));
-		if (candidate.chance() >= STACK_SHARE * stretch * GeoNoise.smoothstep(0.3, 0.8, cliff) || !apart(candidate)) {
+		double rocky = rocky(i, j, coast, top, normal);
+		if (rocky <= 0) {
 			return null;
 		}
-		long height = GeoNoise.hash(stackSeed, cellX, 3, cellZ);
-		double peak = sea + (top[0] - sea) * lerp(GeoNoise.unit(height), 0.55, 1);
-		if (peak < sea + 2) {
+		double mpb = scale.metersPerBlock();
+		double stretch = GeoNoise.smoothstep(-0.1, 0.5,
+			GeoNoise.fractal(isletSeed, px * mpb / ISLET_WAVELENGTH, pz * mpb / ISLET_WAVELENGTH, 2));
+		double cluster = GeoNoise.smoothstep(-0.3, 0.4,
+			GeoNoise.fractal(isletSeed + 2, px * mpb / CLUSTER_WAVELENGTH, pz * mpb / CLUSTER_WAVELENGTH, 2));
+		if (candidate.chance() >= ISLET_SHARE * stretch * cluster * GeoNoise.smoothstep(0.3, 0.8, rocky)) {
+			return null;
+		}
+		long height = GeoNoise.hash(isletSeed, cellX, 3, cellZ);
+		double radius = candidate.radius();
+		double peak = sea + Math.min(Math.min(lerp(GeoNoise.unit(height), isletHeightMin, isletHeightMax),
+			ISLET_BELOW_LAND * (top[0] - sea)), Math.max(ISLET_STEEPNESS * radius, ISLET_HEIGHT_BLOCKS_MIN));
+		if (peak < sea + 1.5) {
 			return null;
 		}
 		// The coast runs across the normal, which points inland: along z, then x, in pixels.
 		double n = Math.sqrt(normal[0] * normal[0] + normal[1] * normal[1]);
-		double tx = -normal[0] / n, tz = normal[1] / n;
-		double opening = 0, span = 0;
-		if (length > radius) {
-			opening = (peak - sea) * lerp(GeoNoise.unit2(height), 0.4, 0.6);
-			// Both ends of an arch stand in the sea too, where the coast curves.
-			boolean open = opening >= ARCH_OPENING_BLOCKS && peak - sea - opening >= ARCH_ROOF_BLOCKS + dome(radius, peak)
-				&& field.coast(i + tz * extent * pixelsPerBlock, j + tx * extent * pixelsPerBlock) < -stackGap * pixelsPerBlock
-				&& field.coast(i - tz * extent * pixelsPerBlock, j - tx * extent * pixelsPerBlock) < -stackGap * pixelsPerBlock;
-			if (open) {
-				span = 0.5 * length;
-			} else {
-				opening = 0;
-				length = radius;
-			}
-		}
-		return new Stack(px, pz, tx, tz, radius, length, peak, opening, span);
+		return new Islet(px, pz, -normal[0] / n, normal[1] / n, radius, candidate.length(), peak);
 	}
 
 	/**
-	 * The place for a stack in a cell of the grid, from the cell's hashes alone; {@code null} for the cells without
+	 * The place for an islet in a cell of the grid, from the cell's hashes alone; {@code null} for the cells without
 	 * one.
 	 */
 	private Place place(int cellX, int cellZ) {
-		long size = GeoNoise.hash(stackSeed, cellX, 0, cellZ);
+		long size = GeoNoise.hash(isletSeed, cellX, 0, cellZ);
 		double chance = GeoNoise.unit(size);
-		if (chance >= STACK_SHARE) {
+		if (chance >= ISLET_SHARE) {
 			return null;
 		}
-		long place = GeoNoise.hash(stackSeed, cellX, 1, cellZ), form = GeoNoise.hash(stackSeed, cellX, 2, cellZ);
+		long place = GeoNoise.hash(isletSeed, cellX, 1, cellZ), form = GeoNoise.hash(isletSeed, cellX, 2, cellZ);
 		double radius = radius(GeoNoise.unit2(size));
-		double length = GeoNoise.unit(form) < ARCH_SHARE
-			? radius * lerp(GeoNoise.unit2(form), ARCH_ASPECT, ARCH_ASPECT_MAX)
-			: radius;
-		return new Place(cellX, cellZ, chance, (cellX + GeoNoise.unit(place)) * stackSpacing,
-			(cellZ + GeoNoise.unit2(place)) * stackSpacing, radius, length);
+		return new Place(cellX, cellZ, chance, (cellX + GeoNoise.unit(place)) * isletSpacing,
+			(cellZ + GeoNoise.unit2(place)) * isletSpacing, radius, radius * lerp(GeoNoise.unit(form), 1, ISLET_ASPECT_MAX));
 	}
 
 	/**
-	 * Whether a place stands apart from the places around it that come before it, those with a lower chance: stacks
-	 * never touch, so the sea flows through every arch. This reads only hashes.
+	 * The ground at {@code (x, z)} with an islet on it, given the {@code ground} without it: a mound rising from the
+	 * sea floor to a rounded top, steepest halfway up its sides, inside an outline drawn out along the coast that
+	 * noise moves in and out.
 	 */
-	private boolean apart(Place place) {
-		double far = place.extent() + stackExtent + 1;
-		int x0 = (int) Math.floor((place.x() - far) / stackSpacing), x1 = (int) Math.floor((place.x() + far) / stackSpacing);
-		int z0 = (int) Math.floor((place.z() - far) / stackSpacing), z1 = (int) Math.floor((place.z() + far) / stackSpacing);
-		for (int cellZ = z0; cellZ <= z1; cellZ++) {
-			for (int cellX = x0; cellX <= x1; cellX++) {
-				Place other = cellX == place.cellX() && cellZ == place.cellZ() ? null : place(cellX, cellZ);
-				if (other == null || other.chance() > place.chance()) {
-					continue;
-				}
-				double apart = place.extent() + other.extent() + 1;
-				double dx = other.x() - place.x(), dz = other.z() - place.z();
-				if (dx * dx + dz * dz < apart * apart) {
-					return false;
-				}
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * The ground at {@code (x, z)} with a stack on it, given the {@code ground} without it; the opening of an arch goes
-	 * into {@code hole}, from the sea floor up, if one is given. The sides are sheer, the top a gentle dome.
-	 */
-	private double stack(Stack stack, double x, double z, double ground, float[] hole) {
-		double dx = x - stack.x(), dz = z - stack.z();
-		double along = dx * stack.tx() + dz * stack.tz(), across = dz * stack.tx() - dx * stack.tz();
-		// An arch's legs are thin: its outline wanders half as much.
-		double rough = stack.opening() > 0 ? STACK_ROUGHNESS / 2 : STACK_ROUGHNESS;
-		double wavelength = Math.max(stack.radius(), 2);
-		double u = Math.hypot(along / stack.length(), across / stack.radius())
-			+ rough * GeoNoise.fractal(stackSeed + 1, x / wavelength, z / wavelength, 2);
+	private double islet(Islet islet, double x, double z, double ground) {
+		double dx = x - islet.x(), dz = z - islet.z();
+		double along = dx * islet.tx() + dz * islet.tz(), across = dz * islet.tx() - dx * islet.tz();
+		double wavelength = Math.max(islet.radius(), 3);
+		double u = Math.hypot(along / islet.length(), across / islet.radius())
+			+ ISLET_ROUGHNESS * GeoNoise.fractal(isletSeed + 1, x / wavelength, z / wavelength, 2);
 		if (u >= 1) {
 			return ground;
 		}
-		u = Math.max(u, 0);
-		double top = stack.top() - dome(stack.radius(), stack.top()) * u * u;
-		if (hole != null && Math.abs(along) < stack.span()) {
-			double t = along / stack.span();
-			double roof = sea + stack.opening() * Math.sqrt(1 - t * t);
-			if (roof > ground) {
-				hole[0] = (float) ground;
-				hole[1] = (float) roof;
-			}
-		}
-		return Math.max(ground, top);
+		double rise = GeoNoise.smoothstep(0, ISLET_SIDES, 1 - Math.max(u, 0));
+		return ground + Math.max(0, islet.top() - ground) * rise;
 	}
 
-	/** How far the top of a stack falls from its middle to its edge, in blocks. */
-	private double dome(double radius, double top) {
-		return Math.min(0.25 * radius, 0.1 * (top - sea));
-	}
-
-	/** The radius of a stack in blocks, from the thinnest at {@code h} 0 to the stoutest at 1. */
+	/** The radius of an islet in blocks, from the smallest at {@code h} 0 to the largest at 1. */
 	private double radius(double h) {
-		return Math.max(lerp(h, STACK_RADIUS, STACK_RADIUS_MAX) / scale.metersPerBlock(),
-			lerp(h, STACK_RADIUS_BLOCKS, STACK_RADIUS_BLOCKS_MAX));
+		return Math.max(lerp(h, ISLET_RADIUS, ISLET_RADIUS_MAX) / scale.metersPerBlock(),
+			lerp(h, ISLET_RADIUS_BLOCKS, ISLET_RADIUS_BLOCKS_MAX));
 	}
 
 	private static double lerp(double t, double a, double b) {

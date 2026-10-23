@@ -19,12 +19,12 @@ import java.lang.ref.WeakReference;
 import java.util.Arrays;
 
 /**
- * {@code diffusicraft:coast}: the sea cliffs and stacks, block by block. The terrain is interpolated between the corners
- * of cells 4 blocks wide, which would smear a cliff's face into a slope reaching out to sea, so in the columns of a
- * cliff or a stack and beside them ({@link TerrainSurface#cliff}) the world's final density takes the maximum with
- * {@code fill}, solid from the lowest corner of the column's cell up to the exact ground, then the minimum with
- * {@code carve}, air above the exact ground. Through an arch, both leave its opening empty, for the sea or the air.
- * Elsewhere they are -1 and 1 and change nothing.
+ * {@code diffusicraft:coast}: the sea cliffs and islets, block by block. The terrain is interpolated between the corners
+ * of cells 4 blocks wide, which would smear a cliff's face into a slope reaching out to sea and an islet into the
+ * water, so in the columns of a cliff or an islet and beside them ({@link TerrainSurface#cliff}) the world's final
+ * density takes the maximum with {@code fill}, solid from the lowest corner of the column's cell up to the exact
+ * ground, then the minimum with {@code carve}, air above the exact ground. Elsewhere they are -1 and 1 and change
+ * nothing.
  *
  * <p>The fill goes down to the lowest corner, not just to the interpolated ground: deep in the rock, the density of a
  * corner on the cliff is only as solid as the caves let it be, a fraction of a corner out at sea's emptiness, so their
@@ -42,11 +42,11 @@ public record CoastFunction(WorldScale scale, Mode mode) implements DensityFunct
 	private static final ThreadLocal<Columns> COLUMNS = ThreadLocal.withInitial(Columns::new);
 
 	public enum Mode implements StringRepresentable {
-		/** Positive below the ground of a cliff column and outside an arch's opening, negative above it; 1 elsewhere. */
+		/** Positive below the ground of a cliff column, negative above it; 1 elsewhere. */
 		CARVE("carve"),
 		/**
-		 * Positive between the lowest corner of its cell and the exact ground of a cliff column outside an arch's opening,
-		 * negative elsewhere in it; -1 elsewhere.
+		 * Positive between the lowest corner of its cell and the exact ground of a cliff column, negative elsewhere in
+		 * it; -1 elsewhere.
 		 */
 		FILL("fill");
 
@@ -119,11 +119,6 @@ public record CoastFunction(WorldScale scale, Mode mode) implements DensityFunct
 
 		private float density(Columns columns, int k, int y) {
 			float solid = columns.top[k] - y;
-			float roof = columns.roof[k];
-			if (!Float.isNaN(roof)) {
-				// Below the floor of the opening or above its roof.
-				solid = Math.min(solid, Math.max(columns.floor[k] - y, y - roof));
-			}
 			float value = carve ? solid : Math.min(solid, y - columns.bottom[k]);
 			return Math.clamp(value / 16f, -1f, 1f);
 		}
@@ -138,10 +133,6 @@ public record CoastFunction(WorldScale scale, Mode mode) implements DensityFunct
 		final float[] top = new float[256];
 		/** A block under the lowest corner of the cell of each cliff column. */
 		final float[] bottom = new float[256];
-		/** The floor and the roof of the opening of an arch through each column, NaN where there is none. */
-		final float[] floor = new float[256];
-		final float[] roof = new float[256];
-		private final float[] hole = new float[2];
 		final boolean[] valid = new boolean[256];
 		/** The ground at the corners of the chunk's cells, 5 by 5, NaN until read. */
 		final float[] corners = new float[25];
@@ -161,9 +152,7 @@ public record CoastFunction(WorldScale scale, Mode mode) implements DensityFunct
 			}
 			int k = (z & 15) << 4 | (x & 15);
 			if (!valid[k]) {
-				top[k] = surface.cliff(x, z, hole);
-				floor[k] = hole[0];
-				roof[k] = hole[1];
+				top[k] = surface.cliff(x, z);
 				if (!Float.isNaN(top[k])) {
 					int cx = (x & 15) / CELL, cz = (z & 15) / CELL;
 					bottom[k] = Math.min(Math.min(corner(surface, cx, cz), corner(surface, cx + 1, cz)),
