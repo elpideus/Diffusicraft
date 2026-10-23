@@ -19,10 +19,10 @@ import java.util.concurrent.atomic.LongAdder;
  * without this, the world stops appearing at a tile's edge while the player flies on. Told where the players are and
  * how fast they move, the prefetcher plans the tiles their view will reach within {@value #HORIZON_SECONDS} s, the
  * earliest first, and one background thread computes them one at a time. The rivers and lakes of a tile need the
- * terrain of the eight tiles around it, so the plan takes in a ring of tiles around the view. A tile in a lake of the
- * coarse map needs all the lake's tiles, up to 64, which can lie beyond the ring: the prefetcher computes them right
- * after the tile, then the lake's water from them. A tile that chunk generation needs before the prefetcher gets to
- * it is computed by chunk generation as before, and the prefetcher skips it.
+ * terrain of the {@value Rivers#RING} rings of tiles around it, so the plan takes them in around the view. A tile in a
+ * lake of the coarse map needs all the lake's tiles, up to 64, which can lie beyond the rings: the prefetcher computes
+ * them right after the tile, then the lake's water from them. A tile that chunk generation needs before the
+ * prefetcher gets to it is computed by chunk generation as before, and the prefetcher skips it.
  *
  * <p>Model runs take turns, so such a tile takes longer while a prefetch runs beside it. Planning the earliest tiles
  * first keeps that rare. A plan covers at most a quarter of each field's tile cache, so prefetching does not evict the
@@ -110,7 +110,7 @@ public final class TerrainPrefetcher implements AutoCloseable {
 	}
 
 	/**
-	 * The tiles the travellers' view will reach within {@value #HORIZON_SECONDS} s and the ring of tiles around them,
+	 * The tiles the travellers' view will reach within {@value #HORIZON_SECONDS} s and the rings of tiles around them,
 	 * the earliest first and, among those reached at the same time, the nearest. Each field gets at most a quarter of
 	 * its tile cache.
 	 */
@@ -126,9 +126,10 @@ public final class TerrainPrefetcher implements AutoCloseable {
 				// Pixel i grows with Z and j with X.
 				double pi = (t.z() + t.vz() * slow * s) * ppb;
 				double pj = (t.x() + t.vx() * slow * s) * ppb;
-				// The tiles in view, and the ring around them that their rivers and lakes need.
-				for (int ti = TerrainField.tileOf(pi - r) - 1; ti <= TerrainField.tileOf(pi + r) + 1; ti++) {
-					for (int tj = TerrainField.tileOf(pj - r) - 1; tj <= TerrainField.tileOf(pj + r) + 1; tj++) {
+				// The tiles in view, and the rings around them that their rivers and lakes need.
+				int ring = Rivers.RING;
+				for (int ti = TerrainField.tileOf(pi - r) - ring; ti <= TerrainField.tileOf(pi + r) + ring; ti++) {
+					for (int tj = TerrainField.tileOf(pj - r) - ring; tj <= TerrainField.tileOf(pj + r) + ring; tj++) {
 						double di = (ti + 0.5) * TerrainField.TILE - pi, dj = (tj + 0.5) * TerrainField.TILE - pj;
 						Request request = new Request(t.field(), ti, tj, s, Math.hypot(di, dj));
 						tiles.merge(((long) ti << 32) | (tj & 0xffffffffL), request,

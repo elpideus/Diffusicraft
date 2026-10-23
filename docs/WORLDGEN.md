@@ -224,8 +224,8 @@ each tile it keeps three things:
   elevation, so summits are cold even between grid points.
 - **The distance to the coastline**, where there is a coast within 360 m of the tile. See [Coasts](#coasts).
 
-Tiles are computed once, by the first thread that needs them; other threads wait for that result. The 96 most recently
-used tiles stay in memory, about 40 MB, plus 134 KB for each tile with a coast: up to 13 MB more along the sea. The
+Tiles are computed once, by the first thread that needs them; other threads wait for that result. The 160 most recently
+used tiles stay in memory, about 66 MB, plus 134 KB for each tile with a coast: up to 21 MB more along the sea. The
 terrain seed is derived from the world seed, so worlds with the same seed match.
 
 ### Roughness
@@ -937,18 +937,20 @@ place.
   the lakes behind the steps of drowned valleys stand above the sea though their floors lie far below it, as Mjøsa and
   Hornindalsvatnet do behind the sills the ice left. A lake whose water would stand no higher than the sea is the sea's,
   and does not show.
-- **Lakes across tiles.** `BlockLakes` takes the basins that reach past the side of a tile. A block is two by two tiles;
-  blocks overlap by a tile, so every tile lies in four of them, and every side and corner lies inside one. One priority
-  flood over a block's four padded tiles finds its basins; it keeps those that stay 4 pixels inside the block but not
-  inside a single tile, which the tile already fills. A river that crosses an inner side of the block through such a
+- **Lakes across tiles.** `BlockLakes` takes the basins that reach past the side of a tile. A block is two by two or
+  three by three tiles; blocks of a size overlap, so every tile lies in four blocks of two by two and nine of three by
+  three, and every side and corner lies inside one of each. One priority flood over a block's padded tiles finds its
+  basins; it keeps those that stay 4 pixels inside the block but not inside a single tile, which the tile already fills.
+  Both sizes are needed: the flood of a larger block can join a basin to a hollow beside it that reaches past the
+  block's sides, where the smaller block keeps it apart. A river that crosses an inner side of the block through such a
   basin, near the point where it crosses, fills it to its own level, at most 1.5 m below the spill, and the rivers of
   the tiles around run over the lake's surface. The rain fills the others as it fills a tile's basins, unless a river
   passes within reach of the water: the block draws the rivers of its tiles to tell, as their paths need nothing but the
   tile. A river that crosses such a basin inside a tile, away from those crossing points, leaves it dry, as its level
-  depends on the lakes of other blocks. A tile takes the lakes of its four blocks; where they overlap, the highest water
-  wins. They are all real hollows of the terrain, so lakes that touch meet at one level, and the tiles on both sides of
-  a side, which share the blocks that reach it, agree on the water there. A tile and its rivers therefore read the eight
-  tiles around it.
+  depends on the lakes of other blocks. A tile takes the lakes of its thirteen blocks; where they overlap, the highest
+  water wins. They are all real hollows of the terrain, so lakes that touch meet at one level, and the tiles on both
+  sides of a side, which share the blocks that reach it, agree on the water there. A tile and its rivers therefore read
+  the two rings of tiles around it, 24 tiles.
 - **Great lakes.** `GreatLake` puts the water of a lake of the coarse map on the fine terrain. One priority flood over
   the padded tiles of all its cells, the water escaping into the sea, but not into the valleys the ice drowned, and past
   the edge of their padding, finds the hollows the terrain holds. The water stands at one level for the whole lake,
@@ -977,24 +979,28 @@ place.
   and more than 250 m in nearly half of them. One breach there runs 60 km through a range, as much as 650 m below the
   ground it cuts. A basin beside a river, within its reach but not crossed by it, stays dry, and so does a basin across
   tiles that a river crosses inside one of them rather than across a side: the river's level there depends on the lakes
-  of the other blocks, and so on the terrain of the 24 tiles around a tile rather than 8, which a new world and a fast
-  flight would wait for ([Generating ahead](PERFORMANCE.md#generating-ahead)). Lakes cover 4 to 8% of the land. A basin
-  that reaches past a block's edge, 15 km, stays dry unless it lies in a lake of the coarse map, and a river crosses it
-  as it crosses any other ground. Where a basin that stays dry for one of these reasons lies in a valley the ice
-  drowned, its floor below the sea, the sea's water stays in it at sea level, as a fjord. A depression of the coarse map
-  larger than 64 cells, or wider than 16 cells (123 km), is breached rather than filled, so the largest lakes of the
-  real world, like the Caspian or Lake Superior, stay dry: a lake waits for the terrain of all its tiles. Within 256
-  cells of the origin of seed 42, at least six depressions that would hold a lake are larger than 64 cells, one of them
-  153 cells, which would take more than a minute on the GPU and some 13 minutes on the CPU; within 128 cells, 31 of the
-  570 lakes are larger than 16 cells. Filling such a depression only as far as a lake of 16 cells, and cutting its way
-  out through the rest, was tried and dropped: in the mountains of seed 42 the way out ran as a canyon through the rim
-  and the ranges past it, rivers beside the lake ran up to 300 m above the ground, and where the lake's level met the
-  spill of a lake beside it the two drained into each other, a loop the discharge never leaves. In three other windows
-  of 12 by 12 tiles it changed nothing. The hollows of a great lake's tiles that do not hold water at its level stay
-  dry, and so do those whose water spills past the padding of its tiles. The coarse map cannot tell a fjord open to the
-  sea from a valley the ice drowned behind a step: a cell whose 5th percentile lies below the sea ends its rivers either
-  way, so where its tile has no sea, only such a trough, the river ends in the trough's lake, which has no way out.
-  Three of the 144 cells of seed 42's most glaciated coast do.
+  of the other blocks, and so on the terrain of the 48 tiles around a tile rather than 24, which a new world and a fast
+  flight would wait for ([Generating ahead](PERFORMANCE.md#generating-ahead)). Rivers run through many of the widest
+  basins, which then stay dry: in three windows of 12 by 12 tiles of seed 42, the blocks of three by three tiles hold
+  nearly all the water of the basins that only they see in one, two thirds in another, and under a tenth in the third,
+  where rivers run in the tiles of all of them. Lakes cover 4 to 12% of the land there, up to 3 points more than with
+  blocks of two by two tiles alone. A basin that reaches past the edge of a block of three by three tiles, 23 km, stays
+  dry unless it lies in a lake of the coarse map, and a river crosses it as it crosses any other ground. Where a basin
+  that stays dry for one of these reasons lies in a valley the ice drowned, its floor below the sea, the sea's water
+  stays in it at sea level, as a fjord. A depression of the coarse map larger than 64 cells, or wider than 16 cells
+  (123 km), is breached rather than filled, so the largest lakes of the real world, like the Caspian or Lake Superior,
+  stay dry: a lake waits for the terrain of all its tiles. Within 256 cells of the origin of seed 42, at least six
+  depressions that would hold a lake are larger than 64 cells, one of them 153 cells, which would take more than a
+  minute on the GPU and some 13 minutes on the CPU; within 128 cells, 31 of the 570 lakes are larger than 16 cells.
+  Filling such a depression only as far as a lake of 16 cells, and cutting its way out through the rest, was tried and
+  dropped: in the mountains of seed 42 the way out ran as a canyon through the rim and the ranges past it, rivers beside
+  the lake ran up to 300 m above the ground, and where the lake's level met the spill of a lake beside it the two
+  drained into each other, a loop the discharge never leaves. In three other windows of 12 by 12 tiles it changed
+  nothing. The hollows of a great lake's tiles that do not hold water at its level stay dry, and so do those whose water
+  spills past the padding of its tiles. The coarse map cannot tell a fjord open to the sea from a valley the ice drowned
+  behind a step: a cell whose 5th percentile lies below the sea ends its rivers either way, so where its tile has no
+  sea, only such a trough, the river ends in the trough's lake, which has no way out. Three of the 144 cells of seed
+  42's most glaciated coast do.
 
 ### Coasts
 

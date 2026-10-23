@@ -78,18 +78,18 @@ class TerrainPrefetcherTest {
 	}
 
 	@Test
-	void aStillPlayerGetsTheTilesWithinItsViewAndTheRingAround() {
+	void aStillPlayerGetsTheTilesWithinItsViewAndTheRingsAround() {
 		TerrainField field = new TerrainField(1, new SlowSource(0));
 		// In the middle of tile (0, 0), with a view that stays inside it.
 		double mid = TILE_BLOCKS / 2;
 		var plan = TerrainPrefetcher.plan(List.of(
 			new TerrainPrefetcher.Traveller(field, WorldScale.MEDIUM, mid, mid, 0, 0, 100)));
-		assertEquals(tiles(-1, -1, 1, 1), tiles(plan));
+		assertEquals(tiles(-2, -2, 2, 2), tiles(plan));
 		assertEquals(tile(0, 0), tile(plan.get(0).ti(), plan.get(0).tj()), "the tile in view first");
-		// Near the corner of four tiles, all four and the ring around them.
+		// Near the corner of four tiles, all four and the rings around them.
 		plan = TerrainPrefetcher.plan(List.of(
 			new TerrainPrefetcher.Traveller(field, WorldScale.MEDIUM, 10, -10, 0, 0, 100)));
-		assertEquals(tiles(-2, -2, 1, 1), tiles(plan));
+		assertEquals(tiles(-3, -3, 2, 2), tiles(plan));
 	}
 
 	@Test
@@ -101,7 +101,7 @@ class TerrainPrefetcherTest {
 			new TerrainPrefetcher.Traveller(field, WorldScale.MEDIUM, mid, mid, 33, 0, 100)));
 		double reach = mid + 33 * TerrainPrefetcher.HORIZON_SECONDS + 100;
 		int last = (int) Math.floor(reach / TILE_BLOCKS);
-		assertEquals(tiles(-1, -1, 1, last + 1), tiles(plan));
+		assertEquals(tiles(-2, -2, 2, last + 2), tiles(plan));
 		int next = 0;
 		for (TerrainPrefetcher.Request r : plan) {
 			if (r.ti() == 0 && r.tj() >= 0) {

@@ -3,19 +3,21 @@ package io.github.elpideus.diffusicraft.worldgen.river;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.IntFunction;
 
 /**
- * The lakes of one block of two by two tiles that reach past the sides of a single tile, which the {@link CellBasins}
- * of a tile cannot see whole.
+ * The lakes of one block of two by two or three by three tiles that reach past the sides of a single tile, which the
+ * {@link CellBasins} of a tile cannot see whole.
  *
- * <p>Block {@code (bi, bj)} covers tiles {@code bi} and {@code bi + 1} down and {@code bj} and {@code bj + 1} across,
- * so blocks overlap by a tile and every tile lies in four of them. The basins of a block come from one priority
- * flood over its four padded tiles, which agree to the bit where they overlap; a basin it keeps stays
- * {@value CellBasins#EDGE} pixels inside the block, and is left to the tile's own basins when it also stays that far
- * inside a single tile. Every basin of every block is a real hollow of the terrain, so a pixel under several lakes
- * takes the highest: the lakes then meet at one level wherever they touch, and the tiles beside a side, which share
- * the blocks that reach it, agree on the water there.
+ * <p>Block {@code (bi, bj)} of {@code n} by {@code n} tiles covers tiles {@code bi} to {@code bi + n - 1} down and
+ * {@code bj} to {@code bj + n - 1} across, so blocks of a size overlap and every tile lies in {@code n²} of them. The
+ * basins of a block come from one priority flood over its padded tiles, which agree to the bit where they overlap; a
+ * basin it keeps stays {@value CellBasins#EDGE} pixels inside the block, and is left to the tile's own basins when it
+ * also stays that far inside a single tile. Every basin of every block is a real hollow of the terrain, so a pixel
+ * under several lakes takes the highest: the lakes then meet at one level wherever they touch, and the tiles beside a
+ * side, which share the blocks that reach it, agree on the water there. Both sizes are needed: the flood of a larger
+ * block can join a basin to a hollow beside it that reaches past its sides, where a smaller one keeps it apart.
  *
  * <p>Such a lake is fed by a river when a river crosses one of the block's inner sides through it, near the node
  * where it crosses ({@link CellRivers#node}): it fills to that river's level, and at most to {@link CellRivers#DROP}
@@ -27,19 +29,16 @@ import java.util.function.IntFunction;
  * away from the nodes, inside one tile, leaves it dry: the river cannot feed it, as its level depends on the lakes of
  * the other blocks.
  *
- * <p>A lake larger than a block stays dry, unless it lies in a depression of the coarse map ({@link GreatLake}).
+ * <p>A lake larger than a block of three by three tiles stays dry, unless it lies in a depression of the coarse map
+ * ({@link GreatLake}).
  */
 final class BlockLakes {
-	static final BlockLakes EMPTY = new BlockLakes(null, null, null, null, null, 0);
+	static final BlockLakes EMPTY = new BlockLakes(0, null, null, null, null, null, 0);
 
 	private static final int TILE = TerrainField.TILE;
 	private static final int PAD = TerrainField.PAD;
 	private static final int SPAN = TerrainField.SPAN;
 	private static final int EDGE = CellBasins.EDGE;
-	/** Side of the block, pixels. */
-	static final int SIZE = 2 * TILE;
-	/** Side of the window the block floods: the block and the padding of its tiles. */
-	private static final int WINDOW = SIZE + 2 * PAD;
 	/**
 	 * Pixels around a crossing node that its river reaches: the straight part of the river, which runs
 	 * {@link CellRivers#STRAIGHT} pixels into each tile, and the widest a river gets on either side of it.
@@ -49,6 +48,8 @@ final class BlockLakes {
 	private static final int[] DI = {-1, -1, -1, 0, 0, 1, 1, 1};
 	private static final int[] DJ = {-1, 0, 1, -1, 1, -1, 0, 1};
 
+	/** Pixels across the block. */
+	private final int size;
 	/**
 	 * The lakes as runs along the rows of the block, as in {@link CellLakes}: the runs of row {@code i} are
 	 * {@code rowStart[i]} to {@code rowStart[i + 1]}, each from column {@code runFrom} to {@code runTo} (exclusive),
@@ -67,7 +68,9 @@ final class BlockLakes {
 	private static final byte FED = 1;
 	private static final byte GROUND = 2;
 
-	private BlockLakes(int[] rowStart, short[] runFrom, short[] runTo, float[] runLevel, byte[] runKind, int lakes) {
+	private BlockLakes(int size, int[] rowStart, short[] runFrom, short[] runTo, float[] runLevel, byte[] runKind,
+					   int lakes) {
+		this.size = size;
 		this.rowStart = rowStart;
 		this.runFrom = runFrom;
 		this.runTo = runTo;
@@ -85,45 +88,46 @@ final class BlockLakes {
 	}
 
 	/**
-	 * Finds the lakes of block {@code (bi, bj)} from the padded elevation of its tiles, their drowned valleys (see
-	 * TerrainField#paddedDrowned; null where a tile has none) and the rivers crossing them, in the order
-	 * {@code (bi, bj)}, {@code (bi, bj + 1)}, {@code (bi + 1, bj)}, {@code (bi + 1, bj + 1)}. {@code rivers} draws the
-	 * rivers of a tile from its index in that order, as {@link CellRivers#build} does over the tile's basins with no
-	 * lakes of the blocks around; it is asked only for tiles with rivers whose paths the block needs.
+	 * Finds the lakes of block {@code (bi, bj)} of {@code n} by {@code n} tiles from the padded elevation of its
+	 * tiles, their drowned valleys (see TerrainField#paddedDrowned; null where a tile has none) and the rivers crossing
+	 * them, row by row: tile {@code (bi + a, bj + b)} is at index {@code a * n + b}. {@code rivers} draws the rivers of
+	 * a tile from its index, as {@link CellRivers#build} does over the tile's basins with no lakes of the blocks
+	 * around; it is asked only for tiles with rivers whose paths the block needs.
 	 */
-	static BlockLakes build(float[][] tiles, long[][] drowned, CellFlows[] flows, IntFunction<CellRivers> rivers,
-							CellLakes.Climate climate, int bi, int bj) {
-		float[] e = window(tiles);
-		float[] fill = CellBasins.fill(e, window(drowned), WINDOW);
-		float[] crossing = crossings(tiles, flows);
-		CellRivers[] drawn = new CellRivers[4];
+	static BlockLakes build(int n, float[][] tiles, long[][] drowned, CellFlows[] flows,
+							IntFunction<CellRivers> rivers, CellLakes.Climate climate, int bi, int bj) {
+		int size = n * TILE, window = size + 2 * PAD;
+		float[] e = window(n, tiles);
+		float[] fill = CellBasins.fill(e, window(n, drowned), window);
+		float[] crossing = crossings(n, tiles, flows);
+		CellRivers[] drawn = new CellRivers[n * n];
 		CellRivers.Hit hit = new CellRivers.Hit();
-		Painter painter = new Painter();
-		int[] label = new int[WINDOW * WINDOW];
-		int[] pixels = new int[WINDOW * WINDOW];
+		Painter painter = new Painter(size);
+		int[] label = new int[window * window];
+		int[] pixels = new int[window * window];
 		int lakes = 0;
 		for (int first = 0; first < fill.length; first++) {
 			if (label[first] != 0 || !(fill[first] > e[first])) {
 				continue;
 			}
 			// Gather the basin, as in CellBasins.
-			int size = 0, low = first, tileOf = -1;
+			int count = 0, low = first, tile = -1;
 			boolean inside = true, ownTile = true;
 			float river = Float.NaN;
-			pixels[size++] = first;
+			pixels[count++] = first;
 			label[first] = 1;
-			for (int head = 0; head < size; head++) {
+			for (int head = 0; head < count; head++) {
 				int k = pixels[head];
-				int i = k / WINDOW - PAD, j = k % WINDOW - PAD;
-				if (i < EDGE || j < EDGE || i >= SIZE - EDGE || j >= SIZE - EDGE) {
+				int i = k / window - PAD, j = k % window - PAD;
+				if (i < EDGE || j < EDGE || i >= size - EDGE || j >= size - EDGE) {
 					inside = false;
 				}
-				int t = (i < TILE ? 0 : 2) + (j < TILE ? 0 : 1);
-				int li = i - (t >> 1) * TILE, lj = j - (t & 1) * TILE;
-				if (tileOf < 0) {
-					tileOf = t;
+				int a = tileOf(n, i), b = tileOf(n, j), t = a * n + b;
+				int li = i - a * TILE, lj = j - b * TILE;
+				if (tile < 0) {
+					tile = t;
 				}
-				if (t != tileOf || li < EDGE || lj < EDGE || li >= TILE - EDGE || lj >= TILE - EDGE) {
+				if (t != tile || li < EDGE || lj < EDGE || li >= TILE - EDGE || lj >= TILE - EDGE) {
 					ownTile = false;
 				}
 				if (e[k] < e[low]) {
@@ -134,19 +138,19 @@ final class BlockLakes {
 					river = c;
 				}
 				for (int d = 0; d < 8; d++) {
-					int ni = k / WINDOW + DI[d], nj = k % WINDOW + DJ[d];
-					if (ni < 0 || nj < 0 || ni >= WINDOW || nj >= WINDOW) {
+					int ni = k / window + DI[d], nj = k % window + DJ[d];
+					if (ni < 0 || nj < 0 || ni >= window || nj >= window) {
 						continue;
 					}
-					int n = ni * WINDOW + nj;
-					if (label[n] == 0 && fill[n] > e[n]) {
-						label[n] = 1;
-						pixels[size++] = n;
+					int m = ni * window + nj;
+					if (label[m] == 0 && fill[m] > e[m]) {
+						label[m] = 1;
+						pixels[count++] = m;
 					}
 				}
 			}
 			float spill = fill[first], floor = e[low];
-			if (!inside || ownTile || size < CellBasins.MIN_PIXELS || !(spill > 0f)
+			if (!inside || ownTile || count < CellBasins.MIN_PIXELS || !(spill > 0f)
 				|| spill - floor < CellBasins.MIN_DEPTH) {
 				continue;
 			}
@@ -155,18 +159,18 @@ final class BlockLakes {
 			if (fed) {
 				water = Math.min(river, spill - CellRivers.DROP);
 			} else {
-				int li = low / WINDOW - PAD, lj = low % WINDOW - PAD;
+				int li = low / window - PAD, lj = low % window - PAD;
 				water = CellLakes.rain(floor, spill, climate.wetness(bi * TILE + li, bj * TILE + lj));
-				if (nearRiver(pixels, size, e, water, flows, rivers, drawn, hit)) {
+				if (nearRiver(n, pixels, count, e, water, flows, rivers, drawn, hit)) {
 					continue;
 				}
 			}
 			if (water - floor < CellBasins.MIN_DEPTH || !(water > 0f)) {
 				continue;
 			}
-			for (int n = 0; n < size; n++) {
-				int k = pixels[n];
-				int i = k / WINDOW - PAD, j = k % WINDOW - PAD;
+			for (int q = 0; q < count; q++) {
+				int k = pixels[q];
+				int i = k / window - PAD, j = k % window - PAD;
 				if (e[k] < water) {
 					painter.add(i, j, water, fed ? FED : RAIN);
 				}
@@ -180,27 +184,28 @@ final class BlockLakes {
 	}
 
 	/**
-	 * Whether a river of the block's tiles passes within reach of the water of a basin, its {@code size}
+	 * Whether a river of the block's tiles passes within reach of the water of a basin, its {@code count}
 	 * {@code pixels} in the window below {@code water}, as {@link CellLakes} has it for the lakes of a tile. The basin
 	 * lies inside the block, and a river of a tile around the block keeps farther from it than it reaches, except
 	 * where it crosses into a tile of the block, which draws it too. {@code drawn} keeps the rivers drawn so far.
 	 */
-	private static boolean nearRiver(int[] pixels, int size, float[] e, float water, CellFlows[] flows,
+	private static boolean nearRiver(int n, int[] pixels, int count, float[] e, float water, CellFlows[] flows,
 									 IntFunction<CellRivers> rivers, CellRivers[] drawn, CellRivers.Hit hit) {
-		for (int n = 0; n < size; n++) {
-			int k = pixels[n];
+		int window = n * TILE + 2 * PAD;
+		for (int q = 0; q < count; q++) {
+			int k = pixels[q];
 			if (!(e[k] < water)) {
 				continue;
 			}
-			int i = k / WINDOW - PAD, j = k % WINDOW - PAD;
-			int t = (i < TILE ? 0 : 2) + (j < TILE ? 0 : 1);
+			int i = k / window - PAD, j = k % window - PAD;
+			int a = tileOf(n, i), b = tileOf(n, j), t = a * n + b;
 			if (flows[t].isEmpty()) {
 				continue;
 			}
 			if (drawn[t] == null) {
 				drawn[t] = rivers.apply(t);
 			}
-			if (drawn[t].nearest(i - (t >> 1) * TILE + 0.5, j - (t & 1) * TILE + 0.5, CellLakes.WIDEST, hit)) {
+			if (drawn[t].nearest(i - a * TILE + 0.5, j - b * TILE + 0.5, CellLakes.WIDEST, hit)) {
 				return true;
 			}
 		}
@@ -208,10 +213,10 @@ final class BlockLakes {
 	}
 
 	/**
-	 * Paints the lakes into tile {@code (oi, oj)} of the block, 0 or 1 each way. {@code level} and {@code fed} cover
-	 * tile-local rows and columns {@code -margin} to {@code TILE + margin}; a pixel takes the highest water over it,
-	 * and is fed where any lake at that level is. {@code ground}, in the frame of the padded tile, takes the ground
-	 * that a river sees around a fed lake, where that is higher. Either may be null.
+	 * Paints the lakes into tile {@code (oi, oj)} of the block, each from 0 to one less than its tiles across.
+	 * {@code level} and {@code fed} cover tile-local rows and columns {@code -margin} to {@code TILE + margin}; a pixel
+	 * takes the highest water over it, and is fed where any lake at that level is. {@code ground}, in the frame of the
+	 * padded tile, takes the ground that a river sees around a fed lake, where that is higher. Either may be null.
 	 */
 	void paint(int oi, int oj, int margin, float[] level, boolean[] fed, float[] ground) {
 		if (rowStart == null) {
@@ -219,7 +224,7 @@ final class BlockLakes {
 		}
 		int side = TILE + 2 * margin;
 		int i0 = oi * TILE, j0 = oj * TILE;
-		for (int i = Math.max(0, i0 - PAD); i < Math.min(SIZE, i0 + TILE + PAD); i++) {
+		for (int i = Math.max(0, i0 - PAD); i < Math.min(size, i0 + TILE + PAD); i++) {
 			int li = i - i0;
 			for (int r = rowStart[i], end = rowStart[i + 1]; r < end; r++) {
 				float value = runLevel[r];
@@ -254,26 +259,32 @@ final class BlockLakes {
 		}
 	}
 
+	/** The tile of a block of {@code n} by {@code n} tiles that its row or column {@code i} lies in or beside. */
+	private static int tileOf(int n, int i) {
+		return Math.clamp(Math.floorDiv(i, TILE), 0, n - 1);
+	}
+
 	/**
-	 * The drowned valleys of the block's window, as {@link CellBasins#fill} takes them, from those of its four padded
+	 * The drowned valleys of the block's window, as {@link CellBasins#fill} takes them, from those of its padded
 	 * tiles; null if none has any.
 	 */
-	private static long[] window(long[][] drowned) {
-		if (drowned[0] == null && drowned[1] == null && drowned[2] == null && drowned[3] == null) {
+	private static long[] window(int n, long[][] drowned) {
+		if (Arrays.stream(drowned).allMatch(Objects::isNull)) {
 			return null;
 		}
-		long[] mask = new long[(WINDOW * WINDOW + 63) >> 6];
-		for (int wi = 0; wi < WINDOW; wi++) {
+		int window = n * TILE + 2 * PAD;
+		long[] mask = new long[(window * window + 63) >> 6];
+		for (int wi = 0; wi < window; wi++) {
 			int i = wi - PAD;
-			int a = i < TILE ? 0 : 1;
-			for (int b = 0; b < 2; b++) {
-				// As in window(float[][]).
-				int from = b == 0 ? 0 : TILE + PAD, to = b == 0 ? TILE + PAD : WINDOW;
-				long[] tile = drowned[2 * a + b];
+			int a = tileOf(n, i);
+			for (int b = 0; b < n; b++) {
+				// As in window(int, float[][]).
+				int from = b == 0 ? 0 : b * TILE + PAD, to = b == n - 1 ? window : (b + 1) * TILE + PAD;
+				long[] tile = drowned[a * n + b];
 				int row = (i - a * TILE + PAD) * SPAN - b * TILE;
 				for (int wj = from; wj < to; wj++) {
 					if (TerrainField.isDrowned(tile, row + wj)) {
-						int k = wi * WINDOW + wj;
+						int k = wi * window + wj;
 						mask[k >> 6] |= 1L << k;
 					}
 				}
@@ -282,17 +293,18 @@ final class BlockLakes {
 		return mask;
 	}
 
-	/** The padded elevation of the block's window, from its four padded tiles. */
-	private static float[] window(float[][] tiles) {
-		float[] e = new float[WINDOW * WINDOW];
-		for (int wi = 0; wi < WINDOW; wi++) {
+	/** The padded elevation of the block's window, from its padded tiles. */
+	private static float[] window(int n, float[][] tiles) {
+		int window = n * TILE + 2 * PAD;
+		float[] e = new float[window * window];
+		for (int wi = 0; wi < window; wi++) {
 			int i = wi - PAD;
-			int a = i < TILE ? 0 : 1;
-			for (int b = 0; b < 2; b++) {
-				// Columns from the left tile up to the middle of the block, and from the right one after.
-				int from = b == 0 ? 0 : TILE + PAD, to = b == 0 ? TILE + PAD : WINDOW;
-				float[] tile = tiles[2 * a + b];
-				System.arraycopy(tile, (i - a * TILE + PAD) * SPAN + from - b * TILE, e, wi * WINDOW + from,
+			int a = tileOf(n, i);
+			for (int b = 0; b < n; b++) {
+				// Each tile's own columns, and the padding of the first and last beyond the block's sides.
+				int from = b == 0 ? 0 : b * TILE + PAD, to = b == n - 1 ? window : (b + 1) * TILE + PAD;
+				float[] tile = tiles[a * n + b];
+				System.arraycopy(tile, (i - a * TILE + PAD) * SPAN + from - b * TILE, e, wi * window + from,
 					to - from);
 			}
 		}
@@ -304,20 +316,23 @@ final class BlockLakes {
 	 * where they cross, in the frame of the window; NaN elsewhere. Both tiles beside a side find the same node and
 	 * the same rivers.
 	 */
-	private static float[] crossings(float[][] tiles, CellFlows[] flows) {
-		float[] crossing = new float[WINDOW * WINDOW];
+	private static float[] crossings(int n, float[][] tiles, CellFlows[] flows) {
+		int window = n * TILE + 2 * PAD;
+		float[] crossing = new float[window * window];
 		Arrays.fill(crossing, Float.NaN);
-		// The east sides of the two western tiles, and the south sides of the two northern ones.
-		int[][] sides = {{0, 3}, {2, 3}, {0, 1}, {1, 1}};
-		for (int[] s : sides) {
-			int t = s[0], side = s[1];
+		// The east sides of all tiles but the eastern ones, and the south sides of all but the southern ones.
+		for (int s = 0; s < 2 * n * n; s++) {
+			int t = s >> 1, side = (s & 1) == 0 ? 3 : 1;
+			if (side == 3 ? t % n == n - 1 : t / n == n - 1) {
+				continue;
+			}
 			float in = flows[t].inLevel[side], out = flows[t].outLevel[side];
 			if (Float.isNaN(in) && Float.isNaN(out)) {
 				continue;
 			}
 			float level = Float.isNaN(in) ? out : Float.isNaN(out) ? in : Math.min(in, out);
 			int node = CellRivers.node(tiles[t], side);
-			int i0 = (t >> 1) * TILE, j0 = (t & 1) * TILE;
+			int i0 = t / n * TILE, j0 = t % n * TILE;
 			// Along the river and across it, around the node.
 			for (int along = -REACH_ALONG; along < REACH_ALONG; along++) {
 				for (int across = -REACH_ACROSS; across <= REACH_ACROSS; across++) {
@@ -329,7 +344,7 @@ final class BlockLakes {
 						i = i0 + TILE + along;
 						j = j0 + node + across;
 					}
-					int k = (i + PAD) * WINDOW + j + PAD;
+					int k = (i + PAD) * window + j + PAD;
 					if (!(crossing[k] <= level)) {
 						crossing[k] = level;
 					}
@@ -341,11 +356,20 @@ final class BlockLakes {
 
 	/** Collects the runs of the lakes of a block, row by row. */
 	private static final class Painter {
+		private final int size;
 		/** Per row: the pixels painted, as column, kind and level. */
-		private final int[][] cols = new int[SIZE][];
-		private final byte[][] kinds = new byte[SIZE][];
-		private final float[][] levels = new float[SIZE][];
-		private final int[] counts = new int[SIZE];
+		private final int[][] cols;
+		private final byte[][] kinds;
+		private final float[][] levels;
+		private final int[] counts;
+
+		Painter(int size) {
+			this.size = size;
+			cols = new int[size][];
+			kinds = new byte[size][];
+			levels = new float[size][];
+			counts = new int[size];
+		}
 
 		void add(int i, int j, float level, byte kind) {
 			int n = counts[i];
@@ -365,13 +389,13 @@ final class BlockLakes {
 		}
 
 		BlockLakes runs(int lakes) {
-			int[] rowStart = new int[SIZE + 1];
+			int[] rowStart = new int[size + 1];
 			short[] from = new short[64], to = new short[64];
 			float[] level = new float[64];
 			byte[] kind = new byte[64];
 			int r = 0;
 			long[] order = new long[16];
-			for (int i = 0; i < SIZE; i++) {
+			for (int i = 0; i < size; i++) {
 				rowStart[i] = r;
 				int n = counts[i];
 				if (n == 0) {
@@ -414,8 +438,8 @@ final class BlockLakes {
 					r++;
 				}
 			}
-			rowStart[SIZE] = r;
-			return new BlockLakes(rowStart, Arrays.copyOf(from, r), Arrays.copyOf(to, r), Arrays.copyOf(level, r),
+			rowStart[size] = r;
+			return new BlockLakes(size, rowStart, Arrays.copyOf(from, r), Arrays.copyOf(to, r), Arrays.copyOf(level, r),
 				Arrays.copyOf(kind, r), lakes);
 		}
 	}

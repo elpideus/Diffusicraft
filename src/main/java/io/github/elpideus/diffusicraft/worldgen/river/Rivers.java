@@ -21,7 +21,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * blend into the terrain around. The water follows the ground in blocks ({@link RiverCourses}), so the rivers fall
  * where it drops away, over the ledges and cliffs in their way. Closed basins of the fine terrain hold lakes ({@link CellLakes}): the rivers fill the
  * basins they cross, and the rain the others. Basins that reach past the sides of a tile are found over blocks of two
- * by two tiles ({@link BlockLakes}), so the rivers and lakes of a tile need the terrain of the eight tiles around it.
+ * by two and three by three tiles ({@link BlockLakes}), so the rivers and lakes of a tile need the terrain of the
+ * {@value #RING} rings of tiles around it.
  * The depressions of the coarse map hold the largest lakes ({@link GreatLake}), found over all their tiles, which a
  * tile next to one needs too. Everything is computed on demand, on any thread, and comes out the same.
  */
@@ -29,6 +30,10 @@ public final class Rivers {
 	private static final Map<TerrainField, Rivers> ALL = new ConcurrentHashMap<>();
 	/** Cells whose rivers, blocks whose lakes, and tiles whose river paths are kept in memory, each. */
 	private static final int MAX_CELLS = 256;
+	/** Tiles on each side of a tile whose terrain its rivers and lakes need: those of its widest lake blocks. */
+	public static final int RING = 2;
+	/** Tiles across the two sizes of lake block. */
+	private static final int SMALL = 2, WIDE = RING + 1;
 	/** Widest a river gets, half-width in pixels (240 m). */
 	static final float MAX_HALF_WIDTH = 8f;
 	/** How much steeper than one block per block, horizontally, the banks are: horizontal blocks per block of height. */
@@ -52,6 +57,7 @@ public final class Rivers {
 	private final RiverNetwork network;
 	private final Map<Long, CompletableFuture<Cell>> cells = new ConcurrentHashMap<>();
 	private final Map<Long, CompletableFuture<Block>> blocks = new ConcurrentHashMap<>();
+	private final Map<Long, CompletableFuture<Block>> wideBlocks = new ConcurrentHashMap<>();
 	private final Map<Long, CompletableFuture<Paths>> paths = new ConcurrentHashMap<>();
 	private final AtomicLong clock = new AtomicLong();
 	private final ThreadLocal<ChunkColumns> chunks = ThreadLocal.withInitial(ChunkColumns::new);
@@ -351,17 +357,20 @@ public final class Rivers {
 		Cell cell = RiverNetwork.once(cells, RiverNetwork.key(ti, tj), () -> {
 			CellFlows flows = network.flows(ti, tj);
 			float[] tile = field.paddedTile(ti, tj);
-			// The lakes of the four blocks the tile lies in and of the coarse map, and the ground their rivers see.
+			// The lakes of the blocks the tile lies in, four of two by two tiles and nine of three by three, and of the
+			// coarse map, and the ground their rivers see.
 			float[] level = new float[CellLakes.SIDE * CellLakes.SIDE];
 			boolean[] fed = new boolean[level.length];
 			Arrays.fill(level, Float.NaN);
 			float[] raise = null;
-			for (int oi = 0; oi < 2; oi++) {
-				for (int oj = 0; oj < 2; oj++) {
-					BlockLakes block = block(ti - oi, tj - oj);
-					if (!block.isEmpty()) {
-						raise = raise == null ? nan(tile.length) : raise;
-						block.paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
+			for (int n = SMALL; n <= WIDE; n++) {
+				for (int oi = 0; oi < n; oi++) {
+					for (int oj = 0; oj < n; oj++) {
+						BlockLakes block = block(n, ti - oi, tj - oj);
+						if (!block.isEmpty()) {
+							raise = raise == null ? nan(tile.length) : raise;
+							block.paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
+						}
 					}
 				}
 			}
@@ -391,23 +400,27 @@ public final class Rivers {
 		return cell;
 	}
 
-	/** The lakes of block {@code (bi, bj)}, which covers tiles {@code bi} and {@code bi + 1} down, and so across. */
-	private BlockLakes block(int bi, int bj) {
-		Block block = RiverNetwork.once(blocks, RiverNetwork.key(bi, bj), () -> {
-			float[][] tiles = new float[4][];
-			long[][] drowned = new long[4][];
-			CellFlows[] flows = new CellFlows[4];
-			for (int t = 0; t < 4; t++) {
-				tiles[t] = field.paddedTile(bi + (t >> 1), bj + (t & 1));
-				drowned[t] = field.paddedDrowned(bi + (t >> 1), bj + (t & 1));
-				flows[t] = network.flows(bi + (t >> 1), bj + (t & 1));
+	/**
+	 * The lakes of block {@code (bi, bj)} of {@code n} by {@code n} tiles, which covers tiles {@code bi} to
+	 * {@code bi + n - 1} down, and so across.
+	 */
+	private BlockLakes block(int n, int bi, int bj) {
+		Map<Long, CompletableFuture<Block>> map = n == WIDE ? wideBlocks : blocks;
+		Block block = RiverNetwork.once(map, RiverNetwork.key(bi, bj), () -> {
+			float[][] tiles = new float[n * n][];
+			long[][] drowned = new long[n * n][];
+			CellFlows[] flows = new CellFlows[n * n];
+			for (int t = 0; t < n * n; t++) {
+				tiles[t] = field.paddedTile(bi + t / n, bj + t % n);
+				drowned[t] = field.paddedDrowned(bi + t / n, bj + t % n);
+				flows[t] = network.flows(bi + t / n, bj + t % n);
 			}
-			return new Block(BlockLakes.build(tiles, drowned, flows, t -> paths(bi + (t >> 1), bj + (t & 1)),
+			return new Block(BlockLakes.build(n, tiles, drowned, flows, t -> paths(bi + t / n, bj + t % n),
 				climate(), bi, bj));
 		});
 		block.lastUse = clock.incrementAndGet();
-		if (blocks.size() > MAX_CELLS) {
-			evict(blocks);
+		if (map.size() > MAX_CELLS) {
+			evict(map);
 		}
 		return block.lakes;
 	}

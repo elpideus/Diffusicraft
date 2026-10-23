@@ -4,6 +4,10 @@ import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.IntFunction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,23 +67,33 @@ class BlockLakesTest {
 		CellFlows of(int ti, int tj);
 	}
 
-	private static BlockLakes block(Terrain terrain, Drowned drowned, Flows flows, CellLakes.Climate climate, int bi,
-									int bj) {
-		float[][] tiles = new float[4][];
-		long[][] masks = new long[4][];
-		CellFlows[] crossings = new CellFlows[4];
-		for (int t = 0; t < 4; t++) {
-			tiles[t] = paddedTile(terrain, bi + (t >> 1), bj + (t & 1));
-			masks[t] = paddedDrowned(drowned, bi + (t >> 1), bj + (t & 1));
-			crossings[t] = flows.of(bi + (t >> 1), bj + (t & 1));
-		}
-		IntFunction<CellRivers> rivers = t -> CellRivers.build(tiles[t], CellBasins.of(tiles[t], masks[t], null),
-			crossings[t], SEED, bi + (t >> 1), bj + (t & 1), null);
-		return BlockLakes.build(tiles, masks, crossings, rivers, climate, bi, bj);
+	/** The blocks built so far, by everything they are built from: each tile of a test asks for the same ones. */
+	private static final Map<List<Object>, BlockLakes> BLOCKS = new ConcurrentHashMap<>();
+
+	/** Block {@code (bi, bj)} of {@code n} by {@code n} tiles. */
+	private static BlockLakes block(int n, Terrain terrain, Drowned drowned, Flows flows, CellLakes.Climate climate,
+									int bi, int bj) {
+		return BLOCKS.computeIfAbsent(List.of(n, terrain, Optional.ofNullable(drowned), flows, climate, bi, bj),
+			key -> build(n, terrain, drowned, flows, climate, bi, bj));
 	}
 
-	private static BlockLakes block(Terrain terrain, Flows flows, int bi, int bj) {
-		return block(terrain, null, flows, WET, bi, bj);
+	private static BlockLakes build(int n, Terrain terrain, Drowned drowned, Flows flows, CellLakes.Climate climate,
+									int bi, int bj) {
+		float[][] tiles = new float[n * n][];
+		long[][] masks = new long[n * n][];
+		CellFlows[] crossings = new CellFlows[n * n];
+		for (int t = 0; t < n * n; t++) {
+			tiles[t] = paddedTile(terrain, bi + t / n, bj + t % n);
+			masks[t] = paddedDrowned(drowned, bi + t / n, bj + t % n);
+			crossings[t] = flows.of(bi + t / n, bj + t % n);
+		}
+		IntFunction<CellRivers> rivers = t -> CellRivers.build(tiles[t], CellBasins.of(tiles[t], masks[t], null),
+			crossings[t], SEED, bi + t / n, bj + t % n, null);
+		return BlockLakes.build(n, tiles, masks, crossings, rivers, climate, bi, bj);
+	}
+
+	private static BlockLakes block(int n, Terrain terrain, Flows flows, int bi, int bj) {
+		return block(n, terrain, null, flows, WET, bi, bj);
 	}
 
 	/** The lakes of a tile without rivers of its own, over the blocks around it, as Rivers puts them together. */
@@ -90,10 +104,12 @@ class BlockLakesTest {
 		boolean[] fed = new boolean[level.length];
 		Arrays.fill(level, Float.NaN);
 		Arrays.fill(raise, Float.NaN);
-		for (int oi = 0; oi < 2; oi++) {
-			for (int oj = 0; oj < 2; oj++) {
-				block(terrain, drowned, flows, climate, ti - oi, tj - oj)
-					.paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
+		for (int n = 2; n <= Rivers.RING + 1; n++) {
+			for (int oi = 0; oi < n; oi++) {
+				for (int oj = 0; oj < n; oj++) {
+					block(n, terrain, drowned, flows, climate, ti - oi, tj - oj)
+						.paint(oi, oj, CellLakes.MARGIN, level, fed, raise);
+				}
 			}
 		}
 		CellBasins basins = CellBasins.of(tile, paddedDrowned(drowned, ti, tj), raise);
@@ -174,7 +190,32 @@ class BlockLakesTest {
 	}
 
 	@Test
-	void aBowlLargerThanABlockStaysDry() {
+	void aBowlWiderThanTwoTilesFillsTheNineTilesItCrosses() {
+		// From pixel 164 to 604 each way: across tiles 0 to 2, which only the block of three by three tiles at (0, 0)
+		// holds.
+		Terrain terrain = bowl(384, 384, 220f, 30f);
+		for (int bi = -1; bi <= 1; bi++) {
+			for (int bj = -1; bj <= 1; bj++) {
+				assertTrue(block(2, terrain, (i, j) -> CellFlows.NONE, bi, bj).isEmpty());
+			}
+		}
+		CellLakes[] tiles = new CellLakes[9];
+		for (int t = 0; t < 9; t++) {
+			tiles[t] = lakes(terrain, t / 3, t % 3);
+			assertEquals(0, tiles[t].lakeCount(), "the tile's own basins leave it out");
+		}
+		assertEquals(100f, tiles[4].level(TILE / 2, TILE / 2), 0f);
+		assertEquals(100f, tiles[0].level(TILE - 1, TILE - 1), 0f);
+		assertTrue(Float.isNaN(tiles[0].level(10, 10)), "the plateau is dry");
+		for (int a = 0; a < 9; a++) {
+			for (int b = a + 1; b < 9; b++) {
+				assertAgree(tiles[a], a / 3, a % 3, tiles[b], b / 3, b % 3);
+			}
+		}
+	}
+
+	@Test
+	void aBowlAcrossFourTilesStaysDry() {
 		Terrain terrain = bowl(TILE, TILE, 320f, 50f);
 		for (int t = 0; t < 4; t++) {
 			assertTrue(lakes(terrain, t >> 1, t & 1).isEmpty());
@@ -204,7 +245,12 @@ class BlockLakesTest {
 		Terrain terrain = bowl(128, 128, 20f, 10f);
 		for (int bi = -1; bi <= 0; bi++) {
 			for (int bj = -1; bj <= 0; bj++) {
-				assertTrue(block(terrain, (i, j) -> CellFlows.NONE, bi, bj).isEmpty());
+				assertTrue(block(2, terrain, (i, j) -> CellFlows.NONE, bi, bj).isEmpty());
+			}
+		}
+		for (int bi = -2; bi <= 0; bi++) {
+			for (int bj = -2; bj <= 0; bj++) {
+				assertTrue(block(3, terrain, (i, j) -> CellFlows.NONE, bi, bj).isEmpty());
 			}
 		}
 		CellLakes lakes = lakes(terrain, 0, 0);

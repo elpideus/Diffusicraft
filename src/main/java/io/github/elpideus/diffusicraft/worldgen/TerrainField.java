@@ -70,7 +70,11 @@ public final class TerrainField implements AutoCloseable {
 	static final int LOW = 8;
 	static final int CHANNELS = 9;
 
-	private static final int DEFAULT_MAX_TILES = 96;
+	/**
+	 * Tiles kept in memory, some 0.4 MB each and 134 KB more with a coast: enough for a quarter of them to hold the
+	 * plan of the prefetcher around a player, five by five tiles where it stands still.
+	 */
+	private static final int DEFAULT_MAX_TILES = 160;
 	private static final int MAX_COARSE_BLOCKS = 64;
 
 	/** Everything the generator reads at one column. */
