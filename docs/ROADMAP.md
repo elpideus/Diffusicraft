@@ -183,10 +183,13 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 - **Lakes larger than a block.** The fine basins wider than a block of three by three tiles outside the lakes of the
   coarse map, which stay dry for now: in two of three windows of 12 by 12 tiles of seed 42, two such basins each, up to
-  29 km across, would cover another 1.6 and 3.8% of the land. Also the depressions of more than 64 tiles, like those of
-  the Caspian or the Great Lakes, which are breached: a lake waits for the terrain of all its tiles, and one of 153
-  tiles near the origin of seed 42 would take more than a minute on the GPU and some 13 minutes on the CPU. Filling them
-  only as far as a lake of 16 tiles, with a cut through the rest, was tried and dropped
+  29 km across, would cover another 1.6 and 3.8% of the land. Blocks of four and five tiles across were measured on the
+  GPU and dropped: a new world's first chunk would wait 31 and 45 s instead of 22 s, for the terrain of 49 and 81 tiles
+  rather than 25, and in two windows of 12 by 12 tiles of seed 42 with land, they took the lakes from 6.7 to 7.1% of the
+  land in one and left the other at 1.7%, the larger blocks adding nothing to the smaller. Also the depressions of more
+  than 64 tiles, like those of the Caspian or the Great Lakes, which are breached: a lake waits for the terrain of all
+  its tiles, and one of 153 tiles near the origin of seed 42 would take more than a minute on the GPU and some 13
+  minutes on the CPU. Filling them only as far as a lake of 16 tiles, with a cut through the rest, was tried and dropped
   ([WORLDGEN.md](WORLDGEN.md#rivers)). Where such a basin lies in a valley the ice drowned behind a step, it keeps the
   sea's level instead of a lake above it. And a way out for the lakes of valleys the ice drowned behind a step in cells
   whose 5th percentile lies below the sea, which end their rivers as fjords do, since the coarse map cannot tell the two
