@@ -47,7 +47,8 @@ loom {
 	runs {
 		configureEach {
 			ideConfigGenerated true
-			vmArgs '-Xmx6G'
+			// The game itself, with the dev modpack, gets more than the servers and tests.
+			vmArgs it.name == 'client' ? '-Xmx24G' : '-Xmx6G'
 		}
 		client {
 			// Keep model downloads and worlds out of the source tree.
