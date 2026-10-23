@@ -33,6 +33,11 @@ public final class TerrainField implements AutoCloseable {
 	public static final int PAD = 32;
 	/** Side of a padded tile. */
 	public static final int SPAN = TILE + 2 * PAD;
+	/**
+	 * Pixels past the margin that a tile samples, so that every pixel of the padded tile knows its distance to the
+	 * coastline ({@link Coastline}), which eases the land down to the sea ({@link CoastSlope}).
+	 */
+	static final int EASING_MARGIN = Coastline.REACH + 1;
 	static final int GRID = 8;
 	static final int GRID_POINTS = TILE / GRID + 1;
 	/** Half-width of the box, in pixels, over which the mean elevation and the relief are measured (720 m). */
@@ -116,6 +121,8 @@ public final class TerrainField implements AutoCloseable {
 	public static final float COAST_REACH = (float) (Coastline.REACH * WorldScale.METERS_PER_PIXEL);
 
 	private final long seed;
+	/** The seed of the noise that sets each stretch of coast its slope. */
+	private final long slopeSeed;
 	private final long geologySeed;
 	private final Glaciation source;
 	private final int maxTiles;
@@ -144,6 +151,7 @@ public final class TerrainField implements AutoCloseable {
 
 	private TerrainField(long seed, long geologySeed, TerrainSource source, int maxTiles) {
 		this.seed = seed;
+		this.slopeSeed = seed ^ 0x5103E5EAL;
 		this.geologySeed = geologySeed;
 		this.source = new Glaciation(source, seed);
 		this.maxTiles = maxTiles;
@@ -463,10 +471,28 @@ public final class TerrainField implements AutoCloseable {
 	private FieldTile computeTile(int ti, int tj) {
 		int i0 = ti * TILE - PAD, j0 = tj * TILE - PAD;
 		int plane = SPAN * SPAN;
+		// The window reaches past the margin by the coastline's reach, so that every pixel of the padded tile knows its
+		// distance to the coastline and the easing of the land down to the sea comes out the same in every tile.
+		int wide = SPAN + 2 * EASING_MARGIN, widePlane = wide * wide;
+		float[] wideIceCut = new float[widePlane];
+		TerrainSample sample = source.sample(i0 - EASING_MARGIN, j0 - EASING_MARGIN, i0 + SPAN + EASING_MARGIN,
+			j0 + SPAN + EASING_MARGIN, wideIceCut);
+		float[] signed = Coastline.signed(sample.elevation(), wide, EASING_MARGIN, SPAN);
+		float[] elevation = new float[plane];
+		float[] climate = new float[TerrainSample.CLIMATE_CHANNELS * plane];
 		float[] iceCut = new float[plane];
-		TerrainSample sample = source.sample(i0, j0, i0 + SPAN, j0 + SPAN, iceCut);
-		float[] elevation = sample.elevation();
-		float[] climate = sample.climate();
+		for (int r = 0; r < SPAN; r++) {
+			int wideRow = (r + EASING_MARGIN) * wide + EASING_MARGIN;
+			System.arraycopy(sample.elevation(), wideRow, elevation, r * SPAN, SPAN);
+			System.arraycopy(wideIceCut, wideRow, iceCut, r * SPAN, SPAN);
+			for (int channel = 0; channel < TerrainSample.CLIMATE_CHANNELS; channel++) {
+				System.arraycopy(sample.climate(), channel * widePlane + wideRow, climate, channel * plane + r * SPAN,
+					SPAN);
+			}
+		}
+		if (signed != null) {
+			ease(elevation, climate, iceCut, signed, i0, j0);
+		}
 
 		// Summed-area tables of the elevation and its square give box means and variances in constant time.
 		int stride = SPAN + 1;
@@ -517,7 +543,34 @@ public final class TerrainField implements AutoCloseable {
 				drowned[px >> 6] |= 1L << px;
 			}
 		}
-		return new FieldTile(ti, tj, elevation, drowned, grid, Coastline.compute(elevation));
+		short[] coast = signed == null ? null : Coastline.store(signed, SPAN, Coastline.ORIGIN, Coastline.SIDE);
+		return new FieldTile(ti, tj, elevation, drowned, grid, coast);
+	}
+
+	/**
+	 * Eases the land of a padded tile down to the sea ({@link CoastSlope}), given its {@code signed} distances to the
+	 * coastline in pixels, and warms what it lowers by the lapse rate.
+	 */
+	private void ease(float[] elevation, float[] climate, float[] iceCut, float[] signed, int i0, int j0) {
+		int plane = SPAN * SPAN;
+		for (int r = 0; r < SPAN; r++) {
+			for (int c = 0; c < SPAN; c++) {
+				int px = r * SPAN + c;
+				float e = elevation[px], d = signed[px];
+				if (e <= 0f || d <= 0f || d >= Coastline.REACH) {
+					continue;
+				}
+				double slope = CoastSlope.slope(slopeSeed, (j0 + c + 0.5) * WorldScale.METERS_PER_PIXEL,
+					(i0 + r + 0.5) * WorldScale.METERS_PER_PIXEL);
+				float eased = CoastSlope.ease(e, d * WorldScale.METERS_PER_PIXEL, iceCut[px], slope);
+				if (eased != e) {
+					elevation[px] = eased;
+					// The lapse rate is negative: lowered ground is warmer.
+					climate[TerrainSample.TEMPERATURE * plane + px] += climate[TerrainSample.LAPSE_RATE * plane + px]
+						* (eased - e);
+				}
+			}
+		}
 	}
 
 	private void evictTiles() {

@@ -42,16 +42,32 @@ final class Coastline {
 	 * @param elevation {@link TerrainField#SPAN}² elevations in meters, as {@link TerrainField#paddedTile} has them
 	 */
 	static short[] compute(float[] elevation) {
-		float[] nearest = new float[SIDE * SIDE];
+		float[] signed = signed(elevation, SPAN, ORIGIN, SIDE);
+		return signed == null ? null : store(signed, SIDE, 0, SIDE);
+	}
+
+	/**
+	 * The signed distances to the coastline of the {@code size}² pixels at row and column {@code from} of a
+	 * {@code span}² elevation array, row-major in pixels: positive on land (elevation zero or more) and negative at
+	 * sea, up to {@link #REACH} either way, or {@code null} when the coastline comes within {@link #REACH} of none of
+	 * them. Every segment within reach of those pixels must lie inside the array: {@code from} must be at least
+	 * {@link #REACH}{@code + 1} and {@code from + size + REACH + 1} at most {@code span}.
+	 */
+	static float[] signed(float[] elevation, int span, int from, int size) {
+		if (from < REACH + 1 || from + size + REACH + 1 > span) {
+			throw new IllegalArgumentException("The coastline within reach of " + size + " pixels at " + from
+				+ " reaches outside " + span);
+		}
+		float[] nearest = new float[size * size];
 		Arrays.fill(nearest, FAR);
 		boolean found = false;
-		// Cell (r, c) lies between pixels r and r + 1, c and c + 1 of the padded tile.
-		int first = ORIGIN - REACH - 1, last = ORIGIN + SIDE - 1 + REACH;
+		// Cell (r, c) lies between pixels r and r + 1, c and c + 1 of the array.
+		int first = from - REACH - 1, last = from + size - 1 + REACH;
 		float[] ends = new float[8];
 		for (int r = first; r <= last; r++) {
 			for (int c = first; c <= last; c++) {
-				int k = r * SPAN + c;
-				float e00 = elevation[k], e01 = elevation[k + 1], e10 = elevation[k + SPAN], e11 = elevation[k + SPAN + 1];
+				int k = r * span + c;
+				float e00 = elevation[k], e01 = elevation[k + 1], e10 = elevation[k + span], e11 = elevation[k + span + 1];
 				int land = (e00 >= 0f ? 1 : 0) | (e01 >= 0f ? 2 : 0) | (e10 >= 0f ? 4 : 0) | (e11 >= 0f ? 8 : 0);
 				if (land == 0 || land == 15) {
 					continue;
@@ -59,7 +75,7 @@ final class Coastline {
 				found = true;
 				int segments = segments(land, e00, e01, e10, e11, ends);
 				for (int s = 0; s < segments; s++) {
-					stamp(nearest, r, c, ends[4 * s], ends[4 * s + 1], ends[4 * s + 2], ends[4 * s + 3]);
+					stamp(nearest, size, from, r, c, ends[4 * s], ends[4 * s + 1], ends[4 * s + 2], ends[4 * s + 3]);
 				}
 			}
 		}
@@ -67,13 +83,32 @@ final class Coastline {
 			return null;
 		}
 		boolean near = false;
-		short[] out = new short[SIDE * SIDE];
-		for (int a = 0; a < SIDE; a++) {
-			for (int b = 0; b < SIDE; b++) {
-				int k = a * SIDE + b;
+		float[] out = new float[size * size];
+		for (int a = 0; a < size; a++) {
+			for (int b = 0; b < size; b++) {
+				int k = a * size + b;
 				near |= nearest[k] < FAR;
-				int units = Math.round((float) Math.sqrt(nearest[k]) * UNIT);
-				out[k] = (short) (elevation[(ORIGIN + a) * SPAN + ORIGIN + b] >= 0f ? units : -units);
+				float d = (float) Math.sqrt(nearest[k]);
+				out[k] = elevation[(from + a) * span + from + b] >= 0f ? d : -d;
+			}
+		}
+		return near ? out : null;
+	}
+
+	/**
+	 * The {@link #SIDE}² stored distances of a tile, in units of 1/{@link #UNIT} pixel, from the {@code size}² signed
+	 * distances {@link #signed} gave, whose stored pixels start at row and column {@code from}; {@code null} when the
+	 * coastline comes within {@link #REACH} of none of the stored pixels.
+	 */
+	static short[] store(float[] signed, int size, int from, int side) {
+		boolean near = false;
+		short[] out = new short[side * side];
+		for (int a = 0; a < side; a++) {
+			for (int b = 0; b < side; b++) {
+				float d = signed[(from + a) * size + from + b];
+				near |= Math.abs(d) < REACH;
+				int units = Math.round(Math.abs(d) * UNIT);
+				out[a * side + b] = (short) (d >= 0f ? units : -units);
 			}
 		}
 		return near ? out : null;
@@ -133,23 +168,27 @@ final class Coastline {
 		ends[at + 3] = c1;
 	}
 
-	/** Lowers the squared distance of the stored pixels within reach of a segment in cell {@code (r, c)}. */
-	private static void stamp(float[] nearest, int r, int c, float r0, float c0, float r1, float c1) {
-		int aFrom = Math.max(0, r - REACH - ORIGIN), aTo = Math.min(SIDE - 1, r + 1 + REACH - ORIGIN);
-		int bFrom = Math.max(0, c - REACH - ORIGIN), bTo = Math.min(SIDE - 1, c + 1 + REACH - ORIGIN);
+	/**
+	 * Lowers the squared distance of the {@code size}² pixels at row and column {@code from} within reach of a segment
+	 * in cell {@code (r, c)}.
+	 */
+	private static void stamp(float[] nearest, int size, int from, int r, int c, float r0, float c0, float r1,
+							  float c1) {
+		int aFrom = Math.max(0, r - REACH - from), aTo = Math.min(size - 1, r + 1 + REACH - from);
+		int bFrom = Math.max(0, c - REACH - from), bTo = Math.min(size - 1, c + 1 + REACH - from);
 		for (int a = aFrom; a <= aTo; a++) {
 			// The segment as the pixel sees it: whole pixels to the cell, then the fractions.
-			float dr = r - ORIGIN - a;
+			float dr = r - from - a;
 			float ar = dr + r0, br = dr + r1;
 			for (int b = bFrom; b <= bTo; b++) {
-				float dc = c - ORIGIN - b;
+				float dc = c - from - b;
 				float ac = dc + c0, bc = dc + c1;
 				float sr = br - ar, sc = bc - ac;
 				float length = sr * sr + sc * sc;
 				float t = length > 0f ? Math.clamp(-(ar * sr + ac * sc) / length, 0f, 1f) : 0f;
 				float qr = ar + t * sr, qc = ac + t * sc;
 				float d = qr * qr + qc * qc;
-				int k = a * SIDE + b;
+				int k = a * size + b;
 				if (d < nearest[k]) {
 					nearest[k] = d;
 				}

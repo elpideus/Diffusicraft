@@ -14,7 +14,10 @@ import io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise;
  *
  * <p>Ground under the envelope keeps its height: the envelope is a soft minimum, which bites only on ground near it
  * ({@link #ease}). The easing fades out over the last {@code 1 - }{@value #FADE_FROM} of the reach, beyond which
- * the distance to the coastline is not measured. Where the ice lowered the land into fjords, whose sides drop
+ * the distance to the coastline is not measured. {@link TerrainField} eases the pixels of its tiles as it reads
+ * them, so the rivers and lakes, the biomes, the levels of detail and the ground in blocks all see the eased land,
+ * and a lake standing above the sea in a valley the ice drowned keeps its shores: the land under it was eased too,
+ * so its basin is a basin of the eased land. Where the ice lowered the land into fjords, whose sides drop
  * steeply into the water, the envelope climbs at {@value #SLOPE_ICE} m per meter instead: the sides stay steep,
  * but no longer sheer for hundreds of blocks. The envelope never falls under {@value #LEAST} m, so a steep shore
  * keeps a bank at the waterline rather than a flat flush with the water. Everything is in real meters, so the coasts
@@ -67,14 +70,9 @@ final class CoastSlope {
 	/**
 	 * The elevation of land {@code elevation} meters high, {@code d} meters inland of the coastline, eased under the
 	 * envelope of a coast of the given {@code slope} where the ice cut {@code iceCut} meters. Sea and ground beyond the
-	 * reach are left alone. If {@code rates} is given, it receives how fast the result changes with the elevation in
-	 * {@code rates[0]} and with the distance in {@code rates[1]}, for the gradient of the eased ground.
+	 * reach are left alone.
 	 */
-	static float ease(float elevation, double d, float iceCut, double slope, double[] rates) {
-		if (rates != null) {
-			rates[0] = 1;
-			rates[1] = 0;
-		}
+	static float ease(float elevation, double d, float iceCut, double slope) {
 		if (elevation <= 0f || d <= 0) {
 			return elevation;
 		}
@@ -82,25 +80,11 @@ final class CoastSlope {
 		if (weight <= 0) {
 			return elevation;
 		}
-		slope = slope(slope, iceCut);
-		double envelope = envelope(slope, d);
+		double envelope = envelope(slope(slope, iceCut), d);
 		// A soft minimum of the ground and the envelope: t / (1 + t^4)^(1/4) of the envelope, which is the ground
 		// itself well under it and the envelope well over it.
 		double t = elevation / envelope, t4 = t * t * t * t;
-		double q = Math.pow(1 + t4, -0.25), f = t * q, fRate = q * q * q * q * q;
-		double eased = envelope * f;
-		float result = (float) (elevation - weight * (elevation - eased));
-		if (rates != null) {
-			rates[0] = 1 - weight * (1 - fRate);
-			double envelopeRate = envelope > LEAST ? slope + 2 * RISE * d / (REACH * REACH) : 0;
-			double easedRate = (f - t * fRate) * envelopeRate;
-			double weightRate = 0;
-			if (d > FADE_FROM) {
-				double s = (d - FADE_FROM) / (REACH - FADE_FROM);
-				weightRate = -6 * s * (1 - s) / (REACH - FADE_FROM);
-			}
-			rates[1] = -weightRate * (elevation - eased) + weight * easedRate;
-		}
-		return result;
+		double eased = envelope * t * Math.pow(1 + t4, -0.25);
+		return (float) (elevation - weight * (elevation - eased));
 	}
 }

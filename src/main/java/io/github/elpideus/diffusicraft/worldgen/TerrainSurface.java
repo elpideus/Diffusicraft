@@ -10,8 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The height of the ground, in blocks: the terrain's elevation through the world's {@link WorldScale}, eased down to
- * the sea along the coasts ({@link CoastSlope}), with the knolls and small scarps of its {@link Roughness}, the
+ * The height of the ground, in blocks: the terrain's elevation through the world's {@link WorldScale}, which the
+ * {@link TerrainField} has already eased down to the sea along the coasts ({@link CoastSlope}), with the knolls and
+ * small scarps of its {@link Roughness}, the
  * {@link Gullies} cut into its slopes, the {@link Geology#ledge ledges} of the sedimentary beds standing out of them,
  * and cliffs along some of the sea's shores. The density, the materials, the rivers, the Hollows, the ceiling of each
  * chunk and the levels of detail all read the ground here, so they agree on where it is. The climate and the biomes
@@ -24,9 +25,9 @@ import java.util.List;
  * {@value #ROUGH_SHORE} blocks above the sea and from the inland end of the strip of cliffs, so the beaches stay
  * smooth, and it never lowers the ground to less than a block above the sea.
  *
- * <p>The coasts ease down to the water: the land within reach of the coastline is held under an envelope that climbs
- * gently from the waterline and lets any ground through farther inland, so a hill or a mountain by the sea has a
- * slope at its foot rather than a wall ({@link CoastSlope}). On some stretches of coast, where the land stands high a
+ * <p>The coasts ease down to the water: the terrain holds the land within reach of the coastline under an envelope
+ * that climbs gently from the waterline and lets any ground through farther inland, so a hill or a mountain by the sea
+ * has a slope at its foot rather than a wall ({@link CoastSlope}). On some stretches of coast, where the land stands high a
  * short way inland, the first part of the rise is gathered into a sea cliff. The strip along the coastline that
  * {@link #cliffZone} measures becomes a beach or a rock shelf a block above the water, then a face up to the cliff's
  * crest, then a bench at the crest until the ground climbs past it. A face takes at most {@value #CLIFF_HEIGHT_MIN} to
@@ -164,7 +165,6 @@ public final class TerrainSurface implements Erosion.Surface {
 	private final double pixelsPerBlock;
 	private final double lowest;
 	private final double highest;
-	private final long slopeSeed;
 	private final long cliffSeed;
 	/** Width of the strip of cliffs in pixels, and the margin beyond it out to sea. */
 	private final double zone;
@@ -198,7 +198,6 @@ public final class TerrainSurface implements Erosion.Surface {
 		this.pixelsPerBlock = scale.pixelsPerBlock();
 		this.lowest = scale.minSurfaceY();
 		this.highest = scale.maxSurfaceY();
-		this.slopeSeed = field.seed() ^ 0x5103E5EAL;
 		this.cliffSeed = field.seed() ^ 0x5EAC11FF5L;
 		this.zone = cliffZone(scale) * pixelsPerBlock;
 		this.margin = CLIFF_MARGIN * pixelsPerBlock;
@@ -245,7 +244,6 @@ public final class TerrainSurface implements Erosion.Surface {
 		float[] gradient = new float[2];
 		float elevation = field.elevation(i, j, gradient);
 		float coast = field.coast(i, j);
-		elevation = eased(i, j, elevation, coast, gradient);
 		// Meters per pixel to blocks per block.
 		double rate = scale.surfaceRate(elevation) * pixelsPerBlock;
 		double gx = gradient[1] * rate, gz = gradient[0] * rate;
@@ -290,35 +288,9 @@ public final class TerrainSurface implements Erosion.Surface {
 	public float shore(int x, int z) {
 		double cx = x + 0.5, cz = z + 0.5, i = cz * pixelsPerBlock, j = cx * pixelsPerBlock;
 		float coast = field.coast(i, j);
-		float elevation = eased(i, j, field.elevation(i, j), coast, null);
+		float elevation = field.elevation(i, j);
 		double y = scale.surfaceY(elevation);
 		return (float) Math.clamp(shore(cx, cz, i, j, coast, elevation, y), lowest, highest);
-	}
-
-	/**
-	 * The elevation at a point, {@code coast} pixels from the coastline, eased down to the sea ({@link CoastSlope}),
-	 * and, if {@code gradient} is given, its gradient in meters per pixel brought along with it.
-	 */
-	private float eased(double i, double j, float elevation, float coast, float[] gradient) {
-		if (elevation <= 0f || coast <= 0f || coast >= Coastline.REACH) {
-			return elevation;
-		}
-		double[] rates = gradient == null ? null : new double[2];
-		float eased = CoastSlope.ease(elevation, coast * WorldScale.METERS_PER_PIXEL, field.iceCut(i, j), slope(i, j),
-			rates);
-		if (gradient != null && eased != elevation) {
-			float[] normal = new float[2];
-			field.coast(i, j, normal);
-			double along = rates[1] * WorldScale.METERS_PER_PIXEL;
-			gradient[0] = (float) (rates[0] * gradient[0] + along * normal[0]);
-			gradient[1] = (float) (rates[0] * gradient[1] + along * normal[1]);
-		}
-		return eased;
-	}
-
-	/** The slope of the coast's envelope at a native pixel coordinate, in meters per meter. */
-	private double slope(double i, double j) {
-		return CoastSlope.slope(slopeSeed, j * WorldScale.METERS_PER_PIXEL, i * WorldScale.METERS_PER_PIXEL);
 	}
 
 	/**
@@ -415,9 +387,7 @@ public final class TerrainSurface implements Erosion.Surface {
 		}
 		double reach = (zone - coast) / length;
 		double ei = i + normal[0] * reach, ej = j + normal[1] * reach;
-		float elevation = CoastSlope.ease(field.elevation(ei, ej), zone * WorldScale.METERS_PER_PIXEL,
-			field.iceCut(ei, ej), slope(i, j), null);
-		top[0] = scale.surfaceY(elevation);
+		top[0] = scale.surfaceY(field.elevation(ei, ej));
 		return straight * GeoNoise.smoothstep(lowCliff, highCliff, top[0] - sea);
 	}
 

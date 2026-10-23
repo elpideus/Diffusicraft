@@ -209,8 +209,10 @@ Ground below the sea is never raised.
 
 `TerrainField` holds one seed's terrain. It reads the pipeline in tiles of 256 × 256 pixels (7.7 km), with a
 32-pixel margin, through `Uplift`, which [raises the mountains](#taller-mountains), and `Glaciation`, which drowns the
-valleys of cold mountain coasts into [fjords](#coasts). For
-each tile it keeps three things:
+valleys of cold mountain coasts into [fjords](#coasts). It samples 13 pixels more around the margin, the reach of the
+distance to the coastline and a cell, so that every pixel of the padded tile knows that distance and the land can be
+[eased down to the sea](#coasts) there, the same in every tile that holds the pixel. For each tile it keeps three
+things:
 
 - **The padded elevation.** Columns sample it with a Catmull-Rom spline.
 - **A grid every 8 pixels (240 m).** It holds slowly varying values, sampled bilinearly:
@@ -1034,10 +1036,13 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
   and the easing fades out over the last 30% of the reach. In the fjords, where the ice cut the land at sea level by
   40 m or more, the envelope steepens to 0.7 m per meter (35°, 47° at Ultra): their sides stay steep, the rock
   showing where the ledges and gullies cut them, but are no longer sheer for hundreds of blocks. The envelope never
-  falls under 2 m, so a steep shore keeps
-  a bank at the waterline rather than a flat flush with the water. The gradient of the eased ground is brought along
-  for the gullies and the ledges, which read the slope, and the beach band reads the eased ground. Everything is in
-  real meters, so the coasts have the same shape at every size and are exaggerated as the rest of the land is.
+  falls under 2 m, so a steep shore keeps a bank at the waterline rather than a flat flush with the water.
+  `TerrainField` eases the pixels of each tile as it reads them, before anything else sees them, so the rivers and
+  lakes, the biomes, the levels of detail, the cliffs and the ground in blocks all read the eased land: a lake that
+  stands above the sea in a valley the ice drowned, whose coastline runs under its water, keeps its shores, because
+  its basin is a basin of the eased land. For that, every pixel of the padded tile needs its distance to the
+  coastline, so a tile samples 13 pixels past its margin (see [`TerrainField`](#terrainfield)). Everything is in real
+  meters, so the coasts have the same shape at every size and are exaggerated as the rest of the land is.
 - **Sea cliffs.** On stretches of coast here and there, `TerrainSurface` gathers the first of the rise of the eased
   ground into a sea cliff. Across a strip 60 m wide (at least 6 blocks: 6 at Vanilla and Medium, 7.5 at Large, 15 at
   Grand, 30 at Extreme and 60 at Ultra), the ground becomes a shelf a block above the water, then a face up to the
@@ -1646,7 +1651,7 @@ Other searches still read the full terrain and can take a while on new land:
   tile borders with its gradient, that a coast just outside a tile counts and that saddles follow the mean of their
   corners. `CoastSlopeTest` checks the envelope the land is eased under: ground well under it keeps its height, steep
   ground is held near it, it never falls under its least, the easing fades out by the reach and only ever climbs
-  inland, higher ground stays higher, the fjords keep steeper walls, and its rates match its differences.
+  inland, higher ground stays higher, and the fjords keep steeper sides.
   `SeaCliffTest` builds straight coasts: some stretches of a high one get cliffs and fewer whole ones, no face is
   taller than its cap, a full cliff's foot is a shelf a block above the water, the cliff meets the ground at the end
   of its strip, the land eases down to the sea while a gentle coast keeps its shape, a low coast gets no cliffs and no
