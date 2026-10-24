@@ -27,14 +27,17 @@ import java.util.List;
  *
  * <p>The coasts ease down to the water: the terrain holds the land within reach of the coastline under an envelope
  * that climbs gently from the waterline and lets any ground through farther inland, so a hill or a mountain by the sea
- * has a slope at its foot rather than a wall ({@link CoastSlope}). On some stretches of coast, where the land stands high a
- * short way inland, the first part of the rise is gathered into a sea cliff. The strip along the coastline that
+ * has a slope at its foot rather than a wall ({@link CoastSlope}). On a few stretches of coast, where the land stands
+ * high a short way inland, the first part of the rise is gathered into a sea cliff. The strip along the coastline that
  * {@link #cliffZone} measures becomes a beach or a rock shelf a block above the water, then a face up to the cliff's
- * crest, then a bench at the crest until the ground climbs past it. A face takes at most {@value #CLIFF_HEIGHT_MIN} to
- * {@value #CLIFF_HEIGHT_MAX} m of the rise, by the stretch of coast; a lower coast's whole rise. Noise moves the face
- * across the strip, from the waterline, where the cliff drops straight into the sea, to most of the way inland. The
- * faces are too steep for the terrain's interpolation between cells, so the density takes the columns of a cliff and
- * those beside it one by one ({@link #cliff}).
+ * crest, then a bench at the crest until the ground climbs past it, or a slope at half the face's pace where the
+ * ground stands higher. A face is never sheer: it climbs {@value #FACE_STEEP_MIN} to {@value #FACE_STEEP_MAX} blocks
+ * a block on average, steepest halfway up, with its foot and crest rounded off, and takes at most
+ * {@value #CLIFF_HEIGHT_MIN} to {@value #CLIFF_HEIGHT_MAX} m of the rise, by the stretch of coast; a lower coast's
+ * whole rise. The crest rises and falls along the coast, down to {@value #CREST_LOW} of that. Noise moves the foot
+ * across the strip, from the waterline to halfway inland, and in and out round buttresses and coves a few blocks
+ * across. The faces are too steep for the terrain's interpolation between cells, so the density takes the columns of
+ * a cliff and those beside it one by one ({@link #cliff}).
  *
  * <p>The terrain's seas are flats near the shore, a metre deep or less for hundreds of meters, where real ones deepen
  * along a beach's equilibrium profile. Out to sea, the floor lies at least as deep as that profile reaches, up to
@@ -69,9 +72,9 @@ public final class TerrainSurface implements Erosion.Surface {
 	/** Narrowest that strip gets, in blocks, so that the smaller scales still have cliffs. */
 	private static final double CLIFF_ZONE_BLOCKS = 6;
 	/** Real wavelength of the noise that picks the stretches of coast with cliffs, in meters. */
-	private static final double CLIFF_WAVELENGTH = 2500;
+	private static final double CLIFF_WAVELENGTH = 1500;
 	/** The noise, in about [-1, 1], from which a stretch of coast has cliffs, and at which it has them whole. */
-	private static final double CLIFF_FROM = 0.2;
+	private static final double CLIFF_FROM = 0.3;
 	private static final double CLIFF_TO = 0.4;
 	/**
 	 * Real height of the ground at the inland end of the strip, in meters, below which there is no cliff and above which
@@ -85,15 +88,39 @@ public final class TerrainSurface implements Erosion.Surface {
 	 * Real height of the tallest face a cliff takes, in meters, on the stretches of coast with the lowest cliffs and
 	 * with the highest; in blocks, at least {@link #CLIFF_HEIGHT_BLOCKS_MIN} and {@link #CLIFF_HEIGHT_BLOCKS_MAX}.
 	 */
-	private static final float CLIFF_HEIGHT_MIN = 8;
-	private static final float CLIFF_HEIGHT_MAX = 30;
+	private static final float CLIFF_HEIGHT_MIN = 6;
+	private static final float CLIFF_HEIGHT_MAX = 16;
 	private static final double CLIFF_HEIGHT_BLOCKS_MIN = 4;
 	private static final double CLIFF_HEIGHT_BLOCKS_MAX = 8;
-	/** Where the face stands across the strip, as a share of its width: on average and how far noise moves it. */
-	private static final double FACE = 0.35;
-	private static final double FACE_SPREAD = 0.4;
-	/** Wavelength of the noise that moves the face, in strip widths. */
+	/** The least share of that height the crest keeps as it rises and falls along the coast. */
+	private static final double CREST_LOW = 0.4;
+	/** Real wavelength of the noise that raises and lowers the crest, in meters. */
+	private static final double CREST_WAVELENGTH = 400;
+	/** How steep a face climbs on average, in blocks per block: from 50° to 72°. */
+	private static final double FACE_STEEP_MIN = 1.2;
+	static final double FACE_STEEP_MAX = 3;
+	/** Real wavelength of the noise that sets how steep the faces climb, in meters. */
+	private static final double FACE_STEEP_WAVELENGTH = 300;
+	/**
+	 * The most of the strip's width a face runs across: the narrow strips of the smaller sizes keep their cliffs
+	 * steeper than {@link #FACE_STEEP_MAX}.
+	 */
+	static final double FACE_RUN = 0.35;
+	/** How much the face's foot and crest are rounded off: half as steep as its average, and its middle steeper. */
+	static final double FACE_ROUNDING = 0.5;
+	/** How steep the ground climbs above the crest until it meets the land, as a share of the face's steepness. */
+	private static final double ABOVE_CREST = 0.5;
+	/** Where the face's foot stands across the strip, as a share of its width: its mean and how far noise moves it. */
+	private static final double FACE = 0.25;
+	private static final double FACE_SPREAD = 0.25;
+	/** Wavelength of the noise that moves the foot, in strip widths. */
 	private static final double FACE_WAVELENGTH = 3;
+	/**
+	 * How far the foot moves in and out round the buttresses and coves of the face, as a share of the strip's width,
+	 * and the wavelength of the noise that moves it, in strip widths.
+	 */
+	private static final double FACE_JAG = 0.08;
+	private static final double FACE_JAG_WAVELENGTH = 0.3;
 	/**
 	 * Blocks out to sea from the coastline that the density still takes one by one beside a cliff: the interpolation
 	 * would smear the cliff over a cell, 4 blocks, into the sea.
@@ -332,27 +359,59 @@ public final class TerrainSurface implements Erosion.Surface {
 		return (float) y(cx, cz);
 	}
 
+	/** How much of a cliff stands at column {@code (x, z)}, from 0 to 1, as {@link #strength} has it. */
+	double cliffStrength(int x, int z) {
+		double cx = x + 0.5, cz = z + 0.5, i = cz * pixelsPerBlock, j = cx * pixelsPerBlock;
+		float coast = field.coast(i, j);
+		return coast > 0f && coast < zone ? strength(cx, cz, i, j, coast, new double[1], new float[2]) : 0;
+	}
+
 	/**
 	 * Gathers the first of the rise of the ground across the strip of cliffs into a face, at a point {@code coast}
 	 * pixels inland.
 	 */
 	private double sharpen(double x, double z, double i, double j, float coast, double y) {
 		double[] top = new double[1];
-		double k = strength(x, z, i, j, coast, top, new float[2]);
+		float[] normal = new float[2];
+		double k = strength(x, z, i, j, coast, top, normal);
 		if (k <= 0) {
 			return y;
 		}
-		// The crest stays the ground's own height at the end of the strip where that is low; it fades there into the
-		// ground's details.
+		// The cliff fades into the ground's details at the end of the strip.
 		k *= 1 - GeoNoise.smoothstep(0.7 * zone, zone, coast);
-		double wavelength = FACE_WAVELENGTH * zone / pixelsPerBlock;
-		double face = zone * (FACE + FACE_SPREAD * GeoNoise.fractal(cliffSeed + 1, x / wavelength, z / wavelength, 2));
-		double mpb = scale.metersPerBlock();
+		// The cliff's shape changes along the coast, never across it: it is read at the coastline, down the normal.
+		double length = Math.sqrt(normal[0] * normal[0] + normal[1] * normal[1]), back = coast / length / pixelsPerBlock;
+		double cx = x - normal[1] * back, cz = z - normal[0] * back, mpb = scale.metersPerBlock();
+		// The crest: the stretch's tallest face, rising and falling along the coast, and never above the land behind.
 		double tallest = lerp(GeoNoise.smoothstep(-0.5, 0.5,
-			GeoNoise.fractal(cliffSeed + 2, x * mpb / CLIFF_WAVELENGTH, z * mpb / CLIFF_WAVELENGTH, 2)),
+			GeoNoise.fractal(cliffSeed + 2, cx * mpb / CLIFF_WAVELENGTH, cz * mpb / CLIFF_WAVELENGTH, 2)),
 			cliffHeightMin, cliffHeightMax);
-		double crest = Math.min(top[0], sea + tallest);
-		double sharp = coast < face ? Math.min(y, shelf) : Math.max(y, crest);
+		double rises = lerp(GeoNoise.smoothstep(-0.5, 0.5,
+			GeoNoise.fractal(cliffSeed + 3, cx * mpb / CREST_WAVELENGTH, cz * mpb / CREST_WAVELENGTH, 2)), CREST_LOW, 1);
+		double crest = Math.max(Math.min(top[0], sea + tallest * rises), shelf + 1);
+		double height = crest - shelf;
+		// How steep the face climbs, in blocks per block, and so how far across the strip it runs, in pixels.
+		double steep = Math.max(lerp(GeoNoise.smoothstep(-0.5, 0.5, GeoNoise.fractal(cliffSeed + 4,
+				cx * mpb / FACE_STEEP_WAVELENGTH, cz * mpb / FACE_STEEP_WAVELENGTH, 2)), FACE_STEEP_MIN, FACE_STEEP_MAX),
+			height * pixelsPerBlock / (FACE_RUN * zone));
+		double run = height / steep * pixelsPerBlock;
+		// The foot wanders across the strip along the coast, and in and out round buttresses and coves; the face stays
+		// on land and ends before the cliff fades.
+		double wavelength = FACE_WAVELENGTH * zone / pixelsPerBlock, jag = FACE_JAG_WAVELENGTH * zone / pixelsPerBlock;
+		double foot = Math.clamp(zone * (FACE + FACE_SPREAD * GeoNoise.fractal(cliffSeed + 1, cx / wavelength,
+			cz / wavelength, 2) + FACE_JAG * GeoNoise.fractal(cliffSeed + 5, cx / jag, cz / jag, 3)), 0,
+			0.7 * zone - run);
+		// Seaward of the foot, the ground comes down to the shelf. Up the face, it is the face, steepest halfway up.
+		// Above the crest it climbs on at half the face's pace until it meets the ground, or stays at the crest as a
+		// bench until the ground climbs past it.
+		double t = (coast - foot) / run, sharp;
+		if (t <= 0) {
+			sharp = Math.min(y, shelf);
+		} else if (t < 1) {
+			sharp = shelf + height * (t + FACE_ROUNDING * (t * t * (3 - 2 * t) - t));
+		} else {
+			sharp = Math.clamp(y, crest, crest + ABOVE_CREST * steep * (coast - foot - run) / pixelsPerBlock);
+		}
 		return y + k * (sharp - y);
 	}
 

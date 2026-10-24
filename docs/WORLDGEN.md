@@ -1046,26 +1046,35 @@ takes about 1 ms on one core for a straight coast and 14 ms for a tile full of i
 - **Sea cliffs.** On stretches of coast here and there, `TerrainSurface` gathers the first of the rise of the eased
   ground into a sea cliff. Across a strip 60 m wide (at least 6 blocks: 6 at Vanilla and Medium, 7.5 at Large, 15 at
   Grand, 30 at Extreme and 60 at Ultra), the ground becomes a shelf a block above the water, then a face up to the
-  cliff's crest, then a bench at the crest until the eased ground climbs past it. The face takes at most 8 to 30 m of
-  the rise, by noise 2.5 km across (12 to 46 blocks at Ultra, at least 4 to 8 blocks in the smaller sizes); a lower
-  coast's whole rise. The face wanders across the strip with noise 3 strips long, and the cliff fades into the
-  ground's own details over the last 30% of the strip. A cliff needs:
+  cliff's crest, then a bench at the crest until the eased ground climbs past it, or a slope at half the face's pace
+  where the ground stands higher. The face takes at most 6 to 16 m of the rise, by noise 1.5 km across (9 to 25 blocks
+  at Ultra, at least 4 to 8 blocks in the smaller sizes); a lower coast's whole rise. Its crest rises and falls along
+  the coast with noise 400 m across, down to 40% of that. A face is never sheer: it climbs 1.2 to 3 blocks a block on
+  average (50° to 72°), by noise 300 m across, a quarter steeper halfway up, and half as steep at its rounded foot and
+  crest; it runs across at most 35% of the strip, so the narrow strips of the smaller sizes keep it steeper, up to 3.8
+  blocks a block on average. Its foot wanders across the strip, from the waterline to halfway inland, with noise 3
+  strips long, and in and out by 8% of the strip round buttresses and coves 0.3 strips across. The noises are read at
+  the coastline, down the coast's normal, so a cliff's shape changes along the coast and never across it. The cliff
+  fades into the ground's own details over the last 30% of the strip. A cliff needs:
   - land at least 8 m above the sea at the end of the strip, and 20 m for a full cliff (1.5 and 3 blocks at least);
   - a straight coast, not a spit or a narrow inlet, where the gradient of the distance shrinks;
-  - a stretch of coast where noise 2.5 km across allows cliffs: a fifth of the coast has some cliff, and a twentieth
-    the whole face. They fade out over a few hundred meters between stretches.
+  - a stretch of coast where noise 1.5 km across allows cliffs: a tenth of the high coast has some cliff, and one
+    part in 30 the whole face. They fade out over a few hundred meters between stretches.
 
   Before, the noise allowed cliffs on most of the coast, whole on a fifth, wherever the land stood 4 m high at the end
-  of the strip, and each took the whole rise of the ground within the strip into one face, which at mountain coasts
-  and in the fjords stood 100 to 470 blocks tall. The density takes the ground of the
-  cliff columns, and of the sea within 5 blocks of them, block by block (`CoastFunction`): `coast_fill` is solid from
-  the lowest corner of the column's 4-block cell up to the exact ground, and `coast_carve` is air above it. So the
-  face is sheer, and the rivers, which come after, still cut through it. The fill starts that low because deep in the
-  rock a corner on the cliff is only as solid as its caves let it be, a fraction of how empty a corner out at sea is:
-  between them, the face would be undercut from the sea floor up to the interpolated ground. Only the cells across a
-  face reach down to the sea floor, so the caves under the cliff stay. The top of a cliff is too high for the beach
-  band and keeps the biome inland; the shelf at its foot is beach. Like other cliffs, the face shows the rock (see
-  [the ground](#the-ground)).
+  of the strip, and each took the whole rise of the ground within the strip into one face, which at mountain coasts and
+  in the fjords stood 100 to 470 blocks tall. Then the faces were sheer, 8 to 30 m (up to 46 blocks at Ultra), on a
+  fifth of the high coast and whole on a twentieth: seen from the beach, a wall a kilometer long. Across 30 km of one
+  world's coast, the tallest step from one column to the next was 26 blocks or more on one transect in a hundred; now it
+  is 7, and the tallest anywhere 9. The faces are too steep for the density's interpolation, so it takes the ground of
+  the cliff columns, and of the sea within 5 blocks of them, block by block (`CoastFunction`): `coast_fill` is solid
+  from the lowest corner of the column's 4-block cell up to the exact ground, and `coast_carve` is air above it. So the
+  face keeps its shape, and the rivers, which come after, still cut through it. The fill starts that low because deep in
+  the rock a corner on the cliff is only as solid as its caves let it be, a fraction of how empty a corner out at sea
+  is: between them, the face would be undercut from the sea floor up to the interpolated ground. Only the cells across a
+  face reach down to the sea floor, so the caves under the cliff stay. The top of a cliff is too high for the beach band
+  and keeps the biome inland; the shelf at its foot is beach. Like other cliffs, the face shows the rock (see [the
+  ground](#the-ground)).
 - **The sea floor.** The terrain's seas are flats near the shore: half of the sea 120 m from land is less than 0.3 m
   deep, and 480 m from land less than 3 m. A real sea floor deepens along a beach's equilibrium profile, `0.1 d^(2/3)`
   meters at `d` meters out (Dean's profile for fine sand): 2 m deep 100 m out and 5 m deep 360 m out. So the floor

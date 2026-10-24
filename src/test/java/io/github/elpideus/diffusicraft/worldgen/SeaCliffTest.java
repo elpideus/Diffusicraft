@@ -52,19 +52,54 @@ class SeaCliffTest {
 		return y;
 	}
 
-	/** The highest rise between neighbouring columns of a profile, and where it is. */
-	private static int face(float[] profile) {
-		int best = 0;
-		for (int k = 1; k < profile.length - 1; k++) {
-			if (profile[k + 1] - profile[k] > profile[best + 1] - profile[best]) {
-				best = k;
-			}
+	/** The highest climb between neighbouring columns of a profile, from column {@code from} on. */
+	private static float steepest(float[] profile, int from) {
+		float steepest = 0;
+		for (int k = from; k < profile.length - 1; k++) {
+			steepest = Math.max(steepest, profile[k + 1] - profile[k]);
 		}
-		return best;
+		return steepest;
 	}
 
-	private static float rise(float[] profile, int at) {
-		return profile[at + 1] - profile[at];
+	/** The steepest a cliff's face climbs at a scale, in blocks per block, halfway up a face of the steepest pace. */
+	private static double steepestFace(WorldScale scale) {
+		double pace = Math.max(TerrainSurface.FACE_STEEP_MAX,
+			TerrainSurface.cliffHeightMax(scale) / (TerrainSurface.FACE_RUN * TerrainSurface.cliffZone(scale)));
+		return (1 + TerrainSurface.FACE_ROUNDING / 2) * pace;
+	}
+
+	/** Whether a cliff stands whole at the coastline at {@code z}. */
+	private static boolean whole(TerrainSurface surface, WorldScale scale, int z) {
+		return surface.cliffStrength(coast(scale) + 1, z) > 0.99;
+	}
+
+	/**
+	 * Where the shelf of a whole cliff ends on a profile: the last column a block above the water, or lower, where a
+	 * gully reaches the sea.
+	 */
+	private static int foot(float[] profile, WorldScale scale) {
+		float shelf = scale.seaLevel() + 0.5f;
+		int foot = 10;
+		while (foot + 1 < profile.length && profile[foot + 1] < shelf + 0.25f) {
+			foot++;
+		}
+		return foot;
+	}
+
+	/**
+	 * Where the face of a whole cliff ends on a profile: from its foot up to where its climb, past its steepest, slows
+	 * to half of that. The crest and the ground above it climb no faster.
+	 */
+	private static int crest(float[] profile, int foot) {
+		float peak = 0;
+		for (int k = foot; k < profile.length - 1; k++) {
+			float step = profile[k + 1] - profile[k];
+			peak = Math.max(peak, step);
+			if (step < 0.5f * peak) {
+				return k;
+			}
+		}
+		return profile.length - 1;
 	}
 
 	/** Whether a cliff shapes any column of the strip at {@code z}. */
@@ -82,67 +117,94 @@ class SeaCliffTest {
 	void someStretchesOfAHighCoastHaveCliffs() {
 		for (WorldScale scale : new WorldScale[]{WorldScale.ULTRA, WorldScale.MEDIUM}) {
 			TerrainSurface surface = surface(HIGH, scale);
-			double tall = 0.8 * TerrainSurface.cliffHeightMin(scale);
-			int cliffs = 0, faces = 0, profiles = 0;
+			int cliffs = 0, whole = 0, profiles = 0;
 			for (int z = 0; z < 60_000 / scale.metersPerBlock(); z += (int) (250 / scale.metersPerBlock())) {
 				if (hasCliff(surface, scale, z)) {
 					cliffs++;
 				}
-				float[] y = profile(surface, scale, z, true);
-				if (rise(y, face(y)) >= tall) {
-					faces++;
+				if (whole(surface, scale, z)) {
+					whole++;
 				}
 				profiles++;
 			}
 			// Cliffs are rare: on a stretch of coast here and there, and whole on fewer.
-			double share = cliffs / (double) profiles, whole = faces / (double) profiles;
-			assertTrue(share > 0.08 && share < 0.45, scale + ": " + cliffs + " cliffs in " + profiles);
-			assertTrue(whole > 0.03 && whole < share, scale + ": " + faces + " faces in " + profiles);
+			double share = cliffs / (double) profiles, wholeShare = whole / (double) profiles;
+			assertTrue(share > 0.04 && share < 0.2, scale + ": " + cliffs + " cliffs in " + profiles);
+			assertTrue(wholeShare > 0.01 && wholeShare < share, scale + ": " + whole + " whole cliffs in " + profiles);
 		}
+	}
+
+	@Test
+	void aCliffIsNeverAWall() {
+		for (WorldScale scale : WorldScale.values()) {
+			TerrainSurface surface = surface(HIGH, scale);
+			double steepest = steepestFace(scale);
+			float found = 0;
+			for (int z = 0; z < 60_000 / scale.metersPerBlock(); z += 7) {
+				if (!hasCliff(surface, scale, z)) {
+					continue;
+				}
+				// From the sea beside the coastline, whose floor the smaller sizes take down in steps.
+				float climb = steepest(profile(surface, scale, z, true), 9);
+				assertTrue(climb <= steepest + 0.25, scale + " z " + z + ": a column climbs " + climb + " blocks");
+				found = Math.max(found, climb);
+			}
+			assertTrue(found > 1, scale + ": the steepest climb " + found);
+		}
+		// At 1:1, a face climbs at most four blocks a block, the old walls a whole face in one.
+		assertTrue(steepestFace(WorldScale.ULTRA) < 4);
 	}
 
 	@Test
 	void aCliffIsNeverTallerThanItsCap() {
-		for (WorldScale scale : new WorldScale[]{WorldScale.ULTRA, WorldScale.GRAND, WorldScale.MEDIUM}) {
-			TerrainSurface surface = surface(HIGH, scale);
-			double cap = TerrainSurface.cliffHeightMax(scale);
-			float tallest = 0;
-			for (int z = 0; z < 60_000 / scale.metersPerBlock(); z += 7) {
-				float[] y = profile(surface, scale, z, true);
-				float rise = rise(y, face(y));
-				assertTrue(rise <= cap + 1, scale + " z " + z + ": a face of " + rise + " over " + cap);
-				tallest = Math.max(tallest, rise);
+		WorldScale scale = WorldScale.ULTRA;
+		TerrainSurface surface = surface(HIGH, scale);
+		float shelf = scale.seaLevel() + 0.5f, tallest = 0, lowest = Float.MAX_VALUE;
+		int whole = 0;
+		for (int z = 0; z < 60_000; z += 7) {
+			if (!whole(surface, scale, z)) {
+				continue;
 			}
-			// The plateau stands 90 m high: without the cap the faces would take all of it.
-			assertTrue(tallest > 0.9 * TerrainSurface.cliffHeightMin(scale), scale + ": tallest face " + tallest);
-			assertTrue(tallest < scale.surfaceY(90f) - scale.seaLevel() - 1, scale + ": tallest face " + tallest);
+			whole++;
+			float[] y = profile(surface, scale, z, true);
+			float face = y[crest(y, foot(y, scale))] - shelf;
+			assertTrue(face <= TerrainSurface.cliffHeightMax(scale) + 1, "z " + z + ": a face of " + face);
+			tallest = Math.max(tallest, face);
+			lowest = Math.min(lowest, face);
 		}
+		assertTrue(whole > 100, "whole cliffs: " + whole);
+		// The crest rises and falls along the coast; the plateau stands 90 m high, and would give a face of all of it.
+		assertTrue(tallest > TerrainSurface.cliffHeightMin(scale), "tallest face " + tallest);
+		assertTrue(lowest < 0.6 * tallest, "lowest face " + lowest + ", tallest " + tallest);
 	}
 
 	@Test
-	void theFootOfAFullCliffIsAShelfABlockAboveTheWater() {
-		WorldScale scale = WorldScale.ULTRA;
-		TerrainSurface surface = surface(HIGH, scale);
-		float shelf = scale.seaLevel() + 0.5f, tallest = 0;
-		for (int z = 0; z < 60_000; z += 97) {
-			float[] y = profile(surface, scale, z, true);
-			tallest = Math.max(tallest, rise(y, face(y)));
-		}
-		int full = 0;
-		for (int z = 0; z < 60_000; z += 97) {
-			float[] y = profile(surface, scale, z, true);
-			int face = face(y);
-			// Along the stretches where cliffs fade out, the slope comes back under the face as it shrinks.
-			if (rise(y, face) < 0.95f * tallest) {
-				continue;
+	void theFootOfAWholeCliffIsAShelfABlockAboveTheWater() {
+		for (WorldScale scale : new WorldScale[]{WorldScale.ULTRA, WorldScale.GRAND}) {
+			TerrainSurface surface = surface(HIGH, scale);
+			float shelf = scale.seaLevel() + 0.5f;
+			double zone = TerrainSurface.cliffZone(scale);
+			int whole = 0, inland = 0;
+			for (int z = 0; z < 60_000 / scale.metersPerBlock(); z += 7) {
+				if (!whole(surface, scale, z)) {
+					continue;
+				}
+				whole++;
+				float[] y = profile(surface, scale, z, true);
+				assertEquals(shelf, y[10], 0.1f, scale + " z " + z + ": the first block of land");
+				// The foot wanders from the waterline to halfway across the strip, and the ground climbs from there.
+				int foot = foot(y, scale);
+				assertTrue(foot - 10 <= 0.6 * zone, scale + " z " + z + ": the foot " + (foot - 10) + " blocks inland");
+				if (foot - 10 > 0.25 * zone) {
+					inland++;
+				}
+				for (int k = foot; k < 10 + 0.7 * zone; k++) {
+					assertTrue(y[k + 1] >= y[k] - 0.01f, scale + " z " + z + ": " + y[k + 1] + " after " + y[k]);
+				}
 			}
-			full++;
-			for (int k = 10; k <= face; k++) {
-				assertTrue(y[k] <= shelf + 2.5f, "z " + z + ": " + y[k] + " at " + (k - 10));
-			}
-			assertEquals(shelf, y[face], 2f, "z " + z);
+			assertTrue(whole > 50, scale + ": whole cliffs: " + whole);
+			assertTrue(inland > 0 && inland < whole, scale + ": feet inland: " + inland + " of " + whole);
 		}
-		assertTrue(full > 10, "full cliffs: " + full);
 	}
 
 	@Test
@@ -208,7 +270,7 @@ class SeaCliffTest {
 		for (int z = 0; z < 40_000; z += 211) {
 			float[] y = profile(surface, scale, z, false);
 			// The sea floor lies a block under the shore.
-			assertTrue(rise(y, face(y)) < 1.5f, "z " + z + ": " + rise(y, face(y)));
+			assertTrue(steepest(y, 0) < 1.5f, "z " + z + ": " + steepest(y, 0));
 			for (int x = coast(scale) - 10; x < coast(scale) + 70; x += 3) {
 				assertTrue(Float.isNaN(surface.cliff(x, z)));
 			}
@@ -246,19 +308,26 @@ class SeaCliffTest {
 	void theFarLevelsOfDetailShowTheCliffs() {
 		WorldScale scale = WorldScale.ULTRA;
 		TerrainSurface surface = surface(HIGH, scale);
-		double tall = 0.8 * TerrainSurface.cliffHeightMin(scale);
-		int cliffs = 0;
-		for (int z = 0; z < 60_000; z += 250) {
-			float[] far = profile(surface, scale, z, true);
-			int face = face(far);
-			if (rise(far, face) >= tall) {
-				cliffs++;
-				// The face stands where the chunks have it, whose ledges and gullies are smaller than a cliff.
-				float[] near = profile(surface, scale, z, false);
-				assertEquals(face, face(near), 1, "z " + z);
+		int whole = 0;
+		for (int z = 0; z < 60_000; z += 47) {
+			if (!whole(surface, scale, z)) {
+				continue;
+			}
+			whole++;
+			// The shelf and the face stand where the chunks have them: the ledges only shape the ground above, and the
+			// gullies cut no deeper than the shelf where they reach the sea.
+			float[] far = profile(surface, scale, z, true), near = profile(surface, scale, z, false);
+			int foot = foot(far, scale);
+			assertEquals(foot, foot(near, scale), 1, "z " + z);
+			for (int k = 10; k <= crest(far, foot); k++) {
+				if (k < foot) {
+					assertTrue(near[k] <= far[k] + 0.01f, "z " + z + ", " + (k - 10) + " blocks inland");
+				} else {
+					assertEquals(far[k], near[k], 1f, "z " + z + ", " + (k - 10) + " blocks inland");
+				}
 			}
 		}
-		assertTrue(cliffs > 8, "cliffs: " + cliffs);
+		assertTrue(whole > 20, "whole cliffs: " + whole);
 	}
 
 	/** Blocks out to sea from the coastline that islets can reach at a scale, and a little more. */
@@ -354,11 +423,9 @@ class SeaCliffTest {
 		WorldScale scale = WorldScale.ULTRA;
 		TerrainSurface surface = surface(HIGH, scale);
 		int x0 = coast(scale), zone = (int) TerrainSurface.cliffZone(scale);
-		double tall = 0.8 * TerrainSurface.cliffHeightMin(scale);
 		int beside = 0, islets = 0, outside = 0;
 		for (int z = 0; z < 60_000; z += 131) {
-			float[] y = profile(surface, scale, z, true);
-			boolean cliff = rise(y, face(y)) >= tall;
+			boolean cliff = surface.cliffStrength(x0 + 1, z) > 0;
 			for (int x = x0 - 20; x < x0 + zone + 20; x++) {
 				float column = surface.cliff(x, z);
 				if (x < x0 - TerrainSurface.CLIFF_MARGIN) {
