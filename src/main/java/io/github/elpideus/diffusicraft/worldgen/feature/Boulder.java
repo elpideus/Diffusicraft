@@ -21,9 +21,9 @@ final class Boulder {
 	static final int REACH = 12;
 	/** The columns of a chunk tried for the foot of a cliff. */
 	private static final int TRIES = 24;
-	/** How boxy a boulder is: the power of its superellipsoid, from rounded to nearly a box. */
-	private static final float POWER_MIN = 3.5f;
-	private static final float POWER_MAX = 6f;
+	/** How boxy a boulder is: the power of its superellipsoid, from a box with rounded edges to nearly a box. */
+	private static final float POWER_MIN = 6f;
+	private static final float POWER_MAX = 10f;
 	/** Its long and its short half-width, as shares of its radius. */
 	private static final float LONG_MIN = 0.95f;
 	private static final float LONG_MAX = 1.4f;
@@ -33,16 +33,16 @@ final class Boulder {
 	 * How many joints its corners and edges broke off along, how far out they lie, as shares of its farthest point
 	 * that way, and how far down they may face, as the vertical part of their normal.
 	 */
-	private static final int FACETS_MIN = 4;
-	private static final int FACETS_MAX = 8;
-	private static final float FACET_MIN = 0.7f;
-	private static final float FACET_MAX = 0.92f;
+	private static final int FACETS_MIN = 5;
+	private static final int FACETS_MAX = 9;
+	private static final float FACET_MIN = 0.55f;
+	private static final float FACET_MAX = 0.85f;
 	private static final float FACET_DOWN = -0.3f;
 	/** How far it is tipped about each of its axes at most, in radians (25°). */
 	private static final double TILT = Math.toRadians(25);
 	/** The waves that wear its faces uneven: how many, how far they move its surface, and their wavenumber. */
 	private static final int LUMPS = 3;
-	private static final float LUMP = 0.12f;
+	private static final float LUMP = 0.08f;
 	private static final float LUMP_WAVENUMBER = 3.5f;
 	/** How many of the boulders at least {@value #CLEFT_HEIGHT} blocks from their centre to their top are split. */
 	private static final float CLEFT = 0.25f;
@@ -96,9 +96,9 @@ final class Boulder {
 		double yaw = random.nextDouble() * Math.PI;
 		double roll = TILT * (2 * random.nextDouble() - 1), pitch = TILT * (2 * random.nextDouble() - 1);
 		float[] axes = axes(yaw, pitch, roll);
-		// The joints its corners and edges broke off along: planes 70% to 92% of the way out to its farthest point that
-		// way, so that they bevel it rather than slice it thin, and seldom facing down, so that it does not stand on a
-		// point.
+		// The joints its corners and edges broke off along: planes 55% to 85% of the way out to its farthest point that
+		// way, which cut it into a block of flat faces and sharp edges rather than a rounded one, but do not slice it
+		// thin, and seldom facing down, so that it does not stand on a point.
 		int facets = FACETS_MIN + random.nextInt(FACETS_MAX - FACETS_MIN + 1);
 		float[] planes = new float[4 * facets];
 		double dual = power / (power - 1);
@@ -113,7 +113,8 @@ final class Boulder {
 			planes[4 * i + 2] = nz;
 			planes[4 * i + 3] = (float) farthest * (FACET_MIN + (FACET_MAX - FACET_MIN) * random.nextFloat());
 		}
-		// The weather wears its faces uneven: three waves, a lump or two across a face, move its surface in and out.
+		// The weather wears its faces a little uneven: three waves, a lump or two across a face, move its surface in
+		// and out.
 		float[] waves = new float[4 * LUMPS];
 		for (int i = 0; i < LUMPS; i++) {
 			float ny = 2f * random.nextFloat() - 1f, around = (float) (2 * Math.PI * random.nextFloat());

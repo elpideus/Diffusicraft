@@ -766,19 +766,20 @@ in water and runs on. Springs in caves and under overhangs stay, as do those tha
 ### Boulders
 
 Two kinds of big boulder lie on the land, besides the small mossy ones of vanilla and of Diffusicraft's biomes
-(vanilla's `forest_rock` blobs). Both have the same shape (`Boulder`): a block of rock bounded by its joints, not a
-dome. It is a superellipsoid of power 3.5 to 6, a box with rounded edges, 0.95 to 1.4 times its radius long, 0.6 to 1
-times it wide and as high as its flatness says, turned to a heading and tipped up to 25° about its long and its short
-axis, as it came to rest. Four to eight planes break off its corners and edges, each 70% to 92% of the way out to its
-farthest point that way, and few of them face down, so that it does not stand on a point. Three waves wear its faces
-uneven by up to a tenth of its size, and frost has split one in four of those at least 2.5 blocks from their centre to
-their top along an upright joint, from the top down to their middle. A lone block left on its top goes, and so does any
-crumb that no longer holds on to the rest.
+(vanilla's `forest_rock` blobs). Both have the same shape (`Boulder`): a block of rock bounded by its joints, not a dome
+or a ball. It is a superellipsoid of power 6 to 10, nearly a box, 0.95 to 1.4 times its radius long, 0.6 to 1 times it
+wide and as high as its flatness says, turned to a heading and tipped up to 25° about its long and its short axis, as it
+came to rest. Five to nine planes break off its corners and edges, each 55% to 85% of the way out to its farthest point
+that way, which leaves a block of flat faces and sharp edges, and few of them face down, so that it does not stand on a
+point. Three waves wear its faces a little uneven, by up to a twelfth of its size, and frost has split one in four of
+those at least 2.5 blocks from their centre to their top along an upright joint, from the top down to their middle. A
+lone block left on its top goes, and so does any crumb that no longer holds on to the rest.
 
-- **Erratics** (`diffusicraft:erratic`, `ErraticFeature`) are the lone boulders that the ice sheets left on open
-  ground in the cold lands, of rock carried from far away rather than the ground's own: granite, gneiss or diorite.
-  Most are a few blocks across, one in ten 14 blocks or more, and the biggest 25, as big as a house. One chunk in seven
-  has one where the year's mean temperature is 8 °C or less, none from 13 °C, and in proportion between.
+- **Erratics** (`diffusicraft:erratic`, `ErraticFeature`) are the lone boulders that the ice sheets left on open ground
+  in the cold lands, of rock carried from far away rather than the ground's own: granite, gneiss or diorite. Most are 3
+  to 5 blocks across, one in five 6 or more, one in twenty 13 or more, and the biggest some 25, as big as a house.
+  They used to be rounder and bigger, one in ten 14 blocks or more, and read as balls strewn over the land. One chunk
+  in ten has one where the year's mean temperature is 8 °C or less, none from 13 °C, and in proportion between.
 - **Rockfall** (`diffusicraft:rockfall`, `RockfallFeature`): the boulders fallen from a rock face, at its foot. The
   feature tries 24 columns of the chunk for one: gentle ground on one side, a block up or down at most, where the
   rocks come to rest, and on the other a face that rises 2 blocks or more right beside the column and keeps rising at

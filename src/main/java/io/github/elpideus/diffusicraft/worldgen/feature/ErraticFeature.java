@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * {@code diffusicraft:erratic}: now and then, a lone boulder on open ground in the cold lands, as the ice sheets left
  * them where they melted: of granite, gneiss or diorite, rock carried from far away rather than the ground's own, most
- * of them a few blocks across, and a few as big as a house.
+ * of them a few blocks across, and now and then one as big as a house.
  *
  * <p>The colder the climate, the likelier a chunk is to have one: {@code chance} of the chunks where the year's mean
  * temperature is {@value #COLD} °C or less, none from {@value #MILD} °C. They lie on level ground only, and where it
@@ -55,11 +55,12 @@ public record ErraticFeature(float chance) implements Feature {
 		if (random.nextFloat() >= chance * Math.clamp((MILD - column.temperature) / (MILD - COLD), 0f, 1f)) {
 			return false;
 		}
-		// Most are a few blocks across, and the biggest ten times as wide: as big as the giant trees, they shrink
-		// with the world, though less than the trees.
-		float u = random.nextFloat();
-		float radius = Math.max((2f + 8f * u * u * u * u) * (float) Math.sqrt(GiantTree.size(world.scale())), 1.5f);
-		Boulder boulder = Boulder.shape(radius, 0.55f + 0.3f * random.nextFloat(), random);
+		// Most are 3 to 5 blocks across, one in twenty 13 or more and the biggest some 25: as big as the giant trees,
+		// they shrink with the world, though less than the trees.
+		float u = random.nextFloat(), u3 = u * u * u;
+		float radius = Math.max((1.25f + 2f * u3 + 6.5f * u3 * u3 * u3 * u3) * (float) Math.sqrt(GiantTree.size(
+			world.scale())), 1.2f);
+		Boulder boulder = Boulder.shape(radius, 0.5f + 0.4f * random.nextFloat(), random);
 		return Boulders.setDown(level, Boulders.ground(level), boulder, x0 + random.nextInt(16),
 			z0 + random.nextInt(16), Math.round(boulder.halfHeight), rock(random), Boulders.moss(column.precipitation),
 			x0, z0, random);
