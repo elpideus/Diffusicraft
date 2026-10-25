@@ -254,7 +254,9 @@ public final class FarTerrain {
 		Vec3 at = camera.pos;
 		this.camera = at;
 		shaders = IRIS && IrisFarTerrain.drawsInstead();
-		int near = Math.max(0, (viewDistance - 1) * 16 - 16);
+		// Tiles all the way in, for whatever the world does not draw near the camera: sections still waiting for their
+		// mesh, and those above and below the rows it draws. A shader pack leaves out the chunks' reach itself.
+		int near = shaders ? Math.max(0, (viewDistance - 1) * 16 - 16) : 0;
 		long now = Util.getMillis();
 		if (Double.isNaN(chosenX) || Math.abs(at.x - chosenX) > MOVE || Math.abs(at.z - chosenZ) > MOVE
 			|| near != chosenNear || now - chosen > RECHOOSE_MILLIS) {

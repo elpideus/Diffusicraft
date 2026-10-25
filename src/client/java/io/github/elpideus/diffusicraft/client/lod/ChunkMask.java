@@ -12,49 +12,74 @@ import io.github.elpideus.diffusicraft.height.RenderWindow;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.SectionOcclusionGraph;
 import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.client.renderer.chunk.CompiledSectionMesh;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ChunkTrackingView;
-import net.minecraft.util.Util;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
-import net.minecraft.world.level.levelgen.Heightmap;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
 /**
- * Where the world draws its own chunks, so that the far terrain leaves them out: a texture of one texel per chunk
- * around the camera, 1 where the chunk is drawn, and the {@code FarTerrainInfo} uniform the far terrain's fragment
- * shader reads it with. A chunk counts as drawn once the world would draw it: it is loaded and lit, and so are its
- * eight neighbours, it lies within the render distance, and the section of its surface has its mesh, built by Sodium
- * where it is installed or else by vanilla. Where the chunk is not drawn, as while it loads or past the vertical window of the world's
- * own sections, the far terrain shows instead, so there is no hole.
+ * Where the world draws its own chunks, so that the far terrain leaves them out: a texture of one texel per section
+ * around the camera, 1 where the world draws the section, and the {@code FarTerrainInfo} uniform the far terrain's
+ * fragment shader reads it with. A section counts as drawn once the world would draw it: its chunk is loaded and lit,
+ * and so are the eight around it, it lies within the render distance and the rows of sections the world draws around
+ * the camera, and it is air, or its mesh is built, by Sodium where it is installed or else by vanilla, and vanilla's
+ * graph of the sections the camera can see has reached it. Everywhere else the far terrain shows, so there is no
+ * hole: not while a chunk loads, not where a section waits for its mesh as the player flies, and not above or below
+ * the rows the world draws.
+ *
+ * <p>The texture's columns and rows are slots that rotate as the camera moves, as the world's own grid of sections
+ * does: section {@code (x, y, z)} always lives in slot {@code (x mod size, y mod rows, z mod size)}. Moving the
+ * camera clears the slots of the sections that enter the mask, and the others keep what they held. The sections are
+ * looked up a few lines of chunks at a time, so that a large render distance spreads the work over several frames.
  */
 final class ChunkMask implements AutoCloseable {
-	private static final int INFO_SIZE = 32;
-	/** How often the mask is worked out while the camera stays in its chunk. */
-	private static final long REFRESH_MILLIS = 100;
+	private static final int INFO_SIZE = 48;
+	/** Most sections looked up in a frame: the whole mask at a render distance of 12, a twentieth of it at 32. */
+	private static final int SECTIONS_PER_FRAME = 16384;
+	private static final byte DRAWN = (byte) 0xFF;
 	private static final boolean SODIUM = FabricLoader.getInstance().isModLoaded("sodium");
 
 	private final GpuBuffer info;
 	private final ByteBuffer infoData = MemoryUtil.memAlloc(INFO_SIZE);
+	private final int[] infoValues = new int[INFO_SIZE / Integer.BYTES];
+	private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 	private @Nullable GpuTexture texture;
 	private @Nullable GpuTextureView view;
 	private @Nullable ByteBuffer upload;
-	private int radius = -1;
+	private int viewDistance = -1;
+	/** Columns of chunks a side, as many as the render distance reaches across. */
 	private int size;
+	/** Rows of sections the world draws at most. */
+	private int rows;
+	private int minSectionY;
+	/** Texels in a line of the texture: every row of sections of a line of chunks, one row after the other. */
+	private int width;
+	/** One byte a texel, line by line: texel {@code (row * size + column, line)} is at {@code line * width + row * size + column}. */
 	private byte[] texels = new byte[0];
-	private byte[] next = new byte[0];
+	/** The chunk each column's slot holds now, as {@link ChunkPos#pack}. */
+	private long[] columnAt = new long[0];
+	/** The section row each row's slot holds now. */
+	private int[] rowAt = new int[0];
+	/** Whether each chunk of the three lines around the line being looked up is loaded and lit. */
 	private boolean[] ready = new boolean[0];
 	private int centerX = Integer.MIN_VALUE;
 	private int centerZ = Integer.MIN_VALUE;
-	private final int[] infoValues = new int[8];
+	private int lowest = Integer.MIN_VALUE;
+	/** The line of chunks, counted from the mask's northern edge, to look up next. */
+	private int nextLine;
+	private int dirtyFrom = Integer.MAX_VALUE;
+	private int dirtyTo = -1;
 	private boolean infoWritten;
-	private long refreshed;
 
 	ChunkMask() {
 		info = RenderSystem.getDevice().createBuffer(() -> "Diffusicraft far terrain info",
@@ -74,57 +99,107 @@ final class ChunkMask implements AutoCloseable {
 	 * and {@code viewArea} the grid of vanilla's chunk meshes, if vanilla builds them. On the render thread.
 	 */
 	void update(ClientLevel level, @Nullable ViewArea viewArea, int viewDistance, BlockPos camera) {
-		int r = viewDistance + 2;
-		if (r != radius) {
-			resize(r);
+		RenderWindow window = WindowedSectionStorage.windowFor(level.getMinSectionY(), level.getMaxSectionY(), viewDistance);
+		int rows = window == null ? level.getSectionsCount() : window.rows();
+		if (viewDistance != this.viewDistance || rows != this.rows || level.getMinSectionY() != minSectionY) {
+			resize(viewDistance, rows, level.getMinSectionY());
 		}
 		int cx = SectionPos.blockToSectionCoord(camera.getX());
 		int cz = SectionPos.blockToSectionCoord(camera.getZ());
-		int cy = SectionPos.blockToSectionCoord(camera.getY());
-		RenderWindow window = WindowedSectionStorage.windowFor(level.getMinSectionY(), level.getMaxSectionY(), viewDistance);
-		int lowest = window == null ? level.getMinSectionY() : window.lowest(cy);
-		int highest = window == null ? level.getMaxSectionY() : lowest + window.rows() - 1;
-		writeInfo(cx, cz, lowest, highest);
-		long now = Util.getMillis();
-		if (cx == centerX && cz == centerZ && now - refreshed < REFRESH_MILLIS) {
-			return;
+		int lowest = window == null ? level.getMinSectionY() : window.lowest(SectionPos.blockToSectionCoord(camera.getY()));
+		if (cx != centerX || cz != centerZ || lowest != this.lowest) {
+			moveTo(cx, cz, lowest);
 		}
+		SectionOcclusionGraph graph = viewArea == null ? null : Minecraft.getInstance().levelRenderer.sectionOcclusionGraph();
+		for (int looked = 0, lines = 0; looked < SECTIONS_PER_FRAME && lines < size; lines++) {
+			lookUp(level, viewArea, graph, nextLine);
+			nextLine = (nextLine + 1) % size;
+			looked += size * rows;
+		}
+		if (dirtyTo >= dirtyFrom) {
+			upload.clear();
+			upload.put(texels, dirtyFrom * width, (dirtyTo - dirtyFrom + 1) * width).flip();
+			RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, upload, 0, 0, 0, dirtyFrom, width,
+				dirtyTo - dirtyFrom + 1);
+			dirtyFrom = Integer.MAX_VALUE;
+			dirtyTo = -1;
+		}
+		writeInfo();
+	}
+
+	/** Clears the slots of the chunks and rows that enter the mask as its centre moves to {@code (cx, cz)}. */
+	private void moveTo(int cx, int cz, int lowest) {
 		centerX = cx;
 		centerZ = cz;
-		refreshed = now;
-		for (int j = 0; j < size; j++) {
-			for (int i = 0; i < size; i++) {
-				int x = cx - radius + i;
-				int z = cz - radius + j;
-				ready[j * size + i] = level.getChunk(x, z, ChunkStatus.FULL, false) != null
-					&& level.getLightEngine().lightOnInColumn(SectionPos.getZeroNode(x, z));
-			}
-		}
-		Arrays.fill(next, (byte) 0);
-		for (int j = 1; j < size - 1; j++) {
-			for (int i = 1; i < size - 1; i++) {
-				int x = cx - radius + i;
-				int z = cz - radius + j;
-				if (ChunkTrackingView.isInViewDistance(cx, cz, viewDistance, x, z) && readyAround(i, j)
-					&& built(level, viewArea, x, z, lowest, highest)) {
-					next[j * size + i] = (byte) 0xFF;
+		this.lowest = lowest;
+		for (int dz = -viewDistance; dz <= viewDistance; dz++) {
+			for (int dx = -viewDistance; dx <= viewDistance; dx++) {
+				int column = Math.floorMod(cx + dx, size);
+				int line = Math.floorMod(cz + dz, size);
+				long at = ChunkPos.pack(cx + dx, cz + dz);
+				if (columnAt[line * size + column] != at) {
+					columnAt[line * size + column] = at;
+					for (int row = 0; row < rows; row++) {
+						clear(line, row, column);
+					}
 				}
 			}
 		}
-		if (!Arrays.equals(next, texels)) {
-			byte[] swap = texels;
-			texels = next;
-			next = swap;
-			upload.clear();
-			upload.put(texels).flip();
-			RenderSystem.getDevice().createCommandEncoder().writeToTexture(texture, upload, 0, 0, 0, 0, size, size);
+		for (int y = lowest; y < lowest + rows; y++) {
+			int row = Math.floorMod(y, rows);
+			if (rowAt[row] != y) {
+				rowAt[row] = y;
+				for (int line = 0; line < size; line++) {
+					for (int column = 0; column < size; column++) {
+						clear(line, row, column);
+					}
+				}
+			}
 		}
 	}
 
-	private boolean readyAround(int i, int j) {
-		for (int dj = -1; dj <= 1; dj++) {
+	private void clear(int line, int row, int column) {
+		set(line, row, column, (byte) 0);
+	}
+
+	private void set(int line, int row, int column, byte value) {
+		int index = line * width + row * size + column;
+		if (texels[index] != value) {
+			texels[index] = value;
+			dirtyFrom = Math.min(dirtyFrom, line);
+			dirtyTo = Math.max(dirtyTo, line);
+		}
+	}
+
+	/** Looks up every section of the chunks {@code offset} lines south of the mask's northern edge. */
+	private void lookUp(ClientLevel level, @Nullable ViewArea viewArea, @Nullable SectionOcclusionGraph graph, int offset) {
+		int z = centerZ - viewDistance + offset;
+		int west = centerX - viewDistance - 1;
+		int across = size + 2;
+		for (int dz = -1; dz <= 1; dz++) {
+			for (int i = 0; i < across; i++) {
+				int x = west + i;
+				ready[(dz + 1) * across + i] = level.getChunk(x, z + dz, ChunkStatus.FULL, false) != null
+					&& level.getLightEngine().lightOnInColumn(SectionPos.getZeroNode(x, z + dz));
+			}
+		}
+		int line = Math.floorMod(z, size);
+		for (int i = 1; i <= size; i++) {
+			int x = west + i;
+			int column = Math.floorMod(x, size);
+			LevelChunk chunk = ChunkTrackingView.isInViewDistance(centerX, centerZ, viewDistance, x, z)
+				&& readyAround(i, across) ? level.getChunk(x, z) : null;
+			for (int y = lowest; y < lowest + rows; y++) {
+				set(line, Math.floorMod(y, rows), column, chunk != null && drawn(level, chunk, viewArea, graph, x, y, z)
+					? DRAWN : 0);
+			}
+		}
+	}
+
+	private boolean readyAround(int i, int across) {
+		for (int dz = 0; dz < 3; dz++) {
 			for (int di = -1; di <= 1; di++) {
-				if (!ready[(j + dj) * size + i + di]) {
+				if (!ready[dz * across + i + di]) {
 					return false;
 				}
 			}
@@ -133,27 +208,33 @@ final class ChunkMask implements AutoCloseable {
 	}
 
 	/**
-	 * Whether the world has built the mesh of the section that holds the surface of chunk {@code (x, z)}: Sodium where
-	 * it is installed, which builds the meshes in vanilla's place, or else vanilla, if it builds them.
+	 * Whether the world draws section {@code (x, y, z)} of {@code chunk}: it is air, so there is nothing to draw, or its
+	 * mesh is built, by Sodium where it is installed, which builds the meshes in vanilla's place, or else by vanilla,
+	 * whose graph must also have reached it, since vanilla draws no section the graph has not reached, built or not.
 	 */
-	private static boolean built(ClientLevel level, @Nullable ViewArea viewArea, int x, int z, int lowest, int highest) {
-		if (!SODIUM && viewArea == null) {
+	private boolean drawn(ClientLevel level, LevelChunk chunk, @Nullable ViewArea viewArea,
+						  @Nullable SectionOcclusionGraph graph, int x, int y, int z) {
+		if (chunk.getSection(level.getSectionIndexFromSectionY(y)).hasOnlyAir()) {
 			return true;
 		}
-		LevelChunk chunk = level.getChunk(x, z);
-		int surface = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, 8, 8);
-		int sectionY = Math.clamp(SectionPos.blockToSectionCoord(surface), lowest, highest);
 		if (SODIUM) {
-			return SodiumSections.ready(x, sectionY, z);
+			return SodiumSections.ready(x, y, z);
 		}
-		SectionRenderDispatcher.RenderSection section = viewArea.getRenderSectionAt(
-			new BlockPos(SectionPos.sectionToBlockCoord(x, 8), SectionPos.sectionToBlockCoord(sectionY, 8),
-				SectionPos.sectionToBlockCoord(z, 8)));
-		return section != null && section.getSectionMesh() != CompiledSectionMesh.UNCOMPILED;
+		if (viewArea == null || graph == null) {
+			return true;
+		}
+		SectionRenderDispatcher.RenderSection section = viewArea.getRenderSectionAt(pos.set(
+			SectionPos.sectionToBlockCoord(x, 8), SectionPos.sectionToBlockCoord(y, 8), SectionPos.sectionToBlockCoord(z, 8)));
+		return section != null && section.getSectionNode() == SectionPos.asLong(x, y, z)
+			&& section.getSectionMesh() != CompiledSectionMesh.UNCOMPILED && graph.getNode(section) != null;
 	}
 
-	private void writeInfo(int cx, int cz, int lowest, int highest) {
-		int[] values = {radius, cx, cz, 0, lowest, highest, 0, 0};
+	private void writeInfo() {
+		int[] values = {
+			viewDistance, centerX, centerZ, size,
+			lowest, lowest + rows - 1, rows, 0,
+			Math.floorMod(centerX - viewDistance, size), Math.floorMod(centerZ - viewDistance, size),
+			Math.floorMod(lowest, rows), 0};
 		if (infoWritten && Arrays.equals(values, infoValues)) {
 			return;
 		}
@@ -167,21 +248,31 @@ final class ChunkMask implements AutoCloseable {
 		infoWritten = true;
 	}
 
-	private void resize(int r) {
+	private void resize(int viewDistance, int rows, int minSectionY) {
 		closeTexture();
-		radius = r;
-		size = 2 * r + 1;
-		texels = new byte[size * size];
-		next = new byte[size * size];
-		ready = new boolean[size * size];
-		upload = MemoryUtil.memAlloc(size * size);
+		this.viewDistance = viewDistance;
+		this.rows = rows;
+		this.minSectionY = minSectionY;
+		size = 2 * viewDistance + 1;
+		width = size * rows;
+		texels = new byte[width * size];
+		columnAt = new long[size * size];
+		Arrays.fill(columnAt, Long.MAX_VALUE);
+		rowAt = new int[rows];
+		Arrays.fill(rowAt, Integer.MIN_VALUE);
+		ready = new boolean[3 * (size + 2)];
+		upload = MemoryUtil.memAlloc(texels.length);
 		GpuDevice device = RenderSystem.getDevice();
 		texture = device.createTexture("Diffusicraft chunk mask", GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING,
-			GpuFormat.R8_UNORM, size, size, 1, 1);
+			GpuFormat.R8_UNORM, width, size, 1, 1);
 		view = device.createTextureView(texture);
 		upload.put(texels).flip();
-		device.createCommandEncoder().writeToTexture(texture, upload, 0, 0, 0, 0, size, size);
+		device.createCommandEncoder().writeToTexture(texture, upload, 0, 0, 0, 0, width, size);
 		centerX = Integer.MIN_VALUE;
+		lowest = Integer.MIN_VALUE;
+		nextLine = 0;
+		dirtyFrom = Integer.MAX_VALUE;
+		dirtyTo = -1;
 	}
 
 	private void closeTexture() {

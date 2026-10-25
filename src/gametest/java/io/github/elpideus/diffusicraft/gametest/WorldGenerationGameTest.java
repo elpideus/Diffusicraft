@@ -330,7 +330,7 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 	 * {@code waitForChunksRender}, but it only waits for the chunks the server sends: those in a circle around the
 	 * player. Fabric's waits for a square, whose corners never arrive at a render distance above 6.
 	 */
-	private static String pendingWork(Minecraft mc) {
+	static String pendingWork(Minecraft mc) {
 		int distance = mc.options.getEffectiveRenderDistance();
 		ChunkPos center = mc.player.chunkPosition();
 		List<String> missing = new ArrayList<>();

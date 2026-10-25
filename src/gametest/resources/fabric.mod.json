@@ -23,7 +23,8 @@
 			"io.github.elpideus.diffusicraft.gametest.ReliefMapGameTest",
 			"io.github.elpideus.diffusicraft.gametest.BouldersGameTest",
 			"io.github.elpideus.diffusicraft.gametest.LodCaptureGameTest",
-			"io.github.elpideus.diffusicraft.gametest.FarTerrainGameTest"
+			"io.github.elpideus.diffusicraft.gametest.FarTerrainGameTest",
+			"io.github.elpideus.diffusicraft.gametest.FarTerrainGapsGameTest"
 		]
 	},
 	"depends": {

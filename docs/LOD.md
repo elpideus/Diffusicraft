@@ -112,11 +112,17 @@ These parts are unit-tested and feed the renderer below.
 - **Drawing.** At the end of the world's solid pass, after the chunks, with one draw call per tile and per layer.
   The far terrain shares the chunks' depth buffer, fog, lightmap and face shading. Tiles outside the view are
   skipped.
-- **Where the chunks take over.** `ChunkMask` keeps a texture of one texel per chunk around the camera, set where
-  the world draws the chunk: loaded and lit with its eight neighbours, within the render distance, and with its
-  surface section built. The fragment shader drops far terrain over those chunks, a quarter of a block inside the
-  face it draws so that the edges match. A chunk still loading shows its far terrain, so there is no gap at the
-  edge of the render distance.
+- **Where the chunks take over.** The tiles reach all the way in to the camera, and `ChunkMask` keeps a texture of
+  one texel per section around it, set where the world draws the section: its chunk is loaded and lit with the eight
+  around it, it lies within the render distance and the rows of sections the world draws, and it is air or has its
+  mesh, built by Sodium or else by vanilla, whose graph of the sections the camera can see must also have reached
+  it. The fragment shader drops far terrain over those sections, a quarter of a block inside the face it draws so
+  that the edges match. Everywhere else the far terrain shows: while a chunk loads, while a section waits for its
+  mesh as the player flies, and above and below the rows the world draws. Tiles that began near the edge of the
+  render distance, and a mask of one texel per chunk set from its surface section alone, left holes where the world
+  had not built a section yet, most of all on steep slopes and while flying. The texture's slots rotate as the
+  camera moves, as the world's own grid of sections does, and a few lines of chunks are looked up each frame, so a
+  large render distance spreads the work.
 - **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
   Fog under water, in lava and from blindness or darkness stays as it is.
@@ -137,7 +143,8 @@ plays its part for Iris:
 - **Drawing.** The land is drawn as the world's solid pass begins, before the chunks, into the pack's buffers and a
   depth buffer of its own, which is then copied to the two textures the pack reads. The water is drawn after the
   pack's deferred passes, as the translucent pass begins, as Distant Horizons draws it. The pack itself leaves out
-  the far terrain within the chunks' reach, so `ChunkMask` is not used, and the pack's own fog applies.
+  the far terrain within the chunks' reach, so the tiles start at its edge, `ChunkMask` is not used, and the pack's
+  own fog applies.
 - **Not yet.** The far terrain casts no shadows.
 
 ## Next

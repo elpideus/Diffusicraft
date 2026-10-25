@@ -5,13 +5,15 @@
 #include <minecraft:globals.glsl>
 
 layout(std140) uniform FarTerrainInfo {
-    // The mask's radius in chunks and the chunk at its centre.
-    ivec4 MaskInfo;
-    // The lowest and the highest section Y the world draws its chunks in around the camera.
+    // The render distance in chunks, the chunk the camera is in, and the chunks along each side of the mask.
+    ivec4 Columns;
+    // The lowest and the highest section Y the world draws around the camera, and how many rows the mask holds.
     ivec4 Rows;
+    // The slots of the mask's north-western chunk and of its lowest row: its slots rotate as the camera moves.
+    ivec4 Slots;
 };
 
-// 1 where the world draws the chunk itself.
+// 1 where the world draws the section itself. Texel (row * size + x, z) holds the section in those slots.
 uniform sampler2D ChunkMask;
 
 layout(location = 0) in float sphericalVertexDistance;
@@ -25,13 +27,17 @@ layout(location = 0) out vec4 fragColor;
 void main() {
     // A face lies on the edge of its block: step back into the block to find the section it belongs to.
     vec3 inside = relativePosition - CameraOffset - faceNormal * 0.25;
-    ivec3 block = CameraBlockPos + ivec3(floor(inside));
-    int section = block.y >> 4;
-    ivec2 texel = (block.xz >> 4) - MaskInfo.yz + MaskInfo.x;
-    int size = 2 * MaskInfo.x + 1;
-    if (section >= Rows.x && section <= Rows.y && all(greaterThanEqual(texel, ivec2(0))) && all(lessThan(texel, ivec2(size)))
-            && texelFetch(ChunkMask, texel, 0).r > 0.5) {
-        discard;
+    ivec3 section = (CameraBlockPos + ivec3(floor(inside))) >> 4;
+    ivec2 offset = section.xz - Columns.yz;
+    // Within the render distance as the world measures it (ChunkTrackingView.isInViewDistance).
+    ivec2 beyond = max(abs(offset) - 1, ivec2(0));
+    if (beyond.x * beyond.x + beyond.y * beyond.y < Columns.x * Columns.x && section.y >= Rows.x && section.y <= Rows.y) {
+        // Both operands are positive here, which GLSL's % needs.
+        ivec2 slot = (Slots.xy + offset + Columns.x) % Columns.w;
+        int row = (Slots.z + section.y - Rows.x) % Rows.z;
+        if (texelFetch(ChunkMask, ivec2(row * Columns.w + slot.x, slot.y), 0).r > 0.5) {
+            discard;
+        }
     }
     fragColor = apply_fog(vertexColor, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart,
         FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
