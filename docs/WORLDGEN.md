@@ -757,10 +757,14 @@ in water and runs on. Springs in caves and under overhangs stay, as do those tha
 ### Boulders
 
 Two kinds of big boulder lie on the land, besides the small mossy ones of vanilla and of Diffusicraft's biomes
-(vanilla's `forest_rock` blobs). Both have the same shape (`Boulder`): a superellipsoid of power 2.4 to 3.2, a box
-with rounded edges, somewhat flattened and turned to a heading of its own, cut by six to nine planes into facets, as a
-block of rock splits along its joints and the weather rounds its edges. Its sides stand steep and its top is broad,
-where an ellipsoid of blocks would rise in steps to a point like a pyramid, and a lone block left on its top goes.
+(vanilla's `forest_rock` blobs). Both have the same shape (`Boulder`): a block of rock bounded by its joints, not a
+dome. It is a superellipsoid of power 3.5 to 6, a box with rounded edges, 0.95 to 1.4 times its radius long, 0.6 to 1
+times it wide and as high as its flatness says, turned to a heading and tipped up to 25° about its long and its short
+axis, as it came to rest. Four to eight planes break off its corners and edges, each 70% to 92% of the way out to its
+farthest point that way, and few of them face down, so that it does not stand on a point. Three waves wear its faces
+uneven by up to a tenth of its size, and frost has split one in four of those at least 2.5 blocks from their centre to
+their top along an upright joint, from the top down to their middle. A lone block left on its top goes, and so does any
+crumb that no longer holds on to the rest.
 
 - **Erratics** (`diffusicraft:erratic`, `ErraticFeature`) are the lone boulders that the ice sheets left on open
   ground in the cold lands, of rock carried from far away rather than the ground's own: granite, gneiss or diorite.
@@ -776,13 +780,13 @@ where an ellipsoid of blocks would rise in steps to a point like a pyramid, and 
   with such a face has them.
 
 Both shrink with the world, by the square root of the giant trees' shrinking: to 71% at 1:16 and 65% at 1:32. A
-boulder is sunk a quarter of its height into the ground at its centre, and where the ground falls away under it, its
-rock fills the gap up to the ground at the centre; the bulge of its sides stands over the ground as on level land. It is
-not set down where the ground under it is under water, falls away from the centre by more than a quarter of its height
-or rises by more than half of it (an erratic, which lies on level ground only) or all of it (a fallen rock, which may
-lean on its face), nor where a structure on the surface reaches into a chunk it would change. It replaces no fluid,
-nothing built, no tree and nothing in `features_cannot_replace`. Moss carpets grow on the tops of boulders where more
-than 700 mm of rain fall a year, on half of them from 2200 mm, and snow settles on them in the cold.
+boulder's lowest block is sunk a quarter of its height into the ground at its centre, and where the ground falls away
+under it, its rock fills the gap up to the ground at the centre; the bulge of its sides stands over the ground as on
+level land. It is not set down where the ground under it is under water, falls away from the centre by more than a
+quarter of its height or rises by more than half of it (an erratic, which lies on level ground only) or all of it (a
+fallen rock, which may lean on its face), nor where a structure on the surface reaches into a chunk it would change. It
+replaces no fluid, nothing built, no tree and nothing in `features_cannot_replace`. Moss carpets grow on the tops of
+boulders where more than 700 mm of rain fall a year, on half of them from 2200 mm, and snow settles on them in the cold.
 
 **Where.** Only in Diffusicraft worlds, whose climate the features read: `ChunkGeneratorMixin` places them right after
 the falls (`DiffusicraftWorldgen.AFTER_SPRINGS`), so they reach every land biome too, and the falls are laid out on

@@ -73,7 +73,8 @@ final class Boulders {
 		if (nearStructure(level, x - reach, z - reach, x + reach, z + reach)) {
 			return false;
 		}
-		int y = centre + Math.round(boulder.halfHeight / 2);
+		// The boulder's lowest block a quarter of its height under the top of the ground.
+		int y = centre + 1 - Math.round(boulder.halfHeight / 2) - boulder.bottom;
 		for (long block : boulder.blocks) {
 			set(level, pos.set(x + BlockPos.getX(block), y + BlockPos.getY(block), z + BlockPos.getZ(block)), rock);
 		}

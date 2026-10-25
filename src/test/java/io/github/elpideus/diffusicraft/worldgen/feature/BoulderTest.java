@@ -50,7 +50,7 @@ class BoulderTest {
 			for (long block : boulder.blocks) {
 				assertTrue(Math.abs(BlockPos.getX(block)) <= boulder.reach
 					&& Math.abs(BlockPos.getZ(block)) <= boulder.reach);
-				assertTrue(Math.abs(BlockPos.getY(block)) <= Math.ceil(boulder.halfHeight));
+				assertTrue(BlockPos.getY(block) >= boulder.bottom && BlockPos.getY(block) <= boulder.top);
 			}
 		}
 	}
