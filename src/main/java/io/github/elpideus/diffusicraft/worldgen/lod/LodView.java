@@ -73,6 +73,11 @@ public final class LodView<M> {
 		}
 	}
 
+	/** How many tiles have a mesh, drawn or not. */
+	public int size() {
+		return ready.size();
+	}
+
 	/** The meshes to draw, coarsest first. */
 	public List<M> drawn() {
 		if (changed) {

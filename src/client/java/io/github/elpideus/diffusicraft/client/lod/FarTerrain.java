@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -37,6 +38,9 @@ import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
 import net.fabricmc.fabric.api.resource.v1.reloader.ResourceReloaderKeys;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
+import net.minecraft.client.gui.components.debug.DebugScreenEntries;
+import net.minecraft.client.gui.components.debug.DebugScreenEntry;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -48,6 +52,7 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.Util;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -150,6 +155,7 @@ public final class FarTerrain {
 		ResourceLoader resources = ResourceLoader.get(PackType.CLIENT_RESOURCES);
 		resources.registerReloadListener(reloader, (ResourceManagerReloadListener) manager -> reset());
 		resources.addListenerOrdering(ResourceReloaderKeys.Client.MODELS, reloader);
+		DebugScreenEntries.register(Diffusicraft.id("far_terrain"), new DebugEntry());
 	}
 
 	private static void reset() {
@@ -585,6 +591,27 @@ public final class FarTerrain {
 		mask.close();
 		for (Built left; (left = built.poll()) != null; ) {
 			free(left);
+		}
+	}
+
+	/**
+	 * A line of the debug screen, which the player turns on among its entries (F3 + F6): the tiles with a mesh and
+	 * those drawn in the last frame, those left rough and those still to build, and the memory their meshes take on the
+	 * GPU.
+	 */
+	private static final class DebugEntry implements DebugScreenEntry {
+		@Override
+		public void display(DebugScreenDisplayer displayer, @Nullable Level serverOrClientLevel,
+							@Nullable LevelChunk clientChunk, @Nullable LevelChunk serverChunk) {
+			FarTerrain terrain = current;
+			if (terrain == null || terrain.source == null) {
+				return;
+			}
+			displayer.addLine(String.format(Locale.ROOT,
+				"Far terrain: %d tiles, %d drawn, %d rough, %d to build, %.1f MiB",
+				terrain.view.size(), terrain.drawn.size(), terrain.rough.size(),
+				terrain.missing.size() + terrain.rebuild.size() + terrain.building.size(),
+				FarMesh.allocated() / (double) (1 << 20)));
 		}
 	}
 

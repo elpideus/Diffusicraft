@@ -179,6 +179,9 @@ These parts are unit-tested and feed the renderer below.
   camera moves, as the world's own grid of sections does, and a few lines of chunks are looked up each frame, so a
   large render distance spreads the work. A tile that lies wholly within sections the world draws is not drawn at
   all, since the shader would drop every fragment of it: the mask's bytes are checked on the CPU as well.
+- **Debug screen.** The `diffusicraft:far_terrain` entry, turned on among the others with F3 + F6, shows the tiles
+  with a mesh and those drawn in the last frame, those left rough and those still to build, and the memory their
+  meshes take on the GPU.
 - **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
   Fog under water, in lava and from blindness or darkness stays as it is.

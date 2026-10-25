@@ -16,6 +16,8 @@ import org.lwjgl.system.MemoryUtil;
 final class FarMesh implements AutoCloseable {
 	/** The size of the {@code ChunkSection} uniform block: the corner as an {@code ivec3}, then a float. */
 	private static final int SECTION_SIZE = 16;
+	/** Bytes of every mesh not closed yet. On the render thread. */
+	private static long allocated;
 
 	final LodTiles.Tile tile;
 	final @Nullable GpuBuffer buffer;
@@ -25,9 +27,12 @@ final class FarMesh implements AutoCloseable {
 	/** Block Y of the lowest and of the highest vertex. */
 	final int minY;
 	final int maxY;
+	private long bytes;
 
 	private FarMesh(LodTiles.Tile tile, @Nullable GpuBuffer buffer, @Nullable GpuBuffer section, int solidQuads,
 					int waterQuads, int minY, int maxY) {
+		bytes = (buffer == null ? 0 : buffer.size()) + (section == null ? 0 : section.size());
+		allocated += bytes;
 		this.tile = tile;
 		this.buffer = buffer;
 		this.section = section;
@@ -37,8 +42,15 @@ final class FarMesh implements AutoCloseable {
 		this.maxY = maxY;
 	}
 
+	/** Bytes of the meshes on the GPU. On the render thread. */
+	static long allocated() {
+		return allocated;
+	}
+
 	@Override
 	public void close() {
+		allocated -= bytes;
+		bytes = 0;
 		if (buffer != null) {
 			buffer.close();
 		}

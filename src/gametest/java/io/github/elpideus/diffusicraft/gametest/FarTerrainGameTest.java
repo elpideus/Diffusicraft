@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.gametest;
 
+import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.client.lod.FarTerrain;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
@@ -9,8 +10,10 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +25,8 @@ import java.util.Locale;
  * Diffusicraft's own far terrain ({@code client.lod.FarTerrain}). Creates the world of {@link WorldGenerationGameTest}
  * with a render distance of {@value #RENDER_DISTANCE} chunks, so that everything past some 100 blocks in the views is
  * far terrain, and saves views from above the spawn to {@code build/run/clientGameTest/screenshots}, each once the far
- * terrain has built every tile it wants, and one with the far terrain off to compare. Then raises a tower of gold
+ * terrain has built every tile it wants, one with its line of the debug screen and one with the far terrain off to
+ * compare. Then raises a tower of gold
  * {@value #TOWER_DISTANCE} blocks south of the spawn and views it from {@value #TOWER_VIEW_DISTANCE} blocks north of it,
  * out of the chunks' reach, so that the far terrain shows what players build.
  *
@@ -43,6 +47,8 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 	static final int TOWER_VIEW_DISTANCE = 240;
 	/** How high over the top of the tower its view is taken from, so that no hill between hides it. */
 	static final int TOWER_VIEW_HEIGHT = 160;
+	/** The far terrain's line of the debug screen. */
+	private static final Identifier DEBUG_ENTRY = Diffusicraft.id("far_terrain");
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
@@ -65,6 +71,18 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 			view(context, server, connection, above, 0f, 10f, "south");
 			view(context, server, connection, above, 180f, 10f, "north");
 			view(context, server, connection, above.above(400), 90f, 30f, "high-west");
+
+			// The debug screen shows only with the HUD, which the views hide.
+			context.runOnClient(mc -> {
+				mc.gui.hud.toggle();
+				mc.debugEntries.setStatus(DEBUG_ENTRY, DebugScreenEntryStatus.ALWAYS_ON);
+			});
+			context.waitTicks(5);
+			context.takeScreenshot("diffusicraft-far-terrain-high-west-debug");
+			context.runOnClient(mc -> {
+				mc.debugEntries.setStatus(DEBUG_ENTRY, DebugScreenEntryStatus.NEVER);
+				mc.gui.hud.toggle();
+			});
 
 			Resources.get().updateConfig(config -> config.farTerrain = false);
 			context.waitTicks(20);
