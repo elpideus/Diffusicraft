@@ -421,6 +421,32 @@ FEATURES["grotto_pool"] = {
     "replaceable": "#minecraft:lush_ground_replaceable", "surface": "floor", "vegetation_chance": 0.0,
     "vegetation_feature": placed("minecraft:glow_lichen", []), "vertical_range": 4, "xz_radius": uniform(3, 7)}
 FEATURES["selenite_beam"] = {"type": f"{NS}:selenite_beam"}
+# Cubes of halite, grown into one another out of the floors and ceilings of the salt caverns (see HaliteFeature.java).
+FEATURES["halite"] = {"type": f"{NS}:halite", "state": {"id": ours("rock_salt")}}
+# Straws of salt, the crust that the brine dripping from the ceiling leaves behind (see SpireFeature.java).
+FEATURES["salt_stalactite"] = {"type": f"{NS}:spire", "state": {"id": ours("salt_crust")}, "height": uniform(2, 9),
+                               "radius": 0.08}
+# Brine pools, sunk into the floor and ringed with salt, like vanilla's sulfur pools.
+FEATURES["brine_pool"] = {
+    "type": "minecraft:lake", "barrier": {"id": ours("salt_crust")}, "can_place_feature": {"type": "minecraft:true"},
+    "can_replace_with_air_or_fluid": {"type": "minecraft:not", "predicate": {
+        "type": "minecraft:matching_block_tag", "tag": "minecraft:features_cannot_replace"}},
+    "can_replace_with_barrier": {"type": "minecraft:not", "predicate": {
+        "type": "minecraft:matching_block_tag", "tag": "minecraft:lava_pool_stone_cannot_replace"}},
+    "fluid": {"id": "minecraft:water", "properties": {"level": "0"}}}
+# Spires of ice: ice stalagmites rising from the floors of the ice caves, and great icicles hanging from their ceilings
+# (see SpireFeature.java). Vanilla's ice spikes fall short of the ground below y = 50.
+FEATURES["ice_spire"] = {"type": f"{NS}:spire", "state": {"id": "minecraft:packed_ice"}, "height": uniform(4, 24),
+                         "radius": 0.12}
+# Icicles: mostly a block or two, the last of clear ice.
+FEATURES["icicle"] = {
+    "type": "minecraft:block_column", "direction": "down", "prioritize_tip": True,
+    "allowed_placement": {"type": "minecraft:matching_block_tag", "tag": "minecraft:air"},
+    "layers": [
+        {"height": {"type": "minecraft:weighted_list", "distribution": [
+            {"data": uniform(0, 1), "weight": 4}, {"data": uniform(2, 4), "weight": 1}]},
+         "provider": {"id": "minecraft:packed_ice"}},
+        {"height": 1, "provider": {"id": "minecraft:ice"}}]}
 # Lianas: the vines that hang from the crowns, grown down towards the floor (see LianaFeature.java).
 FEATURES["lianas"] = {"type": f"{NS}:lianas", "chance": 0.6}
 FEATURES["sparse_lianas"] = {"type": f"{NS}:lianas", "chance": 0.3}
@@ -584,6 +610,13 @@ PLACED = {
     "grotto_pools": hollow(ours("grotto_pool"), "floor", 2),
     "selenite_beams_floor": hollow(ours("selenite_beam"), "floor", 2),
     "selenite_beams_ceiling": hollow(ours("selenite_beam"), "ceiling", 1),
+    "halite_floor": hollow(ours("halite"), "floor", 3),
+    "halite_ceiling": hollow(ours("halite"), "ceiling", 2),
+    "salt_stalactites": hollow(ours("salt_stalactite"), "ceiling", 16),
+    "brine_pools": hollow(ours("brine_pool"), "floor", 3),
+    "ice_spires_floor": hollow(ours("ice_spire"), "floor", 4),
+    "ice_spires_ceiling": hollow(ours("ice_spire"), "ceiling", 4),
+    "icicles": hollow(ours("icicle"), "ceiling", 32),
     "giant_mushrooms": hollow("minecraft:mushroom_island_vegetation", "floor", 4),
     "hollow_brown_mushrooms": hollow_patch("minecraft:brown_mushroom", 4, 24),
     "hollow_red_mushrooms": hollow_patch("minecraft:red_mushroom", 2, 24),
@@ -764,6 +797,8 @@ def spawn(mob, weight, lo, hi=None):
 # The tags of the Grand Hollows' biomes, which sit underground like vanilla's cave biomes.
 CAVE_TAGS = ["c:is_cave", "c:is_underground", "minecraft:has_structure/mineshaft",
              "minecraft:has_structure/trial_chambers", "minecraft:is_overworld", "minecraft:stronghold_biased_to"]
+# The dripstone of the template of the caves that grow none.
+DRIPSTONE = ["minecraft:large_dripstone", "minecraft:dripstone_cluster", "minecraft:pointed_dripstone"]
 
 # Each biome: its vanilla template, what it changes, the vegetation it grows and the tags it carries. `fog` is the
 # distance at which the fog closes in, in blocks; `without` lists the template's features it leaves out; `top` lists
@@ -1243,9 +1278,31 @@ BIOMES = {
     # the water that grew them has been pumped away. No dripstone: the crystals grew under water.
     "selenite_caverns": {
         "template": "dripstone_caves", "temperature": 1.0, "downfall": 0.0,
-        "without": ["minecraft:large_dripstone", "minecraft:dripstone_cluster", "minecraft:pointed_dripstone"],
+        "without": DRIPSTONE,
         "local": ["selenite_beams_floor", "selenite_beams_ceiling"],
         "vegetation": [],
+        "tags": CAVE_TAGS,
+    },
+    # Salt caverns, cut through the salt beds under the deserts by what little rain falls there, like Malham under
+    # Mount Sodom or the Namakdan cave on Qeshm: a crust of salt, straws of it hanging from the ceilings, brine pools,
+    # and cubes of halite larger than any on Earth. Husks, from the deserts above.
+    "salt_caverns": {
+        "template": "dripstone_caves", "temperature": 1.0, "downfall": 0.0, "monsters": "desert",
+        "effects": {"water_color": "#7fc8c0"},
+        "without": DRIPSTONE,
+        "local": ["halite_floor", "halite_ceiling", "salt_stalactites"],
+        "vegetation": ["brine_pools"],
+        "tags": CAVE_TAGS,
+    },
+    # Ice caves, like the Eisriesenwelt in Austria or Scărișoara in Romania, where the winter's cold air sinks in and
+    # stays all summer: floors of old ice under drifts of snow, spires of ice rising from them and hanging from the
+    # ceilings, and lakes frozen solid (see HollowLakes.java). Strays, from the snows above.
+    "ice_caves": {
+        "template": "dripstone_caves", "temperature": -0.5, "downfall": 0.4, "monsters": "snowy_plains",
+        "effects": {"water_color": "#3d57d6"},
+        "without": DRIPSTONE,
+        "local": ["ice_spires_floor", "ice_spires_ceiling"],
+        "vegetation": ["icicles"],
         "tags": CAVE_TAGS,
     },
     # The forest of giant mushrooms that Verne set by the Lidenbrock Sea, on mycelium, lit by shroomlight.
@@ -1412,6 +1469,15 @@ CAVE_RULE = sequence(
         when("minecraft:on_floor", block("calcite")), when("minecraft:on_ceiling", block("calcite")))),
     # Clay where the stream has left it.
     when(biome_is("glowworm_grotto"), when("minecraft:on_floor", when(noise(0.2), block("clay")))),
+    # A white crust of salt over the floor, and the salt itself, bare, in the ceiling.
+    when(biome_is("salt_caverns"), sequence(
+        when("minecraft:on_floor", block(ours("salt_crust"))), when("minecraft:under_floor", block(ours("rock_salt"))),
+        when("minecraft:on_ceiling", block(ours("rock_salt"))))),
+    # Old ice on the floor, under drifts of snow, and in the ceiling, blue where it is oldest.
+    when(biome_is("ice_caves"), sequence(
+        when("minecraft:on_floor", sequence(when(noise(0.1), block("snow_block")), block("packed_ice"))),
+        when("minecraft:under_floor", block("packed_ice")),
+        when("minecraft:on_ceiling", sequence(when(noise(0.4), block("blue_ice")), block("packed_ice"))))),
 )
 
 

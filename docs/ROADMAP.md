@@ -107,8 +107,10 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   [WORLDGEN.md](WORLDGEN.md#the-hollows).
 - **Life in the Hollows.** Each Grand Hollow is one cave biome, from the climate over it: lush caves under the wet
   tropics, glowworm grottoes hung with glowing silk under mild, wet land, selenite caverns crossed by beams of crystal
-  under dry land, forests of giant mushrooms, and dripstone caves elsewhere. Their plants and crystals reach the floors
-  and ceilings of caverns a hundred blocks tall. Under wet land, a lake fills the basin in the middle of the floor.
+  under dry land, forests of giant mushrooms, sulfur caves in sulfurous ground, salt caverns of halite cubes under
+  hot, dry basins, ice caves of spires and frozen lakes under frozen land, and dripstone caves elsewhere. Their plants
+  and crystals reach the floors and ceilings of caverns a hundred blocks tall. Under wet land, a lake fills the basin
+  in the middle of the floor.
   See [WORLDGEN.md](WORLDGEN.md#life-in-the-hollows).
 - **Rivers and lakes.** Drainage of the whole world from its rain and terrain, with discharge, meanders,
   tributaries, widths that grow with the discharge, banks, beds and river biomes. Lakes fill the closed basins as far

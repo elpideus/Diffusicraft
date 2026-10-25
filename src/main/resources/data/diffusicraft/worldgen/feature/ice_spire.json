@@ -1,0 +1,12 @@
+{
+  "type": "diffusicraft:spire",
+  "state": {
+    "id": "minecraft:packed_ice"
+  },
+  "height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 4,
+    "max_inclusive": 24
+  },
+  "radius": 0.12
+}

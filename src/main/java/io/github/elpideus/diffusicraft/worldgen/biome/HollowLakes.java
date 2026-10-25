@@ -12,14 +12,15 @@ import java.util.Arrays;
 
 /**
  * Fills the lakes of the Grand Hollows: the basins sunk into the middle of their floors ({@link Hollows#lakeAt}) fill
- * with water up to their brims, where {@link HollowBiomes#holdsLake} says the cavern holds one. The cavern over a lake
- * ({@link Hollows#overLake}) drains into it, so the aquifer puts no water or lava there, which would stand on the lake
- * a few blocks higher than its brim. It stands in front of the aquifer of every noise chunk of a Diffusicraft world,
- * which the noise fill and the carvers both ask what fills open space, so a carver's tunnel through a lake bed floods
- * too.
+ * with water up to their brims, where {@link HollowBiomes#holdsLake} says the cavern holds one, or with ice where
+ * {@link HollowBiomes#frozen} says the lake is frozen solid. The cavern over a lake ({@link Hollows#overLake}) drains
+ * into it, so the aquifer puts no water or lava there, which would stand on the lake a few blocks higher than its brim.
+ * It stands in front of the aquifer of every noise chunk of a Diffusicraft world, which the noise fill and the carvers
+ * both ask what fills open space, so a carver's tunnel through a lake bed floods too.
  */
 public final class HollowLakes {
 	private static final BlockState WATER = Blocks.WATER.defaultBlockState();
+	private static final BlockState ICE = Blocks.ICE.defaultBlockState();
 	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 	private static final ThreadLocal<Cache> CACHE = ThreadLocal.withInitial(Cache::new);
 
@@ -54,11 +55,12 @@ public final class HollowLakes {
 		private @Nullable Hollows owner;
 		private final long[] ids = new long[CAVERNS];
 		private final boolean[] known = new boolean[CAVERNS];
-		private final boolean[] lakes = new boolean[CAVERNS];
+		/** What fills the lake of each cavern, or {@code null} where it holds none. */
+		private final @Nullable BlockState[] lakes = new BlockState[CAVERNS];
 		private final TerrainField.Column scratch = new TerrainField.Column();
 		private final BiomeClimate climate = new BiomeClimate();
 
-		/** Water in a lake, air in the cavern over one, or {@code null} where the aquifer decides. */
+		/** Water or ice in a lake, air in the cavern over one, or {@code null} where the aquifer decides. */
 		@Nullable BlockState substance(BiomeWorld world, int x, int y, int z) {
 			Hollows hollows = world.hollows();
 			if (owner != hollows) {
@@ -74,10 +76,10 @@ public final class HollowLakes {
 				TerrainSurface ground = world.field().surface(world.scale());
 				hollows.column(x, z, (px, pz) -> (int) Math.floor(ground.y(px, pz)), column);
 			}
-			BlockState fill = WATER;
+			boolean over = false;
 			Hollows.Chamber chamber = hollows.lakeAt(column, y);
 			if (chamber == null) {
-				fill = AIR;
+				over = true;
 				chamber = hollows.overLake(column, y);
 				if (chamber == null) {
 					return null;
@@ -86,11 +88,13 @@ public final class HollowLakes {
 			int slot = (int) (chamber.id() ^ chamber.id() >>> 32) & (CAVERNS - 1);
 			if (!known[slot] || ids[slot] != chamber.id()) {
 				HollowBiomes.climate(world, chamber, scratch, climate);
-				lakes[slot] = HollowBiomes.holdsLake(HollowBiomes.pick(chamber.kind(), chamber.id(), climate), climate);
+				String biome = HollowBiomes.pick(chamber.kind(), chamber.id(), climate);
+				lakes[slot] = !HollowBiomes.holdsLake(biome, climate) ? null : HollowBiomes.frozen(biome) ? ICE : WATER;
 				ids[slot] = chamber.id();
 				known[slot] = true;
 			}
-			return lakes[slot] ? fill : null;
+			BlockState lake = lakes[slot];
+			return lake == null ? null : over ? AIR : lake;
 		}
 	}
 }

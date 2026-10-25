@@ -1,0 +1,12 @@
+{
+  "type": "diffusicraft:spire",
+  "state": {
+    "id": "diffusicraft:salt_crust"
+  },
+  "height": {
+    "type": "minecraft:uniform",
+    "min_inclusive": 2,
+    "max_inclusive": 9
+  },
+  "radius": 0.08
+}

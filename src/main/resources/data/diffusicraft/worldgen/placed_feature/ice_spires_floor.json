@@ -1,0 +1,19 @@
+{
+  "feature": "diffusicraft:ice_spire",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 4
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "diffusicraft:hollow_surface",
+      "surface": "floor"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

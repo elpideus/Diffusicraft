@@ -14,11 +14,13 @@ import io.github.elpideus.diffusicraft.worldgen.feature.ErraticFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreePiece;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeStructure;
+import io.github.elpideus.diffusicraft.worldgen.feature.HaliteFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.HollowSurfacePlacement;
 import io.github.elpideus.diffusicraft.worldgen.feature.LianaFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.RiverFallFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.RockfallFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.SeleniteBeamFeature;
+import io.github.elpideus.diffusicraft.worldgen.feature.SpireFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.UndergrowthFeature;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import io.github.elpideus.diffusicraft.worldgen.material.ModOres;
@@ -95,6 +97,8 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.PLACEMENT_MODIFIER_TYPE, Diffusicraft.id("diffusicraft_world"),
 			DiffusicraftWorldFilter.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("selenite_beam"), SeleniteBeamFeature.CODEC);
+		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("halite"), HaliteFeature.CODEC);
+		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("spire"), SpireFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("giant_tree"), GiantTreeFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("river_falls"), RiverFallFeature.CODEC);
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, Diffusicraft.id("lianas"), LianaFeature.CODEC);

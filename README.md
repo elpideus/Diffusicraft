@@ -26,8 +26,8 @@ geography, climate and geology.
   ores by rock and depth, above a magma layer, and the minerals of tech mods where Create, Tech Reborn or Mekanism add
   them: zinc and lead in limestone, tin in granite, platinum in gabbro, bauxite under the tropics. Vanilla's caves are
   sparser, with more noodle tunnels, and caverns grow larger the deeper they lie, down to the Grand Hollows over lava
-  seas, each a cave biome of its own: glowworm grottoes, selenite caverns, mushroom forests, lush and dripstone caves,
-  with lakes in their floors under wet land.
+  seas, each a cave biome of its own: glowworm grottoes, selenite caverns, mushroom forests, sulfur, salt and ice
+  caves, lush and dripstone caves, with lakes in their floors under wet land.
 - **Real-world biomes.** Tundra, cloud forest, monsoon forest, laurel forest, páramo, puna, temperate rainforest,
   maquis, moorland, heath, bogs, fjords, salt flats, steppe and more, with their own trees, plants and soils. Each
   breaks into patches of its siblings a few hundred blocks across: birch stands and glades in the woods, bogs in the

@@ -103,6 +103,8 @@ public final class Geology {
 	private static final double SULFUR_BASEMENT = 0.25;
 	/** Where the sulfurous ground lies in that part of the basement: above this in its noise, in about a third of it. */
 	private static final double SULFUR_PATCH = 0.1;
+	/** Above this in the facies noise, an arid basin is an {@link Basin#EVAPORITE} one. */
+	private static final double EVAPORITE_FACIES = -0.1;
 
 	/** Where the sedimentary cover was laid down, which decides what its beds are made of. */
 	public enum Basin {
@@ -327,16 +329,16 @@ public final class Geology {
 	public void column(int x, int z, Column c) {
 		double sx = x / stretch;
 		double sz = z / stretch;
-		double faciesNoise = fractal(seed + 2, sx / 650, sz / 650, 2);
+		double faciesNoise = faciesNoise(sx, sz);
 		double basementNoise = basementNoise(sx, sz);
 		c.fold = fold(sx, sz, c.relief);
 		c.sedimentBase = sedimentBase(sx, sz, c.fold, c.meanSurfaceY, c.meanElevation, c.relief);
 		c.warp = (float) warp(x, z, sx, sz, c.fold);
 
-		boolean arid = c.precipitation < 350 && c.temperature > 8;
+		boolean arid = arid(c.temperature, c.precipitation);
 		// Köppen's desert: under half the rain the warmth would dry up.
 		c.desert = arid && c.precipitation < 10 * c.temperature + 70;
-		if (arid && faciesNoise > -0.1) {
+		if (arid && faciesNoise > EVAPORITE_FACIES) {
 			c.basin = Basin.EVAPORITE;
 		} else if (c.meanElevation < -40 || faciesNoise < -0.15) {
 			c.basin = Basin.MARINE;
@@ -466,6 +468,25 @@ public final class Geology {
 		double sx = x / stretch;
 		double sz = z / stretch;
 		return basementNoise(sx, sz) >= SULFUR_BASEMENT && fractal(seed + 18, sx / 160, sz / 160, 2) > SULFUR_PATCH;
+	}
+
+	/**
+	 * Whether the beds under a point were laid down in an {@link Basin#EVAPORITE} basin, as {@link #column} decides:
+	 * the salt of seas and lakes that dried up under an arid sky, in which water cuts salt caves.
+	 *
+	 * @param temperature   the annual mean temperature there, °C
+	 * @param precipitation the annual precipitation there, mm
+	 */
+	public boolean evaporite(double x, double z, float temperature, float precipitation) {
+		return arid(temperature, precipitation) && faciesNoise(x / stretch, z / stretch) > EVAPORITE_FACIES;
+	}
+
+	private static boolean arid(float temperature, float precipitation) {
+		return precipitation < 350 && temperature > 8;
+	}
+
+	private double faciesNoise(double sx, double sz) {
+		return fractal(seed + 2, sx / 650, sz / 650, 2);
 	}
 
 	/** The top of the deepslate at a point, before rounding to a block. */

@@ -35,6 +35,8 @@ public final class BiomeClimate {
 	public float patchDepth;
 	/** Whether the ground under the column has sulfur caves in it; see {@link Geology#sulfurous}. */
 	public boolean sulfurous;
+	/** Whether the ground under the column holds beds of salt; see {@link Geology#evaporite}. */
+	public boolean saline;
 
 	public BiomeClimate set(TerrainField.Column column) {
 		temperature = column.temperature;
@@ -50,6 +52,7 @@ public final class BiomeClimate {
 		patch = 0f;
 		patchDepth = 0f;
 		sulfurous = false;
+		saline = false;
 		return this;
 	}
 

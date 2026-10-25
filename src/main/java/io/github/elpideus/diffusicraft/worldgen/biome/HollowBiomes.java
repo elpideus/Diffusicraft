@@ -14,6 +14,11 @@ import org.jspecify.annotations.Nullable;
  *     <li><b>Sulfur caves</b> wherever the ground is {@link Geology#sulfurous}, whatever the climate: most of the Grand
  *     Hollows there and half the Ancient ones, eaten out by the sulfuric acid of the water that rises into them, as at
  *     Frasassi in Italy.</li>
+ *     <li><b>Salt caverns</b> under the deserts, in the salt beds left by seas that dried up there, like Malham under
+ *     Mount Sodom or the Namakdan cave on Qeshm: cut by the little water that falls there, which dissolves salt as it
+ *     would never dissolve limestone, and grown with cubes of halite.</li>
+ *     <li><b>Ice caves</b> under frozen ground, like the Eisriesenwelt in Austria or Scărișoara in Romania, where the
+ *     winter's cold air sinks in and stays: floors of old ice, spires and icicles of it, and frozen lakes.</li>
  *     <li><b>Lush caves</b> under the wet tropics, where roots and water reach far down.</li>
  *     <li><b>Glowworm grottoes</b> under mild, wet land, like the Waitomo caves of New Zealand: ceilings strung with
  *     the glowing threads of fungus-gnat larvae over pools of clay.</li>
@@ -33,6 +38,8 @@ public final class HollowBiomes {
 	public static final String SELENITE_CAVERNS = "diffusicraft:selenite_caverns";
 	public static final String MUSHROOM_FOREST = "diffusicraft:mushroom_forest";
 	public static final String SULFUR_CAVES = "minecraft:sulfur_caves";
+	public static final String SALT_CAVERNS = "diffusicraft:salt_caverns";
+	public static final String ICE_CAVES = "diffusicraft:ice_caves";
 
 	private HollowBiomes() {
 	}
@@ -68,8 +75,8 @@ public final class HollowBiomes {
 	}
 
 	/**
-	 * The climate over a Grand Hollow's centre, from the coarse map, and whether the ground there is sulfurous: the same
-	 * wherever in the cavern it is asked for.
+	 * The climate over a Grand Hollow's centre, from the coarse map, and whether the ground there is sulfurous or
+	 * saline: the same wherever in the cavern it is asked for.
 	 *
 	 * @param scratch a column to read the terrain into
 	 * @return {@code climate}, filled in
@@ -81,22 +88,38 @@ public final class HollowBiomes {
 			scale.toPixel((int) Math.floor(chamber.x())), scratch);
 		climate.set(scratch);
 		climate.sulfurous = world.geology().sulfurous(chamber.x(), chamber.z());
+		climate.saline = world.geology().evaporite(chamber.x(), chamber.z(), climate.temperature,
+			climate.precipitation);
 		return climate;
 	}
 
 	/**
 	 * Whether the basin of a Grand Hollow holds a lake. Under wet land the water that soaks down through the rock fills
 	 * it to the brim. Under dry land too little reaches it, under frozen ground none does, and the selenite caverns
-	 * have been drained, like the Cave of the Crystals, whose crystals grew in water pumped out for the mine.
+	 * have been drained, like the Cave of the Crystals, whose crystals grew in water pumped out for the mine. The ice
+	 * caves keep a lake of ice instead, the meltwater of a thousand summers frozen again in the winters, as in the ice
+	 * block of Scărișoara: see {@link #frozen}.
 	 *
 	 * @param biome the cavern's biome, from {@link #pick}
 	 * @param c     the climate over the cavern's centre
 	 */
 	public static boolean holdsLake(@Nullable String biome, BiomeClimate c) {
-		return biome != null && !biome.equals(SELENITE_CAVERNS) && c.aridity() >= 1 && c.temperature >= 0;
+		return frozen(biome)
+			|| biome != null && !biome.equals(SELENITE_CAVERNS) && c.aridity() >= 1 && c.temperature >= 0;
+	}
+
+	/** Whether the lake of a Grand Hollow with this biome, if it {@linkplain #holdsLake holds one}, is frozen solid. */
+	public static boolean frozen(@Nullable String biome) {
+		return ICE_CAVES.equals(biome);
 	}
 
 	private static String grand(double roll, BiomeClimate c) {
+		if (c.saline) {
+			return roll < 0.7 ? SALT_CAVERNS : DRIPSTONE_CAVES;
+		}
+		if (c.temperature < 0) {
+			return roll < 0.7 ? ICE_CAVES : DRIPSTONE_CAVES;
+		}
 		if (c.temperature >= 20 && c.precipitation >= 1500) {
 			return roll < 0.7 ? LUSH_CAVES : DRIPSTONE_CAVES;
 		}

@@ -218,6 +218,28 @@ class GeologyTest {
 	}
 
 	@Test
+	void theSaltCavesKnowTheEvaporiteBasins() {
+		Geology geology = new Geology(SEED, -64, 15, 10);
+		int evaporite = 0, count = 0;
+		for (float[] climate : new float[][]{{24, 150}, {14, 300}, {11, 800}, {5, 200}}) {
+			for (int x = -6000; x < 6000; x += 211) {
+				for (int z = -6000; z < 6000; z += 199) {
+					Geology.Column c = lowland(geology, x, z);
+					c.temperature = climate[0];
+					c.precipitation = climate[1];
+					geology.column(x, z, c);
+					boolean basin = c.basin() == Geology.Basin.EVAPORITE;
+					assertEquals(basin, geology.evaporite(x, z, climate[0], climate[1]), x + ", " + z);
+					evaporite += basin ? 1 : 0;
+					count++;
+				}
+			}
+		}
+		// Most of the arid ground, and none of the rest.
+		assertTrue(evaporite > 0.25 * count && evaporite < 0.5 * count, evaporite + " of " + count);
+	}
+
+	@Test
 	void sameSeedSameGround() {
 		Geology a = new Geology(SEED, -256, 5, 4);
 		Geology b = new Geology(SEED, -256, 5, 4);

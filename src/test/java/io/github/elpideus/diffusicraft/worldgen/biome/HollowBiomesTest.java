@@ -51,10 +51,26 @@ class HollowBiomesTest {
 		assertEquals(Set.of(HollowBiomes.GLOWWORM_GROTTO, HollowBiomes.DRIPSTONE_CAVES), mild.keySet());
 		assertEquals(0.7, mild.get(HollowBiomes.GLOWWORM_GROTTO), 0.03);
 
-		for (BiomeClimate c : new BiomeClimate[] {climate(-8, 300), climate(15, 400), climate(28, 200),
-			climate(2, 1500)}) {
+		Map<String, Double> frozen = shares(Hollows.Kind.GRAND_HOLLOW, climate(-8, 300));
+		assertEquals(Set.of(HollowBiomes.ICE_CAVES, HollowBiomes.DRIPSTONE_CAVES), frozen.keySet());
+		assertEquals(0.7, frozen.get(HollowBiomes.ICE_CAVES), 0.03);
+
+		for (BiomeClimate c : new BiomeClimate[] {climate(15, 400), climate(28, 200), climate(2, 1500)}) {
 			assertEquals(Set.of(HollowBiomes.DRIPSTONE_CAVES), shares(Hollows.Kind.GRAND_HOLLOW, c).keySet());
 		}
+	}
+
+	@Test
+	void saltBedsHaveSaltCaverns() {
+		BiomeClimate desert = climate(24, 150);
+		desert.saline = true;
+		Map<String, Double> grand = shares(Hollows.Kind.GRAND_HOLLOW, desert);
+		assertEquals(Set.of(HollowBiomes.SALT_CAVERNS, HollowBiomes.DRIPSTONE_CAVES), grand.keySet());
+		assertEquals(0.7, grand.get(HollowBiomes.SALT_CAVERNS), 0.03);
+		// The selenite keeps the Ancient ones; the salt takes most of the rest.
+		Map<String, Double> ancient = shares(Hollows.Kind.ANCIENT_GRAND_HOLLOW, desert);
+		assertEquals(0.75, ancient.get(HollowBiomes.SELENITE_CAVERNS), 0.03);
+		assertEquals(0.25 * 0.7, ancient.get(HollowBiomes.SALT_CAVERNS), 0.03);
 	}
 
 	@Test
@@ -105,8 +121,13 @@ class HollowBiomesTest {
 		assertTrue(HollowBiomes.holdsLake(HollowBiomes.DRIPSTONE_CAVES, wet));
 		assertTrue(HollowBiomes.holdsLake(HollowBiomes.MUSHROOM_FOREST, wet));
 		assertTrue(HollowBiomes.holdsLake(HollowBiomes.LUSH_CAVES, climate(26, 2500)));
+		// Frozen solid in the ice caves, however dry the land.
+		assertTrue(HollowBiomes.holdsLake(HollowBiomes.ICE_CAVES, climate(-12, 150)));
+		assertTrue(HollowBiomes.frozen(HollowBiomes.ICE_CAVES));
+		assertFalse(HollowBiomes.frozen(HollowBiomes.DRIPSTONE_CAVES));
 		// Drained, dry, frozen, or left to vanilla.
 		assertFalse(HollowBiomes.holdsLake(HollowBiomes.SELENITE_CAVERNS, wet));
+		assertFalse(HollowBiomes.holdsLake(HollowBiomes.SALT_CAVERNS, climate(24, 150)));
 		assertFalse(HollowBiomes.holdsLake(HollowBiomes.DRIPSTONE_CAVES, climate(24, 250)));
 		assertFalse(HollowBiomes.holdsLake(HollowBiomes.DRIPSTONE_CAVES, climate(-4, 900)));
 		assertFalse(HollowBiomes.holdsLake(null, wet));

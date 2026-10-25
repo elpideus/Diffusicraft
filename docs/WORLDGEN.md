@@ -1410,6 +1410,8 @@ all year round, and is as wet as the rain that soaks down into it.
 | **Glowworm grotto** | Seven in ten Grand Hollows under mild, wet land (4–20 °C, at least 1000 mm), like the Waitomo caves | Glowworm silk hanging in curtains from the ceiling, pools in clay, stalactites and stalagmites. No glowstone: the silk gives the only light | Patches of clay |
 | **Selenite caverns** | Three in four Ancient Grand Hollows under dry land (aridity below 1), one in five under wet land. Like the Cave of the Crystals at Naica | Beams of selenite, from the floors and the ceilings, that cross the cavern at every angle. No dripstone, nothing alive | Calcite |
 | **Mushroom forest** | More than half the Ancient Grand Hollows under wet land: the forest that Verne set by the Lidenbrock Sea | Huge brown and red mushrooms, patches of small ones, glow lichen, spores drifting in the air | Mycelium over dirt |
+| **Salt caverns** | Seven in ten Grand Hollows, and of the Ancient ones the selenite leaves, under the beds of rock salt of hot, dry basins (`Geology.evaporite`, see [The ground](#the-ground)). Salt flows under the weight of the rock and rises in domes, as under Mount Sodom, where the Malham cave runs 10 km through it | Cubes of halite grown into one another on floors and ceilings, straws of salt hanging from the ceiling, pools of brine ringed with salt. No dripstone | Salt crust over rock salt, rock salt overhead |
+| **Ice caves** | Seven in ten Grand Hollows, and of the Ancient ones the selenite and the mushrooms leave, under land below 0 °C, like the Eisriesenwelt and Scărișoara | Spires of ice from the floors and the ceilings, icicles, a lake frozen solid. No dripstone | Packed ice with drifts of snow, blue ice overhead |
 | Dripstone caves | Every other Grand and Ancient Grand Hollow | Stalactites and stalagmites on every floor and ceiling | The dripstone caves' own |
 
 The Deep Grand Hollows keep vanilla's biomes (see [Refined biomes](#refined-biomes)).
@@ -1433,19 +1435,34 @@ they reach the floors of the Grand Hollows too. Like every Diffusicraft feature 
   15 blocks sideways, so it stays in the chunks a feature may write to. Selenite is translucent, like ice, and
   needs a pickaxe.
 - **Huge mushrooms** are vanilla's, from the mushroom fields.
+- **Halite** grows in cubes of rock salt (`diffusicraft:halite`, `HaliteFeature`): one three to seven blocks on a
+  side, and two to six smaller ones within five blocks of it, each on the floor or under the ceiling it finds there.
+  Each is sunk up to half its size into the rock and fills the open space and the rock, so the cubes grow out of the
+  ground and into one another, as in the Crystal Grottoes of Wieliczka, but larger.
+- **Spires** (`diffusicraft:spire`, `SpireFeature`) rise from a floor or hang from a ceiling, lean a few degrees at
+  most, and taper from a base a fraction of their length across to a point a block wide. Every layer keeps the block
+  its axis runs through, so a thin one never breaks. A spire fills only open space and water and stops at whatever
+  it meets, so one that crosses a low cavern becomes a pillar. The ice caves grow spires of packed ice up to 24
+  blocks tall, like the ice stalagmites of the Eisriesenwelt, and the salt caverns hang straws of salt crust up to 9
+  blocks long, as the brine leaves them under Mount Sodom. Vanilla's ice spikes cannot serve: below y = 50 their
+  pillars never reach the ground.
+- **Icicles** of packed ice tipped with ice hang from the ice caves' ceilings (vanilla's `block_column`).
+- **Brine pools** are vanilla's lakes (`minecraft:lake`) of pale green water in a rim of salt crust.
 
-**Lakes.** Under wet land (aridity at least 1, and a mean temperature of at least 0 °C) the water that soaks down
-fills the basin of a Grand or Ancient Grand Hollow to 0.92 of the floor's depth under the centre: just under the plain
-floor at its rim, so the rock holds it. At Vanilla the lakes are 7 to 11 blocks deep in the middle, deeper
-in the tall worlds. Under dry or frozen land the basins stay dry, and so do those of the selenite caverns, drained
-like the Cave of the Crystals. `HollowLakes` fills them: a mixin at the end of `NoiseChunk`'s constructor puts it in
-front of the chunk's aquifer, which the noise fill and the carvers both ask what fills open space, so a carver's
-tunnel through a lake bed floods too. It finds the lake with `Hollows.lakeAt` and asks `HollowBiomes.holdsLake` once
-per cavern. The cavern over a lake drains into it, so `HollowLakes` keeps the aquifer out of it (`Hollows.overLake`):
-the aquifer's pools would stand on the lake, a block or more over its brim. Where another cave opens into the cavern,
-its water may spill in. Like vanilla's lakes, the water is still: it schedules no fluid updates. The beds are clay in
-the glowworm grottoes and lush caves, sand by the mushroom forest's lake, and gravel among the dripstone. Every floor
-under water in those biomes above the lava level gets them, so vanilla's aquifer pools there do too.
+**Lakes.** Under wet land (aridity at least 1, and a mean temperature of at least 0 °C) the water that soaks down fills
+the basin of a Grand or Ancient Grand Hollow to 0.92 of the floor's depth under the centre: just under the plain floor
+at its rim, so the rock holds it. At Vanilla the lakes are 7 to 11 blocks deep in the middle, deeper in the tall worlds.
+Under dry or frozen land the basins stay dry, and so do those of the selenite caverns, drained like the Cave of the
+Crystals, and the salt caverns. In the ice caves, however dry the land, the lake is ice (`HollowBiomes.frozen`), as the
+block of ice in Scărișoara has lain for thousands of years. `HollowLakes` fills them: a mixin at the end of
+`NoiseChunk`'s constructor puts it in front of the chunk's aquifer, which the noise fill and the carvers both ask what
+fills open space, so a carver's tunnel through a lake bed floods too. It finds the lake with `Hollows.lakeAt` and asks
+`HollowBiomes.holdsLake` once per cavern. The cavern over a lake drains into it, so `HollowLakes` keeps the aquifer out
+of it (`Hollows.overLake`): the aquifer's pools would stand on the lake, a block or more over its brim. Where another
+cave opens into the cavern, its water may spill in. Like vanilla's lakes, the water is still: it schedules no fluid
+updates. The beds are clay in the glowworm grottoes and lush caves, sand by the mushroom forest's lake, and gravel among
+the dripstone. Every floor under water in those biomes above the lava level gets them, so vanilla's aquifer pools there
+do too.
 
 The ground is the material rule `diffusicraft:biome_caves`, the last of the rules `StrataRule` runs over its rock.
 The erosion that bares rock on steep ground and lays scree under cliffs keeps to the land's surface, so the soils of
