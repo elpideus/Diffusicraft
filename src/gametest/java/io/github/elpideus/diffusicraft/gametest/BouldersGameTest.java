@@ -7,6 +7,7 @@ import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateColumn;
+import io.github.elpideus.diffusicraft.worldgen.lod.LodSampler;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -61,7 +62,10 @@ public class BouldersGameTest implements FabricClientGameTest {
 	private static final int[] DX = {1, 0, -1, 0};
 	private static final int[] DZ = {0, 1, 0, -1};
 
-	/** A boulder found in the world: its highest column, the rock of it, how many columns it covers and how high it is. */
+	/**
+	 * A boulder found in the world: its highest column, the rock of it, how many columns it covers and how high it
+	 * stands over the ground.
+	 */
 	record Found(BlockPos top, String rock, int columns, int height) {
 	}
 
@@ -121,14 +125,20 @@ public class BouldersGameTest implements FabricClientGameTest {
 			return 0;
 		}
 		TerrainSurface surface = probe.field().surface(SIZE);
+		LodSampler sampler = world.getServer().computeOnServer(server -> LodSampler.of(server.overworld()));
+		if (sampler == null) {
+			throw new AssertionError("No LOD sampler for the Diffusicraft overworld");
+		}
 		int total = 0;
 		for (int k = 0; k < areas.size(); k++) {
 			Area area = areas.get(k);
 			BlockPos at = area.at.atY((int) surface.y(area.at.getX(), area.at.getZ()));
 			LOGGER.info("{} area {}: {} at {} °C with {} blocks of relief", name, k, at, area.temperature, area.relief);
 			WorldGenerationGameTest.view(context, world, at.above(100), 0f, 60f, name + "-area-" + k);
+			ChunkPos chunk = ChunkPos.containing(at);
+			int[] ground = ground(sampler, chunk, SCAN);
 			List<Found> found = world.getServer().computeOnServer(server ->
-				find(server.overworld(), ChunkPos.containing(at), SCAN, rock));
+				find(server.overworld(), ground, chunk, SCAN, rock));
 			LOGGER.info("{} area {}: {} boulders, the biggest {}", name, k, found.size(),
 				found.stream().limit(8).toList());
 			total += found.size();
@@ -180,11 +190,22 @@ public class BouldersGameTest implements FabricClientGameTest {
 	}
 
 	/**
-	 * The boulders in the loaded chunks within {@code radius} of {@code center}, biggest first: patches of columns
-	 * topped with {@code rock}, at most {@value #MAX_COLUMNS} of them, whose highest block stands two or more over the
-	 * highest of the columns around them.
+	 * The ground that the terrain lays in the chunks within {@code radius} of {@code center}, before any feature, as
+	 * {@link LodSampler} has it: the height of the top block of each column, by {@code x * side + z}.
 	 */
-	static List<Found> find(ServerLevel level, ChunkPos center, int radius, Predicate<BlockState> rock) {
+	private static int[] ground(LodSampler sampler, ChunkPos center, int radius) {
+		int x1 = (center.x() - radius) * 16, z1 = (center.z() - radius) * 16, side = (2 * radius + 1) * 16;
+		int[] ground = new int[side * side];
+		sampler.sample(x1, z1, side, 1, (x, z, column) -> ground[x * side + z] = column.top(column.ground()) - 1);
+		return ground;
+	}
+
+	/**
+	 * The boulders in the loaded chunks within {@code radius} of {@code center}, biggest first: patches of two to
+	 * {@value #MAX_COLUMNS} columns topped with {@code rock} that stand two blocks or more over the {@code ground}. A
+	 * boulder that leans on a rock face is then told apart from it, as the face stands no higher than the ground.
+	 */
+	static List<Found> find(ServerLevel level, int[] ground, ChunkPos center, int radius, Predicate<BlockState> rock) {
 		int x1 = (center.x() - radius) * 16, z1 = (center.z() - radius) * 16, side = (2 * radius + 1) * 16;
 		int[] tops = new int[side * side];
 		BlockState[] blocks = new BlockState[side * side];
@@ -207,15 +228,19 @@ public class BouldersGameTest implements FabricClientGameTest {
 		}
 		List<Found> found = new ArrayList<>();
 		boolean[] seen = new boolean[side * side];
+		boolean[] standing = new boolean[side * side];
+		for (int k = 0; k < tops.length; k++) {
+			standing[k] = blocks[k] != null && rock.test(blocks[k]) && tops[k] >= ground[k] + 2;
+		}
 		for (int start = 0; start < tops.length; start++) {
-			if (seen[start] || blocks[start] == null || !rock.test(blocks[start])) {
+			if (seen[start] || !standing[start]) {
 				continue;
 			}
 			LongOpenHashSet patch = new LongOpenHashSet();
 			LongArrayFIFOQueue next = new LongArrayFIFOQueue();
 			next.enqueue(start);
 			seen[start] = true;
-			int highest = start, around = Integer.MIN_VALUE;
+			int highest = start, height = 0;
 			boolean edge = false;
 			while (!next.isEmpty()) {
 				int at = (int) next.dequeueLong();
@@ -223,6 +248,7 @@ public class BouldersGameTest implements FabricClientGameTest {
 				if (tops[at] > tops[highest]) {
 					highest = at;
 				}
+				height = Math.max(height, tops[at] - ground[at]);
 				int i = at / side, j = at % side;
 				for (int d = 0; d < 4; d++) {
 					int ni = i + DX[d], nj = j + DZ[d], n = ni * side + nj;
@@ -230,20 +256,15 @@ public class BouldersGameTest implements FabricClientGameTest {
 						edge = true;
 						continue;
 					}
-					if (rock.test(blocks[n])) {
-						if (!seen[n]) {
-							seen[n] = true;
-							next.enqueue(n);
-						}
-					} else {
-						around = Math.max(around, tops[n]);
+					if (standing[n] && !seen[n]) {
+						seen[n] = true;
+						next.enqueue(n);
 					}
 				}
 			}
-			if (!edge && patch.size() <= MAX_COLUMNS && around > Integer.MIN_VALUE && tops[highest] >= around + 2) {
+			if (!edge && patch.size() >= 2 && patch.size() <= MAX_COLUMNS) {
 				found.add(new Found(new BlockPos(x1 + highest / side, tops[highest], z1 + highest % side),
-					BuiltInRegistries.BLOCK.getKey(blocks[highest].getBlock()).getPath(), patch.size(),
-					tops[highest] - around));
+					BuiltInRegistries.BLOCK.getKey(blocks[highest].getBlock()).getPath(), patch.size(), height));
 			}
 		}
 		found.sort(Comparator.comparingInt(Found::columns).reversed());
