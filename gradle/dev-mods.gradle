@@ -51,6 +51,7 @@ def optionalDevMods = [
 // they never leave the dev runtime.
 def devShaderPacks = [
 	'bliss-shader'               : 'kC2Y8q1P',  // 2.1.2 (Iris pack with Distant Horizons support, ARR: dev runtime only)
+	'complementary-unbound'      : 'B1kyfoUZ',  // r5.9.3 (Iris pack with Distant Horizons support, dev runtime only)
 ]
 
 if (!project.hasProperty('noDevMods')) {

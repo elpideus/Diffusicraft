@@ -40,9 +40,10 @@ project directly, and Loom generates run configurations.
   in `-PdevMods`, for example `-PdevMods=techreborn` to see the geology place the ores of a tech mod, or
   `-PdevMods=voxy,sodium` for Voxy, which needs Sodium. They are listed under `optionalDevMods` in the same file.
   Sulkan (`-PdevMods=sodium,sulkan`), shaders for Minecraft's Vulkan backend, is one of them.
-- **Shader packs.** Named in `-PdevMods` as well, the packs under `devShaderPacks`, such as Bliss
-  (`-PdevMods=sodium,iris,bliss-shader`), go into the client's `shaderpacks` folder as `<slug>.zip`. Like the mods,
-  they are pinned by Modrinth version id and never leave the dev runtime.
+- **Shader packs.** Named in `-PdevMods` as well, the packs under `devShaderPacks`, Bliss
+  (`-PdevMods=sodium,iris,bliss-shader`) and Complementary Unbound (`complementary-unbound`), go into the client's
+  `shaderpacks` folder as `<slug>.zip`. Like the mods, they are pinned by Modrinth version id and never leave the dev
+  runtime.
 - **On Vulkan.** The full modpack does not start on Vulkan. Iris is in it, so Distant Horizons switches itself to
   OpenGL and then stops the game (see [COMPATIBILITY.md](COMPATIBILITY.md#vulkan)). Pick mods without Iris, such as
   `-PdevMods=sodium,distanthorizons` or `-PdevMods=sodium,sulkan`. The game stops before its menus, so to go back to
