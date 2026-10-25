@@ -87,7 +87,7 @@ public final class DiffusicraftConfig {
 	 * Read when a world opens.
 	 */
 	public boolean generateAhead = true;
-	/** Offer the relief map: {@code /diffusicraft map} and the pause menu's button. See docs/MAP.md. */
+	/** Offer the relief map through {@code /diffusicraft map}. See docs/MAP.md. */
 	public boolean reliefMap = true;
 	/**
 	 * Address the relief map's web server listens on. The default lets only this machine open it; {@code 0.0.0.0}

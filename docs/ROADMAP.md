@@ -144,8 +144,8 @@ generator turns them into blocks. The pieces planned add the details: finer terr
   wait for inference. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
 - **A relief map.** A web page the mod serves for the world that is open, shaded by its relief and drawn from the
   terrain before any chunk is generated: the coarse map when zoomed out, the full terrain when zoomed in, kept on disk.
-  Click a place for its coordinates and a `/tp`, or search for the nearest places of a biome. It opens from the pause
-  menu or `/diffusicraft map`, and a server can share it with its players. See [MAP.md](MAP.md).
+  Click a place for its coordinates and a `/tp`, or search for the nearest places of a biome. It opens with
+  `/diffusicraft map`, and a server can share it with its players. See [MAP.md](MAP.md).
 - **Sub-biomes.** Every forest, plain, taiga, jungle, savanna, steppe and desert breaks into patches of its siblings a
   few hundred blocks across, in the same climate: birch stands, glades and dark woods in the forest, bogs in the flat
   hollows of the taiga and pines on its rises. The variants vanilla's weirdness picks come in patches of at most a

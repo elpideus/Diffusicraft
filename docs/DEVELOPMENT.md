@@ -126,8 +126,8 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
   for that seed it goes to a steep river 100 km away; `-Pdiffusicraft.riverFallsAt=x,z` searches 256 blocks around
   another place. It needs the models.
 - [`ReliefMapGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ReliefMapGameTest.java)
-  creates a Medium world and checks its relief map without the pause menu's button, which would open a browser: the
-  player's link, the page, the levels and the tiles around the player, coarse and in detail, whose colours it saves
+  creates a Medium world and checks its relief map without opening a browser: the player's link, the page, the levels
+  and the tiles around the player, coarse and in detail, whose colours it saves
   (`diffusicraft-map-coarse.png`, `-fine.png`). `-Pdiffusicraft.mapLink=<file>` keeps the world open for a browser.
   See [MAP.md](MAP.md#working-on-the-page). It needs the models.
 - [`TreesGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/TreesGameTest.java) plants three of
@@ -258,8 +258,6 @@ that explains why.
 2. Check that the mixin targets still exist:
    - `Gui.addInitialScreens(List<Function<Runnable, Screen>>)`;
    - the constructor of `CreateWorldScreen$MoreTab` and its local `GridLayout.RowHelper`;
-   - the call to `GridLayout$RowHelper.addChild(LayoutElement, int, LayoutSettings)` in `PauseScreen.createPauseMenu`,
-     which adds the row of icon buttons;
    - the height mixins in [HEIGHT.md](HEIGHT.md#mixin-targets).
 3. Run `./gradlew build` and the client game test, and look at the screenshots.
 4. Update the dev modpack, or run with `-PnoDevMods` until the mods catch up.

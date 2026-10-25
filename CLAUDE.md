@@ -29,11 +29,9 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   tick.
 - **Mixin targets** that break on Minecraft updates:
   - client: `Gui.addInitialScreens`, `CreateWorldScreen$MoreTab.<init>`, `CreateWorldScreen$WorldTab.<init>` and its
-    `customizeTypeButton`, `CreateWorldScreen.onCreate`, `WorldCreationUiState.<init>` and the call to
-    `GridLayout$RowHelper.addChild(LayoutElement, int, LayoutSettings)` in `PauseScreen.createPauseMenu` (its icon
-    button row, which the relief map's button joins), and for the far terrain (`client/mixin/lod`) the head of
-    `LevelRenderer.addMainPass`, the tail of `LevelRenderer.executeSolid`, the first `Math.max` in `Camera.update`
-    (its far plane) and the return of `FogRenderer.setupFog`;
+    `customizeTypeButton`, `CreateWorldScreen.onCreate`, `WorldCreationUiState.<init>`, and for the far terrain
+    (`client/mixin/lod`) the head of `LevelRenderer.addMainPass`, the tail of `LevelRenderer.executeSolid`, the first
+    `Math.max` in `Camera.update` (its far plane) and the return of `FogRenderer.setupFog`;
   - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
     `NoiseBasedChunkGenerator.createFluidPicker` and `createNoiseChunk`, the call to `clampToHeightAccessor` in

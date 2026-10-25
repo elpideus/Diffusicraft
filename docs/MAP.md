@@ -6,14 +6,13 @@ walked there.
 
 ## Opening it
 
-- **In singleplayer**, press the map button at the end of the pause menu's row of small icon buttons. The map opens
-  in your browser, centred on you.
-- **Anywhere**, run `/diffusicraft map`. The game answers with a link to click and a *Copy* button. Operators can run
-  it on a server, and so can the owner of a singleplayer world without cheats: the map changes nothing in the world.
+Run `/diffusicraft map`. The game answers with a link to click, which opens the map in your browser centred on you,
+and a *Copy* button. Operators can run it on a server, and so can the owner of a singleplayer world without cheats: the
+map changes nothing in the world.
 
 The map's web server starts with the first link and stops when the world closes; a link from an earlier session no
-longer works, so ask for a new one. The button and the command are there only in worlds that Diffusicraft generates,
-and only while [`reliefMap`](CONFIG.md#reliefmap) is on.
+longer works, so ask for a new one. The command is there only in worlds that Diffusicraft generates, and only
+while [`reliefMap`](CONFIG.md#reliefmap) is on.
 
 ## Using it
 
@@ -71,8 +70,7 @@ priority, so the game's ticks never wait for it.
 
 ## How it works
 
-The code is in `src/main/java/.../map`, with the page in `src/main/resources/diffusicraft/map/index.html` and the
-pause menu's button in the client's `screen/ReliefMapButton` and `mixin/PauseScreenMixin`.
+The code is in `src/main/java/.../map`, with the page in `src/main/resources/diffusicraft/map/index.html`.
 
 - **`ReliefMap`** registers the command, starts the map with the first link and stops it with the server. It finds the
   levels that Diffusicraft generates and keeps the tiles on disk, except in a development environment, where they live
@@ -117,8 +115,8 @@ a file of the same name with `.stop` appended appears, or for 25 minutes:
 ./gradlew test --tests '*MapPagePreview' -Pdiffusicraft.mapPreview=/tmp/map-url
 ```
 
-To check it against a real world, run `ReliefMapGameTest` (it needs the models). It asks for the player's link as the
-pause menu's button does, without opening a browser, then fetches the page, the levels and the tiles around the
+To check it against a real world, run `ReliefMapGameTest` (it needs the models). It asks for the player's link as
+`/diffusicraft map` does, without opening a browser, then fetches the page, the levels and the tiles around the
 player, and saves their colours as `diffusicraft-map-coarse.png` and `-fine.png`. With
 `-Pdiffusicraft.mapLink=<file>` it writes the link to that file and keeps the world open until the `.stop` file
 appears, or for 20 minutes, so that the page can be opened on a world the models drew:

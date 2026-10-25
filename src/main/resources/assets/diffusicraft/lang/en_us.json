@@ -191,8 +191,6 @@
 	"biome.diffusicraft.salt_caverns": "Salt Caverns",
 	"biome.diffusicraft.ice_caves": "Ice Caves",
 
-	"diffusicraft.map.button": "Relief Map",
-	"diffusicraft.map.button.failed": "Could not start the relief map",
 	"diffusicraft.map.link": "Relief map: %s %s",
 	"diffusicraft.map.open": "Open the relief map in your browser",
 	"diffusicraft.map.copy": "Copy",

@@ -43,9 +43,9 @@ import net.minecraft.world.level.storage.LevelResource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The relief map of a world, in a web browser: {@code /diffusicraft map} answers with a link, and the pause menu has a
- * button for it in singleplayer. The map shows every level that Diffusicraft generates; its web server starts with
- * the first link and stops with the world. See docs/MAP.md.
+ * The relief map of a world, in a web browser: {@code /diffusicraft map} answers with a link. The map shows every
+ * level that Diffusicraft generates; its web server starts with the first link and stops with the world. See
+ * docs/MAP.md.
  *
  * <p>Tiles are kept under {@code <world>/diffusicraft/relief-map}, which is emptied when the mod changes, for the
  * terrain may change with it. In a development environment they are kept in memory alone, unless the system property

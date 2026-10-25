@@ -36,11 +36,11 @@ import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 
 /**
- * Creates a Diffusicraft world of the Medium size and checks its relief map without the pause menu's button, which
- * would open a browser: it asks for the player's link as the button does, then fetches the page, the levels and the
- * tiles around the player from the map's web server. It saves the colours of the tiles around the player, drawn from
- * the coarse map and in detail, to {@code build/run/clientGameTest/screenshots} as {@code diffusicraft-map-coarse.png}
- * and {@code diffusicraft-map-fine.png}. See docs/MAP.md.
+ * Creates a Diffusicraft world of the Medium size and checks its relief map without opening a browser: it asks for
+ * the player's link as {@code /diffusicraft map} does, then fetches the page, the levels and the tiles around the
+ * player from the map's web server. It saves the colours of the tiles around the player, drawn from the coarse map
+ * and in detail, to {@code build/run/clientGameTest/screenshots} as {@code diffusicraft-map-coarse.png} and
+ * {@code diffusicraft-map-fine.png}. See docs/MAP.md.
  *
  * <p>With {@code -Pdiffusicraft.mapLink=<file>} it then writes the link to that file and keeps the world open until a
  * file of the same name with {@code .stop} appended appears, or for {@value #HOLD_MINUTES} minutes, so that the page

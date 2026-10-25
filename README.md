@@ -43,9 +43,9 @@ geography, climate and geology.
 - **Distant Horizons.** With Distant Horizons installed, its far terrain, trees included, comes straight from the
   terrain without generating chunks, and the far horizon costs no model inference. See
   [COMPATIBILITY.md](docs/COMPATIBILITY.md).
-- **A relief map.** `/diffusicraft map`, or the map button in the pause menu, opens the world in your browser, shaded
-  by its relief, with the land drawn before anyone has walked there. Click a place for its coordinates and a `/tp`
-  to copy, or search for a biome. See [MAP.md](docs/MAP.md).
+- **A relief map.** `/diffusicraft map` opens the world in your browser, shaded by its relief, with the land drawn
+  before anyone has walked there. Click a place for its coordinates and a `/tp` to copy, or search for a biome. See
+  [MAP.md](docs/MAP.md).
 - **Shaders and Vulkan.** Checked with Iris and the Bliss shaders, and on Minecraft's Vulkan renderer with Sodium and
   the Sulkan shaders.
 - **A resource screen.** It opens at first launch, and later from Create World > More or Mod Menu. It downloads the

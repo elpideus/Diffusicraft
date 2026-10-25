@@ -8,7 +8,6 @@
 		"CreateWorldScreenMoreTabMixin",
 		"CreateWorldScreenWorldTabMixin",
 		"GuiMixin",
-		"PauseScreenMixin",
 		"WorldCreationUiStateMixin",
 		"height.RenderGridMixin",
 		"iris.DHCompatMixin",
