@@ -19,6 +19,8 @@ file for you. If you edit the file by hand, do it while the game is closed.
   "voxyLods": true,
   "serveFarTerrain": true,
   "farTerrainRadius": 8192,
+  "farTerrain": true,
+  "farTerrainDistance": 8192,
   "verticalRenderDistance": 0,
   "generateAhead": true,
   "reliefMap": true,
@@ -129,8 +131,9 @@ world. See [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
 ### `serveFarTerrain`
 
 On a server, or a world opened to LAN, send the far terrain of Diffusicraft worlds to the players whose clients ask
-for it, those with Diffusicraft and Voxy, so that their Voxy draws it as in singleplayer. Set it to `false` to send
-none: their Voxy then shows only the chunks it has loaded. The server samples the grids on two threads of its own, so
+for it, those with Diffusicraft, so that their far terrain, or their Voxy's, shows it as in singleplayer. Set it to
+`false` to send none: their far terrain then ends where the chunks do, and their Voxy shows only the chunks it has
+loaded. The server samples the grids on two threads of its own, so
 they never hold up the ticks, but they do use the GPU or the CPU as chunks do. Read when the server starts. See
 [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
 
@@ -138,6 +141,19 @@ they never hold up the ticks, but they do use the GPU or the CPU as chunks do. R
 
 How far from a player, in blocks, the server sends far terrain: up to 65536. The default, 8192, is as far as Voxy draws
 by default. Beyond it, a player's Voxy shows only the chunks it has loaded. Read when the server starts.
+
+### `farTerrain`
+
+Draw Diffusicraft's own far terrain past the chunks of Diffusicraft worlds: in singleplayer straight from the
+world's terrain, with what players built, and on a server from the far terrain it sends (see `serveFarTerrain`).
+It is always off while Distant Horizons or Voxy is installed, which draw their own. Takes effect at once. See
+[LOD.md](LOD.md).
+
+### `farTerrainDistance`
+
+How far the far terrain reaches, in blocks: from 512 to 65536. The default is 8192. The fog closes in at its end
+instead of at the end of the chunks. On a server, the far terrain ends where the server stops sending it
+(`farTerrainRadius`) if that is nearer. Read when a world opens.
 
 ### `verticalRenderDistance`
 

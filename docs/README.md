@@ -17,7 +17,7 @@
 - [WORLDGEN.md](WORLDGEN.md): how the terrain becomes chunks: world sizes, the terrain field, biome
   parameters, density and the spawn.
 - [LOD.md](LOD.md): the far terrain of our own: what it takes from Distant Horizons and Voxy, how saved chunks are
-  kept, and what comes next.
+  kept, how it is drawn, and what comes next.
 - [HEIGHT.md](HEIGHT.md): build heights up to 32,736 blocks: how positions are repacked, what it costs, and what it
   breaks.
 - [DEVELOPMENT.md](DEVELOPMENT.md): building, running with the dev modpack, tests and the headless client game test.

@@ -1,6 +1,8 @@
 package io.github.elpideus.diffusicraft.client;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
+import io.github.elpideus.diffusicraft.client.lod.FarTerrain;
+import io.github.elpideus.diffusicraft.client.lod.FarTerrainPipelines;
 import io.github.elpideus.diffusicraft.client.lod.RemoteLods;
 import io.github.elpideus.diffusicraft.client.screen.Formats;
 import io.github.elpideus.diffusicraft.client.worldgen.FarTerrainLimits;
@@ -21,6 +23,8 @@ public final class DiffusicraftClient implements ClientModInitializer {
 		Resources.get().addListener(job -> Minecraft.getInstance().execute(() -> showResult(job)));
 		RemoteLods.init();
 		FarTerrainLimits.init();
+		FarTerrainPipelines.init();
+		FarTerrain.init();
 	}
 
 	/** Whether to show the resource screen at game start. Never lets a failure block the title screen. */

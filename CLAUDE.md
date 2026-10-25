@@ -31,7 +31,9 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - client: `Gui.addInitialScreens`, `CreateWorldScreen$MoreTab.<init>`, `CreateWorldScreen$WorldTab.<init>` and its
     `customizeTypeButton`, `CreateWorldScreen.onCreate`, `WorldCreationUiState.<init>` and the call to
     `GridLayout$RowHelper.addChild(LayoutElement, int, LayoutSettings)` in `PauseScreen.createPauseMenu` (its icon
-    button row, which the relief map's button joins);
+    button row, which the relief map's button joins), and for the far terrain (`client/mixin/lod`) the head of
+    `LevelRenderer.addMainPass`, the tail of `LevelRenderer.executeSolid`, the first `Math.max` in `Camera.update`
+    (its far plane) and the return of `FogRenderer.setupFog`;
   - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
     `NoiseBasedChunkGenerator.createFluidPicker` and `createNoiseChunk`, the call to `clampToHeightAccessor` in
@@ -64,7 +66,10 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     update.
   - Sodium (`client/mixin/sodium`, applied only when it is installed): the `-128` inlined once in
     `TaskCollectingTree.addPendingSection` and in `DeferredTaskList.dequeueNextSectionPos`, `getPendingTaskLists`
-    returning the `DeferredTaskList`, and `AbstractSectionVisitor.baseOffsetY`. Check them on every Sodium update.
+    returning the `DeferredTaskList`, and `AbstractSectionVisitor.baseOffsetY`, plus
+    `SodiumWorldRenderer.instanceNullable()` and `isSectionReady(int, int, int)`, which
+    `client.compat.sodium.SodiumSections` calls through method handles for the far terrain. Check them on every Sodium
+    update.
 - **Positions.** `BlockPos` packs 24/16/24 bits, not 26/12/26, and worlds end at ±8,000,000. Never pack positions by
   hand or assume ±30,000,000: use `BlockPos.asLong`/`of`, and the numbers in `ExtendedHeight`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under

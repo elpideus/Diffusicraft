@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The far terrain a server sends (see {@code worldgen.lod.LodFeed}), for a client that does not run the world itself.
- * Voxy's far terrain comes from it in multiplayer (see {@code client.compat.voxy}).
+ * The far terrain of {@link FarTerrain}, or of Voxy (see {@code client.compat.voxy}), comes from it in multiplayer.
  */
 public final class RemoteLods {
 	/** How long to wait for a grid before giving up on it, in minutes: only a server that never answers takes so long. */

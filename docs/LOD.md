@@ -62,19 +62,71 @@ good (`SERVER_STOPPED`).
 
 ### Using them: `LodGrid.sample`
 
-Every grid the far terrain asks for goes through `LodGrid.sample`: Voxy's in singleplayer, and the feed to
-multiplayer clients. When the grid's step is a level's and its corner is a multiple of that step, the stored columns
-replace the sampled ones. A grid whose columns are all stored never runs the terrain at all. `LodFeed` drops the
-grids it cached under a page that changes.
+Every grid the far terrain asks for goes through `LodGrid.sample`: our renderer and Voxy in singleplayer, and the
+feed to multiplayer clients. When the grid's step is a level's and its corner is a multiple of that step, the stored
+columns replace the sampled ones. A grid whose columns are all stored never runs the terrain at all. `LodFeed` drops
+the grids it cached under a page that changes.
+
+### Drawing them: tiles, meshes and colours
+
+These parts are unit-tested and feed the renderer below.
+
+- **Tiles (`LodTiles`).** The far view is cut into tiles, and each tile is one page of the store: 64 × 64 columns of
+  one level, `64 · 2ᴸ` blocks wide. The tiles form a quadtree, as Distant Horizons' do. A tile splits into the four
+  of the level below while the viewer is closer to it than `detail` times its step, so columns lie about
+  `distance / detail` blocks apart. Tiles that lie wholly within the chunks the game draws are left out. Out to
+  16,384 blocks, a detail of 64 takes about 170 tiles, and a detail of 128 about 420.
+- **Meshes (`LodMesher`).** A tile becomes faces, solid and water apart:
+  - **Tops.** The tops of the highest solid run and the highest water in each column merge into rectangles of one
+    block, biome, height and light, as Voxy and Distant Horizons merge theirs. A plain or a sea then takes a few
+    faces. The tops under a bridge or an overhang stay one per column.
+  - **Sides.** A side shows only the part of a run that the neighbouring column leaves open.
+  - **Skirts.** Along a tile's edges, the neighbour may be a tile of another level, so the solid runs show their
+    sides down to two steps under the ground of the column and of its neighbours along the edge. This skirt closes
+    the cracks between tiles. Water has no skirt, which would show as walls under the sea.
+  - **Bottoms.** The underside of a bridge or overhang shows.
+  - **Light.** The ground under something takes a little less sky light. Faces under water darken with depth, as
+    the world's do.
+- **Colours (`LodColors`, client).** Each block has a colour for its top, bottom and sides: the average of the
+  textures its model shows there, weighted by the area each covers, leaving out see-through pixels. The parts the
+  world tints, such as grass, leaves and water, take the same tints for the column's biome, through the game's own
+  tint sources. Textures are read from the resource packs the first time a block is asked for, off the render
+  thread. When the resource packs change, the renderer starts over with the new colours.
+
+### The renderer: `FarTerrain` (client)
+
+`FarTerrain` draws the tiles in Diffusicraft worlds when neither Distant Horizons nor Voxy is installed and
+`farTerrain` is on (see [CONFIG.md](CONFIG.md#farterrain)).
+
+- **Where the grids come from.** In singleplayer, from the integrated server's own level through `LodGrid.sample`,
+  so what players built shows. Its store tells the renderer which pages changed, and those tiles are built again.
+  On a server, from the far terrain the server sends (`RemoteLods`).
+- **Building.** Two low-priority worker threads sample a tile's grid, mesh it and write its vertices off the heap.
+  At most six tiles are built at once, nearest first, and tiles whose terrain changed go before new ones. The render
+  thread only uploads finished meshes, at most 4 MB a frame, so a burst of tiles does not stall it. `LodView` keeps
+  a coarse tile drawn until every finer tile wanted within it is built, and finer tiles until the coarse tile that
+  replaces them is, so there are no holes while the player moves.
+- **Vertices.** 16 bytes each: the position from the tile's corner as unsigned shorts, the sky and block light, the
+  colour, the material and the side the face looks to. A tile's solid quads and water quads share one buffer, and
+  its corner goes to the shader in a uniform of its own, so the far terrain is exact at ±8,000,000 blocks.
+- **Drawing.** At the end of the world's solid pass, after the chunks, with one draw call per tile and per layer.
+  The far terrain shares the chunks' depth buffer, fog, lightmap and face shading. Tiles outside the view are
+  skipped.
+- **Where the chunks take over.** `ChunkMask` keeps a texture of one texel per chunk around the camera, set where
+  the world draws the chunk: loaded and lit with its eight neighbours, within the render distance, and with its
+  surface section built. The fragment shader drops far terrain over those chunks, a quarter of a block inside the
+  face it draws so that the edges match. A chunk still loading shows its far terrain, so there is no gap at the
+  edge of the render distance.
+- **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
+  end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
+  Fog under water, in lava and from blindness or darkness stays as it is.
 
 ## Next
 
-1. **Drawing it.** Tiles of these columns, coarser the further they lie, meshed on worker threads and drawn past the
-   chunks by Diffusicraft itself.
-2. **Shader packs.** Bliss and Complementary Unbound shade Distant Horizons' terrain through Iris's support for it.
+1. **Shader packs.** Bliss and Complementary Unbound shade Distant Horizons' terrain through Iris's support for it.
    Our renderer has to be shaded the same way.
-3. **Coarser levels from finer ones.** Far levels now keep one column out of each square of 2ᴸ × 2ᴸ, as the sampler
+2. **Coarser levels from finer ones.** Far levels now keep one column out of each square of 2ᴸ × 2ᴸ, as the sampler
    does. Building them from the level below, as Voxy builds its coarser sections, would keep thin builds and roads
    visible from further away.
-4. **Telling clients.** A page that changes should reach the clients that hold it. For now they keep their copy
+3. **Telling clients.** A page that changes should reach the clients that hold it. For now they keep their copy
    until they ask again.

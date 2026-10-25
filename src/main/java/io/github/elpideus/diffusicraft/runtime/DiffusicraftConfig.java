@@ -21,6 +21,9 @@ public final class DiffusicraftConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	/** Furthest a server sends far terrain, in blocks. */
 	private static final int MAX_FAR_TERRAIN_RADIUS = 65536;
+	/** Nearest and furthest the client draws its own far terrain, in blocks. */
+	private static final int MIN_FAR_TERRAIN_DISTANCE = 512;
+	private static final int MAX_FAR_TERRAIN_DISTANCE = 65536;
 
 	/** Preferred inference device. AUTO picks the installed GPU runtime, else the CPU. */
 	public OnnxModel.Device device = OnnxModel.Device.AUTO;
@@ -66,6 +69,14 @@ public final class DiffusicraftConfig {
 	public boolean serveFarTerrain = true;
 	/** How far from a player, in blocks, a server sends far terrain. Read when the server starts. */
 	public int farTerrainRadius = 8192;
+	/**
+	 * Draw Diffusicraft's own far terrain past the chunks of Diffusicraft worlds, in singleplayer from the world's
+	 * generator and on a server from the far terrain it sends. Off while Distant Horizons or Voxy is installed, which
+	 * draw theirs. Takes effect at once. See docs/LOD.md.
+	 */
+	public boolean farTerrain = true;
+	/** How far the client draws its own far terrain, in blocks. Read when a world opens. */
+	public int farTerrainDistance = 8192;
 	/**
 	 * Section rows above and below the camera that the client keeps render data for. 0 uses the render distance, which
 	 * is as far as vanilla draws vertically; smaller values save memory in tall dimensions. Read at startup.
@@ -125,6 +136,7 @@ public final class DiffusicraftConfig {
 		cpuThreads = Math.max(0, cpuThreads);
 		verticalRenderDistance = Math.max(0, verticalRenderDistance);
 		farTerrainRadius = Math.clamp(farTerrainRadius, 0, MAX_FAR_TERRAIN_RADIUS);
+		farTerrainDistance = Math.clamp(farTerrainDistance, MIN_FAR_TERRAIN_DISTANCE, MAX_FAR_TERRAIN_DISTANCE);
 		storagePath = storagePath == null ? "" : storagePath.strip();
 		rocmNativePath = rocmNativePath == null ? "" : rocmNativePath.strip();
 		reliefMapAddress = reliefMapAddress == null ? "" : reliefMapAddress.strip();

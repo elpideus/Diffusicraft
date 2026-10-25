@@ -213,7 +213,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 
 - **Our own LODs.** A far terrain that needs neither Distant Horizons nor Voxy, shows what players built and works
   with shader packs. Built: saved chunks are kept as columns for every level of detail and replace the generated
-  terrain where players have been. Next: our own renderer, and shader-pack support. See [LOD.md](LOD.md).
+  terrain where players have been, and our own renderer draws them past the chunks. Next: shader-pack support. See
+  [LOD.md](LOD.md).
 
 ### Compatibility
 
