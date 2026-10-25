@@ -99,6 +99,7 @@ public final class FarTerrain {
 	private final LodColors colors = LodColors.current();
 	private final FarMaterials materials = new FarMaterials();
 	private final LodView<FarMesh> view = new LodView<>(FarMesh::close);
+	private final LodTiles.Chooser chooser = new LodTiles.Chooser();
 	private final ChunkMask mask = new ChunkMask();
 	private final Queue<Built> built = new ConcurrentLinkedQueue<>();
 	private final Queue<LodTiles.Tile> changed = new ConcurrentLinkedQueue<>();
@@ -108,6 +109,7 @@ public final class FarTerrain {
 	private final Set<LodTiles.Tile> stale = new HashSet<>();
 	private final Set<LodTiles.Tile> rebuild = new LinkedHashSet<>();
 	private final ArrayDeque<LodTiles.Tile> missing = new ArrayDeque<>();
+	/** The tiles drawn in this frame, nearest first. */
 	private final List<FarMesh> drawn = new ArrayList<>();
 	private @Nullable GpuBufferSlice terrainTransform;
 	private int maxQuads;
@@ -186,8 +188,8 @@ public final class FarTerrain {
 	}
 
 	/**
-	 * Hands {@code tiles} the tiles in view in this frame that have land or, if {@code water}, water, for a shader pack
-	 * to draw. On the render thread.
+	 * Hands {@code tiles} the tiles in view in this frame that have land, nearest first, or, if {@code water}, water,
+	 * furthest first, for a shader pack to draw. On the render thread.
 	 */
 	public static void forEachDrawn(boolean water, Tiles tiles) {
 		FarTerrain terrain = current;
@@ -195,7 +197,7 @@ public final class FarTerrain {
 			return;
 		}
 		Vec3 camera = terrain.camera;
-		for (FarMesh mesh : terrain.drawn) {
+		for (FarMesh mesh : water ? terrain.drawn.reversed() : terrain.drawn) {
 			int quads = water ? mesh.waterQuads : mesh.solidQuads;
 			if (quads > 0 && mesh.buffer != null) {
 				LodTiles.Tile tile = mesh.tile;
@@ -283,6 +285,8 @@ public final class FarTerrain {
 		if (drawn.isEmpty()) {
 			return;
 		}
+		// Near land hides what lies behind it before it is shaded; water blends over what is drawn behind it.
+		drawn.sort(Comparator.comparingDouble(mesh -> LodTiles.distance(mesh.tile, at.x, at.z)));
 		RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS).requestIndexCount(maxQuads * 6);
 		if (shaders) {
 			// The pack's programs read neither, and leave out the chunks themselves.
@@ -320,6 +324,10 @@ public final class FarTerrain {
 				solidDraws.add(new RenderPass.Draw<>(0, mesh.buffer, null, null, 0, mesh.solidQuads * 6, 0,
 					(meshes, uploader) -> uploader.setUniform("ChunkSection", meshes.get(index).section.slice())));
 			}
+		}
+		for (int i = drawn.size() - 1; i >= 0; i--) {
+			FarMesh mesh = drawn.get(i);
+			int index = i;
 			if (mesh.waterQuads > 0) {
 				waterDraws.add(new RenderPass.Draw<>(0, mesh.buffer, null, null, 0, mesh.waterQuads * 6,
 					mesh.solidQuads * 4,
@@ -399,6 +407,7 @@ public final class FarTerrain {
 		stale.clear();
 		rebuild.clear();
 		missing.clear();
+		chooser.reset();
 		chosenX = Double.NaN;
 	}
 
@@ -442,7 +451,7 @@ public final class FarTerrain {
 		chosenX = x;
 		chosenZ = z;
 		chosenNear = near;
-		List<LodTiles.Tile> tiles = LodTiles.around(x, z, near, far, DETAIL);
+		List<LodTiles.Tile> tiles = chooser.around(x, z, near, far, DETAIL);
 		tiles.sort(Comparator.comparingDouble(tile -> LodTiles.distance(tile, x, z)));
 		missing.clear();
 		missing.addAll(view.want(tiles));

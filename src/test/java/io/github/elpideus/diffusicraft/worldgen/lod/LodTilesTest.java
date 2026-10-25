@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LodTilesTest {
@@ -52,6 +53,32 @@ class LodTilesTest {
 			assertTrue(tile.step() * (2 * DETAIL + 2 * LodStore.PAGE * Math.sqrt(2)) > d,
 				"step " + tile.step() + " at " + d);
 		}
+	}
+
+	@Test
+	void aViewerMovingToAndFroAcrossTheLineWhereATileSplitsKeepsItsTiles() {
+		// A tile of level 2 splits closer than 512 blocks; the viewer stands south of it.
+		LodTiles.Tile tile = new LodTiles.Tile(2, 0, 0);
+		double x = 128;
+		int far = 4096;
+		LodTiles.Chooser chooser = new LodTiles.Chooser();
+		assertTrue(splits(chooser.around(x, 256 + 500, 0, far, DETAIL), tile));
+		// Without the hysteresis it would no longer split here.
+		assertFalse(splits(LodTiles.around(x, 256 + 530, 0, far, DETAIL), tile));
+		assertTrue(splits(chooser.around(x, 256 + 530, 0, far, DETAIL), tile));
+		assertTrue(splits(chooser.around(x, 256 + 630, 0, far, DETAIL), tile));
+		assertFalse(splits(chooser.around(x, 256 + 650, 0, far, DETAIL), tile));
+		// And back: it splits again only well inside the line.
+		assertFalse(splits(chooser.around(x, 256 + 480, 0, far, DETAIL), tile));
+		assertFalse(splits(chooser.around(x, 256 + 420, 0, far, DETAIL), tile));
+		assertTrue(splits(chooser.around(x, 256 + 400, 0, far, DETAIL), tile));
+	}
+
+	/** Whether the tiles hold finer tiles within {@code tile} rather than {@code tile} itself or a coarser one. */
+	private static boolean splits(List<LodTiles.Tile> tiles, LodTiles.Tile tile) {
+		List<LodTiles.Tile> found = covering(tiles, tile.minBlockX(), tile.minBlockZ());
+		assertEquals(1, found.size(), found.toString());
+		return found.getFirst().level() < tile.level();
 	}
 
 	@Test

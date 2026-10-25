@@ -97,7 +97,11 @@ These parts are unit-tested and feed the renderer below.
   one level, `64 · 2ᴸ` blocks wide. The tiles form a quadtree, as Distant Horizons' do. A tile splits into the four
   of the level below while the viewer is closer to it than `detail` times its step, so columns lie about
   `distance / detail` blocks apart. Tiles that lie wholly within the chunks the game draws are left out. Out to
-  16,384 blocks, a detail of 64 takes about 170 tiles, and a detail of 128 about 420.
+  16,384 blocks, a detail of 64 takes about 170 tiles, and a detail of 128 about 420. As the viewer moves, a tile
+  that split stays split until the viewer is 1.25 times as far as it would split at, and one that did not must come
+  as much closer to split (`LodTiles.Chooser`), as Distant Horizons' quadtree keeps its own. Otherwise a player
+  going to and fro across the line where a tile splits would have the four finer tiles and the coarse one built
+  again and again.
 - **Meshes (`LodMesher`).** A tile becomes faces, solid and water apart:
   - **Tops.** The tops of the highest solid run and the highest water in each column merge into rectangles of one
     block, biome, height and light, as Voxy and Distant Horizons merge theirs. A plain or a sea then takes a few
@@ -136,7 +140,9 @@ These parts are unit-tested and feed the renderer below.
   its corner goes to the shader in a uniform of its own, so the far terrain is exact at ±8,000,000 blocks.
 - **Drawing.** At the end of the world's solid pass, after the chunks, with one draw call per tile and per layer.
   The far terrain shares the chunks' depth buffer, fog, lightmap and face shading. Tiles outside the view are
-  skipped.
+  skipped. The land is drawn nearest first, as Distant Horizons draws its own, so that a near mountain hides the
+  land behind it before the land is shaded; the water is drawn furthest first, so that it blends over what lies
+  behind it.
 - **Where the chunks take over.** The tiles reach all the way in to the camera, and `ChunkMask` keeps a texture of
   one texel per section around it, set where the world draws the section: its chunk is loaded and lit with the eight
   around it, it lies within the render distance and the rows of sections the world draws, and it is air or has its
