@@ -178,6 +178,14 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 			// Whether the block lies in the column's top run of ground, with nothing open between it and the sky or
 			// the water: every block of the run comes here, in order.
 			boolean top = depth == ++run;
+			if (context.stoneDepthBelow() == 1) {
+				Hollows.Kind lit = litHollowBelow(x, y, z);
+				// The light breaks through whatever ceiling the cave's biome lays. The glowworms light their grottoes
+				// themselves.
+				if (lit != null && !context.getBiome().is(GLOWWORM_GROTTO)) {
+					return lit == Hollows.Kind.ANCIENT_GRAND_HOLLOW ? SHROOMLIGHT : GLOWSTONE;
+				}
+			}
 			if (state != null && (state == STONE || SOILS.test(state)) && context.waterHeight() <= y
 				&& y >= context.getMinSurfaceLevel()) {
 				// Soil, or the biome's bare stone, on the surface above the water: the slope decides what stays.
@@ -209,13 +217,6 @@ public record StrataRule(WorldScale scale, Optional<MaterialRule> surface) imple
 				if (soil != null) {
 					soilY = y;
 					return soil;
-				}
-			}
-			if (context.stoneDepthBelow() == 1) {
-				Hollows.Kind lit = litHollowBelow(x, y, z);
-				// The glowworms light their grottoes themselves.
-				if (lit != null && !context.getBiome().is(GLOWWORM_GROTTO)) {
-					return lit == Hollows.Kind.ANCIENT_GRAND_HOLLOW ? SHROOMLIGHT : GLOWSTONE;
 				}
 			}
 			Rock rock = geology.rock(column, x, y, z);

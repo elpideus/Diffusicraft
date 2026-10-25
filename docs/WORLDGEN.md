@@ -1384,7 +1384,8 @@ blocks high and the Ancient ones up to 170.
   level. Below the level of its lake (see [Life in the Hollows](#life-in-the-hollows)) no other hollow opens into the
   basin or the 3 blocks of rock under it, so nothing drains it.
 - **Light.** `StrataRule` puts patches of glowstone in the ceilings of Grand Hollows and shroomlight in those of
-  Ancient ones, except in the glowworm grottoes, which their glowworms light.
+  Ancient ones, through whatever ceiling the cave's biome lays, except in the glowworm grottoes, which their
+  glowworms light.
 - **Lava seas.** Deep Grand Hollows reach below the floor limit, which cuts them flat well under the lava level, so
   most of their floor lies under a lava sea. A floor that only just dipped under the lava would stay dry: the world
   interpolates the density over 8 blocks of height and fades it to solid towards the bottom.
