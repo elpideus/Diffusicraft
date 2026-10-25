@@ -106,7 +106,9 @@ when it is asked for again, since the terrain may be ready by then. What the gri
   `diffusicraft/seen/<server address>/<world>/<namespace>/<path>` in the game's folder, where `<world>` is the
   one-way hash of the world's seed that vanilla already sends every client. The far terrain lays the stored columns
   over the grids the server sent, and keeps the last 16 grids, so that a tile a seen chunk changes is built again
-  without asking the server.
+  without asking the server. The client that runs a singleplayer or LAN world keeps nothing, since its far terrain
+  reads the world itself. A store still writing as the game quits is waited for, before the game stops the threads
+  it writes through.
 - **On: what players built.** The server sends `LodGrid.sample`, with the chunks as they were last saved. When a
   page of its store changes, it drops the grids it cached under it and tells the players within reach
   (`LodPayloads.Changed`), whose far terrain builds the tiles over it again. The client keeps nothing of its own.

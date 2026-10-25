@@ -28,6 +28,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -40,7 +41,8 @@ import java.util.Map;
  * the columns of the far terrain ({@link LodStore}): the far terrain shows them as the client last saw them, and the
  * terrain as generated everywhere else, so that nobody finds from afar what others built. A chunk is kept as the
  * client lets go of it, or of its level, from its highest section down to a little under its lowest ground: enough
- * for its columns, without the depths of a tall world.
+ * for its columns, without the depths of a tall world. A client that runs the server itself keeps nothing, since the
+ * far terrain reads that server's own level.
  *
  * <p>The stores are kept in {@code diffusicraft/seen} in the game's folder, by server address, world and level. They
  * open when the far terrain or a chunk first needs them, and close once the client has left the server. Everything
@@ -53,6 +55,8 @@ public final class SeenChunks {
 	private static final int MAX_SECTIONS = 64;
 
 	private static @Nullable Session session;
+	/** The threads writing out the sessions of servers the client left. */
+	private static final List<Thread> closing = new ArrayList<>();
 	/** The level whose chunks the client holds, and those chunks. */
 	private static @Nullable ClientLevel tracked;
 	private static final Map<Long, LevelChunk> loaded = new HashMap<>();
@@ -88,6 +92,16 @@ public final class SeenChunks {
 			if (left != null) {
 				left.close();
 			}
+			// The game stops the threads the stores write through as it closes, and a store still writing would then
+			// wait for them forever.
+			for (Thread thread : closing) {
+				try {
+					thread.join();
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return;
+				}
+			}
 		});
 	}
 
@@ -101,19 +115,21 @@ public final class SeenChunks {
 	}
 
 	/**
-	 * The session of the server the client is on, opened if need be; null if it keeps nothing, as where Distant
-	 * Horizons or Voxy, which keep their own, is installed. Closes the session of a server the client left, once it
-	 * has kept the chunks the client still held of it.
+	 * The session of the server the client is on, opened if need be; null if it keeps nothing, as where it runs the
+	 * server itself or where Distant Horizons or Voxy, which keep their own, is installed. Closes the session of a
+	 * server the client left, once it has kept the chunks the client still held of it.
 	 */
 	private static @Nullable Session current() {
 		RemoteLods.Feed feed = RemoteLods.feed();
-		RemoteLods.Feed wanted = FarTerrain.ENABLED && feed != null && !feed.sharesBuilds() ? feed : null;
+		RemoteLods.Feed wanted = FarTerrain.ENABLED && feed != null && !feed.sharesBuilds()
+			&& Minecraft.getInstance().getSingleplayerServer() == null ? feed : null;
 		if (session != null && session.feed != wanted) {
 			Session left = session;
 			session = null;
 			letGo(left);
 			// Writing out what is left may take a moment.
-			Thread.ofPlatform().name("Diffusicraft seen chunks").start(left::close);
+			closing.removeIf(thread -> !thread.isAlive());
+			closing.add(Thread.ofPlatform().name("Diffusicraft seen chunks").start(left::close));
 		}
 		if (session == null && wanted != null) {
 			ClientPacketListener connection = Minecraft.getInstance().getConnection();
