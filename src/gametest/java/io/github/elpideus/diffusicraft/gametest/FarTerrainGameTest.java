@@ -26,7 +26,8 @@ import java.util.Locale;
  * with a render distance of {@value #RENDER_DISTANCE} chunks, so that everything past some 100 blocks in the views is
  * far terrain, and saves views from above the spawn to {@code build/run/clientGameTest/screenshots}, each once the far
  * terrain has built every tile it wants, one with its line of the debug screen and one with the far terrain off to
- * compare. Then raises a tower of gold
+ * compare, and a few taken as the camera drifts over two chunk borders looking down on the edge of the chunks, where
+ * nothing may be missing as it moves. Then raises a tower of gold
  * {@value #TOWER_DISTANCE} blocks south of the spawn and views it from {@value #TOWER_VIEW_DISTANCE} blocks north of it,
  * out of the chunks' reach, so that the far terrain shows what players build.
  *
@@ -47,6 +48,10 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 	static final int TOWER_VIEW_DISTANCE = 240;
 	/** How high over the top of the tower its view is taken from, so that no hill between hides it. */
 	static final int TOWER_VIEW_HEIGHT = 160;
+	/** How far the camera drifts east, how fast, and every how many ticks a view is taken as it does. */
+	private static final int DRIFT = 40;
+	private static final double DRIFT_SPEED = 0.4;
+	private static final int DRIFT_SHOT_TICKS = 10;
 	/** The far terrain's line of the debug screen. */
 	private static final Identifier DEBUG_ENTRY = Diffusicraft.id("far_terrain");
 
@@ -88,12 +93,32 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 			context.waitTicks(20);
 			context.takeScreenshot("diffusicraft-far-terrain-high-west-off");
 			Resources.get().updateConfig(config -> config.farTerrain = true);
+			drift(context, server, connection, above, "drift");
 
 			BlockPos tower = raiseTower(context, server, connection, probe.spawn().south(TOWER_DISTANCE));
 			long before = FarTerrain.uploads();
 			viewTower(context, server, connection, tower, "tower");
 			if (FarTerrain.uploads() == before) {
 				throw new AssertionError("The far terrain built nothing after the tower at " + tower + " was raised");
+			}
+		}
+	}
+
+	/**
+	 * Drifts the camera from {@code from} {@value #DRIFT} blocks east at {@value #DRIFT_SPEED} blocks a tick, looking
+	 * down on the edge of the chunks to the south, and takes a view every {@value #DRIFT_SHOT_TICKS} ticks without
+	 * waiting for anything.
+	 */
+	private static void drift(ClientGameTestContext context, TestServerContext server, TestServerConnection connection,
+							  BlockPos from, String name) {
+		view(context, server, connection, from, 0f, 35f, name + "-start");
+		int ticks = (int) Math.round(DRIFT / DRIFT_SPEED);
+		for (int tick = 1; tick <= ticks; tick++) {
+			server.runCommand(String.format(Locale.ROOT, "tp @a %.2f %d %.2f 0 35", from.getX() + 0.5 + tick * DRIFT_SPEED,
+				from.getY(), from.getZ() + 0.5));
+			context.waitTick();
+			if (tick % DRIFT_SHOT_TICKS == 0) {
+				context.takeScreenshot(String.format(Locale.ROOT, "diffusicraft-far-terrain-%s-%03d", name, tick));
 			}
 		}
 	}

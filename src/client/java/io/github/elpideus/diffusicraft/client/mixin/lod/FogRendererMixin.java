@@ -19,8 +19,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * vanilla ends at 1024 blocks in most biomes, stretches as far as the far terrain does, so that the land at its end
  * fades as land at 1024 blocks did; a biome's fog that ends within the chunks stays as it is, and so does the fog
  * under water, in lava or powder snow, and of blindness and darkness.
+ *
+ * <p>Sodium reads the fog at the same return, for its chunks' own fog and for how far it draws them; the priority below
+ * the default lets it read the fog as this mixin leaves it.
  */
-@Mixin(FogRenderer.class)
+@Mixin(value = FogRenderer.class, priority = 900)
 abstract class FogRendererMixin {
 	/** Where vanilla's haze of the air ends, in the biomes that do not set their own. */
 	private static final float AIR_FOG_END = 1024;
@@ -35,15 +38,17 @@ abstract class FogRendererMixin {
 		FogData fog = info.getReturnValue();
 		fog.renderDistanceStart = far * 0.75F;
 		fog.renderDistanceEnd = far;
-		if (camera.getFluidInCamera() != FogType.NONE || camera.entity() instanceof LivingEntity living
-			&& (living.hasEffect(MobEffects.BLINDNESS) || living.hasEffect(MobEffects.DARKNESS))) {
-			return;
+		if (camera.getFluidInCamera() == FogType.NONE && !(camera.entity() instanceof LivingEntity living
+			&& (living.hasEffect(MobEffects.BLINDNESS) || living.hasEffect(MobEffects.DARKNESS)))) {
+			if (far > AIR_FOG_END && fog.environmentalEnd >= renderDistanceInChunks * 16) {
+				float scale = far / AIR_FOG_END;
+				fog.environmentalStart *= scale;
+				fog.environmentalEnd *= scale;
+			}
+			fog.skyEnd = Math.max(fog.skyEnd, Math.min(far, 512));
 		}
-		if (far > AIR_FOG_END && fog.environmentalEnd >= renderDistanceInChunks * 16) {
-			float scale = far / AIR_FOG_END;
-			fog.environmentalStart *= scale;
-			fog.environmentalEnd *= scale;
-		}
-		fog.skyEnd = Math.max(fog.skyEnd, Math.min(far, 512));
+		// Sodium's FogParameters.cullDistance, which it heeds only while the fog is opaque.
+		FarTerrain.fogSetUp(fog.color.w != 1F ? Float.NaN : Float.isNaN(fog.environmentalEnd) ? fog.renderDistanceEnd
+			: Math.min(fog.renderDistanceEnd, fog.environmentalEnd));
 	}
 }

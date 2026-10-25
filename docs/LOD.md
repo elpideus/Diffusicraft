@@ -173,11 +173,16 @@ These parts are unit-tested and feed the renderer below.
   one texel per section around it, set where the world draws the section: its chunk is loaded and lit with the eight
   around it, it lies within the render distance and the rows of sections the world draws, and it is air or has its
   mesh, built by Sodium or else by vanilla, whose graph of the sections the camera can see must also have reached
-  it. The fragment shader drops far terrain over those sections, a quarter of a block inside the face it draws so
-  that the edges match. Everywhere else the far terrain shows: while a chunk loads, while a section waits for its
-  mesh as the player flies, and above and below the rows the world draws. Tiles that began near the edge of the
-  render distance, and a mask of one texel per chunk set from its surface section alone, left holes where the world
-  had not built a section yet, most of all on steep slopes and while flying. The texture's slots rotate as the
+  it. Sodium must also hold the section in the tree of those it draws, which takes in a section it has just built
+  only when it culls again, a few frames later. Sodium measures the render distance from the camera itself, not
+  from its chunk, and stops nearer where the fog ends sooner, as in rain, so the fragment shader tests each
+  section's distance from the camera the way Sodium does, with a sixteenth of a block to spare. The fragment shader
+  drops far terrain over those sections, a quarter of a block inside the face it draws so that the edges match.
+  Everywhere else the far terrain shows: while a chunk loads, while a section waits for its mesh as the player
+  flies, and above and below the rows the world draws. Tiles that began near the edge of the render distance, and a
+  mask of one texel per chunk set from its surface section alone, left holes where the world had not built a section
+  yet, most of all on steep slopes and while flying. Under Sodium, squares of sky flickered at the edge of the
+  chunks as the camera moved within its chunk, and in front of it as it flew. The texture's slots rotate as the
   camera moves, as the world's own grid of sections does, and a few lines of chunks are looked up each frame, so a
   large render distance spreads the work. A tile that lies wholly within sections the world draws is not drawn at
   all, since the shader would drop every fragment of it: the mask's bytes are checked on the CPU as well.
@@ -186,7 +191,9 @@ These parts are unit-tested and feed the renderer below.
   meshes take on the GPU.
 - **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
-  Fog under water, in lava and from blindness or darkness stays as it is.
+  Fog under water, in lava and from blindness or darkness stays as it is. Sodium reads the fog at the same point,
+  for its chunks' own fog and for how far it draws them, and the far terrain stretches it first, so that Sodium's
+  chunks fade as vanilla's do.
 
 ### Under a shader pack: `IrisFarTerrain` (client, with Iris)
 

@@ -11,6 +11,9 @@ layout(std140) uniform FarTerrainInfo {
     ivec4 Rows;
     // The slots of the mask's north-western chunk and of its lowest row: its slots rotate as the camera moves.
     ivec4 Slots;
+    // How far from the camera Sodium draws a section, less a little to spare, in blocks, or 0 where the world goes by
+    // whole chunks alone.
+    float Reach;
 };
 
 // 1 where the world draws the section itself. Texel (row * size + x, z) holds the section in those slots.
@@ -24,6 +27,19 @@ layout(location = 4) flat in vec3 faceNormal;
 
 layout(location = 0) out vec4 fragColor;
 
+// Whether Sodium draws the section from where the camera stands (TraversableTree): its nearest point lies within a
+// cylinder around the camera Reach blocks across, and as high above and below it.
+bool withinReach(ivec3 section) {
+    if (Reach <= 0.0) {
+        return true;
+    }
+    // The camera within its block, and the section's corner from the camera's block.
+    vec3 camera = -CameraOffset;
+    vec3 low = vec3(section * 16 - CameraBlockPos);
+    vec3 toNearest = clamp(camera, low, low + 16.0) - camera;
+    return dot(toNearest.xz, toNearest.xz) < Reach * Reach && abs(toNearest.y) < Reach;
+}
+
 void main() {
     // A face lies on the edge of its block: step back into the block to find the section it belongs to.
     vec3 inside = relativePosition - CameraOffset - faceNormal * 0.25;
@@ -35,7 +51,7 @@ void main() {
         // Both operands are positive here, which GLSL's % needs.
         ivec2 slot = (Slots.xy + offset + Columns.x) % Columns.w;
         int row = (Slots.z + section.y - Rows.x) % Rows.z;
-        if (texelFetch(ChunkMask, ivec2(row * Columns.w + slot.x, slot.y), 0).r > 0.5) {
+        if (texelFetch(ChunkMask, ivec2(row * Columns.w + slot.x, slot.y), 0).r > 0.5 && withinReach(section)) {
             discard;
         }
     }

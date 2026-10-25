@@ -96,6 +96,11 @@ public final class FarTerrain {
 	/** Set once a pipeline of the far terrain fails to compile: it stays off until the game restarts. */
 	private static boolean broken;
 	private static volatile long uploads;
+	/**
+	 * How far from the camera the fog of the frame lets Sodium draw chunks, in blocks, or NaN for no nearer than the
+	 * render distance. On the render thread.
+	 */
+	private static float fogEnd = Float.NaN;
 
 	private final ClientLevel level;
 	private final ResourceKey<Level> dimension;
@@ -172,6 +177,14 @@ public final class FarTerrain {
 	public static int reach() {
 		FarTerrain terrain = current;
 		return terrain != null && terrain.source != null && terrain.source.serves() ? terrain.far : 0;
+	}
+
+	/**
+	 * Notes where the fog of the frame ends, the nearer of its two ends, or NaN where the fog does not hide what lies
+	 * behind it: Sodium leaves out the sections beyond it. On the render thread, as the fog is set up.
+	 */
+	public static void fogSetUp(float end) {
+		fogEnd = end;
 	}
 
 	/** Whether the far terrain is to be drawn: it is turned on, and nothing turned it off. */
@@ -317,7 +330,7 @@ public final class FarTerrain {
 		// Not DynamicGpuData.writeChunkSections, which would close the instanced sections vanilla wrote this frame.
 		terrainTransform = RenderSystem.getDynamicUniforms().writeTerrainTransform(new Matrix4f(camera.viewRotationMatrix),
 			1, 1);
-		mask.update(level, viewArea, viewDistance, camera.blockPos);
+		mask.update(level, viewArea, viewDistance, at, fogEnd);
 		// The shader would drop every fragment of a tile wholly within the sections the world draws.
 		drawn.removeIf(mesh -> mask.covers(mesh.tile.minBlockX(), mesh.minY, mesh.tile.minBlockZ(),
 			mesh.tile.minBlockX() + mesh.tile.size(), mesh.maxY, mesh.tile.minBlockZ() + mesh.tile.size()));

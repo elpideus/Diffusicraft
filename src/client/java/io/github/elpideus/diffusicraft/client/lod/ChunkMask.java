@@ -24,6 +24,7 @@ import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
@@ -32,10 +33,16 @@ import org.lwjgl.system.MemoryUtil;
  * around the camera, 1 where the world draws the section, and the {@code FarTerrainInfo} uniform the far terrain's
  * fragment shader reads it with. A section counts as drawn once the world would draw it: its chunk is loaded and lit,
  * and so are the eight around it, it lies within the render distance and the rows of sections the world draws around
- * the camera, and it is air, or its mesh is built, by Sodium where it is installed or else by vanilla, and vanilla's
- * graph of the sections the camera can see has reached it. Everywhere else the far terrain shows, so there is no
- * hole: not while a chunk loads, not where a section waits for its mesh as the player flies, and not above or below
- * the rows the world draws.
+ * the camera, and it is air, or its mesh is built and the world has taken it in: where Sodium is installed, Sodium's
+ * tree of the sections it draws holds it, and else vanilla's graph of the sections the camera can see has reached it.
+ * Everywhere else the far terrain shows, so there is no hole: not while a chunk loads, not where a section waits for
+ * its mesh as the player flies, and not above or below the rows the world draws.
+ *
+ * <p>Vanilla goes by whole chunks, as the mask does, but Sodium draws a section only while its nearest point lies
+ * within the render distance of the camera itself, or nearer where the fog ends sooner (Sodium's
+ * {@code TraversableTree}), which leaves out more of the outermost chunks the nearer the camera is to the edge of its
+ * own. The shader and {@link #covers} test that themselves, as the camera stands in the frame, for a section that lies
+ * a little nearer than Sodium needs, so that the far terrain fills those chunks wherever Sodium might leave them out.
  *
  * <p>The texture's columns and rows are slots that rotate as the camera moves, as the world's own grid of sections
  * does: section {@code (x, y, z)} always lives in slot {@code (x mod size, y mod rows, z mod size)}. Moving the
@@ -43,7 +50,9 @@ import org.lwjgl.system.MemoryUtil;
  * looked up a few lines of chunks at a time, so that a large render distance spreads the work over several frames.
  */
 final class ChunkMask implements AutoCloseable {
-	private static final int INFO_SIZE = 48;
+	private static final int INFO_SIZE = 64;
+	/** How much nearer than Sodium needs a section must lie to count as drawn, in blocks, for rounding. */
+	private static final float REACH_MARGIN = 0.0625F;
 	/** Most sections looked up in a frame: the whole mask at a render distance of 12, a twentieth of it at 32. */
 	private static final int SECTIONS_PER_FRAME = 16384;
 	private static final byte DRAWN = (byte) 0xFF;
@@ -52,6 +61,11 @@ final class ChunkMask implements AutoCloseable {
 	private final GpuBuffer info;
 	private final ByteBuffer infoData = MemoryUtil.memAlloc(INFO_SIZE);
 	private final int[] infoValues = new int[INFO_SIZE / Integer.BYTES];
+	/** How far from the camera Sodium draws a section, in blocks, or 0 where the world goes by whole chunks. */
+	private float reach;
+	private double cameraX;
+	private double cameraY;
+	private double cameraZ;
 	private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 	private @Nullable GpuTexture texture;
 	private @Nullable GpuTextureView view;
@@ -95,18 +109,26 @@ final class ChunkMask implements AutoCloseable {
 	}
 
 	/**
-	 * Works the mask out for a camera at block {@code camera}, with the world drawing chunks out to {@code viewDistance}
-	 * and {@code viewArea} the grid of vanilla's chunk meshes, if vanilla builds them. On the render thread.
+	 * Works the mask out for a camera at {@code camera}, with the world drawing chunks out to {@code viewDistance},
+	 * {@code viewArea} the grid of vanilla's chunk meshes, if vanilla builds them, and the fog of the air, of water or of
+	 * blindness ending {@code fogEnd} blocks from the camera, or NaN for a fog that does not hide what lies behind it.
+	 * On the render thread, once the world has culled its sections for the frame.
 	 */
-	void update(ClientLevel level, @Nullable ViewArea viewArea, int viewDistance, BlockPos camera) {
+	void update(ClientLevel level, @Nullable ViewArea viewArea, int viewDistance, Vec3 camera, float fogEnd) {
 		RenderWindow window = WindowedSectionStorage.windowFor(level.getMinSectionY(), level.getMaxSectionY(), viewDistance);
 		int rows = window == null ? level.getSectionsCount() : window.rows();
 		if (viewDistance != this.viewDistance || rows != this.rows || level.getMinSectionY() != minSectionY) {
 			resize(viewDistance, rows, level.getMinSectionY());
 		}
-		int cx = SectionPos.blockToSectionCoord(camera.getX());
-		int cz = SectionPos.blockToSectionCoord(camera.getZ());
-		int lowest = window == null ? level.getMinSectionY() : window.lowest(SectionPos.blockToSectionCoord(camera.getY()));
+		// RenderSectionManager.getSearchDistance, with Sodium's fog occlusion on, as it is unless turned off: then
+		// Sodium draws more, which only the fog hides.
+		reach = SODIUM ? Math.min(viewDistance * 16F, Float.isNaN(fogEnd) ? Float.MAX_VALUE : fogEnd + 0.5F) : 0;
+		cameraX = camera.x;
+		cameraY = camera.y;
+		cameraZ = camera.z;
+		int cx = SectionPos.posToSectionCoord(camera.x);
+		int cz = SectionPos.posToSectionCoord(camera.z);
+		int lowest = window == null ? level.getMinSectionY() : window.lowest(SectionPos.posToSectionCoord(camera.y));
 		if (cx != centerX || cz != centerZ || lowest != this.lowest) {
 			moveTo(cx, cz, lowest);
 		}
@@ -151,13 +173,36 @@ final class ChunkMask implements AutoCloseable {
 				}
 				for (int y = y0; y <= y1; y++) {
 					int row = Math.floorMod(y, rows);
-					if (rowAt[row] != y || texels[line * width + row * size + column] != DRAWN) {
+					if (rowAt[row] != y || texels[line * width + row * size + column] != DRAWN
+						|| !withinReach(x, y, z)) {
 						return false;
 					}
 				}
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * Whether Sodium's test of the distance passes for section {@code (x, y, z)} from where the camera stands, with
+	 * {@value #REACH_MARGIN} of a block to spare, as the shader tests it: the section's nearest point lies within a
+	 * cylinder around the camera {@link #reach} blocks across and as high above and below it.
+	 */
+	private boolean withinReach(int x, int y, int z) {
+		if (reach <= 0) {
+			return true;
+		}
+		double dx = toNearest(x, cameraX);
+		double dy = toNearest(y, cameraY);
+		double dz = toNearest(z, cameraZ);
+		double limit = reach - REACH_MARGIN;
+		return dx * dx + dz * dz < limit * limit && Math.abs(dy) < limit;
+	}
+
+	/** From {@code camera} to the nearest block coordinate of section {@code section}, its far edge included. */
+	private static double toNearest(int section, double camera) {
+		double low = SectionPos.sectionToBlockCoord(section);
+		return Math.clamp(camera, low, low + 16) - camera;
 	}
 
 	/** Clears the slots of the chunks and rows that enter the mask as its centre moves to {@code (cx, cz)}. */
@@ -241,9 +286,10 @@ final class ChunkMask implements AutoCloseable {
 	}
 
 	/**
-	 * Whether the world draws section {@code (x, y, z)} of {@code chunk}: it is air, so there is nothing to draw, or its
-	 * mesh is built, by Sodium where it is installed, which builds the meshes in vanilla's place, or else by vanilla,
-	 * whose graph must also have reached it, since vanilla draws no section the graph has not reached, built or not.
+	 * Whether the world draws section {@code (x, y, z)} of {@code chunk}, where the camera can see it: it is air, so
+	 * there is nothing to draw, or Sodium draws it, where it is installed, which builds the meshes in vanilla's place, or
+	 * else vanilla has built its mesh and its graph has reached it, since vanilla draws no section the graph has not
+	 * reached, built or not.
 	 */
 	private boolean drawn(ClientLevel level, LevelChunk chunk, @Nullable ViewArea viewArea,
 						  @Nullable SectionOcclusionGraph graph, int x, int y, int z) {
@@ -251,7 +297,7 @@ final class ChunkMask implements AutoCloseable {
 			return true;
 		}
 		if (SODIUM) {
-			return SodiumSections.ready(x, y, z);
+			return SodiumSections.drawn(x, y, z);
 		}
 		if (viewArea == null || graph == null) {
 			return true;
@@ -267,7 +313,8 @@ final class ChunkMask implements AutoCloseable {
 			viewDistance, centerX, centerZ, size,
 			lowest, lowest + rows - 1, rows, 0,
 			Math.floorMod(centerX - viewDistance, size), Math.floorMod(centerZ - viewDistance, size),
-			Math.floorMod(lowest, rows), 0};
+			Math.floorMod(lowest, rows), 0,
+			Float.floatToRawIntBits(reach == 0 ? 0 : reach - REACH_MARGIN), 0, 0, 0};
 		if (infoWritten && Arrays.equals(values, infoValues)) {
 			return;
 		}

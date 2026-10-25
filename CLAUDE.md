@@ -65,9 +65,11 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - Sodium (`client/mixin/sodium`, applied only when it is installed): the `-128` inlined once in
     `TaskCollectingTree.addPendingSection` and in `DeferredTaskList.dequeueNextSectionPos`, `getPendingTaskLists`
     returning the `DeferredTaskList`, and `AbstractSectionVisitor.baseOffsetY`, plus
-    `SodiumWorldRenderer.instanceNullable()` and `isSectionReady(int, int, int)`, which
-    `client.compat.sodium.SodiumSections` calls through method handles for the far terrain. Check them on every Sodium
-    update.
+    `SodiumWorldRenderer.instanceNullable()`, `isSectionReady(int, int, int)` and `isBoxVisible` (six doubles),
+    which `client.compat.sodium.SodiumSections` calls through method handles for the far terrain. `ChunkMask` and
+    `far_terrain.fsh` repeat the distance test of `TraversableTree` (a cylinder from the camera itself) and the
+    distance `RenderSectionManager.getSearchDistance` picks from the fog, which Sodium reads at the return of
+    `FogRenderer.setupFog`, after our `FogRendererMixin` (priority 900). Check them on every Sodium update.
   - Iris (`client/mixin/iris`, applied only when it is installed and Distant Horizons is not): the static
     `StandardMacros.createStandardEnvironmentDefines` (where `DISTANT_HORIZONS` is defined), the `DHCompat` methods
     `checkFrame`, `hasRenderingEnabled`, `getNearPlane`, `getFarPlane`, `getRenderDistance`, `getProjection()`,
