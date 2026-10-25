@@ -7,6 +7,7 @@
 		"BiomeMixin",
 		"ChunkGeneratorMixin",
 		"ChunkGeneratorStructureStateMixin",
+		"ChunkMapMixin",
 		"ClimateSamplerMixin",
 		"DedicatedServerPropertiesMixin",
 		"MaterialRuleContextAccessor",

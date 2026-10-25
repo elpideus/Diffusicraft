@@ -35,7 +35,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>The server refuses a request whose level is not the player's or not a Diffusicraft one, whose grid lies further
  * from the player than {@code farTerrainRadius}, or that would leave the player more than {@value #MAX_IN_FLIGHT}
  * requests waiting. Grids are sampled on {@value #THREADS} threads of their own, so they never hold up the ticks, and
- * the last {@value #CACHED_GRIDS} are kept for players near each other. Everything else runs on the server thread.
+ * the last {@value #CACHED_GRIDS} are kept for players near each other, until a chunk saved under one changes it
+ * ({@link LodStore}). Everything else runs on the server thread.
  */
 public final class LodFeed {
 	/** Threads sampling grids. Each grid may run the models over the tiles it covers, as chunks do. */
@@ -112,8 +113,24 @@ public final class LodFeed {
 	}
 
 	private @Nullable LodSampler sampler(ServerLevel level) {
-		return samplers.computeIfAbsent(level.dimension(), key -> Optional.ofNullable(LodSampler.of(level)))
-			.orElse(null);
+		return samplers.computeIfAbsent(level.dimension(), key -> {
+			LodSampler sampler = LodSampler.of(level);
+			if (sampler != null && sampler.store() != null) {
+				sampler.store().listen((detail, pageX, pageZ) -> server.execute(() -> forget(key, detail, pageX, pageZ)));
+			}
+			return Optional.ofNullable(sampler);
+		}).orElse(null);
+	}
+
+	/** Drops the cached grids that the page at {@code (pageX, pageZ)} of a level of detail lies under. */
+	private void forget(ResourceKey<Level> level, int detail, int pageX, int pageZ) {
+		int step = 1 << detail;
+		long span = (long) LodStore.PAGE * step;
+		long minX = pageX * span;
+		long minZ = pageZ * span;
+		grids.keySet().removeIf(key -> key.level.equals(level) && key.step == step
+			&& key.minX < minX + span && minX < key.minX + (long) key.width * step
+			&& key.minZ < minZ + span && minZ < key.minZ + (long) key.width * step);
 	}
 
 	private void request(ServerPlayer player, LodPayloads.Request request) {

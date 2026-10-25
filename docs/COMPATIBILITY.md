@@ -196,7 +196,9 @@ filled and Voxy draws it again, as it does with the chunks a server sends. The s
   section waiting for its grid, and the grid fills only the rest when it comes, so that the far terrain runs right up
   to the chunks instead of leaving a pit round them.
 - The server samples the grids with the same `LodGrid.sample` on two threads of its own, so they never hold up the
-  ticks, and keeps the last 128 for players near each other. They use the GPU or the CPU as chunks do.
+  ticks, and keeps the last 128 for players near each other until a chunk saved under one changes it. They use the
+  GPU or the CPU as chunks do. Where players have been, the grids show the chunks as they were last saved
+  ([LOD.md](LOD.md#built-so-far)).
 - It refuses a grid of a level the player is not in, one further from the player than the radius, and any that
   would leave the player more than 32 requests waiting. The client asks for no more than that at once and keeps the
   rest waiting, sending the one nearest the player first, so that the far terrain fills in from the player out.

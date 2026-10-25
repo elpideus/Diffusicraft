@@ -6,6 +6,7 @@ import io.github.elpideus.diffusicraft.map.ReliefMap;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodFeed;
+import io.github.elpideus.diffusicraft.worldgen.lod.LodStore;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -25,6 +26,7 @@ public final class Diffusicraft implements ModInitializer {
 		Resources resources = Resources.init(loader.getGameDir(), loader.getConfigDir());
 		DiffusicraftBlocks.init();
 		DiffusicraftWorldgen.init();
+		LodStore.init();
 		LodFeed.init();
 		ReliefMap.init();
 		if (loader.isModLoaded("distanthorizons") && resources.config().distantHorizonsLods) {

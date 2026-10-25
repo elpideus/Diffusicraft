@@ -77,9 +77,16 @@ public final class LodGrid {
 	/**
 	 * Samples the grid of {@code width}² columns whose corner block is {@code (minX, minZ)}, one column every
 	 * {@code step} blocks, sinking those that reach above {@code ceiling}, the block Y right above the highest block
-	 * kept.
+	 * kept. Where players have been, the columns are those of the chunks as they were last saved ({@link LodStore}).
 	 */
 	public static LodGrid sample(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling) {
+		LodStore store = sampler.store();
+		return store == null ? generate(sampler, minX, minZ, width, step, ceiling)
+			: store.overlay(minX, minZ, width, step, ceiling, () -> generate(sampler, minX, minZ, width, step, ceiling));
+	}
+
+	/** The grid as the terrain is generated, whatever players did to it. */
+	private static LodGrid generate(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling) {
 		LodGrid grid = new LodGrid(width);
 		sampler.sample(minX, minZ, width, step, (x, z, column) -> grid.add(column, ceiling));
 		return grid;
@@ -134,6 +141,75 @@ public final class LodGrid {
 		}
 	}
 
+	/**
+	 * Adds column {@code column} of {@code from}, sinking it as {@link #add(LodColumn, int)} does if it reaches above
+	 * {@code ceiling}.
+	 */
+	void add(LodGrid from, int column, int ceiling) {
+		int start = from.first[column];
+		int end = from.first[column + 1];
+		int sink = end == start ? 0 : Math.max(0, from.tops[end - 1] - ceiling);
+		reserve(end - start);
+		for (int run = start; run < end; run++) {
+			states[runs] = from.states[run];
+			bottoms[runs] = run == start ? from.bottoms[run] : from.bottoms[run] - sink;
+			tops[runs] = from.tops[run] - sink;
+			kinds[runs] = from.kinds[run];
+			runs++;
+		}
+		int surface = from.surfaces[column];
+		surfaces[columns] = surface == Integer.MIN_VALUE ? surface : surface - sink;
+		biomes[columns] = from.biomes[column];
+		columns++;
+		first[columns] = runs;
+		if (end > start) {
+			highest = Math.max(highest, from.tops[end - 1] - sink);
+		}
+	}
+
+	/** Adds a column with nothing in it. */
+	void addEmpty(Holder<Biome> biome) {
+		surfaces[columns] = Integer.MIN_VALUE;
+		biomes[columns] = biome;
+		columns++;
+		first[columns] = runs;
+	}
+
+	/** Number of runs in a column. */
+	int runs(int column) {
+		return first[column + 1] - first[column];
+	}
+
+	/**
+	 * Block Y right above the water over a column's ground, or above its ground where it is dry;
+	 * {@link Integer#MIN_VALUE} for a column without ground.
+	 */
+	int surface(int column) {
+		return surfaces[column];
+	}
+
+	/** The number of a column's lowest run; its others follow it, bottom first. */
+	int firstRun(int column) {
+		return first[column];
+	}
+
+	BlockState state(int run) {
+		return states[run];
+	}
+
+	int bottom(int run) {
+		return bottoms[run];
+	}
+
+	int top(int run) {
+		return tops[run];
+	}
+
+	/** {@link #AIR}, {@link #WATER}, {@link #CLEAR} or {@link #OPAQUE}. */
+	byte kind(int run) {
+		return kinds[run];
+	}
+
 	/** Makes room for {@code more} runs. */
 	private void reserve(int more) {
 		if (runs + more > states.length) {
@@ -147,10 +223,17 @@ public final class LodGrid {
 
 	/** {@link #STREAM_CODEC}, with the biomes written by {@code biomes}. */
 	static <B extends FriendlyByteBuf> StreamCodec<B, LodGrid> codec(StreamCodec<? super B, Holder<Biome>> biomes) {
-		return StreamCodec.of((buf, grid) -> grid.write(buf, biomes), buf -> read(buf, biomes));
+		return codec(ByteBufCodecs.idMapper(Block.BLOCK_STATE_REGISTRY), biomes);
 	}
 
-	private <B extends FriendlyByteBuf> void write(B buf, StreamCodec<? super B, Holder<Biome>> biomeCodec) {
+	/** {@link #STREAM_CODEC}, with the blocks written by {@code states} and the biomes by {@code biomes}. */
+	static <B extends FriendlyByteBuf> StreamCodec<B, LodGrid> codec(StreamCodec<? super B, BlockState> states,
+																	  StreamCodec<? super B, Holder<Biome>> biomes) {
+		return StreamCodec.of((buf, grid) -> grid.write(buf, states, biomes), buf -> read(buf, states, biomes));
+	}
+
+	private <B extends FriendlyByteBuf> void write(B buf, StreamCodec<? super B, BlockState> stateCodec,
+												   StreamCodec<? super B, Holder<Biome>> biomeCodec) {
 		Map<BlockState, Integer> stateIndices = new IdentityHashMap<>();
 		List<BlockState> statePalette = new ArrayList<>();
 		int[] runStates = new int[runs];
@@ -172,7 +255,7 @@ public final class LodGrid {
 		buf.writeVarInt(width);
 		buf.writeVarInt(statePalette.size());
 		for (BlockState state : statePalette) {
-			buf.writeVarInt(Block.BLOCK_STATE_REGISTRY.getId(state));
+			stateCodec.encode(buf, state);
 		}
 		buf.writeVarInt(biomePalette.size());
 		for (Holder<Biome> biome : biomePalette) {
@@ -194,7 +277,8 @@ public final class LodGrid {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static <B extends FriendlyByteBuf> LodGrid read(B buf, StreamCodec<? super B, Holder<Biome>> biomeCodec) {
+	private static <B extends FriendlyByteBuf> LodGrid read(B buf, StreamCodec<? super B, BlockState> stateCodec,
+															StreamCodec<? super B, Holder<Biome>> biomeCodec) {
 		int width = buf.readVarInt();
 		if (width < 1 || width > MAX_WIDTH) {
 			throw new DecoderException("A grid of far terrain " + width + " columns wide");
@@ -202,7 +286,7 @@ public final class LodGrid {
 		// Every entry and run takes at least a byte, so no count can be larger than what is left to read.
 		BlockState[] statePalette = new BlockState[count(buf, 1)];
 		for (int i = 0; i < statePalette.length; i++) {
-			statePalette[i] = Block.BLOCK_STATE_REGISTRY.byIdOrThrow(buf.readVarInt());
+			statePalette[i] = stateCodec.decode(buf);
 		}
 		Holder<Biome>[] biomePalette = new Holder[count(buf, 1)];
 		for (int i = 0; i < biomePalette.length; i++) {

@@ -209,6 +209,12 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
 - **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
   same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
 
+### Far terrain
+
+- **Our own LODs.** A far terrain that needs neither Distant Horizons nor Voxy, shows what players built and works
+  with shader packs. Built: saved chunks are kept as columns for every level of detail and replace the generated
+  terrain where players have been. Next: our own renderer, and shader-pack support. See [LOD.md](LOD.md).
+
 ### Compatibility
 
 - **Voxy.** The same far terrain for Voxy, which SeedGen also targets, straight from the terrain instead of from

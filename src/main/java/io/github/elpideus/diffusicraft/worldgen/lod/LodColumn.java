@@ -60,6 +60,19 @@ public final class LodColumn {
 		waterDepth = depth;
 	}
 
+	/** A copy that stays as it is when this column is reused. */
+	LodColumn copy() {
+		LodColumn copy = new LodColumn();
+		copy.states = Arrays.copyOf(states, Math.max(1, count));
+		copy.bottoms = Arrays.copyOf(bottoms, Math.max(1, count));
+		copy.tops = Arrays.copyOf(tops, Math.max(1, count));
+		copy.count = count;
+		copy.ground = ground;
+		copy.biome = biome;
+		copy.waterDepth = waterDepth;
+		return copy;
+	}
+
 	/** Number of runs, bottom first. */
 	public int size() {
 		return count;
