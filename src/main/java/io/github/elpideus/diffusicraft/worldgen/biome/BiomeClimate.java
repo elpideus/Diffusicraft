@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.worldgen.biome;
 
 import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
+import io.github.elpideus.diffusicraft.worldgen.geology.Geology;
 
 /** The climate and terrain of a column, as {@link BiomeRefiner} reads them. Mutable, so each thread can reuse one. */
 public final class BiomeClimate {
@@ -32,6 +33,8 @@ public final class BiomeClimate {
 	public float patch;
 	/** How far inside that patch the column lies: above zero inside, zero or less outside every patch. */
 	public float patchDepth;
+	/** Whether the ground under the column has sulfur caves in it; see {@link Geology#sulfurous}. */
+	public boolean sulfurous;
 
 	public BiomeClimate set(TerrainField.Column column) {
 		temperature = column.temperature;
@@ -46,6 +49,7 @@ public final class BiomeClimate {
 		iceCut = column.iceCut;
 		patch = 0f;
 		patchDepth = 0f;
+		sulfurous = false;
 		return this;
 	}
 

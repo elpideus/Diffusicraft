@@ -465,13 +465,22 @@ calls for them and the biome above otherwise. The game looks a biome up as much 
 few blocks under a floor would put sculk on it, and sculk veins spread up to twenty blocks from wherever the deep dark
 starts them.
 
+**Sulfur caves.** Vanilla puts its sulfur caves where the weirdness is below −0.85, which Diffusicraft's terrain never
+reaches (its weirdness stays within ±0.67), so they would never appear. They go where water rich in hydrogen sulfide
+rises through the ground instead, as at Frasassi in Italy and Movile in Romania: `Geology.sulfurous` marks patches a few
+hundred blocks across over the volcanic side of the basement (its lava fields and the schist belts around them), about
+one part of the ground in thirty at every scale. There every vanilla pick between vanilla's cave depths (0.2 to 0.9: 26
+to 115 blocks under the surface, or under y = 123 where the land stands higher) becomes sulfur caves, and so do most of
+the Grand Hollows (see [Life in the Hollows](#life-in-the-hollows)). Vanilla's material rule then bands all their rock
+with sulfur and cinnabar, and its springs, pools and sulfur spikes grow in their caves.
+
 **Plumbing.** A biome source is shared by every world that uses a preset, so it learns which world it serves from the
-climate sampler. `RandomStateMixin` attaches a `BiomeWorld` (the terrain, scale and Hollows) to the random state of
-Diffusicraft's noise settings and to every `Climate.Sampler` it creates (`ClimateSamplerMixin`). Every way the game
-asks for a biome goes through such a sampler: chunk generation, structure placement, `/locate`, `/place` and the
-debug screen. All of them see the refined biomes. In other worlds the sampler carries nothing and the source behaves
-exactly like vanilla's. It still extends `MultiNoiseBiomeSource` (its constructor is opened by
-`diffusicraft.classtweaker`), so mods looking for a multi-noise source find one.
+climate sampler. `RandomStateMixin` attaches a `BiomeWorld` (the terrain, scale, Hollows and rocks) to the random state
+of Diffusicraft's noise settings and to every `Climate.Sampler` it creates (`ClimateSamplerMixin`). Every way the game
+asks for a biome goes through such a sampler: chunk generation, structure placement, `/locate`, `/place` and the debug
+screen. All of them see the refined biomes. In other worlds the sampler carries nothing and the source behaves exactly
+like vanilla's. It still extends `MultiNoiseBiomeSource` (its constructor is opened by `diffusicraft.classtweaker`), so
+mods looking for a multi-noise source find one.
 
 **The new biomes.** Each starts from a vanilla template. It keeps the template's carvers, underground features and
 monsters, so caves and ores look the same under every biome, and replaces the vegetation, the ground, the animals and
@@ -1395,6 +1404,7 @@ all year round, and is as wet as the rain that soaks down into it.
 
 | Biome | Where | Life | Ground |
 |---|---|---|---|
+| Sulfur caves | Seven in ten Grand Hollows and half the Ancient ones in sulfurous ground (see [Refined biomes](#refined-biomes)), whatever the climate, like Frasassi's | Sulfur spikes and thickets of them on floors and ceilings, pools ringed with sulfur | Bands of sulfur and cinnabar through all the rock |
 | Lush caves | Seven in ten Grand Hollows under the wet tropics (at least 20 °C and 1500 mm of rain) | Moss on floors and ceilings, with azaleas, clay pools, cave vines, spore blossoms | The lush caves' own |
 | **Glowworm grotto** | Seven in ten Grand Hollows under mild, wet land (4–20 °C, at least 1000 mm), like the Waitomo caves | Glowworm silk hanging in curtains from the ceiling, pools in clay, stalactites and stalagmites. No glowstone: the silk gives the only light | Patches of clay |
 | **Selenite caverns** | Three in four Ancient Grand Hollows under dry land (aridity below 1), one in five under wet land. Like the Cave of the Crystals at Naica | Beams of selenite, from the floors and the ceilings, that cross the cavern at every angle. No dripstone, nothing alive | Calcite |
@@ -1408,9 +1418,9 @@ finds the floors of its own caves, but nearly never those of a cavern a hundred 
 `diffusicraft:hollow_surface` (`HollowSurfacePlacement`) knows from the model where a column's Grand Hollows lie, scans
 just that band, and moves the position to one of its floors or ceilings at random: the floor itself, a ledge or a
 pillar's top. It drops columns where no Grand Hollow opens, and places nothing outside a Diffusicraft world. The
-caves' features use it. Fabric's biome API also adds copies of vanilla's moss, clay, cave vines, spore blossoms and
-dripstone, placed this way, to vanilla's lush and dripstone caves, so that they reach the floors of the Grand Hollows
-too. Like every Diffusicraft feature they run after vanilla's.
+caves' features use it. Fabric's biome API also adds copies of vanilla's moss, clay, cave vines, spore blossoms,
+dripstone, sulfur spikes and sulfur pools, placed this way, to vanilla's lush, dripstone and sulfur caves, so that
+they reach the floors of the Grand Hollows too. Like every Diffusicraft feature they run after vanilla's.
 
 **Blocks and features.**
 

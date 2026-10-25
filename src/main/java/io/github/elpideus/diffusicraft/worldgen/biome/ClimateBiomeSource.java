@@ -34,6 +34,10 @@ import java.util.stream.Stream;
  * carpet their floors: there they get what vanilla would pick halfway down to it, lush or dripstone caves where the
  * climate calls for them and the biome above otherwise.
  *
+ * <p>Vanilla's sulfur caves need a weirdness that Diffusicraft's terrain never reaches. They go where the ground is
+ * {@link io.github.elpideus.diffusicraft.worldgen.geology.Geology#sulfurous sulfurous} instead, at the depths of
+ * vanilla's cave biomes, in place of vanilla's picks there.
+ *
  * <p>In worlds that are not Diffusicraft's (the sampler carries no {@link BiomeWorld}), it behaves exactly like
  * vanilla's source.
  */
@@ -45,6 +49,9 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 
 	/** Depth at which the Grand Hollows pick their biome: the middle of vanilla's cave biomes. */
 	private static final float HOLLOW_DEPTH = 0.5f;
+	/** The depths of vanilla's cave biomes, between which sulfurous ground has its sulfur caves. */
+	private static final float CAVE_TOP = 0.2f;
+	private static final float CAVE_BOTTOM = 0.9f;
 
 	private final Holder<MultiNoiseBiomeSourceParameterList> preset;
 	private final HolderSet<Biome> refinements;
@@ -98,8 +105,18 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 					return column.hollowBiome(this);
 				}
 			}
-			return deepDark ? biome : column.refine(biome, this);
+			if (deepDark) {
+				return biome;
+			}
+			Holder<Biome> sulfur = column.climate.sulfurous && isVanilla(biome) ? sulfurCaves(world, column, quartY) : null;
+			return sulfur != null ? sulfur : column.refine(biome, this);
 		};
+	}
+
+	/** Vanilla's sulfur caves, where a quart of sulfurous ground is as deep as they go, or {@code null}. */
+	private @Nullable Holder<Biome> sulfurCaves(BiomeWorld world, Columns.Entry column, int quartY) {
+		float depth = ClimateMapping.depth(world.scale(), column.column.surfaceY, QuartPos.toBlock(quartY) + 2);
+		return depth >= CAVE_TOP && depth <= CAVE_BOTTOM ? targets().get(HollowBiomes.SULFUR_CAVES) : null;
 	}
 
 	/**
@@ -217,6 +234,7 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 				this.world = world;
 				column.sample(world.field(), world.scale(), blockX, blockZ);
 				climate.set(column.column);
+				climate.sulfurous = world.geology().sulfurous(blockX, blockZ);
 				SubBiomes.locate(world.field().seed(), blockX, blockZ, climate);
 				memo = 0;
 				hollowBiome = null;

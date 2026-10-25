@@ -3,6 +3,7 @@ package io.github.elpideus.diffusicraft.worldgen.biome;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.geology.GeoNoise;
+import io.github.elpideus.diffusicraft.worldgen.geology.Geology;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import org.jspecify.annotations.Nullable;
 
@@ -10,6 +11,9 @@ import org.jspecify.annotations.Nullable;
  * The biome of each Grand Hollow: one cave biome for the whole cavern, picked from the climate over its centre. A cave
  * keeps the mean temperature of the land above it all year round, and is as wet as the rain that soaks down into it.
  * <ul>
+ *     <li><b>Sulfur caves</b> wherever the ground is {@link Geology#sulfurous}, whatever the climate: most of the Grand
+ *     Hollows there and half the Ancient ones, eaten out by the sulfuric acid of the water that rises into them, as at
+ *     Frasassi in Italy.</li>
  *     <li><b>Lush caves</b> under the wet tropics, where roots and water reach far down.</li>
  *     <li><b>Glowworm grottoes</b> under mild, wet land, like the Waitomo caves of New Zealand: ceilings strung with
  *     the glowing threads of fungus-gnat larvae over pools of clay.</li>
@@ -28,6 +32,7 @@ public final class HollowBiomes {
 	public static final String GLOWWORM_GROTTO = "diffusicraft:glowworm_grotto";
 	public static final String SELENITE_CAVERNS = "diffusicraft:selenite_caverns";
 	public static final String MUSHROOM_FOREST = "diffusicraft:mushroom_forest";
+	public static final String SULFUR_CAVES = "minecraft:sulfur_caves";
 
 	private HollowBiomes() {
 	}
@@ -42,8 +47,13 @@ public final class HollowBiomes {
 	public static @Nullable String pick(Hollows.Kind kind, long id, BiomeClimate c) {
 		double roll = GeoNoise.unit(GeoNoise.hash(id, 0, 1, 0));
 		double second = GeoNoise.unit2(GeoNoise.hash(id, 0, 1, 0));
+		// A roll of its own, so the other caverns of sulfurous ground share out as they do elsewhere.
+		double sulfur = GeoNoise.unit(GeoNoise.hash(id, 0, 2, 0));
 		return switch (kind) {
 			case ANCIENT_GRAND_HOLLOW -> {
+				if (c.sulfurous && sulfur < 0.5) {
+					yield SULFUR_CAVES;
+				}
 				if (c.aridity() < 1) {
 					yield roll < 0.75 ? SELENITE_CAVERNS : grand(second, c);
 				}
@@ -52,13 +62,14 @@ public final class HollowBiomes {
 				}
 				yield roll < 0.75 ? SELENITE_CAVERNS : grand(second, c);
 			}
-			case GRAND_HOLLOW -> grand(roll, c);
+			case GRAND_HOLLOW -> c.sulfurous && sulfur < 0.7 ? SULFUR_CAVES : grand(roll, c);
 			default -> null;
 		};
 	}
 
 	/**
-	 * The climate over a Grand Hollow's centre, from the coarse map: the same wherever in the cavern it is asked for.
+	 * The climate over a Grand Hollow's centre, from the coarse map, and whether the ground there is sulfurous: the same
+	 * wherever in the cavern it is asked for.
 	 *
 	 * @param scratch a column to read the terrain into
 	 * @return {@code climate}, filled in
@@ -68,7 +79,9 @@ public final class HollowBiomes {
 		WorldScale scale = world.scale();
 		world.field().coarseColumn(scale.toPixel((int) Math.floor(chamber.z())),
 			scale.toPixel((int) Math.floor(chamber.x())), scratch);
-		return climate.set(scratch);
+		climate.set(scratch);
+		climate.sulfurous = world.geology().sulfurous(chamber.x(), chamber.z());
+		return climate;
 	}
 
 	/**

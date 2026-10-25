@@ -126,14 +126,17 @@ public final class DiffusicraftWorldgen {
 	}
 
 	/**
-	 * Gives vanilla's lush and dripstone caves their plants and dripstone on the floors and ceilings of the Grand
-	 * Hollows, which vanilla's placements, made for low caves, hardly reach (see {@link HollowSurfacePlacement}). They
-	 * place nothing in other worlds. The order is the one {@code tools/biomes.py} lists them in.
+	 * Gives vanilla's lush, dripstone and sulfur caves their plants, dripstone, sulfur spikes and pools on the floors
+	 * and ceilings of the Grand Hollows, which vanilla's placements, made for low caves, hardly reach (see
+	 * {@link HollowSurfacePlacement}). They place nothing in other worlds. The order is the one {@code tools/biomes.py}
+	 * lists them in.
 	 */
 	private static void addHollowFeatures() {
 		addFeatures("hollow", Biomes.LUSH_CAVES, "hollow_moss_floor", "hollow_moss_ceiling", "hollow_lush_clay",
 			"hollow_cave_vines", "hollow_spore_blossoms");
 		addFeatures("hollow", Biomes.DRIPSTONE_CAVES, "hollow_dripstone_floor", "hollow_dripstone_ceiling");
+		addFeatures("hollow", Biomes.SULFUR_CAVES, "hollow_sulfur_spikes_floor", "hollow_sulfur_spikes_ceiling",
+			"hollow_sulfur_clusters", "hollow_sulfur_pools");
 	}
 
 	/**

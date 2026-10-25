@@ -96,6 +96,13 @@ public final class Geology {
 	 * would bury the basement and reach below the bottom of the world.
 	 */
 	private static final double UNDERGROUND_METERS = 10.0;
+	/**
+	 * The lowest basement noise of the {@link #sulfurous} ground: the volcanic side of the basement, its lava fields and
+	 * the schist belts around them, about a tenth of the ground.
+	 */
+	private static final double SULFUR_BASEMENT = 0.25;
+	/** Where the sulfurous ground lies in that part of the basement: above this in its noise, in about a third of it. */
+	private static final double SULFUR_PATCH = 0.1;
 
 	/** Where the sedimentary cover was laid down, which decides what its beds are made of. */
 	public enum Basin {
@@ -447,6 +454,18 @@ public final class Geology {
 			above = b + 1 + s * ledgeOffset(b + 1) - u;
 		}
 		return b - below / (above - below) - u;
+	}
+
+	/**
+	 * Whether water rich in hydrogen sulfide rises through the ground at a point, and has eaten sulfur caves out of it,
+	 * as at Frasassi in Italy or Movile in Romania: in patches over the volcanic side of the basement, whose magma left
+	 * the sulfur behind. Patches a few hundred blocks across (more at the finer scales, as every region is) over about
+	 * one part of the ground in thirty.
+	 */
+	public boolean sulfurous(double x, double z) {
+		double sx = x / stretch;
+		double sz = z / stretch;
+		return basementNoise(sx, sz) >= SULFUR_BASEMENT && fractal(seed + 18, sx / 160, sz / 160, 2) > SULFUR_PATCH;
 	}
 
 	/** The top of the deepslate at a point, before rounding to a block. */

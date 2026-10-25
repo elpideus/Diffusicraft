@@ -194,6 +194,30 @@ class GeologyTest {
 	}
 
 	@Test
+	void sulfurousGroundLiesInPatchesOverTheVolcanicBasement() {
+		// At 1:1 a region spans about four times as many blocks as at 15 m per block.
+		for (double meters : new double[]{15, 1}) {
+			Geology geology = new Geology(SEED, -64, meters, 10);
+			int step = (int) Math.round(97 * Math.sqrt(15 / meters));
+			int sulfurous = 0, count = 0;
+			for (int x = -400 * step; x < 400 * step; x += step) {
+				for (int z = -400 * step; z < 400 * step; z += step) {
+					count++;
+					if (geology.sulfurous(x, z)) {
+						sulfurous++;
+						Geology.Basement basement = lowland(geology, x, z).basement;
+						assertTrue(basement == Geology.Basement.SCHIST || basement == Geology.Basement.VOLCANIC,
+							basement + " at " + x + ", " + z);
+					}
+				}
+			}
+			double share = sulfurous / (double) count;
+			System.out.printf("sulfurous ground at %.0f m per block: %.2f%%%n", meters, 100 * share);
+			assertTrue(share > 0.02 && share < 0.06, "sulfurous ground: " + share);
+		}
+	}
+
+	@Test
 	void sameSeedSameGround() {
 		Geology a = new Geology(SEED, -256, 5, 4);
 		Geology b = new Geology(SEED, -256, 5, 4);

@@ -70,6 +70,25 @@ class HollowBiomesTest {
 	}
 
 	@Test
+	void sulfurousGroundHasSulfurCavesWhateverTheClimate() {
+		for (BiomeClimate c : new BiomeClimate[] {climate(26, 2500), climate(12, 1400), climate(24, 250),
+			climate(-8, 300)}) {
+			BiomeClimate plain = climate(c.temperature, c.precipitation);
+			c.sulfurous = true;
+			Map<String, Double> grand = shares(Hollows.Kind.GRAND_HOLLOW, c);
+			assertEquals(0.7, grand.get(HollowBiomes.SULFUR_CAVES), 0.03);
+			Map<String, Double> ancient = shares(Hollows.Kind.ANCIENT_GRAND_HOLLOW, c);
+			assertEquals(0.5, ancient.get(HollowBiomes.SULFUR_CAVES), 0.03);
+			// The rest share out as elsewhere.
+			for (Map.Entry<String, Double> e : shares(Hollows.Kind.GRAND_HOLLOW, plain).entrySet()) {
+				assertEquals(0.3 * e.getValue(), grand.getOrDefault(e.getKey(), 0.0), 0.03, e.getKey());
+			}
+			assertFalse(shares(Hollows.Kind.GRAND_HOLLOW, plain).containsKey(HollowBiomes.SULFUR_CAVES));
+			assertNull(HollowBiomes.pick(Hollows.Kind.DEEP_GRAND_HOLLOW, 1, c));
+		}
+	}
+
+	@Test
 	void theSameCavernAlwaysPicksTheSameBiome() {
 		BiomeClimate c = climate(12, 1400);
 		for (int i = 0; i < 200; i++) {

@@ -587,8 +587,8 @@ PLACED = {
     "giant_mushrooms": hollow("minecraft:mushroom_island_vegetation", "floor", 4),
     "hollow_brown_mushrooms": hollow_patch("minecraft:brown_mushroom", 4, 24),
     "hollow_red_mushrooms": hollow_patch("minecraft:red_mushroom", 2, 24),
-    # Vanilla's cave plants and dripstone, placed for the Grand Hollows. Besides the biomes here, Java adds them to
-    # vanilla's lush and dripstone caves (see DiffusicraftWorldgen.addHollowFeatures), in this order.
+    # Vanilla's cave plants, dripstone and sulfur, placed for the Grand Hollows. Besides the biomes here, Java adds them
+    # to vanilla's lush, dripstone and sulfur caves (see DiffusicraftWorldgen.addHollowFeatures), in this order.
     "hollow_dripstone_floor": hollow("minecraft:pointed_dripstone", "floor", 24),
     "hollow_dripstone_ceiling": hollow("minecraft:pointed_dripstone", "ceiling", 24),
     "hollow_moss_floor": hollow("minecraft:moss_patch", "floor", 8),
@@ -596,6 +596,11 @@ PLACED = {
     "hollow_lush_clay": hollow("minecraft:lush_caves_clay", "floor", 3),
     "hollow_cave_vines": hollow("minecraft:cave_vine", "ceiling", 32),
     "hollow_spore_blossoms": hollow("minecraft:spore_blossom", "ceiling", 4),
+    # Vanilla's sulfur caves: spikes, thickets of them, and pools ringed with sulfur on the floors.
+    "hollow_sulfur_spikes_floor": hollow("minecraft:sulfur_spike", "floor", 24),
+    "hollow_sulfur_spikes_ceiling": hollow("minecraft:sulfur_spike", "ceiling", 24),
+    "hollow_sulfur_clusters": hollow("minecraft:sulfur_spike_cluster", "floor", 3),
+    "hollow_sulfur_pools": hollow("minecraft:sulfur_pool", "floor", 2),
     # The redwoods, after every smaller tree, whose crowns they grow through. Groves of them in their own biomes, and
     # lone ones elsewhere: Java adds the lone ones to vanilla's biomes (see DiffusicraftWorldgen.addLoneGiants).
     "redwoods": giants(ours("redwood"), counts={0: 1, 1: 2}),
