@@ -141,6 +141,8 @@
 	"diffusicraft.settings.voxyLods.tooltip": "With Voxy installed, fills its far terrain straight from Diffusicraft's terrain where Voxy has not seen the chunks. Off: Voxy shows only the chunks it has loaded. Takes effect when a world opens.",
 	"diffusicraft.settings.serveFarTerrain": "Send far terrain",
 	"diffusicraft.settings.serveFarTerrain.tooltip": "When you host a server or open a world to LAN, sends the far terrain to the players who have Diffusicraft. It uses your GPU or CPU as chunks do. Takes effect when the server starts.",
+	"diffusicraft.settings.shareBuilds": "Show others' builds",
+	"diffusicraft.settings.shareBuilds.tooltip": "Shows in the far terrain sent to each player what everyone built and dug, wherever they did. Off, each player sees the terrain as generated, and what they saw themselves: what others build far away stays hidden until they go there, which makes bases harder to find. Takes effect when the server starts.",
 	"diffusicraft.settings.farTerrainRadius": "Send far terrain up to",
 	"diffusicraft.settings.farTerrainRadius.tooltip": "How far from each player the far terrain is sent. Takes effect when the server starts.",
 	"diffusicraft.settings.reliefMap": "Relief map",

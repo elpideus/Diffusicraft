@@ -20,14 +20,17 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
@@ -77,7 +80,8 @@ public final class FarTerrain {
 	private static final ExecutorService WORKERS = Executors.newFixedThreadPool(2, Thread.ofPlatform()
 		.name("Diffusicraft far terrain ", 0).daemon().priority(Thread.MIN_PRIORITY).factory());
 	private static final AtomicBoolean WARNED = new AtomicBoolean();
-	private static final boolean ENABLED = !FabricLoader.getInstance().isModLoaded("distanthorizons")
+	/** Whether the far terrain can be drawn at all: Distant Horizons and Voxy draw their own. */
+	static final boolean ENABLED = !FabricLoader.getInstance().isModLoaded("distanthorizons")
 		&& !FabricLoader.getInstance().isModLoaded("voxy");
 	private static final boolean IRIS = FabricLoader.getInstance().isModLoaded("iris");
 
@@ -586,15 +590,36 @@ public final class FarTerrain {
 		}
 	}
 
-	/** The far terrain the server sends. */
-	private static final class Remote extends Source {
+	/**
+	 * The far terrain the server sends. Where the server does not share what players built, it is the terrain as
+	 * generated, and the chunks this client saw itself are laid over it ({@link SeenChunks}).
+	 */
+	private final class Remote extends Source {
+		/** Grids the server sent that are kept to lay the seen chunks over again as they change. */
+		private static final int KEPT_GRIDS = 16;
+
 		private final RemoteLods.Feed feed;
 		private final ResourceKey<Level> dimension;
+		private final @Nullable LodStore seen;
+		private final LodStore.Listener listener = (level, x, z) -> changed.add(new LodTiles.Tile(level, x, z));
+		/** Guarded by itself. */
+		private final Map<Sent, LodGrid> sent = new LinkedHashMap<>(16, 0.75F, true) {
+			@Override
+			protected boolean removeEldestEntry(Map.Entry<Sent, LodGrid> eldest) {
+				return size() > KEPT_GRIDS;
+			}
+		};
 
 		Remote(RemoteLods.Feed feed, ResourceKey<Level> dimension) {
 			super(feed);
 			this.feed = feed;
 			this.dimension = dimension;
+			this.seen = feed.sharesBuilds() ? null : SeenChunks.store(feed, dimension);
+			if (seen != null) {
+				seen.listen(listener);
+			} else {
+				feed.listen(dimension, listener);
+			}
 		}
 
 		@Override
@@ -604,7 +629,50 @@ public final class FarTerrain {
 
 		@Override
 		CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling) {
-			return feed.fetch(dimension, tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(), ceiling);
+			LodStore seen = this.seen;
+			if (seen == null) {
+				return feed.fetch(dimension, tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(), ceiling);
+			}
+			Sent key = new Sent(tile, ceiling);
+			LodGrid kept;
+			synchronized (sent) {
+				kept = sent.get(key);
+			}
+			CompletableFuture<@Nullable LodGrid> fetched = kept != null ? CompletableFuture.completedFuture(kept)
+				: feed.fetch(dimension, tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(), ceiling)
+					.thenApply(grid -> {
+						if (grid != null) {
+							synchronized (sent) {
+								sent.put(key, grid);
+							}
+						}
+						return grid;
+					});
+			return fetched.thenApplyAsync(grid -> {
+				if (grid == null) {
+					return null;
+				}
+				try {
+					return seen.overlay(tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(), ceiling,
+						() -> grid);
+				} catch (RejectedExecutionException e) {
+					// The client left the server, and the store closed under the tile: nobody wants it any more.
+					return null;
+				}
+			}, WORKERS);
 		}
+
+		@Override
+		void close() {
+			if (seen != null) {
+				seen.unlisten(listener);
+			} else {
+				feed.unlisten(listener);
+			}
+		}
+	}
+
+	/** A grid the server sent: of a tile, with its ceiling. */
+	private record Sent(LodTiles.Tile tile, int ceiling) {
 	}
 }

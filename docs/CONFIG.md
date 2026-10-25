@@ -22,6 +22,7 @@ while the game is closed.
   "voxyLods": true,
   "serveFarTerrain": true,
   "farTerrainRadius": 8192,
+  "shareBuilds": false,
   "farTerrain": true,
   "farTerrainDistance": 8192,
   "verticalRenderDistance": 0,
@@ -134,7 +135,8 @@ world. See [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
 ### `serveFarTerrain`
 
 On a server, or a world opened to LAN, send the far terrain of Diffusicraft worlds to the players whose clients ask
-for it, those with Diffusicraft, so that their far terrain, or their Voxy's, shows it as in singleplayer. Set it to
+for it, those with Diffusicraft, so that their far terrain, or their Voxy's, shows it as in singleplayer, without what
+other players built unless [`shareBuilds`](#sharebuilds) is on. Set it to
 `false` to send none: their far terrain then ends where the chunks do, and their Voxy shows only the chunks it has
 loaded. The server samples the grids on two threads of its own, so
 they never hold up the ticks, but they do use the GPU or the CPU as chunks do. Read when the server starts. See
@@ -145,10 +147,21 @@ they never hold up the ticks, but they do use the GPU or the CPU as chunks do. R
 How far from a player, in blocks, the server sends far terrain: up to 65536. The default, 8192, is as far as Voxy draws
 by default. Beyond it, a player's Voxy shows only the chunks it has loaded. Read when the server starts.
 
+### `shareBuilds`
+
+Show in the far terrain the server sends what players built and dug, wherever they did. In the settings screen this
+is *Show others' builds*. Off, the default, the server sends the terrain as generated, and each player's far terrain
+lays over it what their own client saw, as they last saw it: what others build far away stays hidden until the player
+goes there, so that nobody finds a base from afar. On, which suits a server among friends, the server sends the chunks
+as they were last saved, and tells the players within reach when a page of them changes, so that their far terrain
+shows a new build within moments of the server saving it. Voxy keeps what it was sent: it shows a place as it was when
+it first asked. Read when the server starts. See [LOD.md](LOD.md#on-a-server-lodfeed-remotelods-and-seenchunks).
+
 ### `farTerrain`
 
 Draw Diffusicraft's own far terrain past the chunks of Diffusicraft worlds: in singleplayer straight from the
-world's terrain, with what players built, and on a server from the far terrain it sends (see `serveFarTerrain`).
+world's terrain, with what players built, and on a server from the far terrain it sends (see `serveFarTerrain`),
+with what this client saw itself laid over it unless the server shares what players built (`shareBuilds`).
 It is always off while Distant Horizons or Voxy is installed, which draw their own. Takes effect at once. See
 [LOD.md](LOD.md).
 
@@ -204,8 +217,9 @@ Servers have no resource screen. At start they:
 The same storage rules apply. On a server, consider setting `storagePath` to a directory next to the server, so
 that it does not depend on the service user's home directory.
 
-A server sends the far terrain of its Diffusicraft worlds to the clients with Voxy and Diffusicraft that ask for it;
-[`serveFarTerrain`](#servefarterrain) and [`farTerrainRadius`](#farterrainradius) set whether and how far.
+A server sends the far terrain of its Diffusicraft worlds to the clients with Diffusicraft that ask for it;
+[`serveFarTerrain`](#servefarterrain) and [`farTerrainRadius`](#farterrainradius) set whether and how far, and
+[`shareBuilds`](#sharebuilds) whether it shows what players built.
 
 Operators can open the [relief map](MAP.md) with `/diffusicraft map`. It listens only on the server's own machine
 until [`reliefMapAddress`](#reliefmapaddress) and [`reliefMapUrl`](#reliefmapurl) say otherwise.

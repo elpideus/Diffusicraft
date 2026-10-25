@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.client.lod;
 
 import io.github.elpideus.diffusicraft.worldgen.lod.LodGrid;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodPayloads;
+import io.github.elpideus.diffusicraft.worldgen.lod.LodStore;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -41,6 +43,12 @@ public final class RemoteLods {
 			Feed feed = RemoteLods.feed;
 			if (feed != null) {
 				feed.reply(reply);
+			}
+		});
+		ClientPlayNetworking.registerGlobalReceiver(LodPayloads.Changed.TYPE, (changed, context) -> {
+			Feed feed = RemoteLods.feed;
+			if (feed != null) {
+				feed.changed(changed);
 			}
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> close());
@@ -74,6 +82,9 @@ public final class RemoteLods {
 	public static final class Feed {
 		private final int radius;
 		private final int maxInFlight;
+		private final boolean sharesBuilds;
+		private final long world;
+		private final List<Listening> listeners = new CopyOnWriteArrayList<>();
 		private final Map<ResourceKey<Level>, Integer> minYs = new HashMap<>();
 		private final PacketSender sender;
 		private final AtomicInteger ids = new AtomicInteger();
@@ -87,6 +98,8 @@ public final class RemoteLods {
 		private Feed(LodPayloads.Offer offer, PacketSender sender) {
 			this.radius = offer.radius();
 			this.maxInFlight = Math.max(1, offer.maxInFlight());
+			this.sharesBuilds = offer.sharesBuilds();
+			this.world = offer.world();
 			for (LodPayloads.Served served : offer.levels()) {
 				minYs.put(served.level(), served.minY());
 			}
@@ -100,6 +113,31 @@ public final class RemoteLods {
 			}
 		}
 
+		/**
+		 * Whether the server's grids show what players built where they have been. If not, they show the terrain as
+		 * generated, and the client keeps what it saw itself ({@link SeenChunks}).
+		 */
+		public boolean sharesBuilds() {
+			return sharesBuilds;
+		}
+
+		/** A number that tells the server's worlds apart, the same for every connection to one world. */
+		public long world() {
+			return world;
+		}
+
+		/**
+		 * Hears when the server says that a page of a level changed under the grids it sent, as {@link LodStore}'s
+		 * listeners do; only a server that shares what players built says so. Runs on the client thread.
+		 */
+		public void listen(ResourceKey<Level> level, LodStore.Listener listener) {
+			listeners.add(new Listening(level, listener));
+		}
+
+		public void unlisten(LodStore.Listener listener) {
+			listeners.removeIf(listening -> listening.listener == listener);
+		}
+
 		/** Whether the server sends the far terrain of {@code level}. */
 		public boolean serves(ResourceKey<Level> level) {
 			return minYs.containsKey(level);
@@ -111,7 +149,8 @@ public final class RemoteLods {
 		}
 
 		/**
-		 * Asks the server for the grid {@link LodGrid#sample} samples from its {@code level} with these arguments.
+		 * Asks the server for the grid {@link LodGrid#sample} samples from its {@code level} with these arguments, or
+		 * {@link LodGrid#generate} if it does not share what players built.
 		 * Completes with the grid, or with null if the server would refuse it, refuses it or does not answer in time,
 		 * or the connection closes first. Never waits.
 		 */
@@ -218,6 +257,17 @@ public final class RemoteLods {
 			}
 		}
 
+		private void changed(LodPayloads.Changed changed) {
+			if (changed.detail() < 0 || changed.detail() >= LodStore.LEVELS) {
+				return;
+			}
+			for (Listening listening : listeners) {
+				if (listening.level.equals(changed.level())) {
+					listening.listener.changed(changed.detail(), changed.pageX(), changed.pageZ());
+				}
+			}
+		}
+
 		private void close() {
 			List<CompletableFuture<@Nullable LodGrid>> open = new ArrayList<>();
 			synchronized (lock) {
@@ -232,6 +282,9 @@ public final class RemoteLods {
 				future.complete(null);
 			}
 		}
+	}
+
+	private record Listening(ResourceKey<Level> level, LodStore.Listener listener) {
 	}
 
 	/** A request and the future its reply completes. */

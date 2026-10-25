@@ -96,7 +96,8 @@ public final class SettingsScreen extends OptionsSubScreen {
 			bool("voxyLods", config.voxyLods, (c, on) -> c.voxyLods = on));
 
 		list.addHeader(tr("section.server"));
-		list.addSmall(bool("serveFarTerrain", config.serveFarTerrain, (c, on) -> c.serveFarTerrain = on));
+		list.addSmall(bool("serveFarTerrain", config.serveFarTerrain, (c, on) -> c.serveFarTerrain = on),
+			bool("shareBuilds", config.shareBuilds, (c, on) -> c.shareBuilds = on));
 		list.addBig(steps("farTerrainRadius", FAR_TERRAIN_RADII, config.farTerrainRadius, SettingsScreen::blocks,
 			(c, blocks) -> c.farTerrainRadius = blocks));
 

@@ -11,6 +11,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.BiomeManager;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -27,16 +28,21 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Sends the far terrain of Diffusicraft worlds to the clients that draw it, so that Voxy shows it in multiplayer as
- * it does in singleplayer. A client with Diffusicraft hears as it joins how far the feed reaches and which levels it
- * serves ({@link LodPayloads.Offer}), then asks for grids ({@link LodPayloads.Request}) and gets each in a
- * {@link LodPayloads.Reply}, with no grid when the server refuses it.
+ * Sends the far terrain of Diffusicraft worlds to the clients that draw it, so that their far terrain, or Voxy, shows
+ * it in multiplayer as in singleplayer. A client with Diffusicraft hears as it joins how far the feed reaches, whether
+ * it shares what players built and which levels it serves ({@link LodPayloads.Offer}), then asks for grids
+ * ({@link LodPayloads.Request}) and gets each in a {@link LodPayloads.Reply}, with no grid when the server refuses it.
+ *
+ * <p>By default the grids are the terrain as generated ({@link LodGrid#generate}), and each client keeps what it saw
+ * itself: a player cannot find from afar what others built. A server that shares what players built
+ * ({@code shareBuilds}) sends the chunks as they were last saved where players have been ({@link LodGrid#sample}),
+ * and tells the players near a page of them that changed ({@link LodPayloads.Changed}).
  *
  * <p>The server refuses a request whose level is not the player's or not a Diffusicraft one, whose grid lies further
  * from the player than {@code farTerrainRadius}, or that would leave the player more than {@value #MAX_IN_FLIGHT}
  * requests waiting. Grids are sampled on {@value #THREADS} threads of their own, so they never hold up the ticks, and
  * the last {@value #CACHED_GRIDS} are kept for players near each other, until a chunk saved under one changes it
- * ({@link LodStore}). Everything else runs on the server thread.
+ * ({@link LodStore}) where the server shares what players built. Everything else runs on the server thread.
  */
 public final class LodFeed {
 	/** Threads sampling grids. Each grid may run the models over the tiles it covers, as chunks do. */
@@ -53,6 +59,7 @@ public final class LodFeed {
 
 	private final MinecraftServer server;
 	private final int radius;
+	private final boolean shareBuilds;
 	private final Map<ResourceKey<Level>, Optional<LodSampler>> samplers = new HashMap<>();
 	private final Map<UUID, Integer> inFlight = new HashMap<>();
 	private final Map<GridKey, CompletableFuture<LodGrid>> grids = new LinkedHashMap<>(16, 0.75F, true) {
@@ -65,16 +72,17 @@ public final class LodFeed {
 	private volatile boolean closed;
 	private boolean warned;
 
-	private LodFeed(MinecraftServer server, int radius) {
+	private LodFeed(MinecraftServer server, int radius, boolean shareBuilds) {
 		this.server = server;
 		this.radius = radius;
+		this.shareBuilds = shareBuilds;
 	}
 
 	public static void init() {
 		LodPayloads.register();
 		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
 			DiffusicraftConfig config = Resources.get().config();
-			feed = config.serveFarTerrain ? new LodFeed(server, config.farTerrainRadius) : null;
+			feed = config.serveFarTerrain ? new LodFeed(server, config.farTerrainRadius, config.shareBuilds) : null;
 		});
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
 			if (feed != null) {
@@ -109,17 +117,39 @@ public final class LodFeed {
 				levels.add(new LodPayloads.Served(level.dimension(), sampler.minY()));
 			}
 		}
-		return new LodPayloads.Offer(radius, MAX_IN_FLIGHT, levels);
+		long world = BiomeManager.obfuscateSeed(server.overworld().getSeed());
+		return new LodPayloads.Offer(radius, MAX_IN_FLIGHT, shareBuilds, world, levels);
 	}
 
 	private @Nullable LodSampler sampler(ServerLevel level) {
 		return samplers.computeIfAbsent(level.dimension(), key -> {
 			LodSampler sampler = LodSampler.of(level);
-			if (sampler != null && sampler.store() != null) {
-				sampler.store().listen((detail, pageX, pageZ) -> server.execute(() -> forget(key, detail, pageX, pageZ)));
+			if (shareBuilds && sampler != null && sampler.store() != null) {
+				sampler.store().listen((detail, pageX, pageZ) ->
+					server.execute(() -> changed(key, detail, pageX, pageZ)));
 			}
 			return Optional.ofNullable(sampler);
 		}).orElse(null);
+	}
+
+	/**
+	 * Drops the cached grids that the page at {@code (pageX, pageZ)} of a level of detail lies under, and tells the
+	 * players near it that it changed.
+	 */
+	private void changed(ResourceKey<Level> level, int detail, int pageX, int pageZ) {
+		forget(level, detail, pageX, pageZ);
+		ServerLevel serverLevel = server.getLevel(level);
+		if (serverLevel == null) {
+			return;
+		}
+		LodPayloads.Changed changed = new LodPayloads.Changed(level, detail, pageX, pageZ);
+		long span = (long) LodStore.PAGE << detail;
+		for (ServerPlayer player : serverLevel.players()) {
+			if (near(player, pageX * span, pageZ * span, span)
+				&& ServerPlayNetworking.canSend(player, LodPayloads.Changed.TYPE)) {
+				ServerPlayNetworking.send(player, changed);
+			}
+		}
 	}
 
 	/** Drops the cached grids that the page at {@code (pageX, pageZ)} of a level of detail lies under. */
@@ -150,7 +180,8 @@ public final class LodFeed {
 				if (closed) {
 					throw new CancellationException("The server is stopping");
 				}
-				return LodGrid.sample(sampler, key.minX, key.minZ, key.width, key.step, key.ceiling);
+				return shareBuilds ? LodGrid.sample(sampler, key.minX, key.minZ, key.width, key.step, key.ceiling)
+					: LodGrid.generate(sampler, key.minX, key.minZ, key.width, key.step, key.ceiling);
 			}, executor());
 			grids.put(key, grid);
 		}
@@ -184,12 +215,16 @@ public final class LodFeed {
 		if (!level.dimension().equals(request.level())) {
 			return null;
 		}
-		// From the player to the nearest column of the grid.
-		long extent = (long) request.width() * step;
-		double dx = Math.max(0, Math.max(request.minX() - player.getX(), player.getX() - (request.minX() + extent)));
-		double dz = Math.max(0, Math.max(request.minZ() - player.getZ(), player.getZ() - (request.minZ() + extent)));
+		return near(player, request.minX(), request.minZ(), (long) request.width() * step) ? sampler(level) : null;
+	}
+
+	/** Whether the square of {@code extent} blocks from {@code (minX, minZ)} reaches within the feed's radius. */
+	private boolean near(ServerPlayer player, long minX, long minZ, long extent) {
+		// From the player to the nearest column of the square.
+		double dx = Math.max(0, Math.max(minX - player.getX(), player.getX() - (minX + extent)));
+		double dz = Math.max(0, Math.max(minZ - player.getZ(), player.getZ() - (minZ + extent)));
 		double reach = (double) radius + MARGIN;
-		return dx * dx + dz * dz > reach * reach ? null : sampler(level);
+		return dx * dx + dz * dz <= reach * reach;
 	}
 
 	private ExecutorService executor() {

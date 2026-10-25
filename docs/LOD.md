@@ -63,9 +63,31 @@ good (`SERVER_STOPPED`).
 ### Using them: `LodGrid.sample`
 
 Every grid the far terrain asks for goes through `LodGrid.sample`: our renderer and Voxy in singleplayer, and the
-feed to multiplayer clients. When the grid's step is a level's and its corner is a multiple of that step, the stored
-columns replace the sampled ones. A grid whose columns are all stored never runs the terrain at all. `LodFeed` drops
-the grids it cached under a page that changes.
+feed to multiplayer clients where the server shares what players built. When the grid's step is a level's and its
+corner is a multiple of that step, the stored columns replace the sampled ones. A grid whose columns are all stored
+never runs the terrain at all. `LodGrid.generate` samples the terrain alone, as it was generated.
+
+### On a server: `LodFeed`, `RemoteLods` and `SeenChunks`
+
+A server with Diffusicraft sends the far terrain of its Diffusicraft worlds to the clients with Diffusicraft that ask
+for it, for our renderer or for Voxy (see [COMPATIBILITY.md](COMPATIBILITY.md#voxy)). As a player joins, `LodFeed`
+tells the client how far it sends, which levels it serves and whether it shares what players built. The client
+(`RemoteLods`) then asks for grids, at most 32 at once, nearest first. What the grids show depends on the server's
+[`shareBuilds`](CONFIG.md#sharebuilds):
+
+- **Off, the default: the terrain as generated.** The server sends `LodGrid.generate`, so a player cannot find from
+  afar what others built, such as a base. Each client keeps what it saw itself instead. As it lets go of a chunk, or
+  of a whole level as it leaves, `SeenChunks` hands the chunk's sections to a store of its own (`LodStore` again),
+  from the highest down to two under the chunk's lowest ground, or on down to the floor of a sea. A chunk whose
+  ground falls further than 64 sections is left out. Nothing changes the sections of a chunk the client has let go
+  of, so they are read as they are, and only their light is copied. The stores live under
+  `diffusicraft/seen/<server address>/<world>/<namespace>/<path>` in the game's folder, where `<world>` is the
+  one-way hash of the world's seed that vanilla already sends every client. The far terrain lays the stored columns
+  over the grids the server sent, and keeps the last 16 grids, so that a tile a seen chunk changes is built again
+  without asking the server.
+- **On: what players built.** The server sends `LodGrid.sample`, with the chunks as they were last saved. When a
+  page of its store changes, it drops the grids it cached under it and tells the players within reach
+  (`LodPayloads.Changed`), whose far terrain builds the tiles over it again. The client keeps nothing of its own.
 
 ### Drawing them: tiles, meshes and colours
 
@@ -102,7 +124,8 @@ These parts are unit-tested and feed the renderer below.
 
 - **Where the grids come from.** In singleplayer, from the integrated server's own level through `LodGrid.sample`,
   so what players built shows. Its store tells the renderer which pages changed, and those tiles are built again.
-  On a server, from the far terrain the server sends (`RemoteLods`).
+  On a server, from the far terrain the server sends (`RemoteLods`), with the chunks this client saw laid over it
+  where the server does not share what players built (see [above](#on-a-server-lodfeed-remotelods-and-seenchunks)).
 - **Building.** Two low-priority worker threads sample a tile's grid, mesh it and write its vertices off the heap.
   At most six tiles are built at once, nearest first, and tiles whose terrain changed go before new ones. The render
   thread only uploads finished meshes, at most 4 MB a frame, so a burst of tiles does not stall it. `LodView` keeps
@@ -156,5 +179,3 @@ plays its part for Iris:
 2. **Coarser levels from finer ones.** Far levels now keep one column out of each square of 2ᴸ × 2ᴸ, as the sampler
    does. Building them from the level below, as Voxy builds its coarser sections, would keep thin builds and roads
    visible from further away.
-3. **Telling clients.** A page that changes should reach the clients that hold it. For now they keep their copy
-   until they ask again.

@@ -24,18 +24,21 @@ public final class LodPayloads {
 		PayloadTypeRegistry.clientboundPlay().register(Offer.TYPE, Offer.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(Reply.TYPE, Reply.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(Changed.TYPE, Changed.CODEC);
 	}
 
 	/**
 	 * Sent to a client as it joins: how far from the player, in blocks, the server sends far terrain, how many
-	 * requests it may have waiting at once, and the levels whose far terrain it sends.
+	 * requests it may have waiting at once, whether its grids show what players built (else they are the terrain as
+	 * generated), a number that tells its worlds apart, and the levels whose far terrain it sends.
 	 */
-	public record Offer(int radius, int maxInFlight, List<Served> levels) implements CustomPacketPayload {
+	public record Offer(int radius, int maxInFlight, boolean sharesBuilds, long world, List<Served> levels)
+		implements CustomPacketPayload {
 		public static final Type<Offer> TYPE = new Type<>(Diffusicraft.id("far_terrain_offer"));
 		static final StreamCodec<FriendlyByteBuf, Offer> CODEC = StreamCodec.ofMember(Offer::write, Offer::new);
 
 		private Offer(FriendlyByteBuf buf) {
-			this(buf.readVarInt(), buf.readVarInt(), readLevels(buf));
+			this(buf.readVarInt(), buf.readVarInt(), buf.readBoolean(), buf.readLong(), readLevels(buf));
 		}
 
 		private static List<Served> readLevels(FriendlyByteBuf buf) {
@@ -53,6 +56,8 @@ public final class LodPayloads {
 		private void write(FriendlyByteBuf buf) {
 			buf.writeVarInt(radius);
 			buf.writeVarInt(maxInFlight);
+			buf.writeBoolean(sharesBuilds);
+			buf.writeLong(world);
 			buf.writeVarInt(levels.size());
 			for (Served served : levels) {
 				served.write(buf);
@@ -78,8 +83,8 @@ public final class LodPayloads {
 	}
 
 	/**
-	 * Asks for the grid that {@link LodGrid#sample} samples from {@code level} with these arguments. {@code id}
-	 * matches the reply to it.
+	 * Asks for the grid that {@link LodGrid#sample} samples from {@code level} with these arguments, or
+	 * {@link LodGrid#generate} where the server does not share what players built. {@code id} matches the reply to it.
 	 */
 	public record Request(int id, ResourceKey<Level> level, int minX, int minZ, int width, int step, int ceiling)
 		implements CustomPacketPayload {
@@ -123,6 +128,32 @@ public final class LodPayloads {
 
 		@Override
 		public Type<Reply> type() {
+			return TYPE;
+		}
+	}
+
+	/**
+	 * Sent to a client near a page of stored columns that changed, where the server shares what players built: page
+	 * {@code (pageX, pageZ)} of level of detail {@code detail} in {@code level} (see {@link LodStore}). Grids under it
+	 * are out of date.
+	 */
+	public record Changed(ResourceKey<Level> level, int detail, int pageX, int pageZ) implements CustomPacketPayload {
+		public static final Type<Changed> TYPE = new Type<>(Diffusicraft.id("far_terrain_changed"));
+		static final StreamCodec<FriendlyByteBuf, Changed> CODEC = StreamCodec.ofMember(Changed::write, Changed::new);
+
+		private Changed(FriendlyByteBuf buf) {
+			this(buf.readResourceKey(Registries.DIMENSION), buf.readVarInt(), buf.readInt(), buf.readInt());
+		}
+
+		private void write(FriendlyByteBuf buf) {
+			buf.writeResourceKey(level);
+			buf.writeVarInt(detail);
+			buf.writeInt(pageX);
+			buf.writeInt(pageZ);
+		}
+
+		@Override
+		public Type<Changed> type() {
 			return TYPE;
 		}
 	}

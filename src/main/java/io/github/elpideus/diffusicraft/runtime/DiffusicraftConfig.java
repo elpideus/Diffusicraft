@@ -63,12 +63,18 @@ public final class DiffusicraftConfig {
 	 */
 	public boolean voxyLods = true;
 	/**
-	 * On a server, send the far terrain of Diffusicraft worlds to the clients that ask for it, for Voxy to draw. Read
-	 * when the server starts.
+	 * On a server, send the far terrain of Diffusicraft worlds to the clients that ask for it, for their far terrain or
+	 * Voxy to draw. Read when the server starts.
 	 */
 	public boolean serveFarTerrain = true;
 	/** How far from a player, in blocks, a server sends far terrain. Read when the server starts. */
 	public int farTerrainRadius = 8192;
+	/**
+	 * Show in the far terrain a server sends what players built and dug, wherever they did. Off, each player sees the
+	 * terrain as generated, and what their own client saw: what others build far away stays hidden until they go
+	 * there. Read when the server starts.
+	 */
+	public boolean shareBuilds = false;
 	/**
 	 * Draw Diffusicraft's own far terrain past the chunks of Diffusicraft worlds, in singleplayer from the world's
 	 * generator and on a server from the far terrain it sends. Off while Distant Horizons or Voxy is installed, which

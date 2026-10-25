@@ -195,10 +195,12 @@ filled and Voxy draws it again, as it does with the chunks a server sends. The s
   at each coarser one. `client.mixin.voxy.WorldUpdaterMixin` tells Diffusicraft which blocks Voxy writes into a
   section waiting for its grid, and the grid fills only the rest when it comes, so that the far terrain runs right up
   to the chunks instead of leaving a pit round them.
-- The server samples the grids with the same `LodGrid.sample` on two threads of its own, so they never hold up the
-  ticks, and keeps the last 128 for players near each other until a chunk saved under one changes it. They use the
-  GPU or the CPU as chunks do. Where players have been, the grids show the chunks as they were last saved
-  ([LOD.md](LOD.md#built-so-far)).
+- The server samples the grids on two threads of its own, so they never hold up the ticks, and keeps the last 128
+  for players near each other. They use the GPU or the CPU as chunks do. By default they are the terrain as generated,
+  so that nobody finds from afar what others built, and Voxy shows the chunks it saw itself over them. With
+  [`shareBuilds`](CONFIG.md#sharebuilds) on, where players have been, they show the chunks as they were last saved
+  ([LOD.md](LOD.md#on-a-server-lodfeed-remotelods-and-seenchunks)), and a grid cached under a chunk that is saved
+  again is dropped. Voxy keeps the sections it was sent, so it shows a place as it was when it first asked.
 - It refuses a grid of a level the player is not in, one further from the player than the radius, and any that
   would leave the player more than 32 requests waiting. The client asks for no more than that at once and keeps the
   rest waiting, sending the one nearest the player first, so that the far terrain fills in from the player out.

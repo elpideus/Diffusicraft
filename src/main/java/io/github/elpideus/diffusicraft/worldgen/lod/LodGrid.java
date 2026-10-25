@@ -85,8 +85,8 @@ public final class LodGrid {
 			: store.overlay(minX, minZ, width, step, ceiling, () -> generate(sampler, minX, minZ, width, step, ceiling));
 	}
 
-	/** The grid as the terrain is generated, whatever players did to it. */
-	private static LodGrid generate(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling) {
+	/** The grid as {@link #sample} samples it, but as the terrain is generated, whatever players did to it. */
+	public static LodGrid generate(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling) {
 		LodGrid grid = new LodGrid(width);
 		sampler.sample(minX, minZ, width, step, (x, z, column) -> grid.add(column, ceiling));
 		return grid;

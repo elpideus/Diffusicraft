@@ -30,42 +30,25 @@ import java.util.Locale;
  */
 public class FarTerrainGameTest implements FabricClientGameTest {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Diffusicraft far terrain test");
-	private static final String SEED = System.getProperty("diffusicraft.seed", "20261052");
+	static final String SEED = System.getProperty("diffusicraft.seed", "20261052");
 	private static final int TICKS_PER_MINUTE = 20 * 60;
-	private static final int RENDER_DISTANCE = 6;
+	static final int RENDER_DISTANCE = 6;
 	/** How long the far terrain must have every tile it wants before a view is taken, and how long to wait at most. */
 	private static final int SETTLED_TICKS = 3 * 20;
 	private static final int BUILD_TIMEOUT_TICKS = 10 * TICKS_PER_MINUTE;
-	private static final int TOWER_DISTANCE = 480;
-	private static final int TOWER_RADIUS = 8;
-	private static final int TOWER_HEIGHT = 80;
+	static final int TOWER_DISTANCE = 480;
+	static final int TOWER_RADIUS = 8;
+	static final int TOWER_HEIGHT = 80;
 	/** How far north of the tower its view is taken from, well out of the chunks' reach. */
-	private static final int TOWER_VIEW_DISTANCE = 240;
+	static final int TOWER_VIEW_DISTANCE = 240;
 	/** How high over the top of the tower its view is taken from, so that no hill between hides it. */
-	private static final int TOWER_VIEW_HEIGHT = 160;
+	static final int TOWER_VIEW_HEIGHT = 160;
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
-		if (GameTests.skips(this)) {
+		if (!prepare(this, context)) {
 			return;
 		}
-		if (FabricLoader.getInstance().isModLoaded("distanthorizons") || FabricLoader.getInstance().isModLoaded("voxy")) {
-			LOGGER.info("Distant Horizons or Voxy is installed, which turns the far terrain off; skipping");
-			return;
-		}
-		context.getInput().resizeWindow(1280, 720);
-		context.waitFor(mc -> Resources.get().status() != null, TICKS_PER_MINUTE);
-		if (!Resources.get().status().modelsReady()) {
-			LOGGER.warn("The Terrain Diffusion models are not downloaded; skipping the far terrain test");
-			return;
-		}
-		context.runOnClient(mc -> mc.options.renderDistance().set(RENDER_DISTANCE));
-		OnnxModel.Device device = OnnxModel.Device.valueOf(System.getProperty("diffusicraft.device", "CPU"));
-		Resources.get().updateConfig(config -> {
-			config.device = device;
-			config.farTerrain = true;
-		});
-
 		try (TestSingleplayerContext world = context.worldBuilder()
 			.setUseConsistentSettings(false)
 			.adjustSettings(ui -> {
@@ -90,12 +73,7 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 
 			BlockPos tower = raiseTower(context, server, connection, probe.spawn().south(TOWER_DISTANCE));
 			long before = FarTerrain.uploads();
-			BlockPos from = tower.north(TOWER_VIEW_DISTANCE);
-			int ground = server.computeOnServer(s -> s.overworld().getHeight(Heightmap.Types.WORLD_SURFACE, from.getX(),
-				from.getZ()));
-			int eye = Math.max(ground + 20, tower.getY() + TOWER_VIEW_HEIGHT);
-			float pitch = (float) Math.toDegrees(Math.atan2(eye - (tower.getY() - TOWER_HEIGHT / 2.0), TOWER_VIEW_DISTANCE));
-			view(context, server, connection, from.atY(eye), 0f, pitch, "tower");
+			viewTower(context, server, connection, tower, "tower");
 			if (FarTerrain.uploads() == before) {
 				throw new AssertionError("The far terrain built nothing after the tower at " + tower + " was raised");
 			}
@@ -119,9 +97,53 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 		return top;
 	}
 
+	/**
+	 * Gets a far terrain test ready: false if it is to be skipped, as it is where Distant Horizons or Voxy is installed
+	 * or the models are not downloaded. Sets the render distance to {@value #RENDER_DISTANCE} chunks and turns the far
+	 * terrain on, on the device {@code diffusicraft.device} names.
+	 */
+	static boolean prepare(FabricClientGameTest test, ClientGameTestContext context) {
+		if (GameTests.skips(test)) {
+			return false;
+		}
+		if (FabricLoader.getInstance().isModLoaded("distanthorizons")
+			|| FabricLoader.getInstance().isModLoaded("voxy")) {
+			LOGGER.info("Distant Horizons or Voxy is installed, which turns the far terrain off; skipping");
+			return false;
+		}
+		context.getInput().resizeWindow(1280, 720);
+		context.waitFor(mc -> Resources.get().status() != null, TICKS_PER_MINUTE);
+		if (!Resources.get().status().modelsReady()) {
+			LOGGER.warn("The Terrain Diffusion models are not downloaded; skipping {}",
+				test.getClass().getSimpleName());
+			return false;
+		}
+		context.runOnClient(mc -> mc.options.renderDistance().set(RENDER_DISTANCE));
+		OnnxModel.Device device = OnnxModel.Device.valueOf(System.getProperty("diffusicraft.device", "CPU"));
+		Resources.get().updateConfig(config -> {
+			config.device = device;
+			config.farTerrain = true;
+		});
+		return true;
+	}
+
+	/**
+	 * Views the tower whose top is {@code top} from {@value #TOWER_VIEW_DISTANCE} blocks north of it, high enough that
+	 * no hill between hides it, as {@link #view} does.
+	 */
+	static void viewTower(ClientGameTestContext context, TestServerContext server, TestServerConnection connection,
+						  BlockPos top, String name) {
+		BlockPos from = top.north(TOWER_VIEW_DISTANCE);
+		int ground = server.computeOnServer(s -> s.overworld().getHeight(Heightmap.Types.WORLD_SURFACE, from.getX(),
+			from.getZ()));
+		int eye = Math.max(ground + 20, top.getY() + TOWER_VIEW_HEIGHT);
+		float pitch = (float) Math.toDegrees(Math.atan2(eye - (top.getY() - TOWER_HEIGHT / 2.0), TOWER_VIEW_DISTANCE));
+		view(context, server, connection, from.atY(eye), 0f, pitch, name);
+	}
+
 	/** Teleports the player, waits for the chunks and then for the far terrain, and takes a screenshot at noon. */
-	private static void view(ClientGameTestContext context, TestServerContext server, TestServerConnection connection,
-							 BlockPos at, float yaw, float pitch, String name) {
+	static void view(ClientGameTestContext context, TestServerContext server, TestServerConnection connection,
+					 BlockPos at, float yaw, float pitch, String name) {
 		server.runCommand(String.format(Locale.ROOT, "tp @a %d %d %d %.1f %.1f", at.getX(), at.getY(), at.getZ(), yaw,
 			pitch));
 		connection.waitForClientboundPackets();

@@ -4,6 +4,7 @@ import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.client.lod.FarTerrain;
 import io.github.elpideus.diffusicraft.client.lod.FarTerrainPipelines;
 import io.github.elpideus.diffusicraft.client.lod.RemoteLods;
+import io.github.elpideus.diffusicraft.client.lod.SeenChunks;
 import io.github.elpideus.diffusicraft.client.screen.Formats;
 import io.github.elpideus.diffusicraft.client.worldgen.FarTerrainLimits;
 import io.github.elpideus.diffusicraft.runtime.Job;
@@ -22,6 +23,7 @@ public final class DiffusicraftClient implements ClientModInitializer {
 		// Downloads continue after their screen is closed; report how they ended wherever the player is.
 		Resources.get().addListener(job -> Minecraft.getInstance().execute(() -> showResult(job)));
 		RemoteLods.init();
+		SeenChunks.init();
 		FarTerrainLimits.init();
 		FarTerrainPipelines.init();
 		FarTerrain.init();
