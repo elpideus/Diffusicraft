@@ -219,3 +219,7 @@ plays its part for Iris:
    duty cycle, as Distant Horizons gives its own threads, sleeping after each tile about as long as it took, would
    leave the chunks and the game more of the CPU while tiles build. Pausing new builds while the player flies fast,
    when the tiles chosen are stale before they are done, would help as well.
+4. **Fewer, smaller quads.** The debug screen shows some 300 MiB of meshes for about 400 tiles at a render distance
+   of 6: 64 bytes a quad, and about 12,000 quads a tile. Merging side faces along a row, as Distant Horizons does,
+   and tops by their final colour rather than their biome would leave a third to a half fewer quads. Quads of 8 bytes
+   read from a buffer, as Voxy draws its own, would take an eighth of the memory, outside shader packs.
