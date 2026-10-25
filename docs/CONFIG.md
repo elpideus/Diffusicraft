@@ -1,8 +1,11 @@
 # Configuration
 
-Diffusicraft keeps its settings in `config/diffusicraft.json` inside the game directory. Most settings can be changed
-in the resource screen (Create World > *More* > *Diffusicraft Resources...*, or through Mod Menu), which saves the
-file for you. If you edit the file by hand, do it while the game is closed.
+Diffusicraft keeps its settings in `config/diffusicraft.json` inside the game directory. With
+[Mod Menu](https://modrinth.com/mod/modmenu) installed, every one of them can be changed in the settings screen
+(*Mods* > Diffusicraft > *Configure*), which saves the file for you and says in each tooltip when a change takes
+effect. The resource screen (Create World > *More* > *Diffusicraft Resources...*, or *Models and runtimes...* in the
+settings screen) has the device, the GPU memory and whether it shows at startup. If you edit the file by hand, do it
+while the game is closed.
 
 ```json
 {
@@ -153,7 +156,7 @@ It is always off while Distant Horizons or Voxy is installed, which draw their o
 
 How far the far terrain reaches, in blocks: from 512 to 65536. The default is 8192. The fog closes in at its end
 instead of at the end of the chunks. On a server, the far terrain ends where the server stops sending it
-(`farTerrainRadius`) if that is nearer. Read when a world opens.
+(`farTerrainRadius`) if that is nearer. Takes effect at once.
 
 ### `verticalRenderDistance`
 

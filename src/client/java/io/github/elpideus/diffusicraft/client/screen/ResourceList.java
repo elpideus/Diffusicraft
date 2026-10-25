@@ -94,12 +94,8 @@ final class ResourceList extends ContainerObjectSelectionList<ResourceList.Entry
 
 	private CycleButton<Integer> gpuMemoryButton() {
 		int current = resources.config().gpuMemoryLimitMb;
-		List<Integer> values = new ArrayList<>(GPU_MEMORY_STEPS_MB);
-		if (!values.contains(current)) {
-			values.add(values.size() - 1, current);
-		}
-		return CycleButton.builder(this::gpuMemoryName, current)
-			.withValues(values)
+		return CycleButton.builder((Integer mb) -> gpuMemoryName(resources, mb), current)
+			.withValues(gpuMemorySteps(current))
 			.displayOnlyValue()
 			.withTooltip(value -> Tooltip.create(tr("setting.gpuMemory.tooltip")))
 			.create(0, 0, SETTING_WIDTH, 20, tr("setting.gpuMemory"), (button, mb) -> resources.updateConfig(c -> c.gpuMemoryLimitMb = mb));
@@ -116,7 +112,16 @@ final class ResourceList extends ContainerObjectSelectionList<ResourceList.Entry
 		return tr("device." + device.name().toLowerCase(Locale.ROOT));
 	}
 
-	private Component gpuMemoryName(int mb) {
+	/** The GPU memory limits to choose from, in MiB, with {@code current} among them. */
+	static List<Integer> gpuMemorySteps(int current) {
+		List<Integer> values = new ArrayList<>(GPU_MEMORY_STEPS_MB);
+		if (!values.contains(current)) {
+			values.add(values.size() - 1, current);
+		}
+		return values;
+	}
+
+	static Component gpuMemoryName(Resources resources, int mb) {
 		if (mb < 0) {
 			return tr("gpuMemory.unlimited");
 		}

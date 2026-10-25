@@ -51,6 +51,8 @@ geography, climate and geology.
 - **A resource screen.** It opens at first launch, and later from Create World > More or Mod Menu. It downloads the
   models (2.3 GB) and the GPU runtime in the background. Before anything downloads, it shows the licenses to accept.
   It also caps GPU memory so shaders keep theirs.
+- **Settings in game.** With Mod Menu, every setting can be changed in game, how far the far terrain reaches among
+  them. See [CONFIG.md](docs/CONFIG.md).
 
 ## Requirements
 

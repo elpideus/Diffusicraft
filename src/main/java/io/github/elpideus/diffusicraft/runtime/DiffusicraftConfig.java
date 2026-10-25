@@ -75,7 +75,7 @@ public final class DiffusicraftConfig {
 	 * draw theirs. Takes effect at once. See docs/LOD.md.
 	 */
 	public boolean farTerrain = true;
-	/** How far the client draws its own far terrain, in blocks. Read when a world opens. */
+	/** How far the client draws its own far terrain, in blocks. Takes effect at once. */
 	public int farTerrainDistance = 8192;
 	/**
 	 * Section rows above and below the camera that the client keeps render data for. 0 uses the render distance, which

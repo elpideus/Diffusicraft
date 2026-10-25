@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.gametest;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import io.github.elpideus.diffusicraft.client.screen.ResourceManagerScreen;
+import io.github.elpideus.diffusicraft.client.screen.SettingsScreen;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -21,8 +22,9 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Walks through every way into the resource screen (at launch, Create World > More) and saves a screenshot of each
- * step to {@code build/run/clientGameTest/screenshots}. Nothing is downloaded: install dialogs are cancelled.
+ * Walks through every way into the resource screen (at launch, Create World > More, the settings screen Mod Menu
+ * opens) and saves a screenshot of each step, and of every page of the settings screen, to
+ * {@code build/run/clientGameTest/screenshots}. Nothing is downloaded: install dialogs are cancelled.
  *
  * <p>The launch screen appears on its own when something is missing. Run with an empty data directory
  * ({@code XDG_DATA_HOME=/some/empty/dir} on Linux) to see a fresh install; otherwise the test opens the screen itself
@@ -90,6 +92,24 @@ public class ResourceScreensGameTest implements FabricClientGameTest {
 		context.clickScreenButton("gui.done");
 		context.waitForScreen(CreateWorldScreen.class);
 		context.setScreen(TitleScreen::new);
+
+		// 4. The settings screen, as Mod Menu opens it, page by page, and its way into the resource screen.
+		context.setScreen(() -> new SettingsScreen(new TitleScreen()));
+		context.waitTicks(2);
+		for (int page = 0; ; page++) {
+			screenshot(context, "settings-" + page);
+			int at = page + 1;
+			if (!context.computeOnClient(mc -> scrollToPage(mc.gui.screen().children(), at))) {
+				break;
+			}
+			context.waitTicks(2);
+		}
+		context.runOnClient(mc -> press(mc.gui.screen().children(), "diffusicraft.settings.resources"));
+		context.waitForScreen(ResourceManagerScreen.class);
+		context.clickScreenButton("gui.done");
+		context.waitForScreen(SettingsScreen.class);
+		context.clickScreenButton("gui.done");
+		context.waitForScreen(TitleScreen.class);
 	}
 
 	private static void screenshot(ClientGameTestContext context, String name) {
@@ -106,6 +126,19 @@ public class ResourceScreensGameTest implements FabricClientGameTest {
 				area.setScrollAmount(Double.MAX_VALUE);
 			}
 		}
+	}
+
+	/** Scrolls the lists to page {@code page}, a list's height each. Whether any of them moved. */
+	private static boolean scrollToPage(List<? extends GuiEventListener> children, int page) {
+		boolean moved = false;
+		for (GuiEventListener child : children) {
+			if (child instanceof AbstractScrollArea area) {
+				double before = area.scrollAmount();
+				area.setScrollAmount((double) page * (area.getHeight() - 40));
+				moved |= area.scrollAmount() != before;
+			}
+		}
+		return moved;
 	}
 
 	/** Presses the first visible, active button labelled {@code key}, searching nested lists too, as Enter would. */

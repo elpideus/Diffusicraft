@@ -88,7 +88,8 @@ public final class FarTerrain {
 
 	private final ClientLevel level;
 	private final ResourceKey<Level> dimension;
-	private final int far;
+	/** How far the far terrain reaches, in blocks: the configuration's, taken in as the tiles are chosen again. */
+	private int far;
 	private final int bottom;
 	private final int ceiling;
 	private final LodColors colors = LodColors.current();
@@ -257,9 +258,11 @@ public final class FarTerrain {
 		// Tiles all the way in, for whatever the world does not draw near the camera: sections still waiting for their
 		// mesh, and those above and below the rows it draws. A shader pack leaves out the chunks' reach itself.
 		int near = shaders ? Math.max(0, (viewDistance - 1) * 16 - 16) : 0;
+		int far = Resources.get().config().farTerrainDistance;
 		long now = Util.getMillis();
 		if (Double.isNaN(chosenX) || Math.abs(at.x - chosenX) > MOVE || Math.abs(at.z - chosenZ) > MOVE
-			|| near != chosenNear || now - chosen > RECHOOSE_MILLIS) {
+			|| near != chosenNear || far != this.far || now - chosen > RECHOOSE_MILLIS) {
+			this.far = far;
 			choose(at.x, at.z, near);
 			chosen = now;
 		}

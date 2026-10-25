@@ -19,7 +19,8 @@ The game picks a runtime when it first loads the models. ONNX Runtime loads its 
 
 - **First launch:** the resource screen opens by itself while the models are missing, or while an NVIDIA GPU has no
   runtime installed. *Download recommended* gets both.
-- **Later:** Create World > *More* > *Diffusicraft Resources...*, or Mod Menu > Diffusicraft > configure.
+- **Later:** Create World > *More* > *Diffusicraft Resources...*, or Mod Menu > Diffusicraft > *Configure* >
+  *Models and runtimes...*.
 - **Dedicated servers:** the models download at start. Set `"device": "CUDA"` in `config/diffusicraft.json` to
   download the CUDA runtime too (see [CONFIG.md](CONFIG.md)).
 
