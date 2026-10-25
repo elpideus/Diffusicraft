@@ -400,6 +400,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		HollowBiomes.GLOWWORM_GROTTO, DiffusicraftBlocks.GLOWWORM_SILK,
 		HollowBiomes.SELENITE_CAVERNS, DiffusicraftBlocks.SELENITE,
 		HollowBiomes.MUSHROOM_FOREST, Blocks.MUSHROOM_STEM,
+		HollowBiomes.SULFUR_CAVES, Blocks.SULFUR_SPIKE,
+		HollowBiomes.SALT_CAVERNS, DiffusicraftBlocks.SALT_CRUST,
+		HollowBiomes.ICE_CAVES, Blocks.BLUE_ICE,
 		HollowBiomes.LUSH_CAVES, Blocks.MOSS_BLOCK,
 		HollowBiomes.DRIPSTONE_CAVES, Blocks.POINTED_DRIPSTONE);
 
