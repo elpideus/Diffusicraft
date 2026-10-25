@@ -18,7 +18,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import org.jspecify.annotations.Nullable;
 
 /**
- * {@code diffusicraft:erratic}: now and then, a lone boulder on open ground in the cold lands, as the ice sheets left
+ * {@code diffusicraft:erratic}: rarely, a lone boulder on open ground in the cold lands, as the ice sheets left
  * them where they melted: of granite, gneiss or diorite, rock carried from far away rather than the ground's own, most
  * of them a few blocks across, and now and then one as big as a house.
  *

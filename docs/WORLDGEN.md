@@ -779,7 +779,7 @@ lone block left on its top goes, and so does any crumb that no longer holds on t
   in the cold lands, of rock carried from far away rather than the ground's own: granite, gneiss or diorite. Most are 3
   to 5 blocks across, one in five 6 or more, one in twenty 13 or more, and the biggest some 25, as big as a house.
   They used to be rounder and bigger, one in ten 14 blocks or more, and read as balls strewn over the land. One chunk
-  in ten has one where the year's mean temperature is 8 °C or less, none from 13 °C, and in proportion between.
+  in forty has one where the year's mean temperature is 8 °C or less, none from 13 °C, and in proportion between.
 - **Rockfall** (`diffusicraft:rockfall`, `RockfallFeature`): the boulders fallen from a rock face, at its foot. The
   feature tries 24 columns of the chunk for one: gentle ground on one side, a block up or down at most, where the
   rocks come to rest, and on the other a face that rises 2 blocks or more right beside the column and keeps rising at

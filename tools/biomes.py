@@ -487,9 +487,9 @@ FEATURES["redwood"] = giant("redwood", "mangrove_wood", "spruce_leaves", 110, 23
 
 # The falls of the rivers where they step down, with pools at their feet (see RiverFallFeature.java).
 FEATURES["river_falls"] = {"type": f"{NS}:river_falls", "deepest_pool": 4}
-# Boulders: the erratics the ice left in the cold lands, in a chunk of ten at most, and the rocks fallen at the feet
+# Boulders: the erratics the ice left in the cold lands, in a chunk of forty at most, and the rocks fallen at the feet
 # of rock faces eight blocks high or more (see ErraticFeature.java and RockfallFeature.java).
-FEATURES["erratic"] = {"type": f"{NS}:erratic", "chance": 0.1}
+FEATURES["erratic"] = {"type": f"{NS}:erratic", "chance": 0.025}
 FEATURES["rockfall"] = {"type": f"{NS}:rockfall", "min_rise": 8, "chance": 0.35}
 
 # Placed features, in the order they run within a step.
