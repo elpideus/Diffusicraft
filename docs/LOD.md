@@ -82,8 +82,10 @@ These parts are unit-tested and feed the renderer below.
     faces. The tops under a bridge or an overhang stay one per column.
   - **Sides.** A side shows only the part of a run that the neighbouring column leaves open.
   - **Skirts.** Along a tile's edges, the neighbour may be a tile of another level, so the solid runs show their
-    sides down to two steps under the ground of the column and of its neighbours along the edge. This skirt closes
-    the cracks between tiles. Water has no skirt, which would show as walls under the sea.
+    sides down to two steps under the ground of the column and of its neighbours along the edge. Where the ground
+    rises away from the edge, the skirt also reaches as far down as the slope goes three steps on past it, where the
+    column of a tile two levels coarser may meet the edge. This skirt closes the cracks between tiles, even on steep
+    mountainsides. Water has no skirt, which would show as walls under the sea.
   - **Bottoms.** The underside of a bridge or overhang shows.
   - **Light.** The ground under something takes a little less sky light. Faces under water darken with depth, as
     the world's do.

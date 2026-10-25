@@ -27,6 +27,11 @@ public final class LodMesher {
 	public static final int SHADED = LodGrid.FULL_SKY - 2;
 	/** How far below the lowest ground along a tile's edge its skirts reach, in steps. */
 	private static final int SKIRT = 2;
+	/**
+	 * Steps beyond a tile's edge a skirt follows the slope down: as far as the column of a tile two levels coarser
+	 * may lie from the edge column it meets.
+	 */
+	private static final int SLOPE_STEPS = 3;
 	private static final Direction[] SIDES = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
 
 	/** Takes the faces of a tile. */
@@ -133,21 +138,36 @@ public final class LodMesher {
 
 	/**
 	 * Block Y the skirt of a column on the tile's edge reaches down to: a little under the lowest ground of the column
-	 * and of its neighbours along the edge, where the tile next to it may stand a little lower.
+	 * and of its neighbours along the edge, where the tile next to it may stand a little lower, and further down where
+	 * the ground falls towards the edge, as far as it would go on falling for {@value #SLOPE_STEPS} steps past it. A
+	 * coarser tile beside it meets the edge with a column whose ground lies that far out, so on a steep slope a skirt
+	 * of a fixed depth leaves a crack the sky shows through.
 	 */
 	private static int skirt(LodGrid grid, int column, Direction side, int step) {
 		int width = grid.width();
 		boolean alongX = side.getAxis() == Direction.Axis.Z;
 		int i = alongX ? column % width : column / width;
 		int next = alongX ? 1 : width;
-		int lowest = ground(grid, column);
+		int ground = ground(grid, column);
+		int lowest = ground;
 		if (i > 0) {
 			lowest = Math.min(lowest, ground(grid, column - next));
 		}
 		if (i < width - 1) {
 			lowest = Math.min(lowest, ground(grid, column + next));
 		}
-		return lowest == Integer.MAX_VALUE ? lowest : lowest - SKIRT * step;
+		if (lowest == Integer.MAX_VALUE) {
+			return lowest;
+		}
+		int x = column % width - side.getStepX();
+		int z = column / width - side.getStepZ();
+		if (ground != Integer.MAX_VALUE && x >= 0 && x < width && z >= 0 && z < width) {
+			int inward = ground(grid, z * width + x);
+			if (inward != Integer.MAX_VALUE && inward > ground) {
+				lowest = Math.min(lowest, ground - SLOPE_STEPS * (inward - ground));
+			}
+		}
+		return lowest - SKIRT * step;
 	}
 
 	/**

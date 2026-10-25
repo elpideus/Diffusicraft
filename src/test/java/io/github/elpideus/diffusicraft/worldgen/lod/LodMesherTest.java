@@ -155,6 +155,24 @@ class LodMesherTest {
 	}
 
 	@Test
+	void aSkirtFollowsTheSlopeDownPastTheEdge() {
+		// Ground falling 5 blocks a step towards the west: a coarser tile there may meet the edge 3 steps further down.
+		Mesh mesh = new Mesh(grid(3, column -> stone(70 + 5 * (column % 3))), 2);
+		List<Face> west = mesh.solid(Direction.WEST).stream().filter(face -> face.onBorder(6)).toList();
+		assertEquals(3, west.size(), west.toString());
+		for (Face face : west) {
+			assertEquals(70 - 3 * 5 - 2 * 2, face.y0(), face.toString());
+			assertEquals(70, face.y1(), face.toString());
+		}
+		// Uphill, towards the east, the skirt stays two steps under the ground.
+		List<Face> east = mesh.solid(Direction.EAST).stream().filter(face -> face.onBorder(6)).toList();
+		assertEquals(3, east.size(), east.toString());
+		for (Face face : east) {
+			assertEquals(80 - 2 * 2, face.y0(), face.toString());
+		}
+	}
+
+	@Test
 	void theSeaIsOneSurfaceOverAFloorItDarkens() {
 		Mesh mesh = new Mesh(grid(4, column -> {
 			LodColumn sea = stone(50);
