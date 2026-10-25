@@ -4,22 +4,29 @@ import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.client.lod.FarTerrain;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.OnnxModel;
+import io.github.elpideus.diffusicraft.worldgen.lod.LodStore;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.fabricmc.fabric.api.client.gametest.v1.world.TestWorldSave;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.stream.Stream;
 
 /**
  * Diffusicraft's own far terrain ({@code client.lod.FarTerrain}). Creates the world of {@link WorldGenerationGameTest}
@@ -29,7 +36,9 @@ import java.util.Locale;
  * compare, and a few taken as the camera drifts over two chunk borders looking down on the edge of the chunks, where
  * nothing may be missing as it moves. Then raises a tower of gold
  * {@value #TOWER_DISTANCE} blocks south of the spawn and views it from {@value #TOWER_VIEW_DISTANCE} blocks north of it,
- * out of the chunks' reach, so that the far terrain shows what players build.
+ * out of the chunks' reach, so that the far terrain shows what players build. Last, closes the world and opens it
+ * again, and takes the first view once more, which the far terrain builds from the terrain it kept, without the
+ * models.
  *
  * <p>Needs the Terrain Diffusion models. Skipped where Distant Horizons or Voxy is installed, which turn it off.
  */
@@ -60,6 +69,8 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 		if (!prepare(this, context)) {
 			return;
 		}
+		TestWorldSave save;
+		BlockPos above;
 		try (TestSingleplayerContext world = context.worldBuilder()
 			.setUseConsistentSettings(false)
 			.adjustSettings(ui -> {
@@ -67,12 +78,13 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 				ui.setGameMode(WorldCreationUiState.SelectedGameMode.CREATIVE);
 			})
 			.create()) {
+			save = world.getWorldSave();
 			TestServerContext server = world.getServer();
 			TestServerConnection connection = world.getConnection();
 			WorldGenerationGameTest.Probe probe = server.computeOnServer(s -> WorldGenerationGameTest.Probe.of(s.overworld()));
 			LOGGER.info("Spawn {} at surface y={}", probe.spawn(), probe.spawnSurface());
 			VoxyGameTest.look(context, server);
-			BlockPos above = probe.spawn().atY(probe.spawnSurface() + 80);
+			above = probe.spawn().atY(probe.spawnSurface() + 80);
 			view(context, server, connection, above, 0f, 10f, "south");
 			view(context, server, connection, above, 180f, 10f, "north");
 			view(context, server, connection, above.above(400), 90f, 30f, "high-west");
@@ -101,6 +113,25 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 			if (FarTerrain.uploads() == before) {
 				throw new AssertionError("The far terrain built nothing after the tower at " + tower + " was raised");
 			}
+		}
+
+		Path kept = LodStore.folder(save.getSaveDirectory(), Level.OVERWORLD).resolve("G0");
+		if (regionFiles(kept) == 0) {
+			throw new AssertionError("The far terrain kept no generated terrain in " + kept);
+		}
+		try (TestSingleplayerContext world = save.open()) {
+			view(context, world.getServer(), world.getConnection(), above, 0f, 10f, "south-reopened");
+		}
+	}
+
+	private static long regionFiles(Path folder) {
+		if (!Files.isDirectory(folder)) {
+			return 0;
+		}
+		try (Stream<Path> files = Files.list(folder)) {
+			return files.filter(file -> file.toString().endsWith(".mca")).count();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 

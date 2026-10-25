@@ -111,9 +111,26 @@ public final class LodGrid {
 		return Objects.requireNonNull(generate(sampler, minX, minZ, width, step, ceiling, Mode.FULL));
 	}
 
-	/** The grid as {@link #generate} samples it, or null if {@code mode} is {@link Mode#REFINE} and it is not ready. */
+	/**
+	 * The grid as {@link #generate} samples it, or null if {@code mode} is {@link Mode#REFINE} and it is not ready. A
+	 * grid that is a page of a level of detail of the store, generated in full before, is read back from it in full
+	 * whatever the mode, and one generated in full is kept there.
+	 */
 	public static @Nullable LodGrid generate(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling,
 											 Mode mode) {
+		LodStore store = sampler.store();
+		int level = Integer.numberOfTrailingZeros(step);
+		int span = LodStore.PAGE * step;
+		boolean page = store != null && width == LodStore.PAGE && Integer.bitCount(step) == 1 && level < LodStore.LEVELS
+			&& Math.floorMod(minX, span) == 0 && Math.floorMod(minZ, span) == 0;
+		int pageX = Math.floorDiv(minX, span);
+		int pageZ = Math.floorDiv(minZ, span);
+		if (page) {
+			LodGrid kept = store.generated(level, pageX, pageZ);
+			if (kept != null) {
+				return kept.under(ceiling);
+			}
+		}
 		LodSampler.Detail detail = switch (mode) {
 			case FULL -> LodSampler.Detail.FULL;
 			case ROUGH -> sampler.available(minX, minZ, width, step);
@@ -122,10 +139,27 @@ public final class LodGrid {
 		if (detail == null) {
 			return null;
 		}
+		// A page to keep is sampled with no ceiling, and sunk under the caller's as it is read back.
+		boolean keep = page && detail == LodSampler.Detail.FULL;
+		int sampled = keep ? Integer.MAX_VALUE : ceiling;
 		LodGrid grid = new LodGrid(width);
-		sampler.sample(minX, minZ, width, step, detail, (x, z, column) -> grid.add(column, ceiling));
+		sampler.sample(minX, minZ, width, step, detail, (x, z, column) -> grid.add(column, sampled));
 		grid.rough = detail != LodSampler.Detail.FULL;
+		if (keep) {
+			store.generated(level, pageX, pageZ, grid);
+			return grid.under(ceiling);
+		}
 		return grid;
+	}
+
+	/** A copy of the grid with the columns that reach above {@code ceiling} sunk, as {@link #add(LodColumn, int)} does. */
+	private LodGrid under(int ceiling) {
+		LodGrid copy = new LodGrid(width);
+		for (int column = 0; column < columns; column++) {
+			copy.add(this, column, ceiling);
+		}
+		copy.rough = rough;
+		return copy;
 	}
 
 	/**

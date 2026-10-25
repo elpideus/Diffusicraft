@@ -37,6 +37,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +54,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -70,6 +74,11 @@ import java.util.function.Supplier;
  * of a server that does not share what players built, in {@code diffusicraft/seen} in the game's folder. Everything
  * runs on a thread of the store's own: the server thread hands over the copy of a chunk that vanilla takes to save it,
  * the client the sections it copied of a chunk it let go of, and readers get a future.
+ *
+ * <p>The store also keeps the pages of the terrain as generated, whatever players did to it, so that the far terrain
+ * need not run the models again after the world is closed and opened ({@link #generated(int, int, int)}). They are
+ * kept in a folder of their own for each level of detail, and only as long as the build of the mod that generated them
+ * runs: another build may generate other terrain.
  */
 public final class LodStore implements AutoCloseable {
 	/** Columns along each side of a page. */
@@ -80,6 +89,11 @@ public final class LodStore implements AutoCloseable {
 	/** Pages kept in memory, of every level together. */
 	private static final int CACHED_PAGES = 192;
 	private static final Logger LOGGER = LogUtils.getLogger();
+	/**
+	 * A digest of the code and data that shape the generated terrain, from {@code diffusicraft-build.properties}, which
+	 * a kept page of it must match; empty where the build has none, which keeps none.
+	 */
+	private static final String GENERATION = generation();
 
 	/** The stored columns of a page: those whose bit is set in {@code present}, out of a grid {@value #PAGE} wide. */
 	public record Page(long[] present, LodGrid grid) {
@@ -109,6 +123,11 @@ public final class LodStore implements AutoCloseable {
 	private static volatile @Nullable MinecraftServer server;
 
 	private final IOWorker[] workers = new IOWorker[LEVELS];
+	private final IOWorker[] generated = new IOWorker[LEVELS];
+	/** Held to read or write the generated pages, and to stop that as the store closes. */
+	private final ReadWriteLock open = new ReentrantReadWriteLock();
+	/** Guarded by {@link #open}. */
+	private boolean closed;
 	private final ChunkColumns reader = new ChunkColumns();
 	private final HolderLookup<Biome> biomes;
 	private final Holder<Biome> fallback;
@@ -123,6 +142,10 @@ public final class LodStore implements AutoCloseable {
 			RegionStorageInfo info = new RegionStorageInfo(dimension.identifier().toString(), dimension,
 				"diffusicraft_lod_" + level);
 			workers[level] = new IOWorker(info, folder.resolve("L" + level), false) {
+			};
+			RegionStorageInfo generatedInfo = new RegionStorageInfo(dimension.identifier().toString(), dimension,
+				"diffusicraft_lod_generated_" + level);
+			generated[level] = new IOWorker(generatedInfo, folder.resolve("G" + level), false) {
 			};
 		}
 		this.biomes = biomes;
@@ -332,6 +355,56 @@ public final class LodStore implements AutoCloseable {
 	}
 
 	/**
+	 * The page at {@code (pageX, pageZ)} of a level as it was generated, if this build of the mod generated it before,
+	 * or null. Any thread; it waits for the page to be read.
+	 */
+	public @Nullable LodGrid generated(int level, int pageX, int pageZ) {
+		if (GENERATION.isEmpty()) {
+			return null;
+		}
+		Optional<CompoundTag> tag;
+		open.readLock().lock();
+		try {
+			if (closed) {
+				return null;
+			}
+			tag = generated[level].loadAsync(new ChunkPos(pageX, pageZ)).join();
+		} finally {
+			open.readLock().unlock();
+		}
+		if (tag.isEmpty() || !GENERATION.equals(tag.get().getStringOr("generation", ""))) {
+			return null;
+		}
+		try {
+			return readGrid(tag.get());
+		} catch (RuntimeException e) {
+			LOGGER.warn("Dropping unreadable generated page {}, {} of level {} of the far terrain", pageX, pageZ, level,
+				e);
+			return null;
+		}
+	}
+
+	/**
+	 * Keeps the page at {@code (pageX, pageZ)} of a level as it was generated, {@code grid}, with no column sunk under
+	 * a ceiling, for {@link #generated(int, int, int)}. Any thread; it is written later.
+	 */
+	public void generated(int level, int pageX, int pageZ, LodGrid grid) {
+		if (GENERATION.isEmpty()) {
+			return;
+		}
+		CompoundTag tag = write(grid);
+		tag.putString("generation", GENERATION);
+		open.readLock().lock();
+		try {
+			if (!closed) {
+				generated[level].store(new ChunkPos(pageX, pageZ), tag);
+			}
+		} finally {
+			open.readLock().unlock();
+		}
+	}
+
+	/**
 	 * Lays the stored columns over a grid of {@code width}² columns {@code step} blocks apart from block
 	 * {@code (minX, minZ)}, sinking them as {@link LodGrid#sample} does, and samples the grid with {@code sampled}
 	 * only if some column is not stored. A grid whose step is not a level's or whose corner is not a multiple of its
@@ -404,10 +477,17 @@ public final class LodStore implements AutoCloseable {
 	 * {@code fallback}.
 	 */
 	private CompoundTag write(Page page) {
+		CompoundTag tag = write(page.grid());
+		tag.putLongArray("present", page.present());
+		return tag;
+	}
+
+	/** A grid on disk, as {@link #write(Page)} writes a page's. */
+	private CompoundTag write(LodGrid grid) {
 		Palette<BlockState> states = new Palette<>();
 		Palette<Holder<Biome>> biomes = new Palette<>();
 		FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-		LodGrid.codec(states.codec(), biomes.codec()).encode(buf, page.grid());
+		LodGrid.codec(states.codec(), biomes.codec()).encode(buf, grid);
 		byte[] bytes = new byte[buf.readableBytes()];
 		buf.readBytes(bytes);
 		ListTag stateNames = new ListTag();
@@ -420,7 +500,6 @@ public final class LodStore implements AutoCloseable {
 		}
 		CompoundTag tag = new CompoundTag();
 		tag.putInt("version", VERSION);
-		tag.putLongArray("present", page.present());
 		tag.put("states", stateNames);
 		tag.put("biomes", biomeNames);
 		tag.putByteArray("grid", bytes);
@@ -428,12 +507,18 @@ public final class LodStore implements AutoCloseable {
 	}
 
 	private @Nullable Page read(CompoundTag tag) {
-		if (tag.getIntOr("version", 0) != VERSION) {
+		long[] present = tag.getLongArray("present").orElse(null);
+		if (present == null || present.length != PAGE * PAGE / 64) {
 			return null;
 		}
-		long[] present = tag.getLongArray("present").orElse(null);
+		LodGrid grid = readGrid(tag);
+		return grid == null ? null : new Page(present, grid);
+	}
+
+	/** The grid {@link #write(LodGrid)} wrote, or null if it is of another version or not a page's. */
+	private @Nullable LodGrid readGrid(CompoundTag tag) {
 		byte[] bytes = tag.getByteArray("grid").orElse(null);
-		if (present == null || present.length != PAGE * PAGE / 64 || bytes == null) {
+		if (tag.getIntOr("version", 0) != VERSION || bytes == null) {
 			return null;
 		}
 		Palette<BlockState> states = new Palette<>();
@@ -446,7 +531,7 @@ public final class LodStore implements AutoCloseable {
 		}
 		LodGrid grid = LodGrid.codec(states.codec(), biomes.codec())
 			.decode(new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes)));
-		return grid.width() == PAGE ? new Page(present, grid) : null;
+		return grid.width() == PAGE ? grid : null;
 	}
 
 	private static BlockState state(String name) {
@@ -461,6 +546,20 @@ public final class LodStore implements AutoCloseable {
 		Identifier id = Identifier.tryParse(name);
 		return id == null ? fallback : biomes.get(ResourceKey.create(Registries.BIOME, id))
 			.<Holder<Biome>>map(holder -> holder).orElse(fallback);
+	}
+
+	private static String generation() {
+		Properties properties = new Properties();
+		try (InputStream in = LodStore.class.getResourceAsStream("/diffusicraft-build.properties")) {
+			if (in != null) {
+				properties.load(in);
+			}
+		} catch (IOException e) {
+			LOGGER.warn("Could not read the build's properties; the far terrain will keep no generated terrain", e);
+		}
+		String generation = properties.getProperty("generation", "");
+		// Unexpanded where the resources were not processed.
+		return generation.startsWith("$") ? "" : generation;
 	}
 
 	private static long cacheKey(int level, long key) {
@@ -495,6 +594,12 @@ public final class LodStore implements AutoCloseable {
 	/** Writes what is left and closes the files. */
 	@Override
 	public void close() throws IOException {
+		open.writeLock().lock();
+		try {
+			closed = true;
+		} finally {
+			open.writeLock().unlock();
+		}
 		thread.shutdown();
 		try {
 			if (!thread.awaitTermination(1, TimeUnit.MINUTES)) {
@@ -503,9 +608,11 @@ public final class LodStore implements AutoCloseable {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
-		for (IOWorker worker : workers) {
-			worker.synchronize(true).join();
-			worker.close();
+		for (IOWorker[] kind : List.of(workers, generated)) {
+			for (IOWorker worker : kind) {
+				worker.synchronize(true).join();
+				worker.close();
+			}
 		}
 	}
 }

@@ -62,6 +62,12 @@ good (`SERVER_STOPPED`).
   through Minecraft's own `IOWorker`, so there are no new dependencies. Each page has its own list of the names of
   its block states and biomes, so it reads the same after mods change their numbering. A block or biome that is gone
   reads as air, or as plains.
+- **The terrain as generated.** The store also keeps each page of the terrain as generated that the far terrain
+  sampled in full, under `G<level>` beside `L<level>`, whatever players did to it since. A world closed and opened
+  again then shows its far terrain at once, where the models would otherwise compute it all over again, rough first.
+  Each page notes the build that generated it: `generation` in `diffusicraft-build.properties`, a digest the build
+  works out of everything under `src/main`, the models' manifest among it. A page of another build is generated
+  again, since other code or data may shape other terrain, and a build without the digest keeps none.
 - **Threads.** Everything runs on one low-priority thread per store. Saved chunks are read in batches and each page
   they touch is rewritten once. The last 192 pages stay in memory.
 
@@ -70,7 +76,8 @@ good (`SERVER_STOPPED`).
 Every grid the far terrain asks for goes through `LodGrid.sample`: our renderer and Voxy in singleplayer, and the
 feed to multiplayer clients where the server shares what players built. When the grid's step is a level's and its
 corner is a multiple of that step, the stored columns replace the sampled ones. A grid whose columns are all stored
-never runs the terrain at all. `LodGrid.generate` samples the terrain alone, as it was generated.
+never runs the terrain at all. `LodGrid.generate` samples the terrain alone, as it was generated, and reads a page
+the store kept of it instead, in full whatever the mode.
 
 A grid that reads the full-resolution terrain needs its own tiles and, for its rivers, those two rings around it.
 `LodGrid.Mode` says whether the grid may wait for the models to compute them:

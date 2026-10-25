@@ -190,12 +190,24 @@ processResources {
 		loader_version   : project.loader_version,
 	]
 	inputs.properties props
+	// The code and data that shape the generated terrain, digested into the build's properties, so that the far
+	// terrain drops what it kept of the terrain once they change, even between two builds of one version.
+	def generationRoot = file('src/main')
+	def generationSources = fileTree(generationRoot) {
+		exclude 'resources/diffusicraft-build.properties'
+	}
+	inputs.files(generationSources).withPropertyName('generationSources')
 
 	filesMatching("fabric.mod.json") {
 		expand props
 	}
 	filesMatching("diffusicraft-build.properties") {
-		expand props
+		def digest = java.security.MessageDigest.getInstance('SHA-256')
+		generationSources.files.collect { generationRoot.toPath().relativize(it.toPath()).toString() }.sort().each {
+			digest.update(it.getBytes('UTF-8'))
+			digest.update(new File(generationRoot, it).bytes)
+		}
+		expand props + [generation: digest.digest().encodeHex().toString().substring(0, 16)]
 	}
 }
 
