@@ -156,6 +156,9 @@ dependencies {
 	// Optional integration: Voxy (client.compat.voxy, client.mixin.voxy). Voxy is All Rights Reserved, so Diffusicraft
 	// compiles against its own declarations of the few Voxy members it calls (src/voxyStubs), never against Voxy.
 	clientCompileOnly sourceSets.voxyStubs.output
+	// Optional integration: shader packs draw the far terrain through Iris (client.compat.iris, client.mixin.iris).
+	// Compile-only; Iris is LGPL and never bundled.
+	clientCompileOnly "maven.modrinth:iris:${project.iris_version}"
 	// The shader game test turns Iris's shader packs on through Iris itself. Compile-only; Iris runs only as a dev mod.
 	gametestCompileOnly "maven.modrinth:iris:${project.iris_version}"
 

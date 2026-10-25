@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.client.lod;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
@@ -8,6 +9,7 @@ import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.textures.FilterMode;
 import io.github.elpideus.diffusicraft.Diffusicraft;
+import io.github.elpideus.diffusicraft.client.compat.iris.IrisFarTerrain;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodGrid;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodSampler;
@@ -54,7 +56,9 @@ import org.jspecify.annotations.Nullable;
  * the world's own solid pass, so that it shares the depth buffer, the fog and the light of the chunks, and shader packs
  * can take it over. The grids come from the integrated server's generator, with the chunks players changed laid over
  * them ({@link LodGrid#sample}), or from the server's feed ({@link RemoteLods}); tiles whose stored chunks change are
- * built again. Where the world draws a chunk itself, {@link ChunkMask} leaves the far terrain out.
+ * built again. Where the world draws a chunk itself, {@link ChunkMask} leaves the far terrain out. Under a shader pack,
+ * {@link IrisFarTerrain} draws the tiles with the pack's programs for Distant Horizons instead, and the pack leaves out
+ * the chunks.
  *
  * <p>Off where Distant Horizons or Voxy is installed, which draw their own. Driven from the render thread.
  *
@@ -75,6 +79,7 @@ public final class FarTerrain {
 	private static final AtomicBoolean WARNED = new AtomicBoolean();
 	private static final boolean ENABLED = !FabricLoader.getInstance().isModLoaded("distanthorizons")
 		&& !FabricLoader.getInstance().isModLoaded("voxy");
+	private static final boolean IRIS = FabricLoader.getInstance().isModLoaded("iris");
 
 	private static @Nullable FarTerrain current;
 	/** Set once a pipeline of the far terrain fails to compile: it stays off until the game restarts. */
@@ -101,6 +106,9 @@ public final class FarTerrain {
 	private final List<FarMesh> drawn = new ArrayList<>();
 	private @Nullable GpuBufferSlice terrainTransform;
 	private int maxQuads;
+	private @Nullable Vec3 camera;
+	/** Whether a shader pack draws the far terrain in this frame, rather than the world's solid pass. */
+	private boolean shaders;
 	private @Nullable Source source;
 	private @Nullable Object opening;
 	private int generation;
@@ -149,6 +157,47 @@ public final class FarTerrain {
 	/** Whether the far terrain is to be drawn: it is turned on, and nothing turned it off. */
 	public static boolean configured() {
 		return ENABLED && !broken && Resources.get().config().farTerrain;
+	}
+
+	/** The lowest block of the level the far terrain is drawn for, which its vertices start from. */
+	public static int bottom() {
+		FarTerrain terrain = current;
+		return terrain != null ? terrain.bottom : 0;
+	}
+
+	/** The most quads of land or of water a tile drawn in this frame has, which the index buffer holds. */
+	public static int drawnQuads() {
+		FarTerrain terrain = current;
+		return terrain != null && !terrain.drawn.isEmpty() ? terrain.maxQuads : 0;
+	}
+
+	/** A tile of far terrain to draw. */
+	public interface Tiles {
+		/**
+		 * Draws {@code quads} quads of {@code vertices} from vertex {@code firstVertex}, each vertex
+		 * {@link FarTerrainPipelines#VERTEX_SIZE} bytes, whose positions lie {@code (x, y, z)} from the camera.
+		 */
+		void tile(GpuBuffer vertices, int firstVertex, int quads, float x, float y, float z);
+	}
+
+	/**
+	 * Hands {@code tiles} the tiles in view in this frame that have land or, if {@code water}, water, for a shader pack
+	 * to draw. On the render thread.
+	 */
+	public static void forEachDrawn(boolean water, Tiles tiles) {
+		FarTerrain terrain = current;
+		if (terrain == null || terrain.camera == null) {
+			return;
+		}
+		Vec3 camera = terrain.camera;
+		for (FarMesh mesh : terrain.drawn) {
+			int quads = water ? mesh.waterQuads : mesh.solidQuads;
+			if (quads > 0 && mesh.buffer != null) {
+				LodTiles.Tile tile = mesh.tile;
+				tiles.tile(mesh.buffer, water ? mesh.solidQuads * 4 : 0, quads, (float) (tile.minBlockX() - camera.x),
+					(float) (terrain.bottom - camera.y), (float) (tile.minBlockZ() - camera.z));
+			}
+		}
 	}
 
 	/** How many tiles of far terrain have been built and uploaded since the game started. */
@@ -203,6 +252,8 @@ public final class FarTerrain {
 		takeChanges();
 		takeBuilt();
 		Vec3 at = camera.pos;
+		this.camera = at;
+		shaders = IRIS && IrisFarTerrain.drawsInstead();
 		int near = Math.max(0, (viewDistance - 1) * 16 - 16);
 		long now = Util.getMillis();
 		if (Double.isNaN(chosenX) || Math.abs(at.x - chosenX) > MOVE || Math.abs(at.z - chosenZ) > MOVE
@@ -224,6 +275,10 @@ public final class FarTerrain {
 			return;
 		}
 		RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS).requestIndexCount(maxQuads * 6);
+		if (shaders) {
+			// The pack's programs read neither, and leave out the chunks themselves.
+			return;
+		}
 		// Not DynamicGpuData.writeChunkSections, which would close the instanced sections vanilla wrote this frame.
 		terrainTransform = RenderSystem.getDynamicUniforms().writeTerrainTransform(new Matrix4f(camera.viewRotationMatrix),
 			1, 1);
@@ -231,7 +286,7 @@ public final class FarTerrain {
 	}
 
 	private void render(RenderPass pass) {
-		if (drawn.isEmpty() || terrainTransform == null || mask.view() == null) {
+		if (shaders || drawn.isEmpty() || terrainTransform == null || mask.view() == null) {
 			return;
 		}
 		CompiledRenderPipeline solid = pipeline(FarTerrainPipelines.SOLID);

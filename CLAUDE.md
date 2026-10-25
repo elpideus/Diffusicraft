@@ -70,14 +70,22 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `SodiumWorldRenderer.instanceNullable()` and `isSectionReady(int, int, int)`, which
     `client.compat.sodium.SodiumSections` calls through method handles for the far terrain. Check them on every Sodium
     update.
+  - Iris (`client/mixin/iris`, applied only when it is installed and Distant Horizons is not): the static
+    `StandardMacros.createStandardEnvironmentDefines` (where `DISTANT_HORIZONS` is defined), the `DHCompat` methods
+    `checkFrame`, `hasRenderingEnabled`, `getNearPlane`, `getFarPlane`, `getRenderDistance`, `getProjection()`,
+    `getDepthTex` and `getDepthTexNoTranslucent`, and the heads of `LevelRenderer.executeSolid` and
+    `executeClassicTransparency`, which rely on Iris starting its deferred passes and a new pass just before the
+    latter. `client.compat.iris` builds the pack's `dh_terrain` and `dh_water` from Iris's own classes
+    (`TransformPatcher.patchDHTerrain`, `ProgramUniforms`, `ProgramSamplers`, `IrisRenderingPipeline`'s DH getters and
+    `createDHFramebuffer`). Check them all on every Iris update.
 - **Positions.** `BlockPos` packs 24/16/24 bits, not 26/12/26, and worlds end at ±8,000,000. Never pack positions by
   hand or assume ±30,000,000: use `BlockPos.asLong`/`of`, and the numbers in `ExtendedHeight`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
   `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py`,
   `tools/block_assets.py` (blocks) or `tools/biomes.py` (biomes, their features and tags) and rerun it, never the
   JSON or the textures.
-- **Optional mods.** Mod Menu and the Distant Horizons API are `compileOnly`, never bundled. Code that touches them
-  (`client.compat`, `compat.dh`) loads only when the mod is installed; keep their classes out of everything else.
+- **Optional mods.** Mod Menu, Iris and the Distant Horizons API are `compileOnly`, never bundled. Code that touches
+  them (`client.compat`, `compat.dh`) loads only when the mod is installed; keep their classes out of everything else.
 - **Untested paths.** The AMD ROCm/MIGraphX path has never run on AMD hardware. Say so when touching it.
 - **Commits.** Small and logical, with an imperative subject and a body saying why. Docs change in the same commit as
   the behaviour.

@@ -18,14 +18,25 @@ public final class DiffusicraftMixinPlugin implements IMixinConfigPlugin {
 	/** Mixin packages into other mods, and the mod each needs. */
 	private static final Map<String, String> MODS = Map.of(
 		PACKAGE + "mixin.dh.", "distanthorizons",
+		PACKAGE + "client.mixin.iris.", "iris",
 		PACKAGE + "client.mixin.sodium.", "sodium",
 		PACKAGE + "client.mixin.voxy.", "voxy");
+	/**
+	 * Mixin packages that stand in for a mod, and that mod: the far terrain plays Distant Horizons' part for Iris, which
+	 * talks to Distant Horizons itself where it is installed.
+	 */
+	private static final Map<String, String> UNLESS = Map.of(PACKAGE + "client.mixin.iris.", "distanthorizons");
 
 	@Override public void onLoad(String mixinPackage) { }
 	@Override public String getRefMapperConfig() { return null; }
 
 	@Override
 	public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+		for (Map.Entry<String, String> entry : UNLESS.entrySet()) {
+			if (mixinClassName.startsWith(entry.getKey()) && FabricLoader.getInstance().isModLoaded(entry.getValue())) {
+				return false;
+			}
+		}
 		for (Map.Entry<String, String> entry : MODS.entrySet()) {
 			if (mixinClassName.startsWith(entry.getKey())) {
 				return FabricLoader.getInstance().isModLoaded(entry.getValue());

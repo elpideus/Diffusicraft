@@ -121,10 +121,29 @@ These parts are unit-tested and feed the renderer below.
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
   Fog under water, in lava and from blindness or darkness stays as it is.
 
+### Under a shader pack: `IrisFarTerrain` (client, with Iris)
+
+Packs that support Distant Horizons, such as Bliss and Complementary Unbound, shade its terrain with programs of
+their own, `dh_terrain` and `dh_water`, which Iris builds and feeds while Distant Horizons is installed. The far
+terrain's vertices already follow Distant Horizons' layout, so where Distant Horizons is not installed, Diffusicraft
+plays its part for Iris:
+
+- **The pack's programs.** `DISTANT_HORIZONS` is defined for the pack while `farTerrain` is on, as Iris defines it
+  for Distant Horizons, so the pack builds its programs for it and merges its depth in its later passes. Turning
+  `farTerrain` on or off loads the pack again. `FarProgram` builds `dh_terrain` and `dh_water` as Iris patches them
+  for Distant Horizons, with the pack's uniforms, samplers and blending.
+- **What Iris asks.** Iris asks Distant Horizons for its near and far planes, its projection, how far it reaches and
+  its depth textures. The far terrain answers in its place.
+- **Drawing.** The land is drawn as the world's solid pass begins, before the chunks, into the pack's buffers and a
+  depth buffer of its own, which is then copied to the two textures the pack reads. The water is drawn after the
+  pack's deferred passes, as the translucent pass begins, as Distant Horizons draws it. The pack itself leaves out
+  the far terrain within the chunks' reach, so `ChunkMask` is not used, and the pack's own fog applies.
+- **Not yet.** The far terrain casts no shadows.
+
 ## Next
 
-1. **Shader packs.** Bliss and Complementary Unbound shade Distant Horizons' terrain through Iris's support for it.
-   Our renderer has to be shaded the same way.
+1. **Shadows.** Under a shader pack, the far terrain should cast shadows, as Distant Horizons' does, through the
+   pack's `dh_shadow` program.
 2. **Coarser levels from finer ones.** Far levels now keep one column out of each square of 2ᴸ × 2ᴸ, as the sampler
    does. Building them from the level below, as Voxy builds its coarser sections, would keep thin builds and roads
    visible from further away.

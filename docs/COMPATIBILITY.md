@@ -17,7 +17,7 @@ for each mod, and what is still open.
 | [Tech Reborn](#tech-mods) 6.2.0 | Works, checked in game | The geology's ore bodies hold its tin, lead, silver, uranium, rubies, sapphires and the rest in their host rocks, and its bauxite lies in tropical laterite |
 | Create, Mekanism, other tech mods | Should work: not checked | The same for any ore under the common tags `c:ores/<metal>` |
 | [Sodium](#sodium) 0.9.3-beta.1 | Works, checked in game | Lets it build sections at every height of a tall dimension; inference leaves it GPU memory |
-| [Iris](#shaders) 1.11.7 with Bliss 2.1.2, other shader packs | Works, checked in game | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
+| [Iris](#shaders) 1.11.7 with Bliss 2.1.2, Complementary Unbound r5.9.3, other shader packs | Works, checked in game | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
 | [Minecraft's Vulkan renderer](#vulkan) | Works, checked in game; Distant Horizons with Iris stops it at launch | Nothing: Diffusicraft draws through neither OpenGL nor Vulkan itself |
 | [Sulkan](#vulkan) 0.6.0, shaders on Vulkan | Works, checked in game; hides Distant Horizons' far terrain | Inference leaves GPU memory for it, as for Iris |
 | Structure mods | Works | Structures are placed by the vanilla generator |
@@ -268,10 +268,12 @@ name its classes and never compile against it.
 
 ## Shaders
 
-Iris runs shader packs, drawing each frame a second time from the sun for their shadows. Diffusicraft changes nothing
-in how they draw: what they need from it is GPU memory, which inference leaves them by keeping within
+Iris runs shader packs, drawing each frame a second time from the sun for their shadows. What they need from
+Diffusicraft is GPU memory, which inference leaves them by keeping within
 [`gpuMemoryLimitMb`](CONFIG.md#gpumemorylimitmb). Packs that support Distant Horizons draw its far terrain,
-Diffusicraft's included, through programs of their own.
+Diffusicraft's included, through programs of their own. Where Distant Horizons is not installed, Diffusicraft's own far
+terrain is drawn through the same programs, so the pack shades it as it would Distant Horizons'
+([LOD.md](LOD.md#under-a-shader-pack-irisfarterrain-client-with-iris)). It casts no shadows yet.
 
 **Checking it.** `ShadersGameTest` turns a pack on, checks in a superflat world that Iris runs it and draws its shadow
 pass, and leaves it on for the game tests named after it (see
@@ -284,13 +286,18 @@ pass, and leaves it on for the game tests named after it (see
   cliffs to the lit hollows underground, with Terrain Diffusion on CUDA beside it at a 4096 MB limit;
 - Bliss drew Distant Horizons' far terrain from a dedicated server (`-Pdiffusicraft.gametests=DistantHorizonsServer`,
   Distant Horizons on both sides): the client held all its LODs after 35 s, and the forest runs on past the chunks to
-  the horizon. The test's view from 480 blocks up is inside Bliss's second layer of clouds, at y = 500 by default.
+  the horizon. The test's view from 480 blocks up is inside Bliss's second layer of clouds, at y = 500 by default;
+- Bliss and Complementary Unbound r5.9.3
+  (`-PdevMods=sodium,iris,complementary-unbound -Pdiffusicraft.shaderPack=complementary-unbound.zip`) shaded
+  Diffusicraft's own far terrain, without Distant Horizons (`Shaders,FarTerrain`): the sea cliffs, the sea to the
+  horizon, and the tower of gold the test raises 480 blocks from the spawn, seen from 240 blocks away, past the chunks.
 
 Iris needs OpenGL: on Minecraft's Vulkan backend it does not run (see [Vulkan](#vulkan)).
 
-**Licensing.** Iris is under the LGPL. The shader game test compiles against it (`gametestCompileOnly`) and it runs
-only as a dev mod, never bundled. Bliss is All Rights Reserved: a dev-runtime pack (`devShaderPacks` in
-`gradle/dev-mods.gradle`), never committed or shipped.
+**Licensing.** Iris is under the LGPL. The far terrain's support for packs (`client.compat.iris`) and the shader game
+test compile against it (`clientCompileOnly`, `gametestCompileOnly`), and it runs only as a dev mod, never bundled.
+Bliss is All Rights Reserved and Complementary Unbound under its author's own license: dev-runtime packs
+(`devShaderPacks` in `gradle/dev-mods.gradle`), never committed or shipped.
 
 ## Vulkan
 
