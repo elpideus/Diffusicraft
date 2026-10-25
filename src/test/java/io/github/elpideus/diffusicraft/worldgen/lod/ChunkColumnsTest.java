@@ -19,6 +19,7 @@ import net.minecraft.world.level.chunk.Strategy;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -98,6 +99,15 @@ class ChunkColumnsTest {
 			LodColumn[] columns = new LodColumn[256];
 			new ChunkColumns(state -> solid.contains(state.getBlock()), state -> state.is(Blocks.OAK_LEAVES))
 				.read(sections, sky, 0, (x, z, column) -> columns[z * 16 + x] = copy(column));
+			return columns;
+		}
+
+		/** The columns read from the sections from {@code from} up, as a client keeps the chunks it lets go of. */
+		LodColumn[] read(int from) {
+			LodColumn[] columns = new LodColumn[256];
+			new ChunkColumns(state -> solid.contains(state.getBlock()), state -> state.is(Blocks.OAK_LEAVES))
+				.read(Arrays.copyOfRange(sections, from, SECTIONS), Arrays.copyOfRange(sky, from, SECTIONS), from, 0,
+					(x, z, column) -> columns[z * 16 + x] = copy(column));
 			return columns;
 		}
 	}
@@ -227,6 +237,25 @@ class ChunkColumnsTest {
 		assertEquals(Blocks.WATER.defaultBlockState(), at(kelp, 61), "kelp is water from afar");
 		assertEquals(Blocks.DIRT.defaultBlockState(), kelp.state(kelp.ground()));
 		assertEquals(3, kelp.waterDepth());
+	}
+
+	@Test
+	void theSectionsUnderTheGroundCanBeLeftOut() {
+		Chunk chunk = meadow();
+		chunk.fill(8, 64, 8, 12, 66, 12, Blocks.COBBLESTONE);
+		chunk.lightFromAbove();
+		LodColumn[] whole = chunk.read();
+		LodColumn[] upper = chunk.read(3);
+		for (int i = 0; i < 256; i++) {
+			assertEquals(whole[i].size(), upper[i].size(), "column " + i);
+			for (int run = 0; run < whole[i].size(); run++) {
+				assertEquals(whole[i].state(run), upper[i].state(run), "column " + i + ", run " + run);
+				assertEquals(whole[i].bottom(run), upper[i].bottom(run), "column " + i + ", run " + run);
+				assertEquals(whole[i].top(run), upper[i].top(run), "column " + i + ", run " + run);
+			}
+			assertEquals(whole[i].ground(), upper[i].ground(), "column " + i);
+		}
+		assertEquals(0, upper[0].bottom(0), "the stone reaches on down to the bottom of the world");
 	}
 
 	@Test

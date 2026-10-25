@@ -26,6 +26,8 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.DataLayer;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.status.ChunkType;
 import net.minecraft.world.level.chunk.storage.IOWorker;
 import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
@@ -63,9 +65,11 @@ import java.util.function.Supplier;
  * same step and alignment overlays on the one it samples ({@link #overlay}). A chunk adds a column to every level
  * whose columns it holds, about 341 in all, most of them to the finest.
  *
- * <p>The pages are kept in region files under {@code diffusicraft/lod} in the world's folder, through Minecraft's
- * own {@link IOWorker}, a folder for each level of detail. Everything runs on a thread of the store's own: the server
- * thread hands over the copy of a chunk that vanilla takes to save it, and readers get a future.
+ * <p>The pages are kept in region files, through Minecraft's own {@link IOWorker}, a folder for each level of detail:
+ * under {@code diffusicraft/lod} in the world's folder on a server, and on a client that keeps the chunks it has seen
+ * of a server that does not share what players built, in {@code diffusicraft/seen} in the game's folder. Everything
+ * runs on a thread of the store's own: the server thread hands over the copy of a chunk that vanilla takes to save it,
+ * the client the sections it copied of a chunk it let go of, and readers get a future.
  */
 public final class LodStore implements AutoCloseable {
 	/** Columns along each side of a page. */
@@ -183,6 +187,16 @@ public final class LodStore implements AutoCloseable {
 		if (data.chunkStatus().getChunkType() == ChunkType.LEVELCHUNK) {
 			saved(new Saved(data.chunkPos(), sink -> reader.read(data, sink)));
 		}
+	}
+
+	/**
+	 * Takes in a chunk from its sections, bottom first from section Y {@code minSectionY}, those below left out: the
+	 * deepest run of each column reaches on down to block Y {@code bottom}. The sections and the light are read later,
+	 * on the store's thread, so they must be copies that nothing else changes.
+	 */
+	public void saved(ChunkPos pos, LevelChunkSection[] sections, @Nullable DataLayer[] sky, int minSectionY,
+					  int bottom) {
+		saved(new Saved(pos, sink -> reader.read(sections, sky, minSectionY, bottom, sink)));
 	}
 
 	/** Takes in the columns of a chunk, {@code columns[z * 16 + x]}, as if it had been saved so. */

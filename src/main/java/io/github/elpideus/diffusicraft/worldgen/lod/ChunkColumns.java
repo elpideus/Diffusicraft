@@ -29,8 +29,8 @@ import java.util.function.Predicate;
  * a pier, an overhang or a floating build and the water under them, the column keeps it down to the next ground below.
  * Caves and closed rooms, which the sky does not reach, are filled in, as Distant Horizons fills them.
  *
- * <p>It reads the copy of the chunk's sections that vanilla takes when it saves the chunk, so it can run on any
- * thread. Not thread-safe: each thread needs its own.
+ * <p>It reads the copy of the chunk's sections that vanilla takes when it saves the chunk, or that a client takes of
+ * the chunks it lets go of, so it can run on any thread. Not thread-safe: each thread needs its own.
  */
 public final class ChunkColumns {
 	/** Blocks under the lowest ground around a column that it keeps one by one. */
@@ -50,6 +50,8 @@ public final class ChunkColumns {
 	private LevelChunkSection[] sections = new LevelChunkSection[0];
 	private @Nullable DataLayer[] sky = new DataLayer[0];
 	private int minSectionY;
+	/** Block Y the deepest run of each column reaches down to. */
+	private int bottom;
 
 	/** Columns as the world's tags have them: the blocks that block motion, and the leaves among them. */
 	public ChunkColumns() {
@@ -100,9 +102,20 @@ public final class ChunkColumns {
 	 * chunk, {@code (0, 0)} to {@code (15, 15)}.
 	 */
 	void read(LevelChunkSection[] sections, @Nullable DataLayer[] sky, int minSectionY, LodSampler.Sink sink) {
+		read(sections, sky, minSectionY, SectionPos.sectionToBlockCoord(minSectionY), sink);
+	}
+
+	/**
+	 * Reads the columns of a chunk from some of its sections, as {@link #read(LevelChunkSection[], DataLayer[], int,
+	 * LodSampler.Sink)} does, for a chunk whose sections below {@code minSectionY} were left out: the deepest run of
+	 * each column reaches on down to block Y {@code bottom}, the bottom of the world, made of the block it ends on.
+	 */
+	public void read(LevelChunkSection[] sections, @Nullable DataLayer[] sky, int minSectionY, int bottom,
+					 LodSampler.Sink sink) {
 		this.sections = sections;
 		this.sky = sky;
 		this.minSectionY = minSectionY;
+		this.bottom = Math.min(bottom, SectionPos.sectionToBlockCoord(minSectionY));
 		int minY = SectionPos.sectionToBlockCoord(minSectionY);
 		int highest = sections.length - 1;
 		while (highest >= 0 && sections[highest].hasOnlyAir()) {
@@ -168,8 +181,8 @@ public final class ChunkColumns {
 			}
 		}
 		// A column that stands on nothing, all leaves or water, hangs in the air.
-		if (floor > minY && ground != Integer.MIN_VALUE) {
-			column.add(rock(x, z, floor, minY, ground), minY, floor);
+		if (floor > bottom && ground != Integer.MIN_VALUE) {
+			column.add(rock(x, z, floor, minY, ground), bottom, floor);
 		}
 		for (int y = floor; y < top; y++) {
 			BlockState state = kept(get(x, y, z));
