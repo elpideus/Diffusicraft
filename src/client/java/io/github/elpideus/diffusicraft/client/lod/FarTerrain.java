@@ -312,6 +312,9 @@ public final class FarTerrain {
 		terrainTransform = RenderSystem.getDynamicUniforms().writeTerrainTransform(new Matrix4f(camera.viewRotationMatrix),
 			1, 1);
 		mask.update(level, viewArea, viewDistance, camera.blockPos);
+		// The shader would drop every fragment of a tile wholly within the sections the world draws.
+		drawn.removeIf(mesh -> mask.covers(mesh.tile.minBlockX(), mesh.minY, mesh.tile.minBlockZ(),
+			mesh.tile.minBlockX() + mesh.tile.size(), mesh.maxY, mesh.tile.minBlockZ() + mesh.tile.size()));
 	}
 
 	private void render(RenderPass pass) {

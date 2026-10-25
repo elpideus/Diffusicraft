@@ -127,6 +127,39 @@ final class ChunkMask implements AutoCloseable {
 		writeInfo();
 	}
 
+	/**
+	 * Whether the world draws every section of the box of blocks from {@code (minX, minY, minZ)} up to
+	 * {@code (maxX, maxY, maxZ)}, exclusive, as the mask stands since the last {@link #update}: then the fragment
+	 * shader drops all the far terrain in the box, and it need not be drawn at all. On the render thread.
+	 */
+	boolean covers(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+		if (centerX == Integer.MIN_VALUE || maxY <= minY) {
+			return false;
+		}
+		int y0 = SectionPos.blockToSectionCoord(minY);
+		int y1 = SectionPos.blockToSectionCoord(maxY - 1);
+		if (y0 < lowest || y1 >= lowest + rows) {
+			return false;
+		}
+		for (int z = SectionPos.blockToSectionCoord(minZ); z <= SectionPos.blockToSectionCoord(maxZ - 1); z++) {
+			for (int x = SectionPos.blockToSectionCoord(minX); x <= SectionPos.blockToSectionCoord(maxX - 1); x++) {
+				int column = Math.floorMod(x, size);
+				int line = Math.floorMod(z, size);
+				if (!ChunkTrackingView.isInViewDistance(centerX, centerZ, viewDistance, x, z)
+					|| columnAt[line * size + column] != ChunkPos.pack(x, z)) {
+					return false;
+				}
+				for (int y = y0; y <= y1; y++) {
+					int row = Math.floorMod(y, rows);
+					if (rowAt[row] != y || texels[line * width + row * size + column] != DRAWN) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+
 	/** Clears the slots of the chunks and rows that enter the mask as its centre moves to {@code (cx, cz)}. */
 	private void moveTo(int cx, int cz, int lowest) {
 		centerX = cx;

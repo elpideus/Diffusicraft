@@ -177,7 +177,8 @@ These parts are unit-tested and feed the renderer below.
   render distance, and a mask of one texel per chunk set from its surface section alone, left holes where the world
   had not built a section yet, most of all on steep slopes and while flying. The texture's slots rotate as the
   camera moves, as the world's own grid of sections does, and a few lines of chunks are looked up each frame, so a
-  large render distance spreads the work.
+  large render distance spreads the work. A tile that lies wholly within sections the world draws is not drawn at
+  all, since the shader would drop every fragment of it: the mask's bytes are checked on the CPU as well.
 - **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
   Fog under water, in lava and from blindness or darkness stays as it is.
