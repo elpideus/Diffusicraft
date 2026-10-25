@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A square grid of {@link LodSampler}'s columns, kept so that a stack of voxel sections can be cut from it. Voxy draws
@@ -65,6 +66,20 @@ public final class LodGrid {
 	private int runs;
 	private int columns;
 	private int highest = Integer.MIN_VALUE;
+	private boolean rough;
+
+	/** How a grid is sampled where the terrain it needs has not been computed yet. */
+	public enum Mode {
+		/** In full, running the models over the terrain however long that takes. */
+		FULL,
+		/** At once, as finely as the terrain computed allows ({@link LodSampler#available}), and marked rough. */
+		ROUGH,
+		/**
+		 * In full once the terrain is computed, and not at all until then: the models run over one more tile of it, if
+		 * they are idle ({@link LodSampler#prepare}).
+		 */
+		REFINE
+	}
 
 	@SuppressWarnings("unchecked")
 	LodGrid(int width) {
@@ -80,16 +95,49 @@ public final class LodGrid {
 	 * kept. Where players have been, the columns are those of the chunks as they were last saved ({@link LodStore}).
 	 */
 	public static LodGrid sample(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling) {
+		return Objects.requireNonNull(sample(sampler, minX, minZ, width, step, ceiling, Mode.FULL));
+	}
+
+	/** The grid as {@link #sample} samples it, or null if {@code mode} is {@link Mode#REFINE} and it is not ready. */
+	public static @Nullable LodGrid sample(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling,
+										   Mode mode) {
 		LodStore store = sampler.store();
-		return store == null ? generate(sampler, minX, minZ, width, step, ceiling)
-			: store.overlay(minX, minZ, width, step, ceiling, () -> generate(sampler, minX, minZ, width, step, ceiling));
+		return store == null ? generate(sampler, minX, minZ, width, step, ceiling, mode) : store.overlay(minX, minZ,
+			width, step, ceiling, () -> generate(sampler, minX, minZ, width, step, ceiling, mode));
 	}
 
 	/** The grid as {@link #sample} samples it, but as the terrain is generated, whatever players did to it. */
 	public static LodGrid generate(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling) {
+		return Objects.requireNonNull(generate(sampler, minX, minZ, width, step, ceiling, Mode.FULL));
+	}
+
+	/** The grid as {@link #generate} samples it, or null if {@code mode} is {@link Mode#REFINE} and it is not ready. */
+	public static @Nullable LodGrid generate(LodSampler sampler, int minX, int minZ, int width, int step, int ceiling,
+											 Mode mode) {
+		LodSampler.Detail detail = switch (mode) {
+			case FULL -> LodSampler.Detail.FULL;
+			case ROUGH -> sampler.available(minX, minZ, width, step);
+			case REFINE -> sampler.prepare(minX, minZ, width, step) ? LodSampler.Detail.FULL : null;
+		};
+		if (detail == null) {
+			return null;
+		}
 		LodGrid grid = new LodGrid(width);
-		sampler.sample(minX, minZ, width, step, (x, z, column) -> grid.add(column, ceiling));
+		sampler.sample(minX, minZ, width, step, detail, (x, z, column) -> grid.add(column, ceiling));
+		grid.rough = detail != LodSampler.Detail.FULL;
 		return grid;
+	}
+
+	/**
+	 * Whether the grid was sampled coarser than it can be, as {@link Mode#ROUGH} samples it where the terrain is not
+	 * computed yet: without the rivers, or from the coarse map.
+	 */
+	public boolean rough() {
+		return rough;
+	}
+
+	void rough(boolean rough) {
+		this.rough = rough;
 	}
 
 	/** Columns along each side. Column {@code (x, z)} is number {@code z * width + x}. */

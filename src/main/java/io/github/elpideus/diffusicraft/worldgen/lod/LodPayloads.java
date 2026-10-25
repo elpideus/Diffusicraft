@@ -86,14 +86,14 @@ public final class LodPayloads {
 	 * Asks for the grid that {@link LodGrid#sample} samples from {@code level} with these arguments, or
 	 * {@link LodGrid#generate} where the server does not share what players built. {@code id} matches the reply to it.
 	 */
-	public record Request(int id, ResourceKey<Level> level, int minX, int minZ, int width, int step, int ceiling)
-		implements CustomPacketPayload {
+	public record Request(int id, ResourceKey<Level> level, int minX, int minZ, int width, int step, int ceiling,
+						  LodGrid.Mode mode) implements CustomPacketPayload {
 		public static final Type<Request> TYPE = new Type<>(Diffusicraft.id("far_terrain_request"));
 		static final StreamCodec<FriendlyByteBuf, Request> CODEC = StreamCodec.ofMember(Request::write, Request::new);
 
 		private Request(FriendlyByteBuf buf) {
 			this(buf.readVarInt(), buf.readResourceKey(Registries.DIMENSION), buf.readInt(), buf.readInt(),
-				buf.readVarInt(), buf.readVarInt(), buf.readInt());
+				buf.readVarInt(), buf.readVarInt(), buf.readInt(), buf.readEnum(LodGrid.Mode.class));
 		}
 
 		private void write(FriendlyByteBuf buf) {
@@ -104,6 +104,7 @@ public final class LodPayloads {
 			buf.writeVarInt(width);
 			buf.writeVarInt(step);
 			buf.writeInt(ceiling);
+			buf.writeEnum(mode);
 		}
 
 		@Override
@@ -112,18 +113,32 @@ public final class LodPayloads {
 		}
 	}
 
-	/** The answer to request {@code id}: its grid, or none if the server refused it or could not sample it. */
+	/**
+	 * The answer to request {@code id}: its grid, whether {@link LodGrid#rough} or not, or none if the server refused
+	 * it, could not sample it, or has not computed the terrain a request to {@link LodGrid.Mode#REFINE} needs yet.
+	 */
 	public record Reply(int id, @Nullable LodGrid grid) implements CustomPacketPayload {
 		public static final Type<Reply> TYPE = new Type<>(Diffusicraft.id("far_terrain_reply"));
 		static final StreamCodec<RegistryFriendlyByteBuf, Reply> CODEC = StreamCodec.ofMember(Reply::write, Reply::new);
 
 		private Reply(RegistryFriendlyByteBuf buf) {
-			this(buf.readVarInt(), FriendlyByteBuf.readNullable(buf, LodGrid.STREAM_CODEC));
+			this(buf.readVarInt(), readGrid(buf));
+		}
+
+		private static @Nullable LodGrid readGrid(RegistryFriendlyByteBuf buf) {
+			LodGrid grid = FriendlyByteBuf.readNullable(buf, LodGrid.STREAM_CODEC);
+			if (grid != null) {
+				grid.rough(buf.readBoolean());
+			}
+			return grid;
 		}
 
 		private void write(RegistryFriendlyByteBuf buf) {
 			buf.writeVarInt(id);
 			FriendlyByteBuf.writeNullable(buf, grid, LodGrid.STREAM_CODEC);
+			if (grid != null) {
+				buf.writeBoolean(grid.rough());
+			}
 		}
 
 		@Override

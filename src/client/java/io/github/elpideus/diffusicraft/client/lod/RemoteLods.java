@@ -156,8 +156,17 @@ public final class RemoteLods {
 		 */
 		public CompletableFuture<@Nullable LodGrid> fetch(ResourceKey<Level> level, int minX, int minZ, int width,
 														 int step, int ceiling) {
-			Ask ask = new Ask(new LodPayloads.Request(ids.getAndIncrement(), level, minX, minZ, width, step, ceiling),
-				new CompletableFuture<>());
+			return fetch(level, minX, minZ, width, step, ceiling, LodGrid.Mode.FULL);
+		}
+
+		/**
+		 * Asks for a grid as {@link #fetch(ResourceKey, int, int, int, int, int)} does, sampled in {@code mode}: also
+		 * completes with null if the grid is to {@link LodGrid.Mode#REFINE} and the server's terrain is not ready.
+		 */
+		public CompletableFuture<@Nullable LodGrid> fetch(ResourceKey<Level> level, int minX, int minZ, int width,
+														 int step, int ceiling, LodGrid.Mode mode) {
+			Ask ask = new Ask(new LodPayloads.Request(ids.getAndIncrement(), level, minX, minZ, width, step, ceiling,
+				mode), new CompletableFuture<>());
 			if (!serves(level) || !inRange(position, ask.request)) {
 				return CompletableFuture.completedFuture(null);
 			}

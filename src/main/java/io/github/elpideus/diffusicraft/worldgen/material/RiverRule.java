@@ -43,7 +43,7 @@ public record RiverRule(WorldScale scale) implements MaterialRule {
 
 	@Override
 	public RuleEvaluator compile(MaterialRuleContext context) {
-		if (CoarseClimate.active()) {
+		if (CoarseClimate.withoutRivers()) {
 			return (x, y, z) -> null;
 		}
 		MaterialRuleContextAccessor accessor = (MaterialRuleContextAccessor) (Object) context;

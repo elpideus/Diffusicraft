@@ -196,7 +196,8 @@ public class FarTerrainGapsGameTest implements FabricClientGameTest {
 		int[] settled = {0};
 		try {
 			context.waitFor(mc -> {
-				settled[0] = FarTerrain.settled() && WorldGenerationGameTest.pendingWork(mc).isEmpty() ? settled[0] + 1 : 0;
+				boolean idle = FarTerrain.built() && WorldGenerationGameTest.pendingWork(mc).isEmpty();
+				settled[0] = idle ? settled[0] + 1 : 0;
 				return settled[0] >= SETTLED_TICKS;
 			}, VIEW_TIMEOUT_TICKS);
 		} catch (AssertionError e) {

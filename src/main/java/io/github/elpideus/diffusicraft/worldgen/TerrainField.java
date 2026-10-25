@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -81,6 +83,8 @@ public final class TerrainField implements AutoCloseable {
 	 */
 	private static final int DEFAULT_MAX_TILES = 160;
 	private static final int MAX_COARSE_BLOCKS = 64;
+	/** How long after the last tile was computed {@link #prefetchWhenIdle} waits, so chunk generation goes first. */
+	private static final long IDLE_NANOS = 500_000_000L;
 
 	/** Everything the generator reads at one column. */
 	public static final class Column {
@@ -132,6 +136,12 @@ public final class TerrainField implements AutoCloseable {
 	private final AtomicLong clock = new AtomicLong();
 	private final LongAdder computedTiles = new LongAdder();
 	private final LongAdder tileWaitNanos = new LongAdder();
+	/** Threads computing a tile now. */
+	private final AtomicInteger computing = new AtomicInteger();
+	/** When the last tile was done computing, as {@link System#nanoTime}. */
+	private volatile long computed = System.nanoTime() - IDLE_NANOS;
+	/** Whether a thread is in {@link #prefetchWhenIdle}. */
+	private final AtomicBoolean idleClaimed = new AtomicBoolean();
 	private final FastNoiseLite variantNoise;
 	private final TerrainSurface[] surfaces = new TerrainSurface[WorldScale.values().length];
 
@@ -391,6 +401,12 @@ public final class TerrainField implements AutoCloseable {
 		return tiles.containsKey(key(ti, tj));
 	}
 
+	/** Whether tile {@code (ti, tj)} is in memory, so that reading it runs no model. */
+	public boolean tileReady(int ti, int tj) {
+		CompletableFuture<FieldTile> future = tiles.get(key(ti, tj));
+		return future != null && future.isDone() && !future.isCompletedExceptionally();
+	}
+
 	/**
 	 * Computes tile {@code (ti, tj)} on this thread if nobody has started it yet, so that readers find it ready. Returns
 	 * at once if it is in memory or another thread is computing it.
@@ -409,6 +425,26 @@ public final class TerrainField implements AutoCloseable {
 		}
 		join(mine);
 		return true;
+	}
+
+	/**
+	 * Computes tile {@code (ti, tj)} as {@link #prefetch} does, but only while the models are idle: no tile is being
+	 * computed, nor was for the last half second, and no other thread is in this method. Work that must never hold up
+	 * chunk generation computes its tiles here, one at a time, and chunk generation, which asks for a tile as soon as
+	 * the last is done, gets the models first.
+	 *
+	 * @return whether this thread computed the tile
+	 * @throws RuntimeException if the source fails, as when the models are missing
+	 */
+	public boolean prefetchWhenIdle(int ti, int tj) {
+		if (tiles.containsKey(key(ti, tj)) || !idleClaimed.compareAndSet(false, true)) {
+			return false;
+		}
+		try {
+			return computing.get() == 0 && System.nanoTime() - computed >= IDLE_NANOS && prefetch(ti, tj);
+		} finally {
+			idleClaimed.set(false);
+		}
 	}
 
 	@Override
@@ -454,15 +490,19 @@ public final class TerrainField implements AutoCloseable {
 		if (future != null) {
 			return future;
 		}
+		computing.incrementAndGet();
 		try {
-			FieldTile computed = computeTile(ti, tj);
+			FieldTile tile = computeTile(ti, tj);
 			computedTiles.increment();
 			// Mark it used before evicting, or it would be the oldest tile and go first.
-			computed.lastUse = clock.incrementAndGet();
-			mine.complete(computed);
+			tile.lastUse = clock.incrementAndGet();
+			mine.complete(tile);
 		} catch (Throwable t) {
 			tiles.remove(key, mine);
 			mine.completeExceptionally(t);
+		} finally {
+			computed = System.nanoTime();
+			computing.decrementAndGet();
 		}
 		evictTiles();
 		return mine;

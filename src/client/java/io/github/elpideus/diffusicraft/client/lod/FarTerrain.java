@@ -75,6 +75,8 @@ public final class FarTerrain {
 	/** Columns of a tile's side that lie within a block of the tile closer than this many steps split. */
 	private static final int DETAIL = 128;
 	private static final int BUILDS_IN_FLIGHT = 6;
+	/** How long to wait before asking again to refine a rough tile whose terrain was not ready. */
+	private static final long REFINE_MILLIS = 1000;
 	/** Most bytes of vertices uploaded in a frame, so that a burst of tiles does not stall it. */
 	private static final int UPLOAD_BUDGET = 4 << 20;
 	private static final ExecutorService WORKERS = Executors.newFixedThreadPool(2, Thread.ofPlatform()
@@ -109,6 +111,11 @@ public final class FarTerrain {
 	private final Set<LodTiles.Tile> stale = new HashSet<>();
 	private final Set<LodTiles.Tile> rebuild = new LinkedHashSet<>();
 	private final ArrayDeque<LodTiles.Tile> missing = new ArrayDeque<>();
+	/** Tiles built rough ({@link LodGrid#rough}), to be refined one at a time, nearest first. */
+	private final Set<LodTiles.Tile> rough = new HashSet<>();
+	/** Whether a rough tile is being refined. */
+	private boolean refining;
+	private long refineAfter;
 	/** The tiles drawn in this frame, nearest first. */
 	private final List<FarMesh> drawn = new ArrayList<>();
 	private @Nullable GpuBufferSlice terrainTransform;
@@ -213,10 +220,19 @@ public final class FarTerrain {
 	}
 
 	/**
-	 * Whether the far terrain has built every tile it wants for where the camera is, and none waits to be built again.
-	 * On the render thread.
+	 * Whether the far terrain has built every tile it wants for where the camera is, none waits to be built again, and
+	 * none is left rough. On the render thread.
 	 */
 	public static boolean settled() {
+		FarTerrain terrain = current;
+		return built() && terrain.rough.isEmpty();
+	}
+
+	/**
+	 * Whether the far terrain has built every tile it wants for where the camera is, if some only rough, and none waits
+	 * to be built again. On the render thread.
+	 */
+	public static boolean built() {
 		FarTerrain terrain = current;
 		return terrain != null && terrain.source != null && terrain.building.isEmpty() && terrain.missing.isEmpty()
 			&& terrain.rebuild.isEmpty() && terrain.built.isEmpty();
@@ -272,7 +288,7 @@ public final class FarTerrain {
 			choose(at.x, at.z, near);
 			chosen = now;
 		}
-		dispatch(source);
+		dispatch(source, at);
 		maxQuads = 0;
 		for (FarMesh mesh : view.drawn()) {
 			LodTiles.Tile tile = mesh.tile;
@@ -407,6 +423,8 @@ public final class FarTerrain {
 		stale.clear();
 		rebuild.clear();
 		missing.clear();
+		rough.clear();
+		refining = false;
 		chooser.reset();
 		chosenX = Double.NaN;
 	}
@@ -431,6 +449,12 @@ public final class FarTerrain {
 				continue;
 			}
 			building.remove(done.tile);
+			if (done.refine) {
+				refining = false;
+				if (done.data == null) {
+					refineAfter = Util.getMillis() + REFINE_MILLIS;
+				}
+			}
 			if (stale.remove(done.tile)) {
 				rebuild.add(done.tile);
 			}
@@ -439,10 +463,16 @@ public final class FarTerrain {
 			}
 			if (!view.wants(done.tile)) {
 				done.data.free();
+				rough.remove(done.tile);
 				continue;
 			}
 			uploaded += done.data.bytes();
 			view.built(done.tile, done.data.upload(bottom));
+			if (done.rough) {
+				rough.add(done.tile);
+			} else {
+				rough.remove(done.tile);
+			}
 			uploads++;
 		}
 	}
@@ -455,26 +485,50 @@ public final class FarTerrain {
 		tiles.sort(Comparator.comparingDouble(tile -> LodTiles.distance(tile, x, z)));
 		missing.clear();
 		missing.addAll(view.want(tiles));
+		rough.removeIf(tile -> !view.wants(tile));
 	}
 
-	private void dispatch(Source source) {
+	/**
+	 * Builds the tiles wanted, rough where the terrain they need is not computed yet, so that the far terrain never
+	 * holds up chunk generation, and then refines those, one at a time, nearest first, as the terrain gets computed
+	 * while the models are idle ({@link LodGrid.Mode}).
+	 */
+	private void dispatch(Source source, Vec3 at) {
 		while (building.size() < BUILDS_IN_FLIGHT) {
 			LodTiles.Tile tile = next();
 			if (tile == null) {
-				return;
+				break;
 			}
-			building.add(tile);
-			int generation = this.generation;
-			source.grid(tile, ceiling)
-				.thenApplyAsync(grid -> grid == null ? null : FarMeshWriter.write(tile, grid, bottom, colors, materials),
-					WORKERS)
-				.whenComplete((data, error) -> {
-					if (error != null) {
-						failed(error);
-					}
-					finished(new Built(generation, tile, error == null ? data : null));
-				});
+			build(source, tile, LodGrid.Mode.ROUGH);
 		}
+		if (refining || !building.isEmpty() || !missing.isEmpty() || !rebuild.isEmpty() || rough.isEmpty()
+			|| Util.getMillis() < refineAfter) {
+			return;
+		}
+		LodTiles.Tile nearest = null;
+		for (LodTiles.Tile tile : rough) {
+			if (nearest == null || LodTiles.distance(tile, at.x, at.z) < LodTiles.distance(nearest, at.x, at.z)) {
+				nearest = tile;
+			}
+		}
+		refining = true;
+		build(source, nearest, LodGrid.Mode.REFINE);
+	}
+
+	private void build(Source source, LodTiles.Tile tile, LodGrid.Mode mode) {
+		building.add(tile);
+		int generation = this.generation;
+		boolean refine = mode == LodGrid.Mode.REFINE;
+		source.grid(tile, ceiling, mode)
+			.thenApplyAsync(grid -> grid == null ? null : new Written(FarMeshWriter.write(tile, grid, bottom, colors,
+				materials), grid.rough()), WORKERS)
+			.whenComplete((written, error) -> {
+				if (error != null) {
+					failed(error);
+				}
+				boolean done = error == null && written != null;
+				finished(new Built(generation, tile, done ? written.data : null, done && written.rough, refine));
+			});
 	}
 
 	/** The next tile to build: those whose terrain changed first, then those missing, nearest first. */
@@ -531,7 +585,12 @@ public final class FarTerrain {
 		}
 	}
 
-	private record Built(int generation, LodTiles.Tile tile, FarMesh.@Nullable Data data) {
+	/** A tile built, if it was: {@code refine} if it was to be refined, and {@code rough} if it is still. */
+	private record Built(int generation, LodTiles.Tile tile, FarMesh.@Nullable Data data, boolean rough,
+						 boolean refine) {
+	}
+
+	private record Written(FarMesh.Data data, boolean rough) {
 	}
 
 	private record Opened(MinecraftServer server, @Nullable LodSampler sampler) {
@@ -547,8 +606,8 @@ public final class FarTerrain {
 
 		abstract boolean serves();
 
-		/** The grid of a tile, or null if there is none to be had. */
-		abstract CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling);
+		/** The grid of a tile, sampled in {@code mode}, or null if there is none to be had. */
+		abstract CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling, LodGrid.Mode mode);
 
 		void close() {
 		}
@@ -575,12 +634,12 @@ public final class FarTerrain {
 		}
 
 		@Override
-		CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling) {
+		CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling, LodGrid.Mode mode) {
 			MinecraftServer server = (MinecraftServer) owner;
 			return CompletableFuture.supplyAsync(() -> {
 				try {
 					return LodGrid.sample(sampler, tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(),
-						ceiling);
+						ceiling, mode);
 				} catch (IllegalStateException e) {
 					// The world closed under the tile, and its terrain with it: nobody wants the tile any more.
 					if (!server.isRunning()) {
@@ -637,18 +696,23 @@ public final class FarTerrain {
 		}
 
 		@Override
-		CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling) {
+		CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling, LodGrid.Mode mode) {
 			LodStore seen = this.seen;
 			if (seen == null) {
-				return feed.fetch(dimension, tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(), ceiling);
+				return feed.fetch(dimension, tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(), ceiling,
+					mode);
 			}
 			Sent key = new Sent(tile, ceiling);
 			LodGrid kept;
 			synchronized (sent) {
 				kept = sent.get(key);
 			}
+			// A rough grid stands in only until it is refined.
+			if (kept != null && kept.rough() && mode == LodGrid.Mode.REFINE) {
+				kept = null;
+			}
 			CompletableFuture<@Nullable LodGrid> fetched = kept != null ? CompletableFuture.completedFuture(kept)
-				: feed.fetch(dimension, tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(), ceiling)
+				: feed.fetch(dimension, tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step(), ceiling, mode)
 					.thenApply(grid -> {
 						if (grid != null) {
 							synchronized (sent) {

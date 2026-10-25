@@ -22,6 +22,11 @@ taken from them. Voxy is All Rights Reserved and Distant Horizons is LGPL.
   not as they were generated.
 - **Caves filled in**, as Distant Horizons fills them. A far view never sees inside a closed space, so a column
   keeps only what the sky can reach.
+- **A rough surface first**, as Distant Horizons' generator builds one before it generates any chunk. A tile whose
+  terrain the models have not computed yet is built from what they have: without the rivers, or from the coarse map
+  alone. The models compute what is missing later, one tile at a time and only while chunk generation leaves them
+  idle, and the tile is then built again in full. The far terrain fills the view in seconds and never makes a chunk
+  wait.
 
 ## Built so far
 
@@ -67,12 +72,29 @@ feed to multiplayer clients where the server shares what players built. When the
 corner is a multiple of that step, the stored columns replace the sampled ones. A grid whose columns are all stored
 never runs the terrain at all. `LodGrid.generate` samples the terrain alone, as it was generated.
 
+A grid that reads the full-resolution terrain needs its own tiles and, for its rivers, those two rings around it.
+`LodGrid.Mode` says whether the grid may wait for the models to compute them:
+
+- **`FULL`** runs the models over every tile the grid needs, as chunk generation does. Voxy asks for its grids so.
+- **`ROUGH`** never runs them. It samples the grid as finely as the terrain computed so far allows
+  (`LodSampler.available`): in full once every tile it needs is in memory, without the rivers once its own tiles
+  are, and from the coarse map before then. The grid is marked rough unless it came out in full.
+- **`REFINE`** runs the models over one missing tile at most, and only while they are idle
+  (`TerrainField.prefetchWhenIdle`): no tile is being computed, none was for the last half second, and no other
+  refinement is computing one. It returns the grid in full once nothing is missing, and no grid until then.
+
+Chunk generation asks for its next tile as soon as one is done, so a refinement only ever slips in between, and it
+holds chunk generation up by one tile at most. A grid reads the full-resolution terrain only while it spans four
+tiles or fewer, so with its rings it needs 81 at most, within the 160 the terrain keeps in memory.
+
 ### On a server: `LodFeed`, `RemoteLods` and `SeenChunks`
 
 A server with Diffusicraft sends the far terrain of its Diffusicraft worlds to the clients with Diffusicraft that ask
 for it, for our renderer or for Voxy (see [COMPATIBILITY.md](COMPATIBILITY.md#voxy)). As a player joins, `LodFeed`
 tells the client how far it sends, which levels it serves and whether it shares what players built. The client
-(`RemoteLods`) then asks for grids, at most 32 at once, nearest first. What the grids show depends on the server's
+(`RemoteLods`) then asks for grids, at most 32 at once, nearest first. Our renderer asks rough first and then
+refines, as it does in singleplayer, and the server keeps the last 128 grids it sent but samples a rough one again
+when it is asked for again, since the terrain may be ready by then. What the grids show depends on the server's
 [`shareBuilds`](CONFIG.md#sharebuilds):
 
 - **Off, the default: the terrain as generated.** The server sends `LodGrid.generate`, so a player cannot find from
@@ -131,7 +153,9 @@ These parts are unit-tested and feed the renderer below.
   On a server, from the far terrain the server sends (`RemoteLods`), with the chunks this client saw laid over it
   where the server does not share what players built (see [above](#on-a-server-lodfeed-remotelods-and-seenchunks)).
 - **Building.** Two low-priority worker threads sample a tile's grid, mesh it and write its vertices off the heap.
-  At most six tiles are built at once, nearest first, and tiles whose terrain changed go before new ones. The render
+  At most six tiles are built at once, nearest first, and tiles whose terrain changed go before new ones. Each tile
+  is built rough first (see [above](#using-them-lodgridsample)). Once every tile wanted is built, the nearest rough
+  one is refined, one at a time; a tile whose terrain is not ready is asked for again a second later. The render
   thread only uploads finished meshes, at most 4 MB a frame, so a burst of tiles does not stall it. `LodView` keeps
   a coarse tile drawn until every finer tile wanted within it is built, and finer tiles until the coarse tile that
   replaces them is, so there are no holes while the player moves.
@@ -185,3 +209,7 @@ plays its part for Iris:
 2. **Coarser levels from finer ones.** Far levels now keep one column out of each square of 2ᴸ × 2ᴸ, as the sampler
    does. Building them from the level below, as Voxy builds its coarser sections, would keep thin builds and roads
    visible from further away.
+3. **Workers that yield.** The far terrain's two workers run at the lowest thread priority, which Linux ignores. A
+   duty cycle, as Distant Horizons gives its own threads, sleeping after each tile about as long as it took, would
+   leave the chunks and the game more of the CPU while tiles build. Pausing new builds while the player flies fast,
+   when the tiles chosen are stale before they are done, would help as well.

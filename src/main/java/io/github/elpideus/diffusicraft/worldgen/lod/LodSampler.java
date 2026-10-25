@@ -55,6 +55,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * corners of the cells the chunks interpolate their density over, as it does in the chunks. The sea cliffs and the
  * shape of the sea floor show in every grid that reads the full-resolution terrain.
  *
+ * <p>A narrower grid can also be sampled at less than its full detail ({@link Detail}), so that what draws it need not
+ * wait for the models: without the rivers, which need the tiles {@value Rivers#RING} rings around it, once its own
+ * tiles are computed, and from the coarse map before then. {@link #available} says how finely the terrain computed so
+ * far samples a grid, and {@link #prepare} computes what the grid lacks, a tile at a time, while the models are idle.
+ *
  * <p>Thread-safe: each call to {@link #sample} works on its own state.
  */
 public final class LodSampler {
@@ -88,6 +93,16 @@ public final class LodSampler {
 	private final Map<Holder<Biome>, TreeCover> trees = new ConcurrentHashMap<>();
 	private final @Nullable GreatTrees greatTrees;
 	private final @Nullable LodStore store;
+
+	/** How finely a grid is sampled. */
+	public enum Detail {
+		/** The full-resolution terrain with its rivers, or the coarse map for a grid too wide for it. */
+		FULL,
+		/** The full-resolution terrain without the rivers, their lakes and their valleys. */
+		RIVERLESS,
+		/** The coarse map alone. */
+		COARSE
+	}
 
 	/** Receives the columns of a grid, row by row. */
 	@FunctionalInterface
@@ -178,11 +193,78 @@ public final class LodSampler {
 	 * {@code step} blocks, each taken at the middle of its square.
 	 */
 	public void sample(int minX, int minZ, int width, int step, Sink sink) {
-		if (coarse(width, step)) {
-			sampleCoarse(minX, minZ, width, step, sink);
-		} else {
-			new Grid(minX, minZ, width, step).sample(false, sink);
+		sample(minX, minZ, width, step, Detail.FULL, sink);
+	}
+
+	/** Samples a grid like {@link #sample(int, int, int, int, Sink)}, but no finer than {@code detail}. */
+	public void sample(int minX, int minZ, int width, int step, Detail detail, Sink sink) {
+		switch (coarse(width, step) ? Detail.COARSE : detail) {
+			case FULL -> new Grid(minX, minZ, width, step).sample(false, sink);
+			case RIVERLESS -> CoarseClimate.callWithoutRivers(() -> {
+				new Grid(minX, minZ, width, step).sample(false, sink);
+				return null;
+			});
+			case COARSE -> sampleCoarse(minX, minZ, width, step, sink);
 		}
+	}
+
+	/**
+	 * The finest detail a grid can be sampled at from the terrain the models have computed, without running them: in
+	 * full once the tiles it and its rivers need are in memory, without the rivers once its own are, and from the
+	 * coarse map until then.
+	 */
+	public Detail available(int minX, int minZ, int width, int step) {
+		if (coarse(width, step)) {
+			return Detail.FULL;
+		}
+		int[] tiles = tiles(minX, minZ, width, step);
+		int[] needed = Rivers.of(field).tilesNeeded(tiles[0], tiles[1], tiles[2], tiles[3]);
+		// The grid's own tiles come first.
+		int own = 2 * (tiles[2] - tiles[0] + 1) * (tiles[3] - tiles[1] + 1);
+		for (int t = 0; t < needed.length; t += 2) {
+			if (!field.tileReady(needed[t], needed[t + 1])) {
+				return t < own ? Detail.COARSE : Detail.RIVERLESS;
+			}
+		}
+		return Detail.FULL;
+	}
+
+	/**
+	 * Gets the terrain ready for a grid to be sampled in full without running the models: runs them over the first
+	 * tile it needs that is not in memory, but only while they are idle ({@link TerrainField#prefetchWhenIdle}), and
+	 * one tile a call, so that chunk generation never waits for more than one of the grid's.
+	 *
+	 * @return whether the grid is ready to sample in full
+	 */
+	public boolean prepare(int minX, int minZ, int width, int step) {
+		if (coarse(width, step)) {
+			return true;
+		}
+		int[] tiles = tiles(minX, minZ, width, step);
+		int[] needed = Rivers.of(field).tilesNeeded(tiles[0], tiles[1], tiles[2], tiles[3]);
+		boolean computed = false;
+		for (int t = 0; t < needed.length; t += 2) {
+			if (field.tileReady(needed[t], needed[t + 1])) {
+				continue;
+			}
+			if (computed || !field.prefetchWhenIdle(needed[t], needed[t + 1])) {
+				return false;
+			}
+			computed = true;
+		}
+		return true;
+	}
+
+	/**
+	 * The tiles of the terrain a grid reads, as {@code {ti0, tj0, ti1, tj1}}: those of its columns and their border,
+	 * and of the corners of the cells around them.
+	 */
+	private int[] tiles(int minX, int minZ, int width, int step) {
+		int low = -step + step / 2 - CELL;
+		int high = width * step + step / 2 + CELL;
+		// Pixel i grows with Z and j with X.
+		return new int[]{TerrainField.tileOf(scale.toPixel(minZ + low)), TerrainField.tileOf(scale.toPixel(minX + low)),
+			TerrainField.tileOf(scale.toPixel(minZ + high)), TerrainField.tileOf(scale.toPixel(minX + high))};
 	}
 
 	/**
@@ -351,7 +433,7 @@ public final class LodSampler {
 
 		/** The ground, the rivers and the sea over the grid and its border. */
 		private void sampleHeights(boolean coarse) {
-			Rivers rivers = coarse ? null : Rivers.of(field);
+			Rivers rivers = coarse || CoarseClimate.withoutRivers() ? null : Rivers.of(field);
 			TerrainSurface surface = coarse ? null : field.surface(scale);
 			TerrainSurface detailed = step > CELL ? null : surface;
 			this.rivers = rivers;

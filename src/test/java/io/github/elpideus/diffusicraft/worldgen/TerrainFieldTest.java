@@ -5,12 +5,15 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TerrainFieldTest {
@@ -196,6 +199,58 @@ class TerrainFieldTest {
 			pool.shutdown();
 		}
 		assertEquals(1, source.samples.get());
+	}
+
+	@Test
+	void computesWhenIdleOnlyWhileNoTileIsComputedNorWasJustNow() throws Exception {
+		AnalyticSource analytic = new AnalyticSource();
+		CountDownLatch entered = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		AtomicBoolean block = new AtomicBoolean();
+		TerrainSource source = new TerrainSource() {
+			@Override
+			public TerrainSample sample(int i0, int j0, int i1, int j1) {
+				if (block.getAndSet(false)) {
+					entered.countDown();
+					try {
+						release.await();
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
+				}
+				return analytic.sample(i0, j0, i1, j1);
+			}
+
+			@Override
+			public int coarseScale() {
+				return analytic.coarseScale();
+			}
+
+			@Override
+			public float[] coarse(int ci0, int cj0, int ci1, int cj1) {
+				return analytic.coarse(ci0, cj0, ci1, cj1);
+			}
+		};
+		TerrainField field = new TerrainField(1, source);
+		assertTrue(field.prefetchWhenIdle(0, 0), "the models are idle");
+		assertTrue(field.tileReady(0, 0));
+		assertFalse(field.prefetchWhenIdle(0, 1), "a tile was computed just now");
+		Thread.sleep(600);
+		block.set(true);
+		ExecutorService pool = Executors.newSingleThreadExecutor();
+		try {
+			Future<Boolean> busy = pool.submit(() -> field.prefetch(1, 0));
+			entered.await();
+			assertFalse(field.prefetchWhenIdle(0, 1), "another tile is being computed");
+			assertFalse(field.tileReady(1, 0));
+			release.countDown();
+			assertTrue(busy.get());
+		} finally {
+			pool.shutdown();
+		}
+		assertTrue(field.tileReady(1, 0));
+		assertFalse(field.tileReady(0, 1));
+		assertEquals(2, analytic.samples.get());
 	}
 
 	@Test

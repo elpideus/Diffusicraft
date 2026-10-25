@@ -4,7 +4,9 @@ import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -320,6 +322,44 @@ public final class Rivers {
 	public int[] lakeTiles(int ti, int tj) {
 		RiverNetwork.Lake lake = network == null ? null : network.lakeAt(ti, tj);
 		return lake == null ? new int[0] : lake.cells().clone();
+	}
+
+	/**
+	 * The tiles whose terrain the rivers and lakes of tiles {@code ti0} to {@code ti1} down and {@code tj0} to
+	 * {@code tj1} across need, as pairs {@code (ti, tj)}, the nearest first: those of the {@value #RING} rings around
+	 * them, and those of the lakes of the coarse map beside them whose water has not been found yet. The tiles beside a
+	 * river's mouth look at the seas of a few more.
+	 */
+	public int[] tilesNeeded(int ti0, int tj0, int ti1, int tj1) {
+		Set<Long> needed = new LinkedHashSet<>();
+		int reach = network == null ? 0 : RING;
+		for (int ring = 0; ring <= reach; ring++) {
+			for (int ti = ti0 - ring; ti <= ti1 + ring; ti++) {
+				for (int tj = tj0 - ring; tj <= tj1 + ring; tj++) {
+					needed.add(RiverNetwork.key(ti, tj));
+				}
+			}
+		}
+		if (network != null) {
+			for (int ti = ti0 - 1; ti <= ti1 + 1; ti++) {
+				for (int tj = tj0 - 1; tj <= tj1 + 1; tj++) {
+					RiverNetwork.Lake lake = network.lakeAt(ti, tj);
+					if (lake != null && !network.hasGreatLake(lake)) {
+						int[] cells = lake.cells();
+						for (int c = 0; c < cells.length; c += 2) {
+							needed.add(RiverNetwork.key(cells[c], cells[c + 1]));
+						}
+					}
+				}
+			}
+		}
+		int[] tiles = new int[2 * needed.size()];
+		int t = 0;
+		for (long key : needed) {
+			tiles[t++] = (int) (key >> 32);
+			tiles[t++] = (int) key;
+		}
+		return tiles;
 	}
 
 	/**

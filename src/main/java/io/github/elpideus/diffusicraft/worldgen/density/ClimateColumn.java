@@ -31,6 +31,8 @@ public final class ClimateColumn {
 	private TerrainField field;
 	private WorldScale scale;
 	private boolean coarse;
+	/** Whether the column was sampled without the rivers ({@link CoarseClimate#withoutRivers}). */
+	private boolean riverless;
 	private int blockX;
 	private int blockZ;
 	public final TerrainField.Column column = new TerrainField.Column();
@@ -55,8 +57,7 @@ public final class ClimateColumn {
 		while (c.sampling) {
 			c = c.nested();
 		}
-		boolean coarse = CoarseClimate.active();
-		if (c.field != field || c.scale != scale || c.coarse != coarse || c.blockX != blockX || c.blockZ != blockZ) {
+		if (!c.isAt(field, scale, blockX, blockZ)) {
 			c.sampling = true;
 			try {
 				c.sample(field, scale, blockX, blockZ);
@@ -92,7 +93,8 @@ public final class ClimateColumn {
 		surfaceY = column.coast >= 0f && column.coast < ClimateMapping.maxCoastWidth(scale)
 			? field.surface(scale).y(blockX, blockZ)
 			: scale.surfaceY(column.elevation);
-		RiverColumn river = coarse ? null : Rivers.of(field).column(scale, blockX, blockZ);
+		boolean riverless = CoarseClimate.withoutRivers();
+		RiverColumn river = riverless ? null : Rivers.of(field).column(scale, blockX, blockZ);
 		if (river != null && river.lake && river.level > 0f && column.elevation < 0f) {
 			column.aboveLow += river.level - column.elevation;
 			column.elevation = river.level;
@@ -108,14 +110,15 @@ public final class ClimateColumn {
 		this.field = field;
 		this.scale = scale;
 		this.coarse = coarse;
+		this.riverless = riverless;
 		this.blockX = blockX;
 		this.blockZ = blockZ;
 	}
 
 	/** Whether this column holds (x, z) of a world, sampled the way {@link #sample} would sample it now. */
 	public boolean isAt(TerrainField field, WorldScale scale, int blockX, int blockZ) {
-		return this.field == field && this.scale == scale && coarse == CoarseClimate.active() && this.blockX == blockX
-			&& this.blockZ == blockZ;
+		return this.field == field && this.scale == scale && coarse == CoarseClimate.active()
+			&& riverless == CoarseClimate.withoutRivers() && this.blockX == blockX && this.blockZ == blockZ;
 	}
 
 	public ClimateColumn() {

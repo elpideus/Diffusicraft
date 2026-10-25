@@ -335,9 +335,11 @@ public final class LodStore implements AutoCloseable {
 	 * Lays the stored columns over a grid of {@code width}² columns {@code step} blocks apart from block
 	 * {@code (minX, minZ)}, sinking them as {@link LodGrid#sample} does, and samples the grid with {@code sampled}
 	 * only if some column is not stored. A grid whose step is not a level's or whose corner is not a multiple of its
-	 * step is sampled as it is.
+	 * step is sampled as it is. Null if {@code sampled} is needed and gives null; {@link LodGrid#rough} if what it
+	 * gives is.
 	 */
-	public LodGrid overlay(int minX, int minZ, int width, int step, int ceiling, Supplier<LodGrid> sampled) {
+	public @Nullable LodGrid overlay(int minX, int minZ, int width, int step, int ceiling,
+									 Supplier<? extends @Nullable LodGrid> sampled) {
 		int level = Integer.numberOfTrailingZeros(step);
 		if (Integer.bitCount(step) != 1 || level >= LEVELS || Math.floorMod(minX, step) != 0
 			|| Math.floorMod(minZ, step) != 0) {
@@ -380,7 +382,11 @@ public final class LodStore implements AutoCloseable {
 			}
 		}
 		LodGrid base = whole ? null : sampled.get();
+		if (!whole && base == null) {
+			return null;
+		}
 		LodGrid grid = new LodGrid(width);
+		grid.rough(base != null && base.rough());
 		for (int k = 0; k < width * width; k++) {
 			Page from = found[page[k]];
 			if (from != null && from.has(index[k])) {

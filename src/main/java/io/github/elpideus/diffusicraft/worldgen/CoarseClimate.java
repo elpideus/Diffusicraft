@@ -12,6 +12,7 @@ package io.github.elpideus.diffusicraft.worldgen;
  */
 public final class CoarseClimate {
 	private static final ScopedValue<Boolean> ACTIVE = ScopedValue.newInstance();
+	private static final ScopedValue<Boolean> RIVERLESS = ScopedValue.newInstance();
 
 	private CoarseClimate() {
 	}
@@ -24,5 +25,19 @@ public final class CoarseClimate {
 	/** Whether this thread is inside {@link #call}. */
 	public static boolean active() {
 		return ACTIVE.isBound();
+	}
+
+	/**
+	 * Runs {@code op} on this thread with the full-resolution terrain but without the rivers, their lakes and their
+	 * valleys, which need the terrain of the tiles around. The far terrain does, where those tiles are not computed
+	 * yet.
+	 */
+	public static <T, X extends Throwable> T callWithoutRivers(ScopedValue.CallableOp<T, X> op) throws X {
+		return ScopedValue.where(RIVERLESS, Boolean.TRUE).call(op);
+	}
+
+	/** Whether this thread leaves out the rivers: inside {@link #call} or {@link #callWithoutRivers}. */
+	public static boolean withoutRivers() {
+		return ACTIVE.isBound() || RIVERLESS.isBound();
 	}
 }

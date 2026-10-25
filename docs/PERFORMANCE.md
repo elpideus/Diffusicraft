@@ -76,6 +76,9 @@ arrays. Speed has to come from the model runs themselves.
   - The decoder runs in [half precision](#half-precision-decoder).
 - **Sharing the GPU.** The CUDA arena is capped at 60% of video memory by default (`gpuMemoryLimitMb`). Rendering,
   Distant Horizons and shader packs keep the rest, and inference never starves the renderer of memory.
+- **The far terrain waits its turn.** It builds every tile from the terrain already computed, rough where some is
+  missing, and runs the models for it only while chunk generation leaves them idle, one tile at a time
+  ([LOD.md](LOD.md#using-them-lodgridsample)). Turning it on adds no inference that a chunk has to wait for.
 - **Fast startup.** The status shown in the UI is computed off the render thread from file metadata. Model files are
   hashed once, then trusted through `.verified` markers.
 

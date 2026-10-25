@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * it in multiplayer as in singleplayer. A client with Diffusicraft hears as it joins how far the feed reaches, whether
  * it shares what players built and which levels it serves ({@link LodPayloads.Offer}), then asks for grids
  * ({@link LodPayloads.Request}) and gets each in a {@link LodPayloads.Reply}, with no grid when the server refuses it.
+ * Diffusicraft's own far terrain asks for each grid rough first, and to refine it once it is drawn, so that it never
+ * holds up the server's chunk generation ({@link LodGrid.Mode}); Voxy asks for it in full.
  *
  * <p>By default the grids are the terrain as generated ({@link LodGrid#generate}), and each client keeps what it saw
  * itself: a player cannot find from afar what others built. A server that shares what players built
@@ -41,11 +43,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>The server refuses a request whose level is not the player's or not a Diffusicraft one, whose grid lies further
  * from the player than {@code farTerrainRadius}, or that would leave the player more than {@value #MAX_IN_FLIGHT}
  * requests waiting. Grids are sampled on {@value #THREADS} threads of their own, so they never hold up the ticks, and
- * the last {@value #CACHED_GRIDS} are kept for players near each other, until a chunk saved under one changes it
- * ({@link LodStore}) where the server shares what players built. Everything else runs on the server thread.
+ * the last {@value #CACHED_GRIDS} that are not rough are kept for players near each other, until a chunk saved under
+ * one changes it ({@link LodStore}) where the server shares what players built. Everything else runs on the server
+ * thread.
  */
 public final class LodFeed {
-	/** Threads sampling grids. Each grid may run the models over the tiles it covers, as chunks do. */
+	/**
+	 * Threads sampling grids. A grid asked for in full may run the models over the tiles it covers, as chunks do; one
+	 * asked for rough runs none, and one to refine one tile at most, while they are idle ({@link LodGrid.Mode}).
+	 */
 	static final int THREADS = 2;
 	/** Requests a player may have waiting at once. */
 	static final int MAX_IN_FLIGHT = 32;
@@ -62,9 +68,9 @@ public final class LodFeed {
 	private final boolean shareBuilds;
 	private final Map<ResourceKey<Level>, Optional<LodSampler>> samplers = new HashMap<>();
 	private final Map<UUID, Integer> inFlight = new HashMap<>();
-	private final Map<GridKey, CompletableFuture<LodGrid>> grids = new LinkedHashMap<>(16, 0.75F, true) {
+	private final Map<GridKey, CompletableFuture<@Nullable LodGrid>> grids = new LinkedHashMap<>(16, 0.75F, true) {
 		@Override
-		protected boolean removeEldestEntry(Map.Entry<GridKey, CompletableFuture<LodGrid>> eldest) {
+		protected boolean removeEldestEntry(Map.Entry<GridKey, CompletableFuture<@Nullable LodGrid>> eldest) {
 			return size() > CACHED_GRIDS;
 		}
 	};
@@ -173,26 +179,30 @@ public final class LodFeed {
 		}
 		inFlight.put(id, waiting + 1);
 		GridKey key = new GridKey(request.level(), request.minX(), request.minZ(), request.width(), request.step(),
-			request.ceiling());
-		CompletableFuture<LodGrid> grid = grids.get(key);
+			request.ceiling(), request.mode());
+		CompletableFuture<@Nullable LodGrid> grid = grids.get(key);
 		if (grid == null) {
 			grid = CompletableFuture.supplyAsync(() -> {
 				if (closed) {
 					throw new CancellationException("The server is stopping");
 				}
-				return shareBuilds ? LodGrid.sample(sampler, key.minX, key.minZ, key.width, key.step, key.ceiling)
-					: LodGrid.generate(sampler, key.minX, key.minZ, key.width, key.step, key.ceiling);
+				return shareBuilds
+					? LodGrid.sample(sampler, key.minX, key.minZ, key.width, key.step, key.ceiling, key.mode)
+					: LodGrid.generate(sampler, key.minX, key.minZ, key.width, key.step, key.ceiling, key.mode);
 			}, executor());
 			grids.put(key, grid);
 		}
-		CompletableFuture<LodGrid> future = grid;
+		CompletableFuture<@Nullable LodGrid> future = grid;
 		future.whenComplete((sampled, error) -> server.execute(() -> {
 			if (closed) {
 				return;
 			}
 			inFlight.computeIfPresent(id, (uuid, n) -> n > 1 ? n - 1 : null);
-			if (error != null) {
+			// A rough grid, or none yet, is sampled again when asked for again: the terrain may be ready by then.
+			if (error != null || sampled == null || sampled.rough()) {
 				grids.remove(key, future);
+			}
+			if (error != null) {
 				if (!warned) {
 					warned = true;
 					Diffusicraft.LOGGER.warn("Could not sample far terrain for {}", player.getScoreboardName(), error);
@@ -251,6 +261,7 @@ public final class LodFeed {
 		}
 	}
 
-	private record GridKey(ResourceKey<Level> level, int minX, int minZ, int width, int step, int ceiling) {
+	private record GridKey(ResourceKey<Level> level, int minX, int minZ, int width, int step, int ceiling,
+						   LodGrid.Mode mode) {
 	}
 }
