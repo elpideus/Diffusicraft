@@ -28,8 +28,12 @@ final class FarMeshWriter {
 	static FarMesh.Data write(LodTiles.Tile tile, LodGrid grid, int bottom, LodColors colors, FarMaterials materials) {
 		Quads solid = new Quads(tile, bottom, colors, materials, 255);
 		Quads water = new Quads(tile, bottom, colors, materials, WATER_ALPHA);
+		// Water that no sky reaches, a lake in a cave, is drawn opaque with the land: a shader pack's dh_water, such as
+		// Bliss's, may light all water as if open to the sky, reflecting it, whatever light it has.
+		LodMesher.Faces waters = (side, x0, y0, z0, x1, y1, z1, state, biome, sky) ->
+			(sky == 0 ? solid : water).face(side, x0, y0, z0, x1, y1, z1, state, biome, sky);
 		try {
-			LodMesher.mesh(grid, tile.step(), solid, water);
+			LodMesher.mesh(grid, tile.step(), solid, waters);
 			int quads = solid.count + water.count;
 			int minY = Math.min(solid.minY, water.minY);
 			int maxY = Math.max(solid.maxY, water.maxY);

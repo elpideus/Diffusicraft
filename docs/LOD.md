@@ -226,7 +226,8 @@ These parts are unit-tested and feed the renderer below.
   - **Light.** The ground under something takes a little less sky light. Faces under water darken with depth, as
     the world's do. The faces in a cave, and those in or under the water of a lake in one, take no sky light at all,
     so that the caves stay as dark as the world's own and a shader pack does not light them as if the sun reached
-    them.
+    them. Water without sky light is drawn opaque, with the land (`FarMeshWriter`): Bliss's `dh_water` lights all
+    water as open to the sky, reflecting it, whatever light it has, so a far cave lake glowed under it.
 - **Colours (`LodColors`, client).** Each block has a colour for its top, bottom and sides: the average of the
   textures its model shows there, weighted by the area each covers, leaving out see-through pixels. The parts the
   world tints, such as grass, leaves and water, take the same tints for the column's biome, through the game's own
