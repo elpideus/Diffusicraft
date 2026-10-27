@@ -20,6 +20,7 @@
 		"RandomStateAccessor",
 		"RandomStateMixin",
 		"SpringFeatureMixin",
+		"StructureTemplatePaletteMixin",
 		"dh.ChunkWrapperMixin",
 		"height.BlockPosMixin",
 		"height.ClientboundLevelChunkPacketDataMixin",

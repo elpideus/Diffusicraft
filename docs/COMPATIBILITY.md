@@ -20,7 +20,7 @@ for each mod, and what is still open.
 | [Iris](#shaders) 1.11.7 with Bliss 2.1.2, Complementary Unbound r5.9.3, other shader packs | Works, checked in game | Inference leaves GPU memory for them; see [CONFIG.md](CONFIG.md#gpumemorylimitmb) |
 | [Minecraft's Vulkan renderer](#vulkan) | Works, checked in game; Distant Horizons with Iris stops it at launch | Nothing: Diffusicraft draws through neither OpenGL nor Vulkan itself |
 | [Sulkan](#vulkan) 0.6.0, shaders on Vulkan | Works, checked in game; hides Distant Horizons' far terrain | Inference leaves GPU memory for it, as for Iris |
-| Structure mods | Works | Structures are placed by the vanilla generator |
+| Structure mods | Works | Structures are placed by the vanilla generator; those on the surface whose sets spread at random show in the far terrain |
 
 ## Warnings
 
@@ -58,8 +58,10 @@ included, on servers as in singleplayer.
 - ice on cold water and a snow layer where the biome snows, as the chunk's features would put them;
 - the biome, which Distant Horizons uses to tint grass, leaves and water.
 
-Caves, plants, fallen trees and structures are left out. Lighting follows Distant Horizons' own conventions: full sky
-light above the ground, the sky dimmed by the water over it, and none below the surface.
+Caves, plants, fallen trees and the structures underground are left out. The structures on the surface show in the
+LODs whose columns are at most 8 blocks apart, as [LOD.md](LOD.md#structures-farstructures-and-structuresketch)
+describes. Lighting follows Distant Horizons' own conventions: full sky light above the ground, the sky dimmed by the
+water over it, and none below the surface.
 
 **Trees.** `worldgen.lod.TreeCover` works out each biome's trees once from its vegetation features, without placing
 any in the world:

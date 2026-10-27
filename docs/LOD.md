@@ -98,6 +98,32 @@ Chunk generation asks for its next tile as soon as one is done, so a refinement 
 holds chunk generation up by one tile at most. A grid reads the full-resolution terrain only while it spans four
 tiles or fewer, so with its rings it needs 81 at most, within the 160 the terrain keeps in memory.
 
+### Structures: `FarStructures` and `StructureSketch`
+
+The villages, temples, outposts, shipwrecks and other structures on the surface show in the grids whose columns are
+at most 8 blocks apart, so they no longer pop up out of nowhere as one flies towards them. `FarStructures` picks their
+starts as the chunk generator does, from the same seeds and the same structure sets, and keeps the last 4,096 it made
+in memory. Only the sets spread at random are read: strongholds and whatever is underground stay out. It places their
+pieces chunk by chunk, with the chunk generator's own decoration seeds, into a `StructureSketch`: a `WorldGenLevel`
+without chunks, solid up to the far terrain's ground and water over it where the sea or a river covers it. The pieces
+read it as they read a chunk being generated, so foundations reach down to that ground, paths follow it and turn into
+bridges over water. The sketch keeps only the blocks; entities, block entities and ticks are dropped.
+
+Each cell then sums up the blocks in its columns. It rises where they stand above the ground in a quarter of them at
+least, to the highest roof, with the block under that roof for its walls; it is paved where they lie on the ground, as
+a village's paths do. No tree grows on such a cell. A structure may sit a block or two off where it generates: it
+stands on the far ground, which lacks the ledges and gullies, and the earth vanilla heaps up and cuts away round some
+structures. Grids sampled without the rivers or from the coarse map show no structures, so the starts kept are all
+made on the finished terrain. A structure that fails to place in a sketch is left out with one warning in the log.
+Vanilla caches a template's blocks by kind in a map that only one thread was meant to fill at a time. The far
+terrain's workers place pieces beside the chunks' own, so `StructureTemplatePaletteMixin` makes that map a concurrent
+one: before, two threads filling it at once threw, and could have thrown in the chunks' generation.
+
+`FarTerrainStructuresGameTest` views the village nearest the spawn from beyond the chunks drawn, before its chunks
+exist, then generates them and checks that the far columns over most of its buildings rise to within 3 blocks of
+their roofs. On the test's seed, 870 of the 1,034 columns over a taiga village's buildings do, and the columns over
+the whole village lie 0.8 blocks off on average.
+
 ### On a server: `LodFeed`, `RemoteLods` and `SeenChunks`
 
 A server with Diffusicraft sends the far terrain of its Diffusicraft worlds to the clients with Diffusicraft that ask

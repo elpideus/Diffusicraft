@@ -44,8 +44,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * strata in the cliffs), run on each column as the chunk generator runs them, with the neighbouring columns giving
  * the slope. Snow and ice follow the biome's temperature, as they do in the world. Trees stand on the soils as
  * crowns of leaves, as many and as large as the biome's own trees (see {@link TreeCover}), and the giants that grow as
- * structures stand where the world grows them (see {@link GreatTrees}), their crowns over water too. What the column
- * leaves out is what a far view cannot show: caves, plants and the other structures.
+ * structures stand where the world grows them (see {@link GreatTrees}), their crowns over water too. The structures on
+ * the surface, villages, temples, shipwrecks and the like, stand where the world starts them in the grids whose columns
+ * are close enough to show them (see {@link FarStructures}). What the column leaves out is what a far view cannot show:
+ * caves, plants and the structures underground.
  *
  * <p>A grid wider than {@value #FULL_DETAIL_TILES} terrain tiles is sampled from the coarse map alone, inside
  * {@link CoarseClimate#call}: it costs no model inference beyond the coarse stage, but leaves out the rivers and
@@ -92,6 +94,7 @@ public final class LodSampler {
 	private final long seed;
 	private final Map<Holder<Biome>, TreeCover> trees = new ConcurrentHashMap<>();
 	private final @Nullable GreatTrees greatTrees;
+	private final @Nullable FarStructures structures;
 	private final @Nullable LodStore store;
 
 	/** How finely a grid is sampled. */
@@ -112,7 +115,8 @@ public final class LodSampler {
 	}
 
 	private LodSampler(NoiseBasedChunkGenerator generator, RandomState randomState, LevelHeightAccessor heights,
-					   BiomeWorld world, long seed, @Nullable GreatTrees greatTrees, @Nullable LodStore store) {
+					   BiomeWorld world, long seed, @Nullable GreatTrees greatTrees, @Nullable FarStructures structures,
+					   @Nullable LodStore store) {
 		this.generator = generator;
 		this.randomState = randomState;
 		this.heights = heights;
@@ -127,6 +131,7 @@ public final class LodSampler {
 		this.maxY = context.getMinGenY() + context.getGenDepth() - 1;
 		this.seed = seed;
 		this.greatTrees = greatTrees;
+		this.structures = structures;
 		this.store = store;
 	}
 
@@ -135,7 +140,8 @@ public final class LodSampler {
 		BiomeWorld world = world(level);
 		return world == null ? null : new LodSampler((NoiseBasedChunkGenerator) level.getChunkSource().getGenerator(),
 			level.getChunkSource().randomState(), level, world, level.getSeed(),
-			GreatTrees.of(level.getChunkSource().getGeneratorState(), world.scale(), level.getMaxY()), LodStore.of(level));
+			GreatTrees.of(level.getChunkSource().getGeneratorState(), world.scale(), level.getMaxY()), FarStructures.of(level),
+			LodStore.of(level));
 	}
 
 	/** Whether Diffusicraft generates a world. */
@@ -353,6 +359,10 @@ public final class LodSampler {
 			LodColumn column = new LodColumn();
 			TreeCover.Crown crown = new TreeCover.Crown();
 			GreatTrees.Stand giants = greatTrees == null ? null : greatTrees.stand(this::dryGround, biomes);
+			// Only over the full terrain with its rivers, which the starts kept for later grids are made on.
+			FarStructures.Cell[] built = structures == null || rivers == null || terrain == null
+				|| step > FarStructures.MAX_STEP ? null
+				: structures.sketch(minX, minZ, width, step, this::land, biomes, defaultBlock);
 
 			for (int b = 0; b < width; b++) {
 				int z = block(minZ, b);
@@ -383,32 +393,46 @@ public final class LodSampler {
 					for (int y = top; y >= surfaceBottom; y--) {
 						surface[top - y] = apply(evaluator, rules, x, y, z, groundTop, waterHeight);
 					}
+					FarStructures.Cell cell = built == null ? null : built[b * width + a];
+					if (cell != null && !cell.risen()) {
+						surface[0] = cell.top();
+					}
 					int rockY = Math.max(minY, top - ROCK_DEPTH);
 					column.add(apply(evaluator, rules, x, rockY, z, groundTop, waterHeight), minY, surfaceBottom);
 					for (int y = surfaceBottom; y <= top; y++) {
 						column.add(surface[top - y], y, y + 1);
 					}
+					// A structure's roof is the ground, as it is in the chunks (see ChunkColumns).
+					int floor = top;
+					if (cell != null && cell.risen() && cell.y() > top) {
+						if (cell.y() > top + 1) {
+							column.add(cell.body(), top + 1, cell.y());
+						}
+						column.add(cell.top(), cell.y(), cell.y() + 1);
+						floor = cell.y();
+					}
 					column.markGround();
 
 					Biome climate = biome[0].value();
-					boolean dry = water <= top;
+					boolean dry = water <= floor;
 					// Right over the ground or the water.
-					int open = top + 1;
+					int open = floor + 1;
 					if (!dry) {
 						// Water freezes where it is cold enough to snow, as the chunk's features freeze it.
 						boolean frozen = climate.coldEnoughToSnow(pos.set(x, water, z), seaLevel);
-						column.add(WATER, top + 1, frozen ? water : water + 1);
+						column.add(WATER, floor + 1, frozen ? water : water + 1);
 						if (frozen) {
 							column.add(ICE, water, water + 1);
 						}
-						column.waterDepth(water - top);
+						column.waterDepth(water - floor);
 						open = water + 1;
 					}
-					boolean grown = dry && surface[0].is(BlockTags.SUPPORTS_VEGETATION)
+					// No tree grows on a structure.
+					boolean grown = cell == null && dry && surface[0].is(BlockTags.SUPPORTS_VEGETATION)
 						&& trees.computeIfAbsent(biome[0], holder -> TreeCover.of(holder, scale))
 							.crown(seed, x, z, step, crown);
 					// A giant's crown reaches out over the water too, and over the smaller trees.
-					if (giants != null) {
+					if (giants != null && cell == null) {
 						grown = giants.crown(x, z, top, step, grown, crown);
 					}
 					int sky = open;
@@ -496,25 +520,40 @@ public final class LodSampler {
 		}
 
 		/**
-		 * The first block over the ground of column {@code (x, z)}, as {@link #sampleHeights} finds the ground, or
-		 * {@link Integer#MIN_VALUE} if the sea or a river covers it: where a giant may stand. Without the ledges and the
-		 * gullies.
+		 * The first block over the ground of column {@code (x, z)}, as {@link #land} finds the ground, or
+		 * {@link Integer#MIN_VALUE} if the sea or a river covers it: where a giant may stand.
 		 */
 		private int dryGround(int x, int z) {
+			StructureSketch.Land land = land(x, z);
+			return land.water() > land.ground() ? Integer.MIN_VALUE : land.ground() + 1;
+		}
+
+		/**
+		 * The ground of column {@code (x, z)} and the water over it, as {@link #sampleHeights} and {@link #sample} find
+		 * them, but without the ledges and the gullies.
+		 */
+		private StructureSketch.Land land(int x, int z) {
 			float surfaceY = terrain != null ? terrain.shore(x, z)
 				: scale.surfaceY(field.coarseElevation(scale.toPixel(z), scale.toPixel(x)));
 			int top = Mth.ceil(surfaceY) - 1;
+			int bed = Integer.MIN_VALUE;
+			int water = Integer.MIN_VALUE;
 			if (rivers != null) {
 				RiverColumn river = rivers.column(scale, x, z);
 				if (river.river) {
 					top = Mth.ceil(river.surface) - 1;
 				}
-				if (river.channel && river.bed < Math.min(river.waterTop, top)) {
-					return Integer.MIN_VALUE;
+				int waterTop = Math.min(river.waterTop, top);
+				if (river.channel && river.bed < waterTop) {
+					bed = river.bed;
+					water = waterTop;
 				}
 			}
 			top = Mth.clamp(top, minY, maxY - 1);
-			return top < seaLevel - 1 ? Integer.MIN_VALUE : top + 1;
+			if (top < seaLevel - 1) {
+				water = Math.max(water, seaLevel - 1);
+			}
+			return new StructureSketch.Land(bed != Integer.MIN_VALUE ? bed : top, water);
 		}
 
 		private BlockState apply(RuleEvaluator evaluator, MaterialRuleContextAccessor rules, int x, int y, int z,

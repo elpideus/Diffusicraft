@@ -26,6 +26,7 @@
 			"io.github.elpideus.diffusicraft.gametest.FarTerrainGameTest",
 			"io.github.elpideus.diffusicraft.gametest.FarTerrainGapsGameTest",
 			"io.github.elpideus.diffusicraft.gametest.FarTerrainCavesGameTest",
+			"io.github.elpideus.diffusicraft.gametest.FarTerrainStructuresGameTest",
 			"io.github.elpideus.diffusicraft.gametest.ShareBuildsGameTest"
 		]
 	},
