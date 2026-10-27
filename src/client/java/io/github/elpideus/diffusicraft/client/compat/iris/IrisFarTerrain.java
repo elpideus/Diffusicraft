@@ -40,8 +40,10 @@ import org.lwjgl.opengl.GL32C;
  * part: the pack is told that Distant Horizons draws ({@code DISTANT_HORIZONS} is defined, and Iris's {@code DHCompat}
  * reports the far terrain's planes, reach and depth textures), and the tiles of {@link FarTerrain} are drawn with those
  * programs, the land before the chunks, as Distant Horizons draws it, and the water before the translucent chunks.
- * Where the pack has a {@code dh_shadow} program and lets Distant Horizons cast shadows, the land of the tiles is drawn
- * into its shadow map as well, as Iris's shadow pass calls back.
+ * Where the pack has a {@code dh_shadow} program and a shadow map, the land of the tiles is drawn into its shadow map as
+ * well, as Iris's shadow pass calls back, even where the pack keeps Distant Horizons out of it: within the shadow's
+ * reach the far terrain stands where the chunks would, and a pack that lights it from the shadow map would light a cave
+ * there as if nothing stood over it.
  *
  * <p>Load it only when Iris is installed. On the render thread.
  */
@@ -323,7 +325,7 @@ public final class IrisFarTerrain {
 		final IrisRenderingPipeline pipeline;
 		@Nullable FarProgram terrain;
 		@Nullable FarProgram water;
-		/** The pack's {@code dh_shadow}, if it lets Distant Horizons cast shadows and has a shadow map. */
+		/** The pack's {@code dh_shadow}, if it has one and a shadow map. */
 		@Nullable FarProgram shadow;
 		@Nullable GlFramebuffer terrainFramebuffer;
 		@Nullable GlFramebuffer waterFramebuffer;
@@ -347,8 +349,9 @@ public final class IrisFarTerrain {
 				return;
 			}
 			ProgramSource waterSource = pipeline.getDHWaterShader().orElse(terrainSource);
-			// As Iris builds them for Distant Horizons: the pack casts its shadows unless it says not to.
-			ProgramSource shadowSource = pipeline.hasShadowRenderTargets() && castsShadows()
+			// Whether or not the pack lets Distant Horizons cast (dhShadow.enabled): where it does not, Iris keeps the
+			// shadow's box to the pack's own reach, and the far terrain within it casts as the chunks there would.
+			ProgramSource shadowSource = pipeline.hasShadowRenderTargets()
 				? pipeline.getDHShadowShader().orElse(null) : null;
 			try {
 				terrain = FarProgram.create("dh_terrain", terrainSource, FarProgram.Pass.TERRAIN, pipeline);
@@ -377,14 +380,6 @@ public final class IrisFarTerrain {
 				GL20C.glEnableVertexAttribArray(i);
 			}
 			GlStateManager._glBindVertexArray(0);
-		}
-
-		/** Whether the pack in use lets Distant Horizons cast shadows, as its {@code dhShadow.enabled} says. */
-		private static boolean castsShadows() {
-			return Iris.getCurrentPack()
-				.map(pack -> pack.getProgramSet(Iris.getCurrentDimension()).getPackDirectives().getShadowDirectives()
-					.isDhShadowEnabled().orElse(true))
-				.orElse(false);
 		}
 
 		void resize(int width, int height) {

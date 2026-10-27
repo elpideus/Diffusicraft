@@ -308,13 +308,17 @@ plays its part for Iris:
   the far terrain within the chunks' reach, and its `dh_water` the water wherever the chunks have drawn, which it
   would cover from a cave, as it is drawn after them; so the tiles start at its edge, `ChunkMask` is not used, and the
   pack's own fog applies. A pack without `dh_water` has its water drawn with `dh_terrain`, as Iris does.
-- **Shadows.** Where the pack has a `dh_shadow` program and does not turn Distant Horizons' shadows off
-  (`dhShadow.enabled`, which Bliss ties to its `DISTANT_HORIZONS_SHADOWMAP` option), the land of the far terrain is
-  drawn into the pack's shadow map, through Iris's public callback for the shadow pass, which runs after the chunks'
-  solid terrain. Every tile the shadow's box sees casts, those out of view as well, since the sun throws shadows into
-  view from behind the camera. The water does not: what is drawn there also lands in `shadowtex1`, the depth without
-  the translucent blocks, which Iris copies after the callbacks. How far the shadows reach is the pack's
-  `shadowDistance`, as with Distant Horizons.
+- **Shadows.** Where the pack has a `dh_shadow` program, the land of the far terrain is drawn into the pack's shadow
+  map, through Iris's public callback for the shadow pass, which runs after the chunks' solid terrain. Every tile the
+  shadow's box sees casts, those out of view as well, since the sun throws shadows into view from behind the camera.
+  The water does not: what is drawn there also lands in `shadowtex1`, the depth without the translucent blocks, which
+  Iris copies after the callbacks. How far the shadows reach is the pack's `shadowDistance`. It casts even where the
+  pack turns Distant Horizons' shadows off (`dhShadow.enabled`, which Bliss ties to its `DISTANT_HORIZONS_SHADOWMAP`
+  option and leaves off). Iris then keeps the shadow's box to the pack's own reach, 128 blocks in Bliss, and with a
+  render distance shorter than that the far terrain begins inside it. Bliss lights everything there from the shadow
+  map and its sky light only beyond it, so a far cave with nothing drawn over it in the shadow map would be lit as if
+  in the open. Complementary has no `dh_shadow` and lights Distant Horizons' terrain from its sky light alone, so its
+  far caves stay dark without it.
 
 ## Next
 
