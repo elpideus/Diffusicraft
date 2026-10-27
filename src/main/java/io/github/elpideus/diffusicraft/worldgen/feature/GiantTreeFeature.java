@@ -59,6 +59,8 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 	static final int UNEVEN = 6;
 	/** Deepest the roots reach down to the ground, in blocks. */
 	static final int ROOTS = 12;
+	/** Farthest any part of a giant lies from its trunk's axis, in blocks: see {@link #room}. */
+	public static final int MAX_ROOM = GiantTree.MAX_REACH;
 
 	/** The forms a giant takes. */
 	public enum Form implements StringRepresentable {
@@ -103,13 +105,11 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		if (base == null) {
 			return false;
 		}
-		double size = GiantTree.size(scale);
-		int height = Math.min((int) Math.round(this.height.sample(random) * size),
-			level.getMaxY() - base.getY() - HEADROOM);
-		if (height < MIN_HEIGHT * size) {
+		int height = fit(height(random, scale), base.getY(), level.getMaxY(), scale);
+		if (height == 0) {
 			return false;
 		}
-		GiantTree.Blocks tree = GiantTree.grow(form, height, room(origin), random);
+		GiantTree.Blocks tree = GiantTree.grow(form, height, room(origin.getX(), origin.getZ()), random);
 		if (!levelAround(level, base, tree.footReach + 2)) {
 			return false;
 		}
@@ -117,6 +117,42 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		int chunkZ = SectionPos.blockToSectionCoord(origin.getZ());
 		write(level, base, tree, wood, leaves, pos -> writable(level, pos, chunkX, chunkZ));
 		return true;
+	}
+
+	/**
+	 * Draws how tall a giant grows in a world of {@code scale}, before the top of the world cuts it: the first draw of a
+	 * giant that has found its ground.
+	 */
+	public int height(RandomSource random, WorldScale scale) {
+		return (int) Math.round(this.height.sample(random) * GiantTree.size(scale));
+	}
+
+	/**
+	 * How tall a giant drawn {@code height} blocks tall grows with its foot at {@code base}, in a world of
+	 * {@code scale}: cut to fit under {@code maxY}, the top of the world, or {@code 0} if it is then too short to grow
+	 * at all.
+	 */
+	public static int fit(int height, int base, int maxY, WorldScale scale) {
+		height = Math.min(height, maxY - base - HEADROOM);
+		return height < MIN_HEIGHT * GiantTree.size(scale) ? 0 : height;
+	}
+
+	/** The lowest a giant of a world of {@code scale} grows, before the top of the world cuts it. */
+	public int minHeight(WorldScale scale) {
+		return (int) Math.round(height.minInclusive() * GiantTree.size(scale));
+	}
+
+	/** The highest a giant of a world of {@code scale} grows. */
+	public int maxHeight(WorldScale scale) {
+		return (int) Math.round(height.maxInclusive() * GiantTree.size(scale));
+	}
+
+	/**
+	 * Lays the whole of a giant {@code height} blocks tall, no block of it farther than {@code room} from its trunk's
+	 * axis, drawn from {@code seed}, into {@code out}.
+	 */
+	public void grow(int height, int room, long seed, GiantTreeStructure.BlockSink out) {
+		GiantTreeStructure.lay(GiantTree.grow(form, height, room, RandomSource.create(seed)), out);
 	}
 
 	/** The first block over the soil under {@code origin}, or {@code null} if there is none to grow from. */
@@ -174,10 +210,14 @@ public record GiantTreeFeature(Form form, BlockState wood, BlockState leaves, In
 		return !state.isAir() && !state.is(BlockTags.LEAVES) && !state.is(BlockTags.LOGS) && !state.canBeReplaced();
 	}
 
-	/** How far a tree at {@code origin} may reach: to the nearest edge of the chunks around its own, less a block. */
-	private static int room(BlockPos origin) {
-		int x = origin.getX() & 15, z = origin.getZ() & 15;
-		return Math.min(GiantTree.MAX_REACH, Math.min(Math.min(x + 16, 31 - x), Math.min(z + 16, 31 - z)) - 1);
+	/**
+	 * How far a tree at block {@code (x, z)} may reach: to the nearest edge of the chunks around its own, less a block,
+	 * and {@value #MAX_ROOM} blocks at most.
+	 */
+	public static int room(int x, int z) {
+		x &= 15;
+		z &= 15;
+		return Math.min(MAX_ROOM, Math.min(Math.min(x + 16, 31 - x), Math.min(z + 16, 31 - z)) - 1);
 	}
 
 	/**

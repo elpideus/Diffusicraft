@@ -130,7 +130,11 @@ public final class GiantTreeStructure extends Structure {
 
 	/** Lays the whole of a giant {@code height} blocks tall, drawn from {@code seed}, into {@code out}. */
 	public void grow(int height, long seed, BlockSink out) {
-		GiantTree.Blocks blocks = GiantTree.grow(form, height, GiantTree.reach(form, height), RandomSource.create(seed));
+		lay(GiantTree.grow(form, height, GiantTree.reach(form, height), RandomSource.create(seed)), out);
+	}
+
+	/** Lays the blocks of a giant into {@code out}. */
+	static void lay(GiantTree.Blocks blocks, BlockSink out) {
 		for (long pos : blocks.wood) {
 			out.accept(BlockPos.getX(pos), BlockPos.getY(pos), BlockPos.getZ(pos), true);
 		}

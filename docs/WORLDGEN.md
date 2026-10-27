@@ -708,7 +708,7 @@ one in 24 of vanilla's forests (flower, birch and dark forests too) and one in 4
 and a kapok in one in 10 of its jungles. So the plains, the largest open land, show a lone giant oak a hundred blocks
 or so apart where the ground is level, and their ancient woodlands a stand of them.
 
-The LOD mods draw the giants too, the ancient oaks and the kapoks where the world grows them (see
+The LOD mods and the far terrain draw the giants too, where the world grows them (see
 [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)).
 
 ### Lianas

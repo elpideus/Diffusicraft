@@ -78,17 +78,23 @@ any in the world:
   show up to a third more canopy. A column is under the highest crown that reaches it, with the trunk drawn only in
   the nearest LODs. The wider columns of farther LODs are under a canopy as often as the ground is.
 - **Giants.** [Giant trees](WORLDGEN.md#giant-trees) reach so far from their trunks that on the small trees' grid each
-  column would look over hundreds of cells for them, so the redwoods, which grow as features, are scattered on a grid
-  of their own, whose cells are as wide as their own share of the ground. The ancient oaks and the kapoks grow as
-  structures, and `worldgen.lod.GreatTrees` stands them where the world grows them: in the chunks their structure set
-  gives, clear of the villages, with the sapling each chunk draws, where the biome at the foot is the structure's and
-  the LOD's ground there is dry and level. That ground is not quite the chunks' (the farthest LODs read the coarse
-  map), so now and then a giant shows that the world does not grow, or the other way round. Their crowns are those of
-  16 trees grown of each structure at heights spread over its range, each giant taking the one nearest its height, so
-  they stand at about their heights but are not quite their own shapes; they reach out over the water too. A column
-  under both is under the giant's crown; the small trees under it are not drawn, as the LODs keep one crown a column.
-  Their trunks, several blocks wide, are drawn one or two levels of detail farther out than a small tree's. They are
-  drawn as tall as they grow in a world of that size.
+  column would look over hundreds of cells for them, and a giant the LOD shows that is not there when the player comes
+  close is plain to see, so `worldgen.lod.GreatTrees` stands them where the world grows them. The ancient oaks and the
+  kapoks grow as structures: in the chunks their structure set gives, clear of the villages, with the sapling each
+  chunk draws. The redwoods grow as features, and for each chunk it seeds a random source as the world does to
+  decorate that chunk, with the redwood's place among the features of the trees' step, and follows the draws of its
+  placement (its count, rarity and offset) to where the world plants it and how tall it draws it. A giant stands where
+  the biome at its foot is the structure's or holds the feature and the LOD's ground there is dry and level, and a
+  redwood where no redwood planted before it covers its foot. That ground is not quite the chunks' (the farthest LODs
+  read the coarse map), so now and then a giant shows that the world does not grow, or the other way round. Nor can
+  the LOD know which of two redwoods whose crowns overlap the world plants first, which goes by the order its chunks
+  are decorated in, so it takes an order of its own from the chunks; nor the small trees, whose trunk under a
+  redwood's foot now and then keeps it from growing. Their crowns are those of 16 trees grown of each structure or
+  feature at heights spread over its range, each giant taking the one nearest its height (a redwood's also grown for
+  the room its place in the chunk leaves it), so they stand at about their heights but are not quite their own
+  shapes; they reach out over the water too. A column under both is under the giant's crown; the small trees under it
+  are not drawn, as the LODs keep one crown a column. Their trunks, several blocks wide, are drawn one or two levels
+  of detail farther out than a small tree's. They are drawn as tall as they grow in a world of that size.
 
 **Trees of biome mods.** Biome mods often grow trees with features of their own rather than Minecraft's tree feature;
 Biomes O' Plenty does for nearly all of its trees. Those features are placed whole on the same stand-in, standing on

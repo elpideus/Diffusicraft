@@ -79,7 +79,9 @@ import java.util.function.Predicate;
  * and grows them through their crowns, the small trees do not shade them, nor they the small trees; only another giant
  * keeps one from growing. Their trunks show in the farther levels of detail too, as far as they are wide.
  * Diffusicraft's giants are drawn at the height they grow to in a world of the cover's size. Those that grow as
- * structures, the ancient oaks and the kapoks, are not a biome's features: {@link GreatTrees} draws them.
+ * structures, the ancient oaks and the kapoks, are not a biome's features, and those a biome plants by draws a far view
+ * can follow, the redwoods, are left out here: {@link GreatTrees} draws them all where the world grows them, since a
+ * giant scattered at random stands out over the canopy and vanishes as the chunks load.
  */
 final class TreeCover {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TreeCover.class);
@@ -291,6 +293,9 @@ final class TreeCover {
 		// In the order of the biome's features, so that each session draws the same trees.
 		Map<Feature, Double> counts = new LinkedHashMap<>();
 		for (Holder<PlacedFeature> placed : steps.get(step)) {
+			if (GreatTrees.plants(placed.value())) {
+				continue;
+			}
 			try {
 				collect(placed.value(), 1, counts, random, 0);
 			} catch (RuntimeException e) {

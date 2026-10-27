@@ -44,9 +44,10 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `ChunkMap.save(ChunkAccess)` (which hands each saved chunk to the far terrain's store),
     `NoiseChunk.<init>` (its `aquifer` field, which every caller reads through `aquifer()`), `RandomState.create` and
     `createClimateSampler`, the interface added to `Climate.Sampler`, the `0.05F` in
-    `Biome.getHeightAdjustedTemperature`, the accessors for `MaterialRuleContext.randomState`, `RandomState.random`
-    and the `NoiseGeneratorSettings.materialRule` field (read
-    directly because TerraBlender changes what its accessor returns), and the invokers of `MaterialRuleContext`'s
+    `Biome.getHeightAdjustedTemperature`, the accessors for `ChunkGenerator.featuresPerStep` (where the far terrain
+    finds the redwoods' places among the trees), `MaterialRuleContext.randomState`, `RandomState.random` and the
+    `NoiseGeneratorSettings.materialRule` field (read directly because TerraBlender changes what its accessor
+    returns), and the invokers of `MaterialRuleContext`'s
     constructor, `updateXZ` and `updateY`, `MinecraftServer.setInitialSpawn` (cancelled at its head),
     `PlayerSpawnFinder.findSpawn` (wrapped) and the invokers of its `getLevelRespawnPos` and `fixupSpawnHeight`. The
     class tweaker `diffusicraft.classtweaker` opens `MultiNoiseBiomeSource`'s constructor;

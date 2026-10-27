@@ -1,28 +1,65 @@
 package io.github.elpideus.diffusicraft.worldgen.lod;
 
+import com.mojang.serialization.MapCodec;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.GiantTreeStructure;
 import net.minecraft.SharedConstants;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.server.level.WorldGenRegion;
+import net.minecraft.util.RandomSource;
+import net.minecraft.util.random.WeightedList;
+import net.minecraft.util.valueproviders.ConstantInt;
+import net.minecraft.util.valueproviders.IntProvider;
 import net.minecraft.util.valueproviders.UniformInt;
+import net.minecraft.util.valueproviders.WeightedListInt;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.NoiseColumn;
+import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeGenerationSettings;
+import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSpecialEffects;
+import net.minecraft.world.level.biome.FixedBiomeSource;
 import net.minecraft.world.level.biome.MobSpawnSettings;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.WorldgenRandom;
+import net.minecraft.world.level.levelgen.XoroshiroRandomSource;
+import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.placement.BiomeFilter;
+import net.minecraft.world.level.levelgen.placement.CountPlacement;
+import net.minecraft.world.level.levelgen.placement.FeaturePlacer;
+import net.minecraft.world.level.levelgen.placement.HeightmapPlacement;
+import net.minecraft.world.level.levelgen.placement.OffsetPlacement;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
+import net.minecraft.world.level.levelgen.placement.PlacementModifier;
+import net.minecraft.world.level.levelgen.placement.RarityFilter;
+import net.minecraft.world.level.levelgen.placement.SurfaceWaterDepthFilter;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadType;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,6 +72,12 @@ class GreatTreesTest {
 	/** The first block over the flat ground of the tests. */
 	private static final int GROUND = 65;
 	private static final int MAX_Y = 1023;
+	private static final int MIN_Y = -64;
+	/**
+	 * Chunks each way that the tests of the planted giants look at. The world plants redwoods in one more all round,
+	 * whose crowns reach into them.
+	 */
+	private static final int CHUNKS = 24;
 	/** The data pack's: a giant to every region of 3×3 chunks, in its chunk of four. */
 	private static RandomSpreadStructurePlacement PLACEMENT;
 
@@ -44,6 +87,8 @@ class GreatTreesTest {
 	private static GiantTreeStructure oak;
 	private static GiantTreeStructure kapok;
 	private static StructureSet set;
+	/** The data pack's redwood. */
+	private static GiantTreeFeature redwood;
 
 	@BeforeAll
 	static void bootstrap() {
@@ -61,21 +106,28 @@ class GreatTreesTest {
 			Blocks.JUNGLE_LEAVES.defaultBlockState(), UniformInt.of(80, 130), 0.9f);
 		set = new StructureSet(List.of(StructureSet.entry(Holder.direct(oak)), StructureSet.entry(Holder.direct(kapok))),
 			PLACEMENT);
+		redwood = new GiantTreeFeature(GiantTreeFeature.Form.REDWOOD, Blocks.MANGROVE_WOOD.defaultBlockState(),
+			Blocks.SPRUCE_LEAVES.defaultBlockState(), UniformInt.of(110, 230));
 	}
 
-	private static Holder<Biome> biome() {
+	/** A biome whose trees are {@code features}. */
+	private static Holder<Biome> biome(PlacedFeature... features) {
+		BiomeGenerationSettings.PlainBuilder settings = new BiomeGenerationSettings.PlainBuilder();
+		for (PlacedFeature feature : features) {
+			settings.addFeature(GenerationStep.Decoration.VEGETAL_DECORATION, Holder.direct(feature));
+		}
 		return Holder.direct(new Biome.BiomeBuilder()
 			.hasPrecipitation(true)
 			.temperature(0.8f)
 			.downfall(0.8f)
 			.specialEffects(new BiomeSpecialEffects.Builder().waterColor(0x3f76e4).build())
 			.mobSpawnSettings(MobSpawnSettings.EMPTY)
-			.generationSettings(BiomeGenerationSettings.EMPTY)
+			.generationSettings(settings.build())
 			.build());
 	}
 
 	private static GreatTrees trees(WorldScale scale, GreatTrees.Chunks chunks) {
-		GreatTrees trees = GreatTrees.of(List.of(set), placed -> chunks, SEED, scale, MAX_Y);
+		GreatTrees trees = GreatTrees.of(List.of(set), placed -> chunks, List.of(), SEED, scale, MAX_Y);
 		assertNotNull(trees);
 		return trees;
 	}
@@ -245,5 +297,234 @@ class GreatTreesTest {
 		assertTrue(stand.crown(sapling.x(), sapling.z(), GROUND - 1, 1, true, crown));
 		assertEquals(500, crown.high);
 		assertSame(Blocks.SPRUCE_LEAVES, crown.leaves.getBlock());
+	}
+
+	/** The data pack's placement of redwoods, after {@code chance}: somewhere in the middle of the chunk, on dry land. */
+	private static List<PlacementModifier> redwoodPlacement(PlacementModifier chance) {
+		return List.of(chance, new OffsetPlacement(UniformInt.of(4, 11), ConstantInt.of(0), UniformInt.of(4, 11)),
+			SurfaceWaterDepthFilter.forMaxDepth(0), HeightmapPlacement.onHeightmap(Heightmap.Types.OCEAN_FLOOR),
+			BiomeFilter.biome());
+	}
+
+	/** A redwood the world plants: its foot, and how tall it is drawn. */
+	private record Planted(int x, int z, int height) {
+		boolean near(Planted other, int distance) {
+			return Math.max(Math.abs(x - other.x), Math.abs(z - other.z)) <= distance;
+		}
+
+		/** Whether it stands in the chunks the tests look at, rather than in those around them. */
+		boolean inside() {
+			return x >= 0 && z >= 0 && x < CHUNKS * 16 && z < CHUNKS * 16;
+		}
+	}
+
+	/** A feature that takes a redwood's first draw where the world places it, and records it. */
+	private static final class Recorder implements Feature {
+		final List<Planted> planted = new ArrayList<>();
+
+		@Override
+		public MapCodec<? extends Feature> codec() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean place(WorldGenLevel level, ChunkGenerator generator, RandomSource random, BlockPos origin) {
+			planted.add(new Planted(origin.getX(), origin.getZ(), redwood.height(random, WorldScale.ULTRA)));
+			return true;
+		}
+	}
+
+	/** A generator that only tells the biome filter which features a biome holds. */
+	private static final class Generator extends ChunkGenerator {
+		Generator(Holder<Biome> biome) {
+			super(new FixedBiomeSource(biome));
+		}
+
+		@Override
+		protected MapCodec<? extends ChunkGenerator> codec() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void spawnOriginalMobs(WorldGenRegion region) {
+		}
+
+		@Override
+		public int getGenDepth() {
+			return MAX_Y - MIN_Y + 1;
+		}
+
+		@Override
+		public CompletableFuture<ChunkAccess> buildTerrain(ChunkAccess chunk, Blender blender, RandomState randomState,
+														   StructureManager structureManager, BiomeManager biomeManager,
+														   @Nullable WorldGenRegion carverBiomeRegion,
+														   Set<Holder<Biome>> possibleBiomes) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getSeaLevel() {
+			return 63;
+		}
+
+		@Override
+		public int getMinY() {
+			return MIN_Y;
+		}
+
+		@Override
+		public int getBaseHeight(int x, int z, Heightmap.Types type, LevelHeightAccessor heightAccessor,
+								 RandomState randomState) {
+			return GROUND;
+		}
+
+		@Override
+		public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor heightAccessor, RandomState randomState) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void addDebugScreenInfo(List<String> result, RandomState randomState, BlockPos feetPos,
+									   SamplerContext samplerContext) {
+		}
+	}
+
+	/**
+	 * Decorates chunks -1 to {@value #CHUNKS} each way as vanilla does, with {@code feature} alone, the feature at
+	 * {@code index} in its step, on flat dry ground of {@code biome}.
+	 */
+	private static void decorate(PlacedFeature feature, int index, Holder<Biome> biome) {
+		WorldGenLevel level = (WorldGenLevel) Proxy.newProxyInstance(WorldGenLevel.class.getClassLoader(),
+			new Class<?>[]{WorldGenLevel.class}, (proxy, method, args) -> switch (method.getName()) {
+				case "getMinY" -> MIN_Y;
+				// The height of the world, or of a heightmap: the first block over the ground.
+				case "getHeight" -> args == null ? MAX_Y - MIN_Y + 1 : GROUND;
+				case "getBiome" -> biome;
+				default -> throw new UnsupportedOperationException(method.toString());
+			});
+		FeaturePlacer placer = new FeaturePlacer(level, new Generator(biome));
+		WorldgenRandom random = new WorldgenRandom(new XoroshiroRandomSource(0L));
+		for (int chunkZ = -1; chunkZ <= CHUNKS; chunkZ++) {
+			for (int chunkX = -1; chunkX <= CHUNKS; chunkX++) {
+				BlockPos origin = new BlockPos(chunkX * 16, MIN_Y, chunkZ * 16);
+				long decoration = random.setDecorationSeed(SEED, origin.getX(), origin.getZ());
+				random.setFeatureSeed(decoration, index, GenerationStep.Decoration.VEGETAL_DECORATION.ordinal());
+				placer.placeWithBiomeCheck(feature, random, origin);
+			}
+		}
+	}
+
+	/**
+	 * The redwoods the world plants with {@code chance} on flat dry ground, and the far view of them: the stand the
+	 * planted giants in it, on the same ground, which follows them as the second feature of the trees' step.
+	 */
+	private static List<Planted> plantRedwoods(PlacementModifier chance, GreatTrees.Stand[] stand) {
+		Recorder recorder = new Recorder();
+		PlacedFeature recorded = new PlacedFeature(Holder.direct(recorder), redwoodPlacement(chance));
+		PlacedFeature placed = new PlacedFeature(Holder.direct(redwood), redwoodPlacement(chance));
+		Holder<Biome> redwoods = biome(recorded, placed);
+		decorate(recorded, 1, redwoods);
+		GreatTrees trees = GreatTrees.of(List.of(), s -> (x, z) -> false, List.of(recorded, placed), SEED,
+			WorldScale.ULTRA, MAX_Y);
+		assertNotNull(trees);
+		stand[0] = trees.stand((x, z) -> GROUND, (x, y, z) -> redwoods);
+		return recorder.planted;
+	}
+
+	@Test
+	void plantedGiantsStandWhereTheWorldPlantsThem() {
+		GreatTrees.Stand[] stand = new GreatTrees.Stand[1];
+		List<Planted> planted = plantRedwoods(RarityFilter.onAverageOnceEvery(6), stand);
+		// One chunk in six.
+		assertTrue(planted.size() > CHUNKS * CHUNKS / 9 && planted.size() < CHUNKS * CHUNKS / 4,
+			planted.size() + " redwoods");
+		TreeCover.Crown crown = new TreeCover.Crown();
+		int alone = 0;
+		for (Planted giant : planted) {
+			// One that no other's crown may reach grows wherever it is planted.
+			if (!giant.inside() || planted.stream().anyMatch(other -> other != giant
+				&& other.near(giant, GiantTreeFeature.MAX_ROOM))) {
+				continue;
+			}
+			alone++;
+			assertTrue(stand[0].crown(giant.x(), giant.z(), GROUND - 1, 1, false, crown), "a crown over " + giant);
+			assertTrue(crown.holdsTrunk, "a trunk at " + giant);
+			assertSame(Blocks.MANGROVE_WOOD, crown.trunk.getBlock());
+			assertTrue(Math.abs(crown.high - giant.height()) <= 12, "the redwood at " + giant + " stands "
+				+ crown.high + " tall");
+		}
+		// About one in four, with seven chunks or so in reach of each.
+		assertTrue(alone > planted.size() / 8, alone + " redwoods alone");
+		assertNoPhantoms(stand[0], planted);
+	}
+
+	@Test
+	void plantedGiantsNeverStandWhereTheWorldPlantsNone() {
+		GreatTrees.Stand[] stand = new GreatTrees.Stand[1];
+		// The data pack's redwood forest: in two chunks of three, so that they often stand under one another's crowns.
+		List<Planted> planted = plantRedwoods(CountPlacement.of(new WeightedListInt(WeightedList.<IntProvider>builder()
+			.add(ConstantInt.of(0), 1).add(ConstantInt.of(1), 2).build())), stand);
+		assertTrue(planted.size() > CHUNKS * CHUNKS / 2, planted.size() + " redwoods");
+		int trunks = assertNoPhantoms(stand[0], planted);
+		// Many grow, though not those under the crown of one planted before them.
+		long inside = planted.stream().filter(Planted::inside).count();
+		assertTrue(trunks > inside / 3, trunks + " of " + inside + " redwoods grow");
+	}
+
+	/** How far the roots of the tallest redwoods spread from their foot, at most. */
+	private static int footReach() {
+		int[] reach = new int[1];
+		for (long seed = 0; seed < 16; seed++) {
+			redwood.grow(redwood.maxHeight(WorldScale.ULTRA), GiantTreeFeature.MAX_ROOM, seed, (x, y, z, wood) -> {
+				if (wood && y == 0) {
+					reach[0] = Math.max(reach[0], Math.max(Math.abs(x), Math.abs(z)));
+				}
+			});
+		}
+		return reach[0];
+	}
+
+	/** Checks that every trunk the stand shows rises at the foot of a redwood the world plants, and counts them. */
+	private static int assertNoPhantoms(GreatTrees.Stand stand, List<Planted> planted) {
+		int reach = footReach() + 1;
+		assertTrue(reach < GiantTreeFeature.MAX_ROOM, "roots that reach " + reach);
+		TreeCover.Crown crown = new TreeCover.Crown();
+		int grown = 0;
+		for (Planted giant : planted) {
+			if (giant.inside() && stand.crown(giant.x(), giant.z(), GROUND - 1, 1, false, crown) && crown.holdsTrunk) {
+				grown++;
+			}
+		}
+		for (int z = 0; z < CHUNKS * 16; z++) {
+			for (int x = 0; x < CHUNKS * 16; x++) {
+				if (stand.crown(x, z, GROUND - 1, 1, false, crown) && crown.holdsTrunk) {
+					Planted at = new Planted(x, z, 0);
+					assertTrue(planted.stream().anyMatch(giant -> giant.near(at, reach)),
+						"a trunk at " + x + ", " + z + " where the world plants no redwood");
+				}
+			}
+		}
+		return grown;
+	}
+
+	@Test
+	void plantedGiantsAreLeftOutOfTheTreeCoverAndOfOtherBiomes() {
+		PlacedFeature placed = new PlacedFeature(Holder.direct(redwood),
+			redwoodPlacement(RarityFilter.onAverageOnceEvery(2)));
+		assertTrue(GreatTrees.plants(placed));
+		assertFalse(GreatTrees.plants(new PlacedFeature(Holder.direct(redwood),
+			List.of(RarityFilter.onAverageOnceEvery(2)))), "planted wherever a biome of the chunks around holds it");
+		TreeCover.Crown crown = new TreeCover.Crown();
+		TreeCover cover = TreeCover.of(biome(placed), WorldScale.ULTRA);
+		GreatTrees trees = GreatTrees.of(List.of(), s -> (x, z) -> false, List.of(placed), SEED, WorldScale.ULTRA,
+			MAX_Y);
+		assertNotNull(trees);
+		GreatTrees.Stand desert = trees.stand((x, z) -> GROUND, (x, y, z) -> GreatTreesTest.desert);
+		for (int z = 0; z < 256; z += 3) {
+			for (int x = 0; x < 256; x += 3) {
+				assertFalse(cover.crown(SEED, x, z, 1, crown), "a redwood scattered at " + x + ", " + z);
+				assertFalse(desert.crown(x, z, GROUND - 1, 1, false, crown), "a redwood in the desert");
+			}
+		}
 	}
 }

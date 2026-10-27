@@ -43,11 +43,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * its level. The blocks come from the world's own material rules (soils, sand, gravel, snow on the peaks and the rock
  * strata in the cliffs), run on each column as the chunk generator runs them, with the neighbouring columns giving
  * the slope. Snow and ice follow the biome's temperature, as they do in the world. Trees stand on the soils as
- * crowns of leaves, as many and as large as the biome's own trees (see {@link TreeCover}), and the giants that grow as
- * structures stand where the world grows them (see {@link GreatTrees}), their crowns over water too. The structures on
- * the surface, villages, temples, shipwrecks and the like, stand where the world starts them in the grids whose columns
- * are close enough to show them (see {@link FarStructures}). What the column leaves out is what a far view cannot show:
- * caves, plants and the structures underground.
+ * crowns of leaves, as many and as large as the biome's own trees (see {@link TreeCover}), and the giants, those that
+ * grow as structures and the redwoods the biomes plant, stand where the world grows them (see {@link GreatTrees}), their
+ * crowns over water too. The structures on the surface, villages, temples, shipwrecks and the like, stand where the
+ * world starts them in the grids whose columns are close enough to show them (see {@link FarStructures}). What the
+ * column leaves out is what a far view cannot show: caves, plants and the structures underground.
  *
  * <p>A grid wider than {@value #FULL_DETAIL_TILES} terrain tiles is sampled from the coarse map alone, inside
  * {@link CoarseClimate#call}: it costs no model inference beyond the coarse stage, but leaves out the rivers and
@@ -140,8 +140,8 @@ public final class LodSampler {
 		BiomeWorld world = world(level);
 		return world == null ? null : new LodSampler((NoiseBasedChunkGenerator) level.getChunkSource().getGenerator(),
 			level.getChunkSource().randomState(), level, world, level.getSeed(),
-			GreatTrees.of(level.getChunkSource().getGeneratorState(), world.scale(), level.getMaxY()), FarStructures.of(level),
-			LodStore.of(level));
+			GreatTrees.of(level.getChunkSource().getGenerator(), level.getChunkSource().getGeneratorState(), world.scale(),
+				level.getMaxY()), FarStructures.of(level), LodStore.of(level));
 	}
 
 	/** Whether Diffusicraft generates a world. */
