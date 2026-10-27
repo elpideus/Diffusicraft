@@ -196,6 +196,7 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 		OnnxModel.Device device = OnnxModel.Device.valueOf(System.getProperty("diffusicraft.device", "CPU"));
 		Resources.get().updateConfig(config -> {
 			config.device = device;
+			config.cpuThreads = Integer.getInteger("diffusicraft.cpuThreads", config.cpuThreads);
 			config.farTerrain = true;
 		});
 		return true;

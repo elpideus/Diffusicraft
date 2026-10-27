@@ -193,9 +193,17 @@ These parts are unit-tested and feed the renderer below.
   camera moves, as the world's own grid of sections does, and a few lines of chunks are looked up each frame, so a
   large render distance spreads the work. A tile that lies wholly within sections the world draws is not drawn at
   all, since the shader would drop every fragment of it: the mask's bytes are checked on the CPU as well.
+- **Caves that run out of the chunks (`CaveWalls`).** The far terrain is solid ground with faces only where it meets
+  the air, so from inside it, as from a cave that leads out of the chunks drawn, the eye went on through it to the
+  sky and to the undersides of the canopies above. On each side of a chunk the world draws that faces one it does
+  not, the open blocks along the edge that lie below the ground and out of the sky's light get a face of the rock
+  there, looking back in. Which chunks the world draws goes by where the camera stands, as `ChunkMask` reckons it,
+  so the walls stay put as the camera turns, and the fragment shader drops a wall where the world draws the chunk
+  behind it after all. An edge is looked up a few at a time, and again every second for blocks broken and light
+  that changed.
 - **Debug screen.** The `diffusicraft:far_terrain` entry, turned on among the others with F3 + F6, shows the tiles
-  with a mesh and those drawn in the last frame, those left rough and those still to build, and the memory their
-  meshes take on the GPU.
+  with a mesh and those drawn in the last frame, those left rough and those still to build, the memory their meshes
+  take on the GPU and the faces of the cave walls.
 - **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
   Fog under water, in lava and from blindness or darkness stays as it is. Sodium reads the fog at the same point,
@@ -218,8 +226,9 @@ plays its part for Iris:
 - **Drawing.** The land is drawn as the world's solid pass begins, before the chunks, into the pack's buffers and a
   depth buffer of its own, which is then copied to the two textures the pack reads. The water is drawn after the
   pack's deferred passes, as the translucent pass begins, as Distant Horizons draws it. The pack itself leaves out
-  the far terrain within the chunks' reach, so the tiles start at its edge, `ChunkMask` is not used, and the pack's
-  own fog applies.
+  the far terrain within the chunks' reach, and its `dh_water` the water wherever the chunks have drawn, which it
+  would cover from a cave, as it is drawn after them; so the tiles start at its edge, `ChunkMask` is not used, and the
+  pack's own fog applies. A pack without `dh_water` has its water drawn with `dh_terrain`, as Iris does.
 - **Not yet.** The far terrain casts no shadows.
 
 ## Next

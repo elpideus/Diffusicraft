@@ -37,7 +37,7 @@ public class ShadersGameTest implements FabricClientGameTest {
 	private static final String PACK = "diffusicraft-test";
 	private static final String[] FILES = {
 		"gbuffers_textured_lit.vsh", "gbuffers_textured_lit.fsh", "shadow.vsh", "shadow.fsh", "composite.vsh",
-		"composite.fsh", "dh_terrain.vsh", "dh_terrain.fsh",
+		"composite.fsh", "dh_terrain.vsh", "dh_terrain.fsh", "dh_water.vsh", "dh_water.fsh",
 	};
 
 	@Override

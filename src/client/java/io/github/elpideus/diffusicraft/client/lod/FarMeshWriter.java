@@ -16,7 +16,7 @@ import org.lwjgl.system.MemoryUtil;
  * face, wound counter-clockwise seen from the side the face looks to. Safe off the render thread.
  */
 final class FarMeshWriter {
-	private static final int QUAD = 4 * FarTerrainPipelines.VERTEX_SIZE;
+	static final int QUAD = 4 * FarTerrainPipelines.VERTEX_SIZE;
 	/** How much the water lets through of what lies under it. */
 	private static final int WATER_ALPHA = 191;
 	private static final int MAX_Y = 0xFFFF;
@@ -43,6 +43,61 @@ final class FarMeshWriter {
 			solid.free();
 			water.free();
 		}
+	}
+
+	/**
+	 * Puts the four vertices of a face looking towards {@code side} into {@code buffer}, which has room for them, wound
+	 * counter-clockwise seen from that side: from {@code (x0, y0, z0)} to {@code (x1, y1, z1)}, where an upward or
+	 * downward face lies at {@code y0}, a northward or southward one at {@code z0} and a westward or eastward one at
+	 * {@code x0}. X and Z count from the corner of the mesh, Y from the bottom of the level.
+	 */
+	static void quad(ByteBuffer buffer, Direction side, int x0, int y0, int z0, int x1, int y1, int z1, int light,
+					 int color, int alpha, int material) {
+		switch (side) {
+			case UP -> {
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z1, light, color, alpha, material, side);
+				vertex(buffer, x1, y0, z1, light, color, alpha, material, side);
+				vertex(buffer, x1, y0, z0, light, color, alpha, material, side);
+			}
+			case DOWN -> {
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x1, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x1, y0, z1, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z1, light, color, alpha, material, side);
+			}
+			case NORTH -> {
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y1, z0, light, color, alpha, material, side);
+				vertex(buffer, x1, y1, z0, light, color, alpha, material, side);
+				vertex(buffer, x1, y0, z0, light, color, alpha, material, side);
+			}
+			case SOUTH -> {
+				vertex(buffer, x1, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x1, y1, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y1, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
+			}
+			case WEST -> {
+				vertex(buffer, x0, y0, z1, light, color, alpha, material, side);
+				vertex(buffer, x0, y1, z1, light, color, alpha, material, side);
+				vertex(buffer, x0, y1, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
+			}
+			case EAST -> {
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y1, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y1, z1, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z1, light, color, alpha, material, side);
+			}
+		}
+	}
+
+	private static void vertex(ByteBuffer buffer, int x, int y, int z, int light, int color, int alpha, int material,
+							   Direction side) {
+		buffer.putShort((short) x).putShort((short) y).putShort((short) z).putShort((short) light)
+			.put((byte) ARGB.red(color)).put((byte) ARGB.green(color)).put((byte) ARGB.blue(color)).put((byte) alpha)
+			.put((byte) material).put((byte) side.ordinal()).put((byte) 0).put((byte) 0);
 	}
 
 	private static final class Quads implements LodMesher.Faces {
@@ -74,56 +129,12 @@ final class FarMeshWriter {
 			}
 			int color = colors.color(state, side, biome, cornerX + x0, cornerZ + z0);
 			int light = sky | state.getLightEmission() << 4;
-			int material = materials.of(state);
 			int ya = Math.clamp(y0 - bottom, 0, MAX_Y);
 			int yb = Math.clamp(y1 - bottom, 0, MAX_Y);
 			minY = Math.min(minY, bottom + ya);
 			maxY = Math.max(maxY, bottom + yb);
-			switch (side) {
-				case UP -> {
-					vertex(x0, ya, z0, light, color, material, side);
-					vertex(x0, ya, z1, light, color, material, side);
-					vertex(x1, ya, z1, light, color, material, side);
-					vertex(x1, ya, z0, light, color, material, side);
-				}
-				case DOWN -> {
-					vertex(x0, ya, z0, light, color, material, side);
-					vertex(x1, ya, z0, light, color, material, side);
-					vertex(x1, ya, z1, light, color, material, side);
-					vertex(x0, ya, z1, light, color, material, side);
-				}
-				case NORTH -> {
-					vertex(x0, ya, z0, light, color, material, side);
-					vertex(x0, yb, z0, light, color, material, side);
-					vertex(x1, yb, z0, light, color, material, side);
-					vertex(x1, ya, z0, light, color, material, side);
-				}
-				case SOUTH -> {
-					vertex(x1, ya, z0, light, color, material, side);
-					vertex(x1, yb, z0, light, color, material, side);
-					vertex(x0, yb, z0, light, color, material, side);
-					vertex(x0, ya, z0, light, color, material, side);
-				}
-				case WEST -> {
-					vertex(x0, ya, z1, light, color, material, side);
-					vertex(x0, yb, z1, light, color, material, side);
-					vertex(x0, yb, z0, light, color, material, side);
-					vertex(x0, ya, z0, light, color, material, side);
-				}
-				case EAST -> {
-					vertex(x0, ya, z0, light, color, material, side);
-					vertex(x0, yb, z0, light, color, material, side);
-					vertex(x0, yb, z1, light, color, material, side);
-					vertex(x0, ya, z1, light, color, material, side);
-				}
-			}
+			quad(buffer, side, x0, ya, z0, x1, yb, z1, light, color, alpha, materials.of(state));
 			count++;
-		}
-
-		private void vertex(int x, int y, int z, int light, int color, int material, Direction side) {
-			buffer.putShort((short) x).putShort((short) y).putShort((short) z).putShort((short) light)
-				.put((byte) ARGB.red(color)).put((byte) ARGB.green(color)).put((byte) ARGB.blue(color)).put((byte) alpha)
-				.put((byte) material).put((byte) side.ordinal()).put((byte) 0).put((byte) 0);
 		}
 
 		void free() {
