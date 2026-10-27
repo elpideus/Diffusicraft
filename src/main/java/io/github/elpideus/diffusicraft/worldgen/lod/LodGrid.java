@@ -249,6 +249,23 @@ public final class LodGrid {
 		}
 	}
 
+	/** Whether column {@code column} holds what {@link #add(LodColumn, int)} would add of {@code other} with no ceiling. */
+	boolean same(int column, LodColumn other) {
+		int start = first[column];
+		int size = other.size();
+		if (first[column + 1] - start != size || !biomes[column].equals(other.biome())) {
+			return false;
+		}
+		for (int run = 0; run < size; run++) {
+			if (states[start + run] != other.state(run) || bottoms[start + run] != other.bottom(run)
+				|| tops[start + run] != other.top(run)) {
+				return false;
+			}
+		}
+		int ground = other.ground();
+		return surfaces[column] == (ground < 0 ? Integer.MIN_VALUE : other.top(ground) + other.waterDepth());
+	}
+
 	/** Adds a column with nothing in it. */
 	void addEmpty(Holder<Biome> biome) {
 		surfaces[columns] = Integer.MIN_VALUE;

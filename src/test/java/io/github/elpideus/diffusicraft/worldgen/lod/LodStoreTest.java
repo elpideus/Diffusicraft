@@ -158,6 +158,27 @@ class LodStoreTest {
 	}
 
 	@Test
+	void aChunkSavedAgainAsItWasChangesNoPage() throws IOException {
+		try (LodStore store = store()) {
+			AtomicInteger changed = new AtomicInteger();
+			store.listen((level, x, z) -> changed.incrementAndGet());
+			store.saved(new ChunkPos(0, 0), chunk(70, desert));
+			store.page(0, 0, 0).join();
+			int first = changed.get();
+			assertTrue(first > 0);
+
+			// As vanilla saves it again after a block changed out of sight of the far terrain.
+			store.saved(new ChunkPos(0, 0), chunk(70, desert));
+			store.page(0, 0, 0).join();
+			assertEquals(first, changed.get(), "a page whose columns are as they were changed");
+
+			store.saved(new ChunkPos(0, 0), chunk(71, desert));
+			store.page(0, 0, 0).join();
+			assertTrue(changed.get() > first);
+		}
+	}
+
+	@Test
 	void pagesOutlastTheStore() throws IOException {
 		try (LodStore store = store()) {
 			store.saved(new ChunkPos(2, 3), chunk(70, desert));

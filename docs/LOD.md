@@ -68,8 +68,12 @@ good (`SERVER_STOPPED`).
   Each page notes the build that generated it: `generation` in `diffusicraft-build.properties`, a digest the build
   works out of everything under `src/main`, the models' manifest among it. A page of another build is generated
   again, since other code or data may shape other terrain, and a build without the digest keeps none.
-- **Threads.** Everything runs on one low-priority thread per store. Saved chunks are read in batches and each page
-  they touch is rewritten once. The last 192 pages stay in memory.
+- **Threads.** Everything runs on one low-priority thread per store. Saved chunks are read 32 at a time, and each
+  page they touch is rewritten once; between batches the thread serves the pages the far terrain asked for
+  meanwhile, so a flight that saves a hundred chunks a second does not hold up its reads. A chunk saved again before
+  it was read is read once, as it is now. Vanilla saves a chunk again whenever anything in it changed, as grass
+  spreads or a crop grows, so a page whose columns come out as they were is neither written nor rebuilt. The last
+  192 pages stay in memory, and the last 4096 found missing, so that asking for them again reads nothing.
 
 ### Using them: `LodGrid.sample`
 
@@ -203,8 +207,8 @@ These parts are unit-tested and feed the renderer below.
   that changed.
 - **Debug screen.** The `diffusicraft:far_terrain` entry, turned on among the others with F3 + F6, shows the tiles
   with a mesh and those drawn in the last frame, those left rough and those still to build, the memory their meshes
-  take on the GPU and the faces of the cave walls. Under a shader pack, a second line counts the tiles drawn into its
-  shadow map.
+  take on the GPU, the faces of the cave walls and the chunks saved that the store has still to read, which pile up
+  if it falls behind. Under a shader pack, a second line counts the tiles drawn into its shadow map.
 - **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
   Fog under water, in lava and from blindness or darkness stays as it is. Sodium reads the fog at the same point,

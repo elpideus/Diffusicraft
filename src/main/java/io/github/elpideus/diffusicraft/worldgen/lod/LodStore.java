@@ -39,20 +39,22 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -73,7 +75,9 @@ import java.util.function.Supplier;
  * under {@code diffusicraft/lod} in the world's folder on a server, and on a client that keeps the chunks it has seen
  * of a server that does not share what players built, in {@code diffusicraft/seen} in the game's folder. Everything
  * runs on a thread of the store's own: the server thread hands over the copy of a chunk that vanilla takes to save it,
- * the client the sections it copied of a chunk it let go of, and readers get a future.
+ * the client the sections it copied of a chunk it let go of, and readers get a future. Vanilla saves a chunk again
+ * whenever something in it changed, as grass spreads or a crop grows, so a page whose columns come out as they were
+ * is neither written nor heard of again.
  *
  * <p>The store also keeps the pages of the terrain as generated, whatever players did to it, so that the far terrain
  * need not run the models again after the world is closed and opened ({@link #generated(int, int, int)}). They are
@@ -88,6 +92,10 @@ public final class LodStore implements AutoCloseable {
 	private static final int VERSION = 1;
 	/** Pages kept in memory, of every level together. */
 	private static final int CACHED_PAGES = 192;
+	/** Pages known to be missing kept in memory, so that asking for them again reads nothing. */
+	private static final int CACHED_MISSING = 4096;
+	/** Chunks read before the pages they touch are written, so that a page asked for meanwhile waits for no more. */
+	private static final int DRAIN_SLICE = 32;
 	private static final Logger LOGGER = LogUtils.getLogger();
 	/**
 	 * A digest of the code and data that shape the generated terrain, from {@code diffusicraft-build.properties}, which
@@ -132,10 +140,19 @@ public final class LodStore implements AutoCloseable {
 	private final HolderLookup<Biome> biomes;
 	private final Holder<Biome> fallback;
 	private final ExecutorService thread;
-	private final Queue<Saved> saved = new ArrayDeque<>();
+	/** The chunks handed over and not read yet, each once, as it was saved last. */
+	private final Map<ChunkPos, Saved> saved = new LinkedHashMap<>();
 	private final List<Listener> listeners = new CopyOnWriteArrayList<>();
 	private final Map<Long, Page> cache;
+	private final Set<Long> missing = Collections.newSetFromMap(new LinkedHashMap<>(16, 0.75F, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<Long, Boolean> eldest) {
+			return size() > CACHED_MISSING;
+		}
+	});
 	private boolean draining;
+	/** How many chunks were handed over and not read yet, for the debug screen. */
+	private volatile int backlog;
 
 	public LodStore(Path folder, ResourceKey<Level> dimension, HolderLookup<Biome> biomes, Holder<Biome> fallback) {
 		for (int level = 0; level < LEVELS; level++) {
@@ -233,7 +250,9 @@ public final class LodStore implements AutoCloseable {
 
 	private void saved(Saved chunk) {
 		synchronized (saved) {
-			saved.add(chunk);
+			// Saved again before it was read: read once, as it is now.
+			saved.put(chunk.pos(), chunk);
+			backlog = saved.size();
 			if (draining) {
 				return;
 			}
@@ -242,17 +261,39 @@ public final class LodStore implements AutoCloseable {
 		thread.execute(this::drain);
 	}
 
-	/** Reads every chunk handed over so far, and updates each page they touch once. */
+	/** How many chunks were handed over and are still to be read, without waiting for them. */
+	public int backlog() {
+		return backlog;
+	}
+
+	/**
+	 * Reads the chunks handed over, {@value #DRAIN_SLICE} at a time, and updates each page they touch once. The rest
+	 * waits behind the pages asked for meanwhile, unless the store is closing.
+	 */
 	private void drain() {
+		while (drainSlice()) {
+			try {
+				thread.execute(this::drain);
+				return;
+			} catch (RejectedExecutionException e) {
+				// Closing: the rest is read now.
+			}
+		}
+	}
+
+	/** Reads the next {@value #DRAIN_SLICE} chunks handed over and updates their pages; whether more are left. */
+	private boolean drainSlice() {
 		Map<Long, Map<Integer, LodColumn>>[] changes = newChanges();
-		while (true) {
+		for (int n = 0; n < DRAIN_SLICE; n++) {
 			Saved chunk;
 			synchronized (saved) {
-				chunk = saved.poll();
-				if (chunk == null) {
-					draining = false;
+				Iterator<Saved> first = saved.values().iterator();
+				if (!first.hasNext()) {
 					break;
 				}
+				chunk = first.next();
+				first.remove();
+				backlog = saved.size();
 			}
 			try {
 				read(chunk, changes);
@@ -269,6 +310,10 @@ public final class LodStore implements AutoCloseable {
 					LOGGER.warn("Could not update page {} of level {} of the far terrain", ChunkPos.unpack(key), level, e);
 				}
 			}
+		}
+		synchronized (saved) {
+			draining = !saved.isEmpty();
+			return draining;
 		}
 	}
 
@@ -302,9 +347,12 @@ public final class LodStore implements AutoCloseable {
 		});
 	}
 
-	/** Writes the columns of a page that changed, keeping the others. */
+	/** Writes the columns of a page that changed, keeping the others: nothing if none did. */
 	private void update(int level, long key, Map<Integer, LodColumn> columns) {
 		Page old = load(level, key);
+		if (old != null && unchanged(old, columns)) {
+			return;
+		}
 		long[] present = old == null ? new long[PAGE * PAGE / 64] : old.present().clone();
 		LodGrid grid = new LodGrid(PAGE);
 		Holder<Biome> filler = columns.values().iterator().next().biome();
@@ -321,10 +369,22 @@ public final class LodStore implements AutoCloseable {
 		}
 		Page page = new Page(present, grid);
 		cache.put(cacheKey(level, key), page);
+		missing.remove(cacheKey(level, key));
 		workers[level].store(ChunkPos.unpack(key), write(page));
 		for (Listener listener : listeners) {
 			listener.changed(level, ChunkPos.getX(key), ChunkPos.getZ(key));
 		}
+	}
+
+	/** Whether every column in {@code columns} is stored in {@code page} as it is. */
+	private static boolean unchanged(Page page, Map<Integer, LodColumn> columns) {
+		for (Map.Entry<Integer, LodColumn> entry : columns.entrySet()) {
+			int column = entry.getKey();
+			if (!page.has(column) || !page.grid().same(column, entry.getValue())) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** The stored columns of the page at {@code (pageX, pageZ)} of a level, or {@code null} if it has none. */
@@ -335,11 +395,12 @@ public final class LodStore implements AutoCloseable {
 	private @Nullable Page load(int level, long key) {
 		long cached = cacheKey(level, key);
 		Page page = cache.get(cached);
-		if (page != null) {
+		if (page != null || missing.contains(cached)) {
 			return page;
 		}
 		Optional<CompoundTag> tag = workers[level].loadAsync(ChunkPos.unpack(key)).join();
 		if (tag.isEmpty()) {
+			missing.add(cached);
 			return null;
 		}
 		try {

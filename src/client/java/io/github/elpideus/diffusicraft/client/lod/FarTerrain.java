@@ -697,22 +697,26 @@ public final class FarTerrain {
 
 	/**
 	 * A line of the debug screen, which the player turns on among its entries (F3 + F6): the tiles with a mesh and
-	 * those drawn in the last frame, those left rough and those still to build, the memory their meshes take on the GPU
-	 * and the faces of the cave walls; and under a shader pack, a second line with the tiles drawn into its shadow map.
+	 * those drawn in the last frame, those left rough and those still to build, the memory their meshes take on the GPU,
+	 * the faces of the cave walls and the chunks saved that the store has still to read, which pile up if it falls
+	 * behind; and under a shader pack, a second line with the tiles drawn into its shadow map.
 	 */
 	private static final class DebugEntry implements DebugScreenEntry {
 		@Override
 		public void display(DebugScreenDisplayer displayer, @Nullable Level serverOrClientLevel,
 							@Nullable LevelChunk clientChunk, @Nullable LevelChunk serverChunk) {
 			FarTerrain terrain = current;
-			if (terrain == null || terrain.source == null) {
+			Source source = terrain == null ? null : terrain.source;
+			if (source == null) {
 				return;
 			}
+			LodStore store = source.store();
 			displayer.addLine(String.format(Locale.ROOT,
-				"Far terrain: %d tiles, %d drawn, %d rough, %d to build, %.1f MiB, %d cave walls",
+				"Far terrain: %d tiles, %d drawn, %d rough, %d to build, %.1f MiB, %d cave walls, %d chunks to store",
 				terrain.view.size(), terrain.drawn.size(), terrain.rough.size(),
 				terrain.missing.size() + terrain.rebuild.size() + terrain.building.size(),
-				FarMesh.allocated() / (double) (1 << 20), terrain.wallsDrawn ? terrain.walls.quads() : 0));
+				FarMesh.allocated() / (double) (1 << 20), terrain.wallsDrawn ? terrain.walls.quads() : 0,
+				store == null ? 0 : store.backlog()));
 			if (terrain.shaders) {
 				displayer.addLine(String.format(Locale.ROOT, "Far terrain shadows: %d tiles", casters()));
 			}
@@ -742,6 +746,11 @@ public final class FarTerrain {
 
 		/** The grid of a tile, sampled in {@code mode}, or null if there is none to be had. */
 		abstract CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling, LodGrid.Mode mode);
+
+		/** The store that keeps the chunks players changed or saw, if there is one. */
+		@Nullable LodStore store() {
+			return null;
+		}
 
 		void close() {
 		}
@@ -782,6 +791,11 @@ public final class FarTerrain {
 					throw e;
 				}
 			}, WORKERS);
+		}
+
+		@Override
+		@Nullable LodStore store() {
+			return store;
 		}
 
 		@Override
@@ -867,6 +881,11 @@ public final class FarTerrain {
 					return null;
 				}
 			}, WORKERS);
+		}
+
+		@Override
+		@Nullable LodStore store() {
+			return seen;
 		}
 
 		@Override
