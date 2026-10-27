@@ -160,7 +160,7 @@ The tests start the real game and save screenshots to `build/run/clientGameTest/
 - [`ShadersGameTest`](../src/gametest/java/io/github/elpideus/diffusicraft/gametest/ShadersGameTest.java) runs only
   when named and with Iris installed (`-PdevMods=sodium,iris`). It turns on a small shader pack of its own
   (`src/gametest/resources/diffusicraft-gametest/shaderpack`), which casts shadows and draws Distant Horizons' far
-  terrain, checks in a superflat world that Iris runs it and draws its shadow pass, and saves a view
+  terrain and its shadows, checks in a superflat world that Iris runs it and draws its shadow pass, and saves a view
   (`diffusicraft-shaders-flat.png`). The pack stays on for the tests after it, so
   `-Pdiffusicraft.gametests=Shaders,TallDimension` plays the tall dimension under shaders. It needs no models.
   `-Pdiffusicraft.shaderPack=bliss-shader.zip` turns on a real pack instead, from the run's `shaderpacks` folder,

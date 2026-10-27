@@ -241,5 +241,10 @@ public class FarTerrainGameTest implements FabricClientGameTest {
 		context.waitTicks(20);
 		Path file = context.takeScreenshot("diffusicraft-far-terrain-" + name);
 		LOGGER.info("Screenshot: {}", file.toAbsolutePath());
+		// Under a shader pack whose dh_shadow casts.
+		int casters = context.computeOnClient(mc -> FarTerrain.casters());
+		if (casters > 0) {
+			LOGGER.info("{} tiles of far terrain cast shadows for {}", casters, name);
+		}
 	}
 }

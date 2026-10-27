@@ -203,7 +203,8 @@ These parts are unit-tested and feed the renderer below.
   that changed.
 - **Debug screen.** The `diffusicraft:far_terrain` entry, turned on among the others with F3 + F6, shows the tiles
   with a mesh and those drawn in the last frame, those left rough and those still to build, the memory their meshes
-  take on the GPU and the faces of the cave walls.
+  take on the GPU and the faces of the cave walls. Under a shader pack, a second line counts the tiles drawn into its
+  shadow map.
 - **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
   Fog under water, in lava and from blindness or darkness stays as it is. Sodium reads the fog at the same point,
@@ -229,20 +230,24 @@ plays its part for Iris:
   the far terrain within the chunks' reach, and its `dh_water` the water wherever the chunks have drawn, which it
   would cover from a cave, as it is drawn after them; so the tiles start at its edge, `ChunkMask` is not used, and the
   pack's own fog applies. A pack without `dh_water` has its water drawn with `dh_terrain`, as Iris does.
-- **Not yet.** The far terrain casts no shadows.
+- **Shadows.** Where the pack has a `dh_shadow` program and does not turn Distant Horizons' shadows off
+  (`dhShadow.enabled`, which Bliss ties to its `DISTANT_HORIZONS_SHADOWMAP` option), the land of the far terrain is
+  drawn into the pack's shadow map, through Iris's public callback for the shadow pass, which runs after the chunks'
+  solid terrain. Every tile the shadow's box sees casts, those out of view as well, since the sun throws shadows into
+  view from behind the camera. The water does not: what is drawn there also lands in `shadowtex1`, the depth without
+  the translucent blocks, which Iris copies after the callbacks. How far the shadows reach is the pack's
+  `shadowDistance`, as with Distant Horizons.
 
 ## Next
 
-1. **Shadows.** Under a shader pack, the far terrain should cast shadows, as Distant Horizons' does, through the
-   pack's `dh_shadow` program.
-2. **Coarser levels from finer ones.** Far levels now keep one column out of each square of 2ᴸ × 2ᴸ, as the sampler
+1. **Coarser levels from finer ones.** Far levels now keep one column out of each square of 2ᴸ × 2ᴸ, as the sampler
    does. Building them from the level below, as Voxy builds its coarser sections, would keep thin builds and roads
    visible from further away.
-3. **Workers that yield.** The far terrain's two workers run at the lowest thread priority, which Linux ignores. A
+2. **Workers that yield.** The far terrain's two workers run at the lowest thread priority, which Linux ignores. A
    duty cycle, as Distant Horizons gives its own threads, sleeping after each tile about as long as it took, would
    leave the chunks and the game more of the CPU while tiles build. Pausing new builds while the player flies fast,
    when the tiles chosen are stale before they are done, would help as well.
-4. **Fewer, smaller quads.** The debug screen shows some 300 MiB of meshes for about 400 tiles at a render distance
+3. **Fewer, smaller quads.** The debug screen shows some 300 MiB of meshes for about 400 tiles at a render distance
    of 6: 64 bytes a quad, and about 12,000 quads a tile. Merging side faces along a row, as Distant Horizons does,
    and tops by their final colour rather than their biome would leave a third to a half fewer quads. Quads of 8 bytes
    read from a buffer, as Voxy draws its own, would take an eighth of the memory, outside shader packs.

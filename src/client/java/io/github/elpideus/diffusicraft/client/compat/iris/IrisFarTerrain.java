@@ -15,12 +15,15 @@ import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import net.irisshaders.iris.gl.texture.DepthBufferFormat;
 import net.irisshaders.iris.gl.texture.DepthCopyStrategy;
+import net.irisshaders.iris.helpers.MatrixUtils;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.shaderpack.programs.ProgramSource;
+import net.irisshaders.iris.shadows.ShadowRenderer;
 import net.irisshaders.iris.shadows.ShadowRenderingState;
 import net.irisshaders.iris.targets.DepthTexture;
 import net.irisshaders.iris.uniforms.CapturedRenderingState;
 import net.minecraft.client.Minecraft;
+import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
@@ -37,8 +40,10 @@ import org.lwjgl.opengl.GL32C;
  * part: the pack is told that Distant Horizons draws ({@code DISTANT_HORIZONS} is defined, and Iris's {@code DHCompat}
  * reports the far terrain's planes, reach and depth textures), and the tiles of {@link FarTerrain} are drawn with those
  * programs, the land before the chunks, as Distant Horizons draws it, and the water before the translucent chunks.
+ * Where the pack has a {@code dh_shadow} program and lets Distant Horizons cast shadows, the land of the tiles is drawn
+ * into its shadow map as well, as Iris's shadow pass calls back.
  *
- * <p>The tiles cast no shadows yet. Load it only when Iris is installed. On the render thread.
+ * <p>Load it only when Iris is installed. On the render thread.
  */
 public final class IrisFarTerrain {
 	/** How near the far terrain's projection begins, in blocks. */
@@ -48,6 +53,7 @@ public final class IrisFarTerrain {
 
 	/** Whether the pack in use was loaded with {@code DISTANT_HORIZONS} defined. */
 	private static boolean defined;
+	private static boolean shadowsCalled;
 	private static @Nullable Targets targets;
 
 	private IrisFarTerrain() {
@@ -56,6 +62,10 @@ public final class IrisFarTerrain {
 	/** Whether to define {@code DISTANT_HORIZONS} for the pack being loaded: whether the far terrain is on. */
 	public static boolean define() {
 		defined = FarTerrain.configured();
+		if (!shadowsCalled) {
+			shadowsCalled = true;
+			IrisApi.getInstance().registerShadowRenderCallback(IrisFarTerrain::drawShadows);
+		}
 		return defined;
 	}
 
@@ -153,7 +163,7 @@ public final class IrisFarTerrain {
 			GlStateManager._colorMask(i, 15);
 			GlStateManager._disableBlend(i);
 		}
-		draw(current, current.terrain, false);
+		draw(current, current.terrain, projection(), false);
 		DepthCopyStrategy.fastest(false).copy(current.terrainFramebuffer, current.depth.getTextureId(), null,
 			current.depthNoWater.getTextureId(), current.width, current.height);
 		GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, read);
@@ -186,7 +196,7 @@ public final class IrisFarTerrain {
 			GlStateManager._colorMask(i, 15);
 			GlStateManager._enableBlend(i);
 		}
-		draw(current, current.water, true);
+		draw(current, current.water, projection(), true);
 		for (int i = 0; i < current.waterBuffers; i++) {
 			GlStateManager._disableBlend(i);
 		}
@@ -194,13 +204,58 @@ public final class IrisFarTerrain {
 		GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, draw);
 	}
 
+	/**
+	 * Draws the land of the far terrain into the shadow map with the pack's {@code dh_shadow}, as Iris's shadow pass
+	 * calls back after the chunks' solid terrain, through the shadow's {@code modelView} and {@code projection} from the
+	 * camera at {@code (x, y, z)}. Every tile the shadow map sees casts, out of view too. The land only: what is drawn
+	 * here also lands in the depth the pack reads without the translucent blocks.
+	 */
+	private static void drawShadows(Matrix4f modelView, Matrix4f projection, double x, double y, double z,
+									float tickDelta) {
+		if (!ShadowRenderingState.areShadowsCurrentlyBeingRendered()) {
+			return;
+		}
+		Targets current = targets(false);
+		if (current == null || current.shadow == null || current.shadowFramebuffer == null) {
+			return;
+		}
+		// Iris's own programs for Distant Horizons see the shadow's depth from -1 to 1.
+		Matrix4f clip = MatrixUtils.toMinusOneToOne(projection);
+		FrustumIntersection frustum = new FrustumIntersection(clip.mul(modelView, new Matrix4f()), false);
+		int read = GlStateManager.getFrameBuffer(GL30C.GL_READ_FRAMEBUFFER);
+		int draw = GlStateManager.getFrameBuffer(GL30C.GL_DRAW_FRAMEBUFFER);
+		current.shadowFramebuffer.bind();
+		GlStateManager._viewport(0, 0, ShadowRenderer.RESOLUTION, ShadowRenderer.RESOLUTION);
+		GlStateManager._disableScissorTest();
+		// The shadow pass does not turn the depth around.
+		GlStateManager._depthMask(true);
+		GlStateManager._enableDepthTest();
+		GlStateManager._depthFunc(GL11C.GL_LEQUAL);
+		GlStateManager._disablePolygonOffset();
+		// As Iris draws the chunks into the shadow map: the sun may see a face from behind.
+		GlStateManager._disableCull();
+		for (int i = 0; i < current.shadowBuffers; i++) {
+			GlStateManager._colorMask(i, 15);
+			GlStateManager._disableBlend(i);
+		}
+		draw(current, current.shadow, clip, modelView, FarTerrain.casterQuads(),
+			tiles -> FarTerrain.forEachCaster(x, y, z, frustum::testAab, tiles));
+		GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, read);
+		GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, draw);
+	}
+
 	/** The pack's programs and buffers, if the far terrain is to be drawn with them in this pass. */
 	private static @Nullable Targets drawable() {
+		return ShadowRenderingState.areShadowsCurrentlyBeingRendered() ? null : targets(true);
+	}
+
+	/** The pack's programs and buffers for the pipeline in use, made if {@code make} and there are none yet. */
+	private static @Nullable Targets targets(boolean make) {
 		if (!defined || !(Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline pipeline)) {
 			release();
 			return null;
 		}
-		if (ShadowRenderingState.areShadowsCurrentlyBeingRendered()) {
+		if (!make && (targets == null || targets.pipeline != pipeline)) {
 			return null;
 		}
 		if (targets == null || targets.pipeline != pipeline) {
@@ -218,18 +273,32 @@ public final class IrisFarTerrain {
 	}
 
 	/** Draws the tiles in view, their land or their water, with {@code program} into the framebuffer bound. */
-	private static void draw(Targets current, FarProgram program, boolean water) {
-		int quads = FarTerrain.drawnQuads();
+	private static void draw(Targets current, FarProgram program, Matrix4fc projection, boolean water) {
+		draw(current, program, projection, CapturedRenderingState.INSTANCE.getGbufferModelView(),
+			FarTerrain.drawnQuads(), tiles -> FarTerrain.forEachDrawn(water, tiles));
+	}
+
+	/** Some of the far terrain's tiles, of at most {@code quads} quads each, handed to {@code tiles}. */
+	private interface Source {
+		void forEach(FarTerrain.Tiles tiles);
+	}
+
+	/**
+	 * Draws the tiles of {@code source}, of at most {@code quads} quads each, with {@code program} into the framebuffer
+	 * bound, through {@code projection} and {@code modelView}.
+	 */
+	private static void draw(Targets current, FarProgram program, Matrix4fc projection, Matrix4fc modelView, int quads,
+							 Source source) {
 		RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
 		// The index buffer grows to what the far terrain asked for as the frame's passes begin.
 		if (quads == 0 || !indices.hasStorage(quads * 6) || !(indices.getBuffer() instanceof GlBuffer indexBuffer)) {
 			return;
 		}
 		int indexType = GlConst.toGl(indices.type());
-		program.bind(projection(), CapturedRenderingState.INSTANCE.getGbufferModelView(), FarTerrain.bottom(), NEAR);
+		program.bind(projection, modelView, FarTerrain.bottom(), NEAR);
 		GlStateManager._glBindVertexArray(current.vertexArray);
 		GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, indexBuffer.handle());
-		FarTerrain.forEachDrawn(water, (vertices, firstVertex, count, x, y, z) -> {
+		source.forEach((vertices, firstVertex, count, x, y, z) -> {
 			if (!(vertices instanceof GlBuffer buffer)) {
 				return;
 			}
@@ -254,10 +323,14 @@ public final class IrisFarTerrain {
 		final IrisRenderingPipeline pipeline;
 		@Nullable FarProgram terrain;
 		@Nullable FarProgram water;
+		/** The pack's {@code dh_shadow}, if it lets Distant Horizons cast shadows and has a shadow map. */
+		@Nullable FarProgram shadow;
 		@Nullable GlFramebuffer terrainFramebuffer;
 		@Nullable GlFramebuffer waterFramebuffer;
+		@Nullable GlFramebuffer shadowFramebuffer;
 		int terrainBuffers;
 		int waterBuffers;
+		int shadowBuffers;
 		@Nullable DepthTexture depth;
 		@Nullable DepthTexture depthNoWater;
 		int width;
@@ -274,9 +347,15 @@ public final class IrisFarTerrain {
 				return;
 			}
 			ProgramSource waterSource = pipeline.getDHWaterShader().orElse(terrainSource);
+			// As Iris builds them for Distant Horizons: the pack casts its shadows unless it says not to.
+			ProgramSource shadowSource = pipeline.hasShadowRenderTargets() && castsShadows()
+				? pipeline.getDHShadowShader().orElse(null) : null;
 			try {
-				terrain = FarProgram.create("dh_terrain", terrainSource, false, pipeline);
-				water = FarProgram.create("dh_water", waterSource, true, pipeline);
+				terrain = FarProgram.create("dh_terrain", terrainSource, FarProgram.Pass.TERRAIN, pipeline);
+				water = FarProgram.create("dh_water", waterSource, FarProgram.Pass.WATER, pipeline);
+				if (shadowSource != null) {
+					shadow = FarProgram.create("dh_shadow", shadowSource, FarProgram.Pass.SHADOW, pipeline);
+				}
 			} catch (RuntimeException e) {
 				Diffusicraft.LOGGER.error("Could not build the shader pack's programs for the far terrain; it draws none", e);
 				failed = true;
@@ -287,12 +366,25 @@ public final class IrisFarTerrain {
 			waterFramebuffer = pipeline.createDHFramebuffer(waterSource, true);
 			terrainBuffers = Math.min(TRACKED_BUFFERS, terrainSource.getDirectives().getDrawBuffers().length);
 			waterBuffers = Math.min(TRACKED_BUFFERS, waterSource.getDirectives().getDrawBuffers().length);
+			if (shadow != null) {
+				shadowFramebuffer = pipeline.createDHFramebufferShadow(shadowSource);
+				// shadowcolor0 and shadowcolor1, as Iris gives Distant Horizons.
+				shadowBuffers = 2;
+			}
 			vertexArray = GL30C.glGenVertexArrays();
 			GlStateManager._glBindVertexArray(vertexArray);
 			for (int i = 0; i < 3; i++) {
 				GL20C.glEnableVertexAttribArray(i);
 			}
 			GlStateManager._glBindVertexArray(0);
+		}
+
+		/** Whether the pack in use lets Distant Horizons cast shadows, as its {@code dhShadow.enabled} says. */
+		private static boolean castsShadows() {
+			return Iris.getCurrentPack()
+				.map(pack -> pack.getProgramSet(Iris.getCurrentDimension()).getPackDirectives().getShadowDirectives()
+					.isDhShadowEnabled().orElse(true))
+				.orElse(false);
 		}
 
 		void resize(int width, int height) {
@@ -333,6 +425,10 @@ public final class IrisFarTerrain {
 			if (water != null) {
 				water.close();
 				water = null;
+			}
+			if (shadow != null) {
+				shadow.close();
+				shadow = null;
 			}
 			closeDepth();
 			if (vertexArray != 0) {

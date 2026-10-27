@@ -275,7 +275,8 @@ Diffusicraft is GPU memory, which inference leaves them by keeping within
 [`gpuMemoryLimitMb`](CONFIG.md#gpumemorylimitmb). Packs that support Distant Horizons draw its far terrain,
 Diffusicraft's included, through programs of their own. Where Distant Horizons is not installed, Diffusicraft's own far
 terrain is drawn through the same programs, so the pack shades it as it would Distant Horizons'
-([LOD.md](LOD.md#under-a-shader-pack-irisfarterrain-client-with-iris)). It casts no shadows yet.
+([LOD.md](LOD.md#under-a-shader-pack-irisfarterrain-client-with-iris)), and drawn into the pack's shadow map through its
+`dh_shadow` program, so it casts shadows as Distant Horizons' does.
 
 **Checking it.** `ShadersGameTest` turns a pack on, checks in a superflat world that Iris runs it and draws its shadow
 pass, and leaves it on for the game tests named after it (see

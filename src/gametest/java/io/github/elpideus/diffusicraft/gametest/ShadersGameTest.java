@@ -22,8 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Iris with a shader pack. The test pack ({@code src/gametest/resources/diffusicraft-gametest/shaderpack}) casts
  * shadows, which has Iris walk the sections round the player a second time, from the sun, and draws Distant Horizons'
- * far terrain through programs of its own, as packs that support it do. Installs the pack and turns it on, checks in a
- * flat world that Iris runs it and draws its shadow pass, and saves a screenshot ({@code diffusicraft-shaders-flat.png}).
+ * far terrain through programs of its own, as packs that support it do, into its shadow map as well. Installs the pack
+ * and turns it on, checks in a flat world that Iris runs it and draws its shadow pass, and saves a screenshot
+ * ({@code diffusicraft-shaders-flat.png}).
  * {@code -Pdiffusicraft.shaderPack=bliss-shader.zip} turns on a pack from the game's {@code shaderpacks} folder in its
  * place, such as one the dev runtime put there ({@code -PdevMods=sodium,iris,bliss-shader}). Gradle turns that pack
  * on in Iris's config before the game starts too, so it is on for every test, this one or not.
@@ -37,7 +38,8 @@ public class ShadersGameTest implements FabricClientGameTest {
 	private static final String PACK = "diffusicraft-test";
 	private static final String[] FILES = {
 		"gbuffers_textured_lit.vsh", "gbuffers_textured_lit.fsh", "shadow.vsh", "shadow.fsh", "composite.vsh",
-		"composite.fsh", "dh_terrain.vsh", "dh_terrain.fsh", "dh_water.vsh", "dh_water.fsh",
+		"composite.fsh", "dh_terrain.vsh", "dh_terrain.fsh", "dh_water.vsh", "dh_water.fsh", "dh_shadow.vsh",
+		"dh_shadow.fsh",
 	};
 
 	@Override

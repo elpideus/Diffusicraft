@@ -31,12 +31,17 @@ import org.lwjgl.opengl.GL20C;
 import org.lwjgl.system.MemoryStack;
 
 /**
- * A shader pack's program for Distant Horizons' terrain or water, {@code dh_terrain} or {@code dh_water}, patched by
- * Iris as it patches them for Distant Horizons, with the uniforms, samplers and blending Iris gives them. The far
- * terrain's vertices already follow Distant Horizons' layout: a position of four unsigned shorts with the light in the
- * fourth, a colour, and the material and the face's direction.
+ * A shader pack's program for Distant Horizons' terrain, water or shadows, {@code dh_terrain}, {@code dh_water} or
+ * {@code dh_shadow}, patched by Iris as it patches them for Distant Horizons, with the uniforms, samplers and blending
+ * Iris gives them. The far terrain's vertices already follow Distant Horizons' layout: a position of four unsigned
+ * shorts with the light in the fourth, a colour, and the material and the face's direction.
  */
 final class FarProgram implements AutoCloseable {
+	/** The pass a program draws in, which decides the buffers its samplers read. */
+	enum Pass {
+		TERRAIN, WATER, SHADOW
+	}
+
 	private final int id;
 	private final ProgramUniforms uniforms;
 	private final ProgramSamplers samplers;
@@ -54,7 +59,7 @@ final class FarProgram implements AutoCloseable {
 	private final int modelViewInverse;
 	private final int normalMatrix;
 
-	private FarProgram(String name, ProgramSource source, boolean water, IrisRenderingPipeline pipeline) {
+	private FarProgram(String name, ProgramSource source, Pass pass, IrisRenderingPipeline pipeline) {
 		Map<PatchShaderType, String> patched = TransformPatcher.patchDHTerrain(name,
 			source.getVertexSource().orElseThrow(), source.getTessControlSource().orElse(null),
 			source.getTessEvalSource().orElse(null), source.getGeometrySource().orElse(null),
@@ -94,8 +99,11 @@ final class FarProgram implements AutoCloseable {
 		CommonUniforms.addDynamicUniforms(uniformBuilder, FogMode.PER_VERTEX);
 		customUniforms.assignTo(uniformBuilder);
 		BuiltinReplacementUniforms.addBuiltinReplacementUniforms(uniformBuilder);
-		pipeline.addGbufferOrShadowSamplers(samplerBuilder, imageBuilder,
-			water ? pipeline::getFlippedAfterTranslucent : pipeline::getFlippedAfterPrepare, false, false, true, false);
+		pipeline.addGbufferOrShadowSamplers(samplerBuilder, imageBuilder, switch (pass) {
+			case TERRAIN -> pipeline::getFlippedAfterPrepare;
+			case WATER -> pipeline::getFlippedAfterTranslucent;
+			case SHADOW -> pipeline::getFlippedBeforeShadow;
+		}, pass == Pass.SHADOW, false, true, false);
 		customUniforms.mapholderToPass(uniformBuilder, this);
 		uniforms = uniformBuilder.buildUniforms();
 		samplers = samplerBuilder.build();
@@ -120,9 +128,9 @@ final class FarProgram implements AutoCloseable {
 		normalMatrix = GL20C.glGetUniformLocation(id, "iris_NormalMatrix");
 	}
 
-	/** Builds the pack's program from {@code source}, for the water if {@code water}. Throws if it does not build. */
-	static FarProgram create(String name, ProgramSource source, boolean water, IrisRenderingPipeline pipeline) {
-		return new FarProgram(name, source, water, pipeline);
+	/** Builds the pack's program from {@code source}, for {@code pass}. Throws if it does not build. */
+	static FarProgram create(String name, ProgramSource source, Pass pass, IrisRenderingPipeline pipeline) {
+		return new FarProgram(name, source, pass, pipeline);
 	}
 
 	private static void attach(List<GlShader> shaders, ShaderType type, String name, @Nullable String source) {

@@ -133,6 +133,10 @@ public final class FarTerrain {
 	private boolean wallsDrawn;
 	private @Nullable GpuBufferSlice terrainTransform;
 	private int maxQuads;
+	/** The most quads of land any tile with a mesh has, which casts shadows from outside the view too. */
+	private int casterQuads;
+	/** How many tiles a shader pack drew into its shadow map last. */
+	private int casters;
 	private @Nullable Vec3 camera;
 	/** Whether a shader pack draws the far terrain in this frame, rather than the world's solid pass. */
 	private boolean shaders;
@@ -211,6 +215,12 @@ public final class FarTerrain {
 		return terrain != null ? terrain.maxQuads : 0;
 	}
 
+	/** The most quads of land a tile has, which the index buffer holds while a shader pack draws shadows. */
+	public static int casterQuads() {
+		FarTerrain terrain = current;
+		return terrain != null && terrain.shaders ? terrain.casterQuads : 0;
+	}
+
 	/** A tile of far terrain to draw. */
 	public interface Tiles {
 		/**
@@ -243,6 +253,44 @@ public final class FarTerrain {
 					(float) (terrain.bottom - camera.y), (float) (tile.minBlockZ() - camera.z));
 			}
 		}
+	}
+
+	/** A test of a box given from the camera, such as whether it lies in view. */
+	public interface Box {
+		boolean test(float minX, float minY, float minZ, float maxX, float maxY, float maxZ);
+	}
+
+	/**
+	 * Hands {@code tiles} the land of every tile with a mesh whose box {@code visible} passes, placed from the camera at
+	 * {@code (x, y, z)}, for a shader pack to draw into its shadow map, which also sees what lies outside the view. On
+	 * the render thread.
+	 */
+	public static void forEachCaster(double x, double y, double z, Box visible, Tiles tiles) {
+		FarTerrain terrain = current;
+		if (terrain == null || !terrain.shaders) {
+			return;
+		}
+		float bottom = (float) (terrain.bottom - y);
+		terrain.casters = 0;
+		for (FarMesh mesh : terrain.view.drawn()) {
+			if (mesh.solidQuads == 0 || mesh.buffer == null) {
+				continue;
+			}
+			LodTiles.Tile tile = mesh.tile;
+			float minX = (float) (tile.minBlockX() - x);
+			float minZ = (float) (tile.minBlockZ() - z);
+			if (visible.test(minX, (float) (mesh.minY - y), minZ, minX + tile.size(), (float) (mesh.maxY - y),
+				minZ + tile.size())) {
+				tiles.tile(mesh.buffer, 0, mesh.solidQuads, minX, bottom, minZ);
+				terrain.casters++;
+			}
+		}
+	}
+
+	/** How many tiles a shader pack drew into its shadow map last, or 0 if it draws no shadows. */
+	public static int casters() {
+		FarTerrain terrain = current;
+		return terrain != null && terrain.shaders ? terrain.casters : 0;
 	}
 
 	/**
@@ -331,9 +379,14 @@ public final class FarTerrain {
 			chosen = now;
 		}
 		dispatch(source, at);
+		casterQuads = 0;
 		for (FarMesh mesh : view.drawn()) {
 			LodTiles.Tile tile = mesh.tile;
-			if (mesh.buffer != null && camera.cullFrustum.isVisible(new AABB(tile.minBlockX(), mesh.minY, tile.minBlockZ(),
+			if (mesh.buffer == null) {
+				continue;
+			}
+			casterQuads = Math.max(casterQuads, mesh.solidQuads);
+			if (camera.cullFrustum.isVisible(new AABB(tile.minBlockX(), mesh.minY, tile.minBlockZ(),
 				tile.minBlockX() + tile.size(), mesh.maxY, tile.minBlockZ() + tile.size()))) {
 				drawn.add(mesh);
 				maxQuads = Math.max(maxQuads, Math.max(mesh.solidQuads, mesh.waterQuads));
@@ -342,8 +395,10 @@ public final class FarTerrain {
 		walls.update(level, viewDistance, at, fogEnd);
 		wallsDrawn = walls.buffer() != null;
 		maxQuads = Math.max(maxQuads, walls.quads());
-		if (maxQuads > 0) {
-			RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS).requestIndexCount(maxQuads * 6);
+		// A shader pack's shadows draw the land of tiles out of view as well.
+		int indices = shaders ? Math.max(maxQuads, casterQuads) : maxQuads;
+		if (indices > 0) {
+			RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS).requestIndexCount(indices * 6);
 		}
 		if (drawn.isEmpty() && !wallsDrawn) {
 			return;
@@ -643,7 +698,7 @@ public final class FarTerrain {
 	/**
 	 * A line of the debug screen, which the player turns on among its entries (F3 + F6): the tiles with a mesh and
 	 * those drawn in the last frame, those left rough and those still to build, the memory their meshes take on the GPU
-	 * and the faces of the cave walls.
+	 * and the faces of the cave walls; and under a shader pack, a second line with the tiles drawn into its shadow map.
 	 */
 	private static final class DebugEntry implements DebugScreenEntry {
 		@Override
@@ -658,6 +713,9 @@ public final class FarTerrain {
 				terrain.view.size(), terrain.drawn.size(), terrain.rough.size(),
 				terrain.missing.size() + terrain.rebuild.size() + terrain.building.size(),
 				FarMesh.allocated() / (double) (1 << 20), terrain.wallsDrawn ? terrain.walls.quads() : 0));
+			if (terrain.shaders) {
+				displayer.addLine(String.format(Locale.ROOT, "Far terrain shadows: %d tiles", casters()));
+			}
 		}
 	}
 
