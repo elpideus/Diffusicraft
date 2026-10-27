@@ -5,7 +5,8 @@ Diffusicraft generates the overworld from Terrain Diffusion's elevation and clim
 therefore stays a vanilla `NoiseBasedChunkGenerator`, and its biome source is vanilla's multi-noise source with one
 step added. Several things work unchanged because of this:
 
-- structures and structure mods;
+- structures and structure mods, though the villages and pillager outposts stand further apart
+  ([below](#villages-and-outposts));
 - biome mods that extend the overworld biome table (TerraBlender, Biomes O' Plenty, BYG);
 - C2ME's parallel generation.
 
@@ -537,7 +538,8 @@ The redwood forest, the ancient woodland and the old-growth jungle are no climat
 
 Their ground is the material rule `diffusicraft:biome_surface`, which runs ahead of vanilla's overworld surface rule
 and leaves every other biome to it. They join vanilla's structure tags (villages, outposts, ruins) and the `c:`
-convention tags where they fit.
+convention tags where they fit. With so much open land, the villages and outposts are spread wider than vanilla's (see
+[Villages and outposts](#villages-and-outposts)).
 
 The game requires one order of features that every biome agrees with, and other mods' biomes take part in it. So a
 new biome names a vanilla feature only where its template lists it too, in the template's order. Any other vanilla
@@ -801,6 +803,46 @@ boulders where more than 700 mm of rain fall a year, on half of them from 2200 m
 **Where.** Only in Diffusicraft worlds, whose climate the features read: `ChunkGeneratorMixin` places them right after
 the falls (`DiffusicraftWorldgen.AFTER_SPRINGS`), so they reach every land biome too, and the falls are laid out on
 bare ground while the boulders stay out of their water. The plants and trees grow after them, around them.
+
+### Villages and outposts
+
+Vanilla places a village in each cell of 34 by 34 chunks (544 blocks) whose chosen chunk lies in a village biome, and a
+pillager outpost in one in five cells of 32 by 32 chunks. In a vanilla world two fifths of the land is village country
+(plains, meadows, savannas, deserts, taigas, snowy plains), in patches a few hundred blocks across, so the villages
+stand some 530 blocks apart.
+
+A Diffusicraft world has far more of it. The [refined biomes](#refined-biomes) turn the open land of every climate into
+prairies, steppes, heaths, scrub, tundra and open taigas, all village country, which take from a fifth to nearly nine
+tenths of the land, most often more than half, and run on for thousands of blocks. There every cell holds a village:
+with vanilla's spreads one stood every 400 blocks across the plains, and the world held up to twice vanilla's villages
+and outposts for the same land.
+
+So a Diffusicraft world spreads them three times as wide, rather than taking biomes out of the tags, which would leave
+whole climates without a village: the villages one to a cell of 102 by 102 chunks, at least 24 chunks apart, the
+outposts one in five cells of 96 by 96, at least 24 apart and still 10 chunks clear of the villages. In village country
+the next village is now 1.2 to 1.7 km away, a short ride, and outside it, as in vanilla, there is none. The sets
+`diffusicraft:villages` and `diffusicraft:pillager_outposts` hold these placements, with vanilla's salts, and no
+structures. When a Diffusicraft world's structure state is made, `ChunkGeneratorStructureStateMixin` gives
+`minecraft:villages` and `minecraft:pillager_outposts` their placements. Every village that vanilla, a data pack or a
+mod lists in those sets still generates, only further apart, and other world types keep vanilla's spreads. The giant
+trees keep their 6 chunks from the wider villages. A mod's set that keeps clear of `minecraft:villages` keeps clear of
+vanilla's places, where no village now stands, which costs it a few places and nothing else.
+
+Measured on the coarse climate's biomes, sampled every 250 blocks, for seeds 42, 7 and 20261052: squares of 60 km at 1:1
+and 40 km at 1:32 around the origin, against vanilla worlds of the same seeds. Village to village is the median distance
+from a village to the nearest other; the nearest village is the walk from village country, the nearest outpost the walk
+from any land, as the median and the distance within which 9 in 10 places have one.
+
+| World | Villages per 10,000² blocks of land | Village to village | Nearest village | Outposts per 10,000² blocks of land | Nearest outpost |
+|---|---|---|---|---|---|
+| Vanilla | 134 to 139 | 530 to 540 | 320 to 360, 670 to 840 | 19 to 25 | 1.0 to 1.4 km, 2.0 to 2.8 km |
+| Ultra (1:1), vanilla's spreads | 76 to 243 | 390 to 450 | 230 to 260, 360 to 550 | 11 to 48 | 0.6 to 1.6 km, 1.2 to 3.9 km |
+| Ultra (1:1) | 8 to 27 | 1.2 to 1.7 km | 0.7 to 1.2 km, 1.1 to 2.6 km | 1.8 to 7.9 | 1.6 to 3.6 km, 2.9 to 8.6 km |
+| Vanilla size (1:32), vanilla's spreads | 175 to 298 | 400 to 410 | 230 to 250, 370 to 430 | 28 to 48 | 0.65 to 1.1 km, 1.2 to 3.2 km |
+| Vanilla size (1:32) | 19 to 33 | 1.2 to 1.3 km | 0.7 to 0.8 km, 1.2 to 1.6 km | 4.6 to 8.3 | 1.6 to 2.4 km, 2.9 to 5.9 km |
+
+The widest gaps are seed 20261052's at 1:1, where village country is a fifth of the land in scattered patches.
+`WorldGenerationGameTest` checks that the villages and outposts of a Diffusicraft world take these spreads.
 
 ### Density and caves
 
@@ -1583,7 +1625,7 @@ Other searches still read the full terrain and can take a while on new land:
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
 | `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `CoastSlope` (the land eased down to the sea), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, islets and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `Sights` (what `/diffusicraft find` finds), `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the vanilla features Diffusicraft worlds leave out and the falls they add after vanilla's water springs, the water springs they leave off the cliffs, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
+| `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the wider spreads of the villages and pillager outposts, the lava level, the carver roof, the vanilla features Diffusicraft worlds leave out and the falls they add after vanilla's water springs, the water springs they leave off the cliffs, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `RiverCourses` (the water of those paths in blocks), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
@@ -1595,9 +1637,9 @@ Other searches still read the full terrain and can take a while on new land:
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust, glowworm silk and selenite |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types, one for each size but Vanilla |
-| `data/diffusicraft/worldgen/{biome,feature,placed_feature}/`, `material_rule/biome_surface.json`, `material_rule/biome_caves.json`, biome tags | The new biomes, their trees and plants, their ground and their tags |
+| `data/diffusicraft/worldgen/{biome,feature,placed_feature,structure,structure_set}/`, `material_rule/biome_surface.json`, `material_rule/biome_caves.json`, biome tags | The new biomes, their trees and plants, their ground and their tags, the giant trees' structures, and the spreads of the villages and pillager outposts |
 | `tools/worldgen_data.py` | Writes the noise settings, material rules, density functions, presets and dimension types. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
-| `tools/biomes.py` | Writes the new biomes, the cave biomes of the Grand Hollows, their features, ground rules and tags. Edit it, run `python3 tools/biomes.py`, and commit the output. |
+| `tools/biomes.py` | Writes the new biomes, the cave biomes of the Grand Hollows, their features, ground rules and tags, the giant trees' structures and the spreads of the villages and pillager outposts. Edit it, run `python3 tools/biomes.py`, and commit the output. |
 | `tools/block_assets.py` | Draws the textures of the rocks, soils, plants, salt crust, glowworm silk and selenite, and writes the block states, models, loot tables, dye recipes, peat's burn time and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
 
 ## Lifetime and storage
@@ -1758,7 +1800,8 @@ Other searches still read the full terrain and can take a while on new land:
   - the variant noise's wavelength, at most 2000 blocks from 1:4 up.
 - `WorldGenerationGameTest` is a client game test and needs the models. It checks that Diffusicraft is the default world
   type, creates a world at the Medium size (1:16), which its checks were made for, and checks that a player can stand at
-  the world spawn, and that the heightmaps count all of Diffusicraft's full blocks. It then saves a biome map, a height
+  the world spawn, that the heightmaps count all of Diffusicraft's full blocks, and that the villages and pillager
+  outposts take Diffusicraft's wider spreads. It then saves a biome map, a height
   map, in-game views around the spawn and views of the largest river near the spawn if there is one, the steepest cliff,
   the tallest sea cliff, each of Diffusicraft's biomes within 24 km or, for those of other latitudes, along the meridian
   towards the equator, the tallest Grand Hollow, a lava sea nearby and the tallest Grand Hollow of each cave biome

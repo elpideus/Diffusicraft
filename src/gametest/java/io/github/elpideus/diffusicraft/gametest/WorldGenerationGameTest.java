@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.gametest;
 
+import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.block.DiffusicraftBlocks;
 import io.github.elpideus.diffusicraft.client.worldgen.WorldSizes;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
@@ -39,8 +40,10 @@ import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.QuartPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
@@ -55,6 +58,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
@@ -62,6 +66,11 @@ import net.minecraft.world.level.levelgen.NoiseRouter;
 import net.minecraft.world.level.levelgen.PositionalRandomFactory;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement;
+import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,9 +98,10 @@ import java.util.stream.IntStream;
  * generator without building chunks, in-game views from above the spawn, over the largest river nearby if any, of the
  * tallest sea cliff nearby and of each of Diffusicraft's biomes within 24 km or along the meridian towards the equator,
  * and views inside the nearest Grand Hollow, inside the tallest Grand Hollow of each of their biomes, over the nearest
- * lake in a Grand Hollow and over the nearest lava sea of a Deep Grand Hollow. It also checks that each Grand Hollow
- * biome grows what it should, that the lake holds its water, and the levels of detail Distant Horizons draws against
- * the chunks generated around the spawn, and saves maps of them near and far.
+ * lake in a Grand Hollow and over the nearest lava sea of a Deep Grand Hollow. It also checks that the villages and
+ * pillager outposts take Diffusicraft's wider spreads, that each Grand Hollow biome grows what it should, that the
+ * lake holds its water, and the levels of detail Distant Horizons draws against the chunks generated around the spawn,
+ * and saves maps of them near and far.
  *
  * <p>Needs the Terrain Diffusion models; without them the test logs a warning and does nothing. Generation runs on the
  * CPU, so the test leaves the GPU alone; pass {@code -Pdiffusicraft.device=CUDA} (or {@code AUTO}) to change that.
@@ -179,7 +189,9 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 			String spawnProblem = world.getServer().computeOnServer(server -> checkSpawn(server.overworld(), probe.spawn));
 			String blocksProblem = world.getServer().computeOnServer(server -> checkSolidBlocks());
 			String oresProblem = world.getServer().computeOnServer(server -> checkModOres());
-			blocksProblem = spawnProblem != null ? spawnProblem : blocksProblem != null ? blocksProblem : oresProblem;
+			String spreadsProblem = world.getServer().computeOnServer(server -> checkSpreads(server.overworld()));
+			blocksProblem = spawnProblem != null ? spawnProblem : blocksProblem != null ? blocksProblem
+				: oresProblem != null ? oresProblem : spreadsProblem;
 			Map<String, BlockPos> diffusicraftBiomes = saveMaps(probe);
 			findFarBiomes(probe, diffusicraftBiomes);
 
@@ -648,6 +660,32 @@ public class WorldGenerationGameTest implements FabricClientGameTest {
 		if (ores.available().contains(Ore.ZINC)
 			&& BuiltInRegistries.BLOCK.getKey(ores.block(Ore.ZINC, false).getBlock()).getNamespace().equals("techreborn")) {
 			return "The geology places Tech Reborn's sphalerite, a Nether ore";
+		}
+		return null;
+	}
+
+	/**
+	 * Whether the villages and pillager outposts take the spreads of Diffusicraft's sets of the same names, rather than
+	 * vanilla's 34 and 32 chunks.
+	 */
+	private static @Nullable String checkSpreads(ServerLevel level) {
+		HolderLookup<StructureSet> sets = level.registryAccess().lookupOrThrow(Registries.STRUCTURE_SET);
+		HolderLookup<Structure> structures = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+		ChunkGeneratorStructureState state = level.getChunkSource().getGeneratorState();
+		for (var spread : Map.of(BuiltinStructures.VILLAGE_PLAINS, "villages", BuiltinStructures.PILLAGER_OUTPOST,
+			"pillager_outposts").entrySet()) {
+			StructurePlacement wanted = sets.getOrThrow(ResourceKey.create(Registries.STRUCTURE_SET,
+				Diffusicraft.id(spread.getValue()))).value().placement();
+			List<StructurePlacement> placements = state.getPlacementsForStructure(structures.getOrThrow(spread.getKey()));
+			List<String> spacings = placements.stream()
+				.map(p -> p instanceof RandomSpreadStructurePlacement r ? r.spacing() + "/" + r.separation()
+					: p.getClass().getSimpleName())
+				.toList();
+			LOGGER.info("{} spread {} chunks", spread.getKey().identifier(), spacings);
+			if (!placements.equals(List.of(wanted))) {
+				return spread.getKey().identifier() + " is spread " + spacings + ", not as diffusicraft:"
+					+ spread.getValue();
+			}
 		}
 		return null;
 	}

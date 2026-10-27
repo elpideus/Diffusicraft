@@ -34,6 +34,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `Math.max` in `Camera.update` (its far plane) and the return of `FogRenderer.setupFog`;
   - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
+    the call to `Stream.collect` in `ChunkGeneratorStructureState.createForNormal` (where a Diffusicraft world's villages
+    and pillager outposts take Diffusicraft's spreads),
     `NoiseBasedChunkGenerator.createFluidPicker` and `createNoiseChunk`, the call to `clampToHeightAccessor` in
     `NoiseBasedChunkGenerator.iterateNoiseColumn`, the calls to `WorldCarver.isStartChunk` and `applyCarvingMask` in
     `NoiseBasedChunkGenerator.generateCarvers`, the `cache` field of `StructureTemplate.Palette` (replaced at the end

@@ -3,7 +3,7 @@
     "type": "minecraft:random_spread",
     "exclusion_zone": {
       "chunk_count": 6,
-      "other_set": "minecraft:villages"
+      "other_set": "diffusicraft:villages"
     },
     "salt": 1529730183,
     "separation": 1,

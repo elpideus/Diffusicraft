@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Writes Diffusicraft's biomes: the ones the climate refines vanilla's picks into (see BiomeRefiner.java), their trees
-and plants, their ground (a material rule) and their tags, and the giant trees that grow as structures.
+and plants, their ground (a material rule) and their tags, the giant trees that grow as structures, and the spreads of
+the villages and pillager outposts.
 
 The files are committed; run this after changing a biome and commit the result:
 
@@ -785,9 +786,25 @@ STRUCTURES = {
 # only its own giant grows. Not in a village.
 GIANT_TREES = {
     "placement": {"type": "minecraft:random_spread", "exclusion_zone": {"chunk_count": 6,
-                                                                        "other_set": "minecraft:villages"},
+                                                                        "other_set": ours("villages")},
                   "salt": 1529730183, "separation": 1, "spacing": 3},
     "structures": [{"structure": ours(name), "weight": 1} for name in STRUCTURES]}
+
+# The spreads of the villages and pillager outposts in a Diffusicraft world: vanilla's, three times as wide. Its plains,
+# steppes and taigas run on for thousands of blocks, where vanilla's spread puts a village in every cell of 34 by 34
+# chunks, one every 400 blocks. These sets list no structures: in a Diffusicraft world vanilla's sets of the same names
+# take their placements (see ChunkGeneratorStructureStateMixin.java), so every village vanilla, a datapack or a mod
+# lists in them still generates. Vanilla's salts; the outposts keep their distance from these villages.
+SPREADS = {
+    "villages": {"placement": {"type": "minecraft:random_spread", "salt": 10387312, "separation": 24, "spacing": 102},
+                 "structures": []},
+    "pillager_outposts": {
+        "placement": {"type": "minecraft:random_spread", "exclusion_zone": {"chunk_count": 10,
+                                                                            "other_set": ours("villages")},
+                      "frequency": 0.2, "frequency_reduction_method": "legacy_type_1", "salt": 165745296,
+                      "separation": 24, "spacing": 96},
+        "structures": []},
+}
 
 
 def spawn(mob, weight, lo, hi=None):
@@ -1615,6 +1632,8 @@ def main():
         write(f"{NS}/tags/worldgen/biome/has_structure/{name}.json", {"replace": False, "values": structure["biomes"]})
         write(f"{NS}/worldgen/structure/{name}.json", dict(structure, biomes=f"#{NS}:has_structure/{name}"))
     write(f"{NS}/worldgen/structure_set/giant_trees.json", GIANT_TREES)
+    for name, spread in SPREADS.items():
+        write(f"{NS}/worldgen/structure_set/{name}.json", spread)
     write(f"{NS}/worldgen/material_rule/biome_surface.json", SURFACE_RULE)
     write(f"{NS}/worldgen/material_rule/biome_caves.json", CAVE_RULE)
 
