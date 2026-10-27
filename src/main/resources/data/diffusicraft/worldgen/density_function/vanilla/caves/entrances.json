@@ -1,6 +1,6 @@
 {
   "type": "minecraft:add",
-  "left": "minecraft:overworld/caves/entrances",
+  "left": "diffusicraft:minecraft/overworld/caves/entrances",
   "right": {
     "type": "minecraft:clamp",
     "min": 0.0,

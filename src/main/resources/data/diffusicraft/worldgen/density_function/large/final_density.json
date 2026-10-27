@@ -88,11 +88,11 @@
                               },
                               "right": {
                                 "type": "minecraft:range_choice",
-                                "input": "minecraft:overworld/caves/pillars",
+                                "input": "diffusicraft:minecraft/overworld/caves/pillars",
                                 "min_inclusive": -1000000.0,
                                 "max_exclusive": 0.03,
                                 "when_in_range": -1000000.0,
-                                "when_out_of_range": "minecraft:overworld/caves/pillars"
+                                "when_out_of_range": "diffusicraft:minecraft/overworld/caves/pillars"
                               }
                             },
                             "right": "diffusicraft:large/hollows"

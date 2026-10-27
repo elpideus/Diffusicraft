@@ -17,7 +17,9 @@ public final class DiffusicraftMixinPlugin implements IMixinConfigPlugin {
 	private static final String PACKAGE = "io.github.elpideus.diffusicraft.";
 	/** Mixin packages into other mods, and the mod each needs. */
 	private static final Map<String, String> MODS = Map.of(
+		PACKAGE + "mixin.biolith.", "biolith",
 		PACKAGE + "mixin.dh.", "distanthorizons",
+		PACKAGE + "mixin.tectonic.", "tectonic",
 		PACKAGE + "client.mixin.iris.", "iris",
 		PACKAGE + "client.mixin.sodium.", "sodium",
 		PACKAGE + "client.mixin.voxy.", "voxy");

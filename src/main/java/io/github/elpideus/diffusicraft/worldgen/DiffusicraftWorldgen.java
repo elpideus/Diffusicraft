@@ -1,7 +1,7 @@
 package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
-import io.github.elpideus.diffusicraft.mixin.NoiseGeneratorSettingsAccessor;
+import io.github.elpideus.diffusicraft.compat.biolith.BiolithRules;
 import io.github.elpideus.diffusicraft.worldgen.biome.ClimateBiomeSource;
 import io.github.elpideus.diffusicraft.worldgen.biome.HeightTemperature;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
@@ -24,8 +24,11 @@ import io.github.elpideus.diffusicraft.worldgen.feature.SpireFeature;
 import io.github.elpideus.diffusicraft.worldgen.feature.UndergrowthFeature;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
 import io.github.elpideus.diffusicraft.worldgen.material.ModOres;
+import io.github.elpideus.diffusicraft.worldgen.material.OtherModsRule;
 import io.github.elpideus.diffusicraft.worldgen.material.RiverRule;
+import io.github.elpideus.diffusicraft.worldgen.material.SplitRule;
 import io.github.elpideus.diffusicraft.worldgen.material.StrataRule;
+import io.github.elpideus.diffusicraft.worldgen.material.WorldRule;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
@@ -91,6 +94,8 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.DENSITY_FUNCTION_TYPE, Diffusicraft.id("coast"), CoastFunction.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("strata"), StrataRule.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("river"), RiverRule.CODEC);
+		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("world"), WorldRule.CODEC);
+		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("other_mods"), OtherModsRule.CODEC);
 		Registry.register(BuiltInRegistries.BIOME_SOURCE, Diffusicraft.id("climate"), ClimateBiomeSource.CODEC);
 		Registry.register(BuiltInRegistries.PLACEMENT_MODIFIER_TYPE, Diffusicraft.id("hollow_surface"),
 			HollowSurfacePlacement.CODEC);
@@ -114,6 +119,10 @@ public final class DiffusicraftWorldgen {
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
 			LevelStem overworld = server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getValue(LevelStem.OVERWORLD);
 			HeightTemperature.set(overworld != null && usesModels(overworld.generator()) ? 0f : 1f);
+			VanillaCopies.load(server.registryAccess());
+			if (overworld != null && usesModels(overworld.generator())) {
+				BiolithRules.addTo(overworld, server.registryAccess());
+			}
 		});
 		// The ores of other mods are looked up again in the tags and ore features as they are now.
 		CommonLifecycleEvents.TAGS_LOADED.register((registries, client) -> {
@@ -126,6 +135,7 @@ public final class DiffusicraftWorldgen {
 			StrataRule.clearCache();
 			Hollows.clearCache();
 			Rivers.clearCache();
+			VanillaCopies.clear();
 		});
 	}
 
@@ -226,7 +236,29 @@ public final class DiffusicraftWorldgen {
 
 	/** The material rule the settings were loaded with, before biome mods such as TerraBlender add theirs to it. */
 	private static Holder<MaterialRule> ownRule(NoiseGeneratorSettings settings) {
-		return ((NoiseGeneratorSettingsAccessor) (Object) settings).diffusicraft$materialRule();
+		return ((Loaded) (Object) settings).diffusicraft$loadedRule();
+	}
+
+	/**
+	 * The material rule that builds the surface of a chunk with these settings, from {@code rule}, the one they
+	 * return now. Diffusicraft's settings keep their own rule apart from what biome mods made of it (see
+	 * {@link SplitRule}); anyone else's return {@code rule}.
+	 */
+	public static MaterialRule materialRule(NoiseGeneratorSettings settings, MaterialRule rule) {
+		MaterialRule own = ownRule(settings).value();
+		return !isDiffusicraft(settings) || rule == own ? rule : new SplitRule(own, rule);
+	}
+
+	/** What {@link NoiseGeneratorSettings} keep of what they were loaded with, besides the fields other mods replace. */
+	public interface Loaded {
+		/** The material rule the settings were loaded with. */
+		Holder<MaterialRule> diffusicraft$loadedRule();
+
+		/** Replaces the rule the settings return, as Biolith does. */
+		void diffusicraft$setMaterialRule(Holder<MaterialRule> rule);
+
+		/** Puts back the noise router and the aquifers the settings were loaded with, which Lithostitched replaces. */
+		void diffusicraft$restoreTerrain();
 	}
 
 	/** Whether Diffusicraft worlds leave out a placed feature, which vanilla's biomes and its own list. */

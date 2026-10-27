@@ -17,6 +17,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+import vanilla_copies
+
 PROJECT = Path(__file__).resolve().parent.parent
 ROOT = PROJECT / "src" / "main" / "resources" / "data"
 NS = "diffusicraft"
@@ -1636,6 +1638,7 @@ def main():
         write(f"{NS}/worldgen/structure_set/{name}.json", spread)
     write(f"{NS}/worldgen/material_rule/biome_surface.json", SURFACE_RULE)
     write(f"{NS}/worldgen/material_rule/biome_caves.json", CAVE_RULE)
+    vanilla_copies.update(find_jar())
 
 
 if __name__ == "__main__":

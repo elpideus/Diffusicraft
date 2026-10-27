@@ -3,10 +3,10 @@
   "sequence": [
     {
       "type": "minecraft:condition",
-      "if_true": "minecraft:on_floor",
+      "if_true": "diffusicraft:minecraft/on_floor",
       "then_run": {
         "type": "minecraft:condition",
-        "if_true": "minecraft:not_underwater",
+        "if_true": "diffusicraft:minecraft/not_underwater",
         "then_run": {
           "type": "minecraft:sequence",
           "sequence": [
@@ -299,7 +299,7 @@
                   },
                   {
                     "type": "minecraft:condition",
-                    "if_true": "minecraft:on_ceiling",
+                    "if_true": "diffusicraft:minecraft/on_ceiling",
                     "then_run": {
                       "type": "minecraft:block",
                       "result_state": "minecraft:sandstone"
@@ -325,7 +325,7 @@
                 "sequence": [
                   {
                     "type": "minecraft:condition",
-                    "if_true": "minecraft:on_ceiling",
+                    "if_true": "diffusicraft:minecraft/on_ceiling",
                     "then_run": {
                       "type": "minecraft:block",
                       "result_state": "minecraft:coarse_dirt"
@@ -377,7 +377,7 @@
                 "sequence": [
                   {
                     "type": "minecraft:condition",
-                    "if_true": "minecraft:on_ceiling",
+                    "if_true": "diffusicraft:minecraft/on_ceiling",
                     "then_run": {
                       "type": "minecraft:block",
                       "result_state": "minecraft:coarse_dirt"
@@ -452,7 +452,7 @@
                   },
                   {
                     "type": "minecraft:condition",
-                    "if_true": "minecraft:on_ceiling",
+                    "if_true": "diffusicraft:minecraft/on_ceiling",
                     "then_run": {
                       "type": "minecraft:block",
                       "result_state": "minecraft:sandstone"
@@ -1087,7 +1087,7 @@
     },
     {
       "type": "minecraft:condition",
-      "if_true": "minecraft:under_floor",
+      "if_true": "diffusicraft:minecraft/under_floor",
       "then_run": {
         "type": "minecraft:sequence",
         "sequence": [

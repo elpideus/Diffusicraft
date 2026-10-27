@@ -2,8 +2,8 @@
   "type": "minecraft:add",
   "left": {
     "type": "minecraft:add",
-    "left": "minecraft:overworld/caves/spaghetti_2d",
-    "right": "minecraft:overworld/caves/spaghetti_roughness_function"
+    "left": "diffusicraft:minecraft/overworld/caves/spaghetti_2d",
+    "right": "diffusicraft:minecraft/overworld/caves/spaghetti_roughness_function"
   },
   "right": {
     "type": "minecraft:clamp",

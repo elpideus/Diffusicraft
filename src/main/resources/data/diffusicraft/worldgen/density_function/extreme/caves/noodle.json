@@ -6,7 +6,7 @@
     "cell_size_y": 8,
     "input": {
       "type": "minecraft:range_choice",
-      "input": "minecraft:y",
+      "input": "diffusicraft:minecraft/y",
       "min_inclusive": -252.0,
       "max_exclusive": 7885.0,
       "when_in_range": {
@@ -29,7 +29,7 @@
       "cell_size_y": 8,
       "input": {
         "type": "minecraft:range_choice",
-        "input": "minecraft:y",
+        "input": "diffusicraft:minecraft/y",
         "min_inclusive": -252.0,
         "max_exclusive": 7885.0,
         "when_in_range": {
@@ -62,7 +62,7 @@
             "cell_size_y": 8,
             "input": {
               "type": "minecraft:range_choice",
-              "input": "minecraft:y",
+              "input": "diffusicraft:minecraft/y",
               "min_inclusive": -252.0,
               "max_exclusive": 7885.0,
               "when_in_range": {
@@ -83,7 +83,7 @@
             "cell_size_y": 8,
             "input": {
               "type": "minecraft:range_choice",
-              "input": "minecraft:y",
+              "input": "diffusicraft:minecraft/y",
               "min_inclusive": -252.0,
               "max_exclusive": 7885.0,
               "when_in_range": {

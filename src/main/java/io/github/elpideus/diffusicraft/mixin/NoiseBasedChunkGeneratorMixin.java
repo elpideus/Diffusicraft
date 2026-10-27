@@ -9,6 +9,7 @@ import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.TerrainCeiling;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainFields;
+import io.github.elpideus.diffusicraft.worldgen.VanillaCopies;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.minecraft.SharedConstants;
@@ -49,7 +50,10 @@ import java.util.function.Function;
  * Also starts only one in six of vanilla's cave carvers, which with its noise caves would leave the ground as full
  * of holes as vanilla's, and keeps carvers under a roof where their holes would fill with water (see
  * {@link CarverRoof}) and under sand and gravel, which would hang over them. And fills chunks, and the columns
- * structures ask about, only up to the highest block their ground can reach; see {@link TerrainCeiling}.
+ * structures ask about, only up to the highest block their ground can reach; see {@link TerrainCeiling}. Builds the
+ * surface with Diffusicraft's own material rule, apart from what biome mods add to it (see
+ * {@link DiffusicraftWorldgen#materialRule}), and carves with Diffusicraft's copies of vanilla's carvers (see
+ * {@link VanillaCopies}).
  */
 @Mixin(NoiseBasedChunkGenerator.class)
 abstract class NoiseBasedChunkGeneratorMixin {
@@ -119,6 +123,23 @@ abstract class NoiseBasedChunkGeneratorMixin {
 	private static NoiseSettings narrowed(NoiseSettings noise, int top) {
 		int height = Math.max(16, Math.ceilDiv(top + 1 - noise.minY(), 16) * 16);
 		return height < noise.height() ? new NoiseSettings(noise.minY(), height) : noise;
+	}
+
+	@ModifyVariable(method = {"buildSurface(Lnet/minecraft/world/level/chunk/ChunkAccess;"
+		+ "Lnet/minecraft/world/level/levelgen/NoiseChunk;Lnet/minecraft/world/level/levelgen/RandomState;"
+		+ "Lnet/minecraft/world/level/biome/BiomeManager;Ljava/util/Set;"
+		+ "Lnet/minecraft/world/level/levelgen/material/rule/MaterialRule;)V", "generateCarvers"},
+		at = @At("HEAD"), argsOnly = true)
+	private MaterialRule diffusicraft$ownRule(MaterialRule rule) {
+		return DiffusicraftWorldgen.materialRule(((NoiseBasedChunkGenerator) (Object) this).generatorSettings().value(),
+			rule);
+	}
+
+	@WrapOperation(method = "generateCarvers", at = @At(value = "INVOKE",
+		target = "Lnet/minecraft/core/Holder;value()Ljava/lang/Object;"))
+	private Object diffusicraft$vanillaCarvers(Holder<WorldCarver> carver, Operation<Object> original) {
+		return DiffusicraftWorldgen.isDiffusicraft(((NoiseBasedChunkGenerator) (Object) this).generatorSettings().value())
+			? VanillaCopies.carver(carver) : original.call(carver);
 	}
 
 	@WrapOperation(method = "generateCarvers", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/"

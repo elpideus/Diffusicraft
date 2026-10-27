@@ -37,19 +37,23 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     the call to `Stream.collect` in `ChunkGeneratorStructureState.createForNormal` (where a Diffusicraft world's villages
     and pillager outposts take Diffusicraft's spreads),
     `NoiseBasedChunkGenerator.createFluidPicker` and `createNoiseChunk`, the call to `clampToHeightAccessor` in
-    `NoiseBasedChunkGenerator.iterateNoiseColumn`, the calls to `WorldCarver.isStartChunk` and `applyCarvingMask` in
-    `NoiseBasedChunkGenerator.generateCarvers`, the `cache` field of `StructureTemplate.Palette` (replaced at the end
+    `NoiseBasedChunkGenerator.iterateNoiseColumn`, the calls to `WorldCarver.isStartChunk`, `applyCarvingMask` and
+    `Holder.value` (vanilla's carvers swapped for Diffusicraft's copies) in `NoiseBasedChunkGenerator.generateCarvers`,
+    the material rule at the heads of `generateCarvers` and `buildSurface` (where other mods' rules are split from
+    Diffusicraft's), the `cache` field of `StructureTemplate.Palette` (replaced at the end
     of its constructor, so that the far terrain's threads can fill it beside the chunks'), the call to
     `FeaturePlacer.placeWithBiomeCheck` in
     `ChunkGenerator.applyBiomeDecoration` (which also places the river falls and boulders after `spring_water`), the
     call to `WorldGenLevel.setBlock` in `SpringFeature.place`, the call to `SerializableChunkData.copyOf` in
     `ChunkMap.save(ChunkAccess)` (which hands each saved chunk to the far terrain's store),
-    `NoiseChunk.<init>` (its `aquifer` field, which every caller reads through `aquifer()`), `RandomState.create` and
-    `createClimateSampler`, the interface added to `Climate.Sampler`, the `0.05F` in
+    `NoiseChunk.<init>` (its `aquifer` field, which every caller reads through `aquifer()`), `RandomState.create` (its
+    head too, where vanilla's noises are swapped for Diffusicraft's copies and the loaded noise router and aquifers
+    are put back) and `createClimateSampler`, the interface added to `Climate.Sampler`, the `0.05F` in
     `Biome.getHeightAdjustedTemperature`, the accessors for `ChunkGenerator.featuresPerStep` (where the far terrain
-    finds the redwoods' places among the trees), `MaterialRuleContext.randomState`, `RandomState.random` and the
-    `NoiseGeneratorSettings.materialRule` field (read directly because TerraBlender changes what its accessor
-    returns), and the invokers of `MaterialRuleContext`'s
+    finds the redwoods' places among the trees), `MaterialRuleContext.randomState`, `RandomState.random`, the
+    `NoiseGeneratorSettings` fields `materialRule`, `noiseRouter` and `aquifers` (kept as loaded at the end of the
+    constructor, because TerraBlender and FrozenLib change what the rule's accessor returns, Biolith replaces the rule
+    and Lithostitched the router and aquifers), and the invokers of `MaterialRuleContext`'s
     constructor, `updateXZ` and `updateY`, `MinecraftServer.setInitialSpawn` (cancelled at its head),
     `PlayerSpawnFinder.findSpawn` (wrapped) and the invokers of its `getLevelRespawnPos` and `fixupSpawnHeight`. The
     class tweaker `diffusicraft.classtweaker` opens `MultiNoiseBiomeSource`'s constructor;
@@ -61,6 +65,11 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - Distant Horizons (`mixin/dh`, applied only when it is installed): the height getters of its `ChunkWrapper`
     (`getExclusiveMaxBuildHeight()`, `getMaxNonEmptyHeight`, `getSolidHeightMapValue` and
     `getLightBlockingHeightMapValue`). Check them on every Distant Horizons update.
+  - Tectonic (`mixin/tectonic`, applied only when it is installed): the head of `SerializableChunkData.parse`, at a
+    priority that runs before Tectonic's own, and its `Tectonic.BLENDING_KEY` and `BLENDING_VERSION`, read by
+    reflection. Biolith (`mixin/biolith`): the first two `Holder.is` calls in `MaterialSystem.buildSurface`, which
+    Biolith wraps to run its surface builders, and its `SurfaceRuleCollector.OVERWORLD.getAllBootstrapped`, read by
+    reflection in `compat.biolith.BiolithRules`. Check them on every update of either mod.
   - Voxy (`client/mixin/voxy`, applied only when it is installed): the `new RenderDistanceTracker` in
     `VoxyRenderSystem.<init>`, `WorldUpdater.insertUpdate`, the call to `SectionLoader.load` in
     `ActiveSectionTracker.acquire(long, boolean)`, the private `VoxyInstance.createWorld`, the interface added to

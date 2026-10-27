@@ -15,13 +15,14 @@
 		"MinecraftServerMixin",
 		"NoiseBasedChunkGeneratorMixin",
 		"NoiseChunkMixin",
-		"NoiseGeneratorSettingsAccessor",
+		"NoiseGeneratorSettingsMixin",
 		"PlayerSpawnFinderAccessor",
 		"PlayerSpawnFinderMixin",
 		"RandomStateAccessor",
 		"RandomStateMixin",
 		"SpringFeatureMixin",
 		"StructureTemplatePaletteMixin",
+		"biolith.MaterialSystemMixin",
 		"dh.ChunkWrapperMixin",
 		"height.BlockPosMixin",
 		"height.ClientboundLevelChunkPacketDataMixin",
@@ -37,7 +38,8 @@
 		"height.ServerGamePacketListenerImplMixin",
 		"height.SingleValuePaletteAccessor",
 		"height.StrategyMixin",
-		"height.WorldBorderMixin"
+		"height.WorldBorderMixin",
+		"tectonic.SerializableChunkDataMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

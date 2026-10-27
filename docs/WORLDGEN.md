@@ -637,6 +637,37 @@ and the rest of Diffusicraft's: only the biomes in the table vary. A sibling a d
 the biome. The patches are drawn from the seed alone and need nothing but the column's climate, so the chunks, the
 LOD mods and the [relief map](MAP.md) all see the same ones.
 
+### Other mods' biomes
+
+Biome mods change more than the biome table: data packs replace vanilla's density functions and surface rules,
+libraries wrap the noise router and the surface rule, and some reshape the ground or blend chunks (see
+[MOD_SURVEY.md](MOD_SURVEY.md#biome-mods)). A Diffusicraft world keeps all of that out:
+
+- **Terrain data.** Diffusicraft's noise settings use vanilla's density functions, material rules and material
+  conditions only through copies under `diffusicraft:minecraft/`, which data packs replacing vanilla's files
+  (Terralith, Tectonic) leave alone. `tools/vanilla_copies.py` writes the copies and points Diffusicraft's files at
+  them; both generators run it. A noise's name seeds it, so the noises keep vanilla's names, and in Diffusicraft worlds
+  `RandomStateMixin` looks each one up under `diffusicraft:minecraft/` instead. The overworld's carvers (`cave`,
+  `cave_extra_underground` and `canyon`) are copied too, and `NoiseBasedChunkGeneratorMixin` carves with the copies
+  wherever a biome names vanilla's.
+- **Noise router.** Lithostitched's `wrap_noise_router` and `wrap_aquifers` replace the noise router and the aquifers
+  of a level's noise settings, picked by the level's key, which a Diffusicraft overworld shares with vanilla's. The
+  settings keep what they were loaded with, and `RandomStateMixin` puts it back at the head of `RandomState.create`,
+  which runs after every wrapper.
+- **Surfaces.** The world's material rule is a `diffusicraft:world` (`WorldRule`). TerraBlender and FrozenLib put their
+  mods' rules in front of it whenever it is read, Biolith as the world starts, and data packs such as Terralith's
+  replace vanilla's `minecraft:overworld/surface`. `SplitRule` keeps Diffusicraft's own rule apart from what they made
+  of it and runs theirs only in other mods' biomes, through the `diffusicraft:other_mods` rule (`OtherModsRule`) at
+  the top of the surface, which reads `minecraft:overworld/surface` as the mods leave it. Biolith's surface builders,
+  which reshape the ground in `MaterialSystem.buildSurface`, run only there too. The ground of vanilla's biomes and
+  Diffusicraft's stays as Diffusicraft lays it, and the mods' biomes still get Diffusicraft's slopes and soils.
+- **Blending.** Tectonic marks the chunks saved without its version as old, which would bend new terrain toward them;
+  `TectonicBlending` marks a Diffusicraft world's chunks current first.
+
+So what reaches a Diffusicraft world from these mods is what adds to it: their biomes, their ground in those biomes,
+and the features they give vanilla's biomes, which Diffusicraft's world shares. See
+[COMPATIBILITY.md](COMPATIBILITY.md#biome-mods) for each mod.
+
 ### Giant trees
 
 `diffusicraft:giant_tree`, a feature (`GiantTreeFeature`) and a structure (`GiantTreeStructure`), grows trees far
@@ -1624,22 +1655,24 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
-| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `CoastSlope` (the land eased down to the sea), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, islets and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `Sights` (what `/diffusicraft find` finds), `DiffusicraftWorldgen` (registration) |
-| `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the wider spreads of the villages and pillager outposts, the lava level, the carver roof, the vanilla features Diffusicraft worlds leave out and the falls they add after vanilla's water springs, the water springs they leave off the cliffs, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `CoastSlope` (the land eased down to the sea), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, islets and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `Sights` (what `/diffusicraft find` finds), `VanillaCopies` (vanilla's noises and carvers swapped for Diffusicraft's copies), `DiffusicraftWorldgen` (registration) |
+| `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the wider spreads of the villages and pillager outposts, the lava level, the carver roof, the vanilla features Diffusicraft worlds leave out and the falls they add after vanilla's water springs, the water springs they leave off the cliffs, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when biome mods wrap it, the vanilla noises and carvers swapped for Diffusicraft's copies, and (`mixin/tectonic`, `mixin/biolith`) Tectonic's blending and Biolith's surface builders kept to other mods' biomes |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `RiverCourses` (the water of those paths in blocks), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |
 | `worldgen/biome/` | `ClimateBiomeSource` (`diffusicraft:climate`), `BiomeRefiner` (the rules), `SubBiomes` (the patches of siblings), `HollowBiomes` (the biomes of the Grand Hollows), `HollowLakes` (their lakes), `BiomeClimate`, `BiomeWorld`, `HeightTemperature` |
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` and `GiantTreeStructure` (both `diffusicraft:giant_tree`), `GiantTreePiece` (a giant written a chunk at a time) and `GiantTree` (the giant trees' shapes), `RiverFallFeature` (`diffusicraft:river_falls`) and `RiverFalls` (the curtains and pools of the rivers' falls), `Springs` (vanilla's water springs left off the cliffs), `LianaFeature` (`diffusicraft:lianas`), `UndergrowthFeature` (`diffusicraft:undergrowth`) and `Thickets` (where it grows thick), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
-| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds |
+| `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds; `WorldRule`, `SplitRule` and `OtherModsRule`, which keep other mods' rules to their biomes |
 | `worldgen/lod/` | `LodSampler`, `LodColumn`, `TreeCover` and `GreatTrees`: columns of the finished surface and its trees without chunks, for LOD mods; `FarStructures` and `StructureSketch`: the structures on the surface in those columns, placed without chunks; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
+| `compat/tectonic/`, `compat/biolith/` | `TectonicBlending` and `BiolithRules`, which read Tectonic and Biolith by reflection; see [Other mods' biomes](#other-mods-biomes) |
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust, glowworm silk and selenite |
 | `data/diffusicraft/worldgen/` | Noise settings, material rules, density functions and world presets for each scale |
 | `data/diffusicraft/dimension_type/` | The tall overworld dimension types, one for each size but Vanilla |
 | `data/diffusicraft/worldgen/{biome,feature,placed_feature,structure,structure_set}/`, `material_rule/biome_surface.json`, `material_rule/biome_caves.json`, biome tags | The new biomes, their trees and plants, their ground and their tags, the giant trees' structures, and the spreads of the villages and pillager outposts |
 | `tools/worldgen_data.py` | Writes the noise settings, material rules, density functions, presets and dimension types. Edit it, run `python3 tools/worldgen_data.py`, and commit the output. |
 | `tools/biomes.py` | Writes the new biomes, the cave biomes of the Grand Hollows, their features, ground rules and tags, the giant trees' structures and the spreads of the villages and pillager outposts. Edit it, run `python3 tools/biomes.py`, and commit the output. |
+| `tools/vanilla_copies.py` | Writes the copies of vanilla's data under `diffusicraft:minecraft/` and points Diffusicraft's files at them. Both generators run it after writing their files. |
 | `tools/block_assets.py` | Draws the textures of the rocks, soils, plants, salt crust, glowworm silk and selenite, and writes the block states, models, loot tables, dye recipes, peat's burn time and tags of the blocks. `--preview sheet.png` writes a sheet of the textures for review. |
 
 ## Lifetime and storage

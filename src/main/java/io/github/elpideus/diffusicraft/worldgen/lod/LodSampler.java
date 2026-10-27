@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.worldgen.lod;
 
 import io.github.elpideus.diffusicraft.mixin.MaterialRuleContextAccessor;
 import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
+import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
@@ -144,7 +145,7 @@ public final class LodSampler {
 		this.field = world.field();
 		this.scale = world.scale();
 		NoiseGeneratorSettings settings = generator.generatorSettings().value();
-		this.rule = settings.materialRule().value();
+		this.rule = DiffusicraftWorldgen.materialRule(settings, settings.materialRule().value());
 		this.defaultBlock = settings.defaultBlock();
 		this.seaLevel = settings.seaLevel();
 		WorldGenerationContext context = new WorldGenerationContext(generator, heights);

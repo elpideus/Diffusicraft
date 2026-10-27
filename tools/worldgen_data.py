@@ -12,6 +12,8 @@ See docs/WORLDGEN.md for what the files do.
 import json
 from pathlib import Path
 
+import vanilla_copies
+
 ROOT = Path(__file__).resolve().parent.parent / "src" / "main" / "resources" / "data"
 NS = "diffusicraft"
 SEA_LEVEL = 63
@@ -236,13 +238,20 @@ def noise_settings(scale, min_y, height):
 def material_rule(scale):
     """Vanilla's overworld rule with the underground replaced by Diffusicraft's geology (see StrataRule), the
     rivers' water and beds (see RiverRule), and the ground of Diffusicraft's biomes (written by biomes.py): on the
-    surface ahead of vanilla's, and in the Grand Hollows."""
-    return {"type": "minecraft:sequence", "sequence": [
+    surface ahead of vanilla's, and in the Grand Hollows.
+
+    Other mods' biomes come first in the surface (see OtherModsRule), with vanilla's rule as those mods leave it and
+    the rules they add; everywhere else the rule reads vanilla's own copies (see vanilla_copies.py). The rule is a
+    diffusicraft:world, which other mods' additions see as nothing."""
+    return {"type": f"{NS}:world", "rule": {"type": "minecraft:sequence", "sequence": [
         "minecraft:bedrock_floor",
         {"type": f"{NS}:river", "scale": scale},
         "minecraft:overworld/copper_ore_vein",
         "minecraft:overworld/iron_ore_vein",
         {"type": f"{NS}:strata", "scale": scale, "surface": {"type": "minecraft:sequence", "sequence": [
+            {"type": f"{NS}:other_mods", "rule": {
+                "type": "minecraft:condition", "if_true": {"type": "minecraft:above_preliminary_surface"},
+                "then_run": "minecraft:overworld/surface"}},
             {"type": "minecraft:condition", "if_true": {"type": "minecraft:above_preliminary_surface"},
              "then_run": {"type": "minecraft:sequence",
                           "sequence": [f"{NS}:biome_surface", "minecraft:overworld/surface"]}},
@@ -250,7 +259,7 @@ def material_rule(scale):
              "then_run": "minecraft:overworld/sulfur_cave_bands"},
             f"{NS}:biome_caves",
         ]}},
-    ]}
+    ]}}
 
 
 def dimension_type(min_y, height, clouds):
@@ -351,6 +360,7 @@ def main():
     for gate in ("entrance_gate", "spaghetti_2d_gate"):
         write(f"{NS}/worldgen/noise/{gate}.json", {"base_amplitude": 0.955388882960065, "base_octave": -8})
     write("minecraft/tags/worldgen/world_preset/normal.json", {"replace": False, "values": [f"{NS}:{DEFAULT}"]})
+    vanilla_copies.update()
 
 
 if __name__ == "__main__":
