@@ -93,6 +93,12 @@ public final class DiffusicraftConfig {
 	 * Read when a world opens.
 	 */
 	public boolean generateAhead = true;
+	/**
+	 * Percentage of a Diffusicraft world open to other mods' biomes, in regions about a kilometre across. Elsewhere the
+	 * biomes are Diffusicraft's, as if no biome mod were installed. Read when a world starts: in a world already
+	 * explored, a change moves the regions' borders in the chunks generated afterwards.
+	 */
+	public int moddedBiomes = 50;
 	/** Offer the relief map through {@code /diffusicraft map}. See docs/MAP.md. */
 	public boolean reliefMap = true;
 	/**
@@ -141,6 +147,7 @@ public final class DiffusicraftConfig {
 		gpuMemoryLimitMb = Math.max(-1, gpuMemoryLimitMb);
 		cpuThreads = Math.max(0, cpuThreads);
 		verticalRenderDistance = Math.max(0, verticalRenderDistance);
+		moddedBiomes = Math.clamp(moddedBiomes, 0, 100);
 		farTerrainRadius = Math.clamp(farTerrainRadius, 0, MAX_FAR_TERRAIN_RADIUS);
 		farTerrainDistance = Math.clamp(farTerrainDistance, MIN_FAR_TERRAIN_DISTANCE, MAX_FAR_TERRAIN_DISTANCE);
 		storagePath = storagePath == null ? "" : storagePath.strip();

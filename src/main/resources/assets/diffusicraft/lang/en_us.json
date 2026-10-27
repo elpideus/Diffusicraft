@@ -128,6 +128,8 @@
 	"diffusicraft.settings.halfPrecision.tooltip": "Runs the last network in half precision on NVIDIA GPUs: about 1.2× faster, and the terrain moves by a few centimetres. Takes effect after a restart.",
 	"diffusicraft.settings.generateAhead": "Generate ahead",
 	"diffusicraft.settings.generateAhead.tooltip": "Computes terrain in the background where you are heading, so that chunks rarely wait for it. Turn it off if it slows the game more than waiting does. Takes effect when a world opens.",
+	"diffusicraft.settings.moddedBiomes": "Other mods' biomes",
+	"diffusicraft.settings.moddedBiomes.tooltip": "How much of a Diffusicraft world the biomes of other mods may take, in regions about a kilometre across. Elsewhere the biomes are Diffusicraft's, as without biome mods. Takes effect when a world opens; in a world already explored, a change moves the regions' borders in new chunks.",
 	"diffusicraft.settings.farTerrain": "Far terrain",
 	"diffusicraft.settings.farTerrain.tooltip": "Draws the terrain past the chunks, with what players built. Always off while Distant Horizons or Voxy is installed, which draw their own. Takes effect at once.",
 	"diffusicraft.settings.farTerrainDistance": "Far terrain distance",

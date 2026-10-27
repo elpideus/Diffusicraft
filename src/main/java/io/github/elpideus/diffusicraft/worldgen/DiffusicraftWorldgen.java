@@ -2,8 +2,10 @@ package io.github.elpideus.diffusicraft.worldgen;
 
 import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.compat.biolith.BiolithRules;
+import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.worldgen.biome.ClimateBiomeSource;
 import io.github.elpideus.diffusicraft.worldgen.biome.HeightTemperature;
+import io.github.elpideus.diffusicraft.worldgen.biome.ModdedBiomes;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.CoastFunction;
 import io.github.elpideus.diffusicraft.worldgen.density.HollowsFunction;
@@ -119,6 +121,7 @@ public final class DiffusicraftWorldgen {
 		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
 			LevelStem overworld = server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getValue(LevelStem.OVERWORLD);
 			HeightTemperature.set(overworld != null && usesModels(overworld.generator()) ? 0f : 1f);
+			ModdedBiomes.setShare(Resources.get().config().moddedBiomes / 100f);
 			VanillaCopies.load(server.registryAccess());
 			if (overworld != null && usesModels(overworld.generator())) {
 				BiolithRules.addTo(overworld, server.registryAccess());

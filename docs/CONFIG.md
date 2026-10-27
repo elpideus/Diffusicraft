@@ -27,6 +27,7 @@ while the game is closed.
   "farTerrainDistance": 8192,
   "verticalRenderDistance": 0,
   "generateAhead": true,
+  "moddedBiomes": 50,
   "reliefMap": true,
   "reliefMapAddress": "127.0.0.1",
   "reliefMapPort": 0,
@@ -184,6 +185,14 @@ Computes terrain in the background where the players are heading: around them ou
 their path for the next 20 seconds. Chunks then rarely wait for inference, even at elytra speed. It uses the GPU (or
 the CPU) while you move, so set it to `false` on a slow machine if it gets in the way of the game more than waiting
 for terrain does. Read when a world opens. See [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
+
+### `moddedBiomes`
+
+How much of a Diffusicraft world, in percent, is open to the biomes of other mods (Biomes O' Plenty, Terralith,
+Terrestria and the like), in regions about a kilometre across. `0` keeps their biomes out, `100` lets them in wherever
+their climate fits, and everywhere else the world keeps Diffusicraft's biomes. It does nothing without biome mods. Read
+when a world opens; a change moves the borders of the regions in chunks generated after it, never in those already
+there. See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 
 ### `reliefMap`
 

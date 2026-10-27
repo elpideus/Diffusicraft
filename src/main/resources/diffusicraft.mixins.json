@@ -22,6 +22,7 @@
 		"RandomStateMixin",
 		"SpringFeatureMixin",
 		"StructureTemplatePaletteMixin",
+		"biolith.BiomeCoordinatorMixin",
 		"biolith.MaterialSystemMixin",
 		"dh.ChunkWrapperMixin",
 		"height.BlockPosMixin",

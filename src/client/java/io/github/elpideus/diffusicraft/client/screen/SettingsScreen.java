@@ -82,6 +82,8 @@ public final class SettingsScreen extends OptionsSubScreen {
 		list.addSmall(
 			bool("halfPrecision", config.halfPrecision, (c, on) -> c.halfPrecision = on),
 			bool("generateAhead", config.generateAhead, (c, on) -> c.generateAhead = on));
+		list.addSmall(range("moddedBiomes", 0, 100, config.moddedBiomes, percent -> Component.literal(percent + "%"),
+			(c, percent) -> c.moddedBiomes = percent));
 
 		list.addHeader(tr("section.farTerrain"));
 		list.addSmall(

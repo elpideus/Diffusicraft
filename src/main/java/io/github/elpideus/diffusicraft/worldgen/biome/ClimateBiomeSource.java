@@ -7,32 +7,43 @@ import io.github.elpideus.diffusicraft.worldgen.ClimateMapping;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.density.ClimateColumn;
 import io.github.elpideus.diffusicraft.worldgen.geology.Hollows;
+import io.github.elpideus.diffusicraft.worldgen.material.OtherModsRule;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderGetter;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.QuartPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.RegistryOps;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSource;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterList;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
+import net.minecraft.world.level.dimension.DimensionType;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
  * {@code diffusicraft:climate}: vanilla's multi-noise biome source with its picks refined by the real climate (see
  * {@link BiomeRefiner}), then varied by {@link SubBiomes}: patches of the biome's siblings, a few hundred blocks
- * across. It is still a {@link MultiNoiseBiomeSource} reading the same parameter list, so mods that add biomes to that
- * list, or look for a multi-noise source, work with it as they do with vanilla's.
+ * across. Its picks come from vanilla's own table, as the game's code builds it, so that data packs replacing the
+ * overworld's parameter list (Terralith) and mods hooking into it (TerraBlender, Biolith) leave Diffusicraft's map as
+ * it is. It is still a {@link MultiNoiseBiomeSource} reading the parameter list as they leave it, and in the regions
+ * {@link ModdedBiomes} opens to them, it takes that list's pick wherever the pick is another mod's biome. So mods that
+ * add biomes, or look for a multi-noise source, work with it as they do with vanilla's, beside Diffusicraft's biomes
+ * rather than in their place.
  *
  * <p>Each Grand {@link Hollows} cavern gets one cave biome of its own, from the climate over it (see
- * {@link HollowBiomes}), in place of whatever vanilla picks there. Biomes of other mods are left where vanilla's
- * parameter list puts them. The Deep Grand Hollows keep vanilla's picks, but not the deep dark, whose sculk would
- * carpet their floors: there they get what vanilla would pick halfway down to it, lush or dripstone caves where the
- * climate calls for them and the biome above otherwise.
+ * {@link HollowBiomes}), in place of whatever vanilla picks there. The Deep Grand Hollows keep vanilla's picks, but
+ * not the deep dark, whose sculk would carpet their floors: there they get what vanilla would pick halfway down to it,
+ * lush or dripstone caves where the climate calls for them and the biome above otherwise.
  *
  * <p>Vanilla's sulfur caves need a weirdness that Diffusicraft's terrain never reaches. They go where the ground is
  * {@link io.github.elpideus.diffusicraft.worldgen.geology.Geology#sulfurous sulfurous} instead, at the depths of
@@ -44,7 +55,8 @@ import java.util.stream.Stream;
 public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 	public static final MapCodec<ClimateBiomeSource> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
 		MultiNoiseBiomeSourceParameterList.CODEC.fieldOf("preset").forGetter(s -> s.preset),
-		Biome.LIST_CODEC.fieldOf("biomes").forGetter(s -> s.refinements)
+		Biome.LIST_CODEC.fieldOf("biomes").forGetter(s -> s.refinements),
+		RegistryOps.retrieveGetter(Registries.BIOME)
 	).apply(i, ClimateBiomeSource::new));
 
 	/** Depth at which the Grand Hollows pick their biome: the middle of vanilla's cave biomes. */
@@ -55,17 +67,47 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 
 	private final Holder<MultiNoiseBiomeSourceParameterList> preset;
 	private final HolderSet<Biome> refinements;
+	private final HolderGetter<Biome> biomes;
+	private volatile @Nullable MultiNoiseBiomeSource base;
 	private volatile @Nullable Map<String, Holder<Biome>> targets;
+	/** Whether the parameter list holds biomes of other mods; {@code null} until first asked. */
+	private volatile @Nullable Boolean modded;
 
-	private ClimateBiomeSource(Holder<MultiNoiseBiomeSourceParameterList> preset, HolderSet<Biome> refinements) {
+	private ClimateBiomeSource(Holder<MultiNoiseBiomeSourceParameterList> preset, HolderSet<Biome> refinements,
+							   HolderGetter<Biome> biomes) {
 		super(Either.right(preset));
 		this.preset = preset;
 		this.refinements = refinements;
+		this.biomes = biomes;
 	}
 
 	@Override
 	protected Stream<Holder<Biome>> collectPossibleBiomes() {
-		return Stream.concat(super.collectPossibleBiomes(), refinements.stream()).distinct();
+		return Stream.of(super.collectPossibleBiomes(), base().possibleBiomes().stream(), refinements.stream())
+			.flatMap(s -> s).distinct();
+	}
+
+	/**
+	 * Vanilla's overworld source with the table its code builds ({@link VanillaBiomeTable}). Nothing the mods do to
+	 * the parameter list reaches it: TerraBlender only hooks lists it has set up and Biolith only sources it knows the
+	 * dimension of.
+	 */
+	private MultiNoiseBiomeSource base() {
+		MultiNoiseBiomeSource source = base;
+		if (source == null) {
+			base = source = MultiNoiseBiomeSource.createFromList(new Climate.ParameterList<>(VanillaBiomeTable.get()
+				.stream().map(entry -> entry.<Holder<Biome>>mapSecond(biomes::getOrThrow)).toList()));
+		}
+		return source;
+	}
+
+	/**
+	 * Tells Biolith that this is the overworld's source whatever the dimension type, so that it places its mods'
+	 * biomes in the taller sizes too, whose dimension types are Diffusicraft's. Biolith adds this method to every biome
+	 * source; without Biolith nothing calls it.
+	 */
+	public ResourceKey<DimensionType> biolith$getDimensionType() {
+		return BuiltinDimensionTypes.OVERWORLD;
 	}
 
 	@Override
@@ -76,27 +118,40 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 
 	@Override
 	public BiomeResolver createResolver(Climate.Sampler sampler) {
-		return refine(super.createResolver(sampler), BiomeWorld.of(sampler));
+		BiomeWorld world = BiomeWorld.of(sampler);
+		if (world == null) {
+			return super.createResolver(sampler);
+		}
+		return refine(base().createResolver(sampler), super.createResolver(sampler), world);
 	}
 
 	@Override
 	public BiomeResolver createResolverForChunk(Climate.Sampler sampler, int minQuartX, int minQuartY, int minQuartZ,
 												int quartSizeX, int quartSizeY, int quartSizeZ) {
-		return refine(super.createResolverForChunk(sampler, minQuartX, minQuartY, minQuartZ, quartSizeX, quartSizeY,
-			quartSizeZ), BiomeWorld.of(sampler));
+		BiomeWorld world = BiomeWorld.of(sampler);
+		if (world == null) {
+			return super.createResolverForChunk(sampler, minQuartX, minQuartY, minQuartZ, quartSizeX, quartSizeY,
+				quartSizeZ);
+		}
+		// The mods' resolver samples the climate of the whole chunk again, so it is made only for a chunk that needs it.
+		return refine(base().createResolverForChunk(sampler, minQuartX, minQuartY, minQuartZ, quartSizeX, quartSizeY,
+			quartSizeZ), new Lazy(() -> super.createResolverForChunk(sampler, minQuartX, minQuartY, minQuartZ,
+			quartSizeX, quartSizeY, quartSizeZ)), world);
 	}
 
-	private BiomeResolver refine(BiomeResolver vanilla, @Nullable BiomeWorld world) {
-		if (world == null) {
-			return vanilla;
-		}
+	/**
+	 * Refines vanilla's picks from {@code base}, and gives the regions open to other mods the picks of {@code mods}
+	 * that are theirs.
+	 */
+	private BiomeResolver refine(BiomeResolver base, BiomeResolver mods, BiomeWorld world) {
+		boolean modded = modded();
 		return (quartX, quartY, quartZ) -> {
-			Holder<Biome> biome = vanilla.getNoiseBiome(quartX, quartY, quartZ);
+			Holder<Biome> biome = base.getNoiseBiome(quartX, quartY, quartZ);
 			Columns columns = Columns.CACHE.get();
 			Columns.Entry column = columns.entry(world, quartX, quartZ);
 			boolean deepDark = biome.is(Biomes.DEEP_DARK);
 			Hollows.Chamber chamber = grandHollow(column, QuartPos.toBlock(quartY) + 2);
-			if (chamber != null && (deepDark || isVanilla(biome))) {
+			if (chamber != null) {
 				Holder<Biome> own = columns.hollowBiome(world, chamber, this);
 				if (own != null) {
 					return own;
@@ -108,9 +163,30 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			if (deepDark) {
 				return biome;
 			}
-			Holder<Biome> sulfur = column.climate.sulfurous && isVanilla(biome) ? sulfurCaves(world, column, quartY) : null;
-			return sulfur != null ? sulfur : column.refine(biome, this);
+			Holder<Biome> sulfur = column.climate.sulfurous ? sulfurCaves(world, column, quartY) : null;
+			if (sulfur != null) {
+				return sulfur;
+			}
+			if (modded && column.open()) {
+				Holder<Biome> theirs = mods.getNoiseBiome(quartX, quartY, quartZ);
+				if (OtherModsRule.foreign(theirs)) {
+					return theirs;
+				}
+			}
+			return column.refine(biome, this);
 		};
+	}
+
+	/**
+	 * Whether the mods gave this source any biome of theirs. Asked first as chunks generate, after TerraBlender has
+	 * added its regions' biomes as the level was made.
+	 */
+	private boolean modded() {
+		Boolean any = modded;
+		if (any == null) {
+			modded = any = possibleBiomes().stream().anyMatch(OtherModsRule::foreign);
+		}
+		return any;
 	}
 
 	/** Vanilla's sulfur caves, where a quart of sulfurous ground is as deep as they go, or {@code null}. */
@@ -129,10 +205,6 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			return null;
 		}
 		return column.hollows().grandHollowNear(column.hollowColumn(), y);
-	}
-
-	private static boolean isVanilla(Holder<Biome> biome) {
-		return biome.unwrapKey().map(key -> key.identifier().getNamespace().equals("minecraft")).orElse(false);
 	}
 
 	/** The biome a Grand Hollow picks for itself, or {@code null} if it leaves it to vanilla or it is missing. */
@@ -170,6 +242,25 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			targets = map = built;
 		}
 		return map;
+	}
+
+	/** A resolver made the first time it is asked for a biome. */
+	private static final class Lazy implements BiomeResolver {
+		private final Supplier<BiomeResolver> make;
+		private @Nullable BiomeResolver resolver;
+
+		Lazy(Supplier<BiomeResolver> make) {
+			this.make = make;
+		}
+
+		@Override
+		public Holder<Biome> getNoiseBiome(int quartX, int quartY, int quartZ) {
+			BiomeResolver r = resolver;
+			if (r == null) {
+				resolver = r = make.get();
+			}
+			return r.getNoiseBiome(quartX, quartY, quartZ);
+		}
 	}
 
 	/**
@@ -229,6 +320,8 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			private @Nullable Holder<Biome> hollowBiome;
 			private final Hollows.Column hollowColumn = new Hollows.Column();
 			private boolean hollowPrepared;
+			/** Whether the column lies in a region open to other mods' biomes: -1 until first asked, then 0 or 1. */
+			private byte open;
 
 			void reset(BiomeWorld world, int blockX, int blockZ) {
 				this.world = world;
@@ -239,6 +332,15 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 				memo = 0;
 				hollowBiome = null;
 				hollowPrepared = false;
+				open = -1;
+			}
+
+			boolean open() {
+				if (open < 0) {
+					open = (byte) (ModdedBiomes.open(world.field().seed(), column.blockX(), column.blockZ(),
+						ModdedBiomes.share()) ? 1 : 0);
+				}
+				return open == 1;
 			}
 
 			Holder<Biome> refine(Holder<Biome> biome, ClimateBiomeSource source) {
@@ -272,7 +374,7 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			Holder<Biome> hollowBiome(ClimateBiomeSource source) {
 				if (hollowBiome == null) {
 					float[] p = column.parameters;
-					Holder<Biome> vanilla = source.getNoiseBiome(Climate.target(p[ClimateMapping.TEMPERATURE],
+					Holder<Biome> vanilla = source.base().getNoiseBiome(Climate.target(p[ClimateMapping.TEMPERATURE],
 						p[ClimateMapping.HUMIDITY], p[ClimateMapping.CONTINENTALNESS], p[ClimateMapping.EROSION],
 						HOLLOW_DEPTH, p[ClimateMapping.WEIRDNESS]));
 					hollowBiome = refine(vanilla, source);

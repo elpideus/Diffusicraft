@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "diffusicraft:medium",
+    "diffusicraft:large",
+    "diffusicraft:grand",
+    "diffusicraft:extreme",
+    "diffusicraft:ultra"
+  ]
+}

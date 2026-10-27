@@ -56,7 +56,10 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     and Lithostitched the router and aquifers), and the invokers of `MaterialRuleContext`'s
     constructor, `updateXZ` and `updateY`, `MinecraftServer.setInitialSpawn` (cancelled at its head),
     `PlayerSpawnFinder.findSpawn` (wrapped) and the invokers of its `getLevelRespawnPos` and `fixupSpawnHeight`. The
-    class tweaker `diffusicraft.classtweaker` opens `MultiNoiseBiomeSource`'s constructor;
+    class tweaker `diffusicraft.classtweaker` opens `MultiNoiseBiomeSource`'s constructor. Not a mixin, but as
+    fragile: `worldgen.biome.VanillaBiomeTable` defines a copy of `OverworldBiomeBuilder` from the game's jar and calls
+    its constructor and `addBiomes` by reflection, which breaks if the builder gains a nested class or reaches
+    anything package-private (`VanillaBiomeTableTest` checks it);
   - height (`mixin/height`): the `30000000`, `3.0E7`, `29999984` and `2097152` literals in vanilla, the locals of
     `SerializableChunkData.parse` and `copyOf` and of `FriendlyByteBuf.read/writeBlockPos`, and the internals of
     `PalettedContainer`, its `Strategy` and `SingleValuePalette` (opened by `diffusicraft.classtweaker`); on the client
@@ -68,8 +71,10 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - Tectonic (`mixin/tectonic`, applied only when it is installed): the head of `SerializableChunkData.parse`, at a
     priority that runs before Tectonic's own, and its `Tectonic.BLENDING_KEY` and `BLENDING_VERSION`, read by
     reflection. Biolith (`mixin/biolith`): the first two `Holder.is` calls in `MaterialSystem.buildSurface`, which
-    Biolith wraps to run its surface builders, and its `SurfaceRuleCollector.OVERWORLD.getAllBootstrapped`, read by
-    reflection in `compat.biolith.BiolithRules`. Check them on every update of either mod.
+    Biolith wraps to run its surface builders, the call to `Holder.unwrapKey` in `BiomeCoordinator.handleWorldStarting`,
+    its `SurfaceRuleCollector.OVERWORLD.getAllBootstrapped`, read by reflection in `compat.biolith.BiolithRules`, and
+    `biolith$getDimensionType`, the method Biolith adds to every biome source, which `ClimateBiomeSource` overrides.
+    Check them on every update of either mod.
   - Voxy (`client/mixin/voxy`, applied only when it is installed): the `new RenderDistanceTracker` in
     `VoxyRenderSystem.<init>`, `WorldUpdater.insertUpdate`, the call to `SectionLoader.load` in
     `ActiveSectionTracker.acquire(long, boolean)`, the private `VoxyInstance.createWorld`, the interface added to

@@ -360,6 +360,11 @@ def main():
     for gate in ("entrance_gate", "spaghetti_2d_gate"):
         write(f"{NS}/worldgen/noise/{gate}.json", {"base_amplitude": 0.955388882960065, "base_octave": -8})
     write("minecraft/tags/worldgen/world_preset/normal.json", {"replace": False, "values": [f"{NS}:{DEFAULT}"]})
+    # TerraBlender and FrozenLib add their mods' biomes and rules only in dimensions of these types, which list
+    # vanilla's overworld alone.
+    taller = [dim_type for _, _, dim_type, _, clouds in SCALES.values() if clouds is not None]
+    for tag in ("terrablender/tags/dimension_type/overworld_regions", "frozenlib/tags/dimension_type/overworld"):
+        write(f"{tag}.json", {"replace": False, "values": taller})
     vanilla_copies.update()
 
 

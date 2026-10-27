@@ -45,6 +45,15 @@ def optionalDevMods = [
 	'techreborn'                 : 'CHhIdHEn',  // 6.2.0 (tech-mod ores for the geology; embeds RebornCore)
 	'sulkan'                     : 'pv37EISz',  // 0.6.0-26.3 (shaders on the Vulkan backend; needs sodium)
 	'voxy'                       : 'iIrM8ZKQ',  // 0.2.20-beta (LOD target, ARR: dev runtime only; needs sodium)
+	// Biome and terrain mods, for ModdedBiomesGameTest (see docs/COMPATIBILITY.md). BoP, GlitchCore and TerraBlender
+	// are in the pack above.
+	'terralith'                  : 'aGE3hYAA',  // 2.6.5+26.3 (replaces vanilla's parameter list and surface rule)
+	'lithostitched'              : 'pZgI6b2t',  // 2.0.6-fabric-26.3 (Terralith's and Tectonic's library)
+	'tectonic'                   : 'tRBGDcCT',  // 3.0.32-fabric-26.3 (terrain mod: blends old chunks, raises the height)
+	'wilder-wild'                : 'mVVZgOKN',  // 4.3.3-mc26.3-fabric (biomes, and surface rules through FrozenLib)
+	'frozenlib'                  : 'W1wrCkKg',  // 3.0.3-mc26.3-fabric (required by Wilder Wild)
+	'terrestria'                 : 'K6mjWjWm',  // 8.2.0-alpha.1 (Biolith biomes and surface builders; embeds Biolith)
+	'promenade'                  : 'mxbWA9DX',  // 6.0.2+fabric (Biolith biomes)
 ]
 
 // Shader packs, also named in -PdevMods and put in the client runs' shaderpacks folder as <slug>.zip. Like the mods,

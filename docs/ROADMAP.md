@@ -49,8 +49,11 @@ generator turns them into blocks. The pieces planned add the details: finer terr
 - **Biomes from the climate.** The six vanilla biome parameters come from the real temperature, aridity, elevation
   and relief. Snowy peaks appear only where it is cold, and deserts only where it is hot and dry. Slopes facing the
   sun are warmer and drier than those facing away, so the tree line climbs higher on them and, in dry climates, the
-  woods keep to the shaded slopes. Biome mods that extend the overworld table get the same parameters; checked in
-  game with Biomes O' Plenty and TerraBlender. See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
+  woods keep to the shaded slopes.
+- **Other mods' biomes.** Biome mods place their biomes by the same parameters, in the regions of the world open to
+  them, half by default, and change nothing else: Diffusicraft keeps its terrain, caves, surfaces and biome table out
+  of their reach. Checked in game with Biomes O' Plenty, Terralith, Tectonic, Wilder Wild, Terrestria and Promenade.
+  See [COMPATIBILITY.md](COMPATIBILITY.md#biome-mods).
 - **Real-world biomes.** The seasons refine vanilla's picks into tundra, alpine tundra, cloud forest, temperate
   rainforest, Mediterranean maquis, moorland, heath, salt flats, bogs, Siberian larch taiga, forest-tundra, cold desert,
   desert scrub, stony desert, steppe, shrub steppe, forest-steppe, juniper woodland, fjords, monsoon, laurel and mixed
@@ -206,8 +209,8 @@ The engine allows 32,736 blocks now. What is left (see [HEIGHT.md](HEIGHT.md#nex
   class now, with the prairie where hot summers burn the woods back and the thorn scrub of the driest savannas. What
   is left needs more than the yearly figures: whether the rain of a climate between the Mediterranean and the monsoon
   falls in summer or in winter, which the data has no month for.
-- **Other biome mods.** Biomes O' Plenty, Oh The Biomes We've Gone (BYG) and TerraBlender regions are placed into the
-  same climate space from the start, instead of being bolted on, with regions as large as the world's scale calls for.
+- **Other biome mods.** Regions as large as the world's scale calls for, where they are a kilometre across at every
+  size now; Regions Unexplored, Nature's Spirit and Oh The Biomes We've Gone once they reach 26.3.
 
 ### Far terrain
 

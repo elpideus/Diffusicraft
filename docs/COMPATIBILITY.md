@@ -11,8 +11,12 @@ for each mod, and what is still open.
 | [Voxy](#voxy) 0.2.20-beta | Works, checked in game | Keeps it within the heights it can hold; draws its far terrain straight from the terrain, in singleplayer and from servers that run Diffusicraft |
 | [Distant Horizons SeedGen](#distant-horizons) 0.9.1 | Works, checked in game; on servers, turn off sharing the seed | Diffusicraft's generator draws the far terrain in its place, in singleplayer and on servers |
 | Voxy SeedGen | Not checked: no release for 26.3 yet | Nothing yet; Diffusicraft feeds Voxy its far terrain itself |
-| [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Their biomes get the same climate parameters as vanilla's; their trees show in the LODs |
+| [Biomes O' Plenty](#biome-mods) 26.3.0.0.15, TerraBlender 26.3.0.0.9 | Works, checked in game | Its biomes take the regions open to other mods, with their ground; their trees show in the LODs |
 | Oh The Biomes We've Gone (BYG) | Not checked: no release for 26.3 yet | Should work as Biomes O' Plenty does, through TerraBlender |
+| [Terralith](#biome-mods) 2.6.5, Lithostitched 2.0.6 | Works, checked in game | Its biomes take the open regions; its changes to vanilla's terrain, caves, surfaces and biome table stay out |
+| [Tectonic](#biome-mods) 3.0.32 | Works, checked in game | Keeps it from changing the terrain or blending chunks: it changes nothing |
+| [Terrestria](#biome-mods) 8.2.0-alpha.1, Promenade 6.0.2 (Biolith) | Works, checked in game | Their biomes take the open regions, with their ground and Terrestria's landforms |
+| [Wilder Wild](#biome-mods) 4.3.3, FrozenLib 3.0.3 | Works, checked in game, with and without Biolith | Its biomes take the open regions; its moves of vanilla's biomes stay out |
 | C2ME 0.4.2-alpha.0.106+26.3 | Works, checked in game | Nothing: the terrain pipeline is thread-safe. The client game test passes with it (`-PdevMods=c2me-fabric`), LODs, rivers and lakes included, in well under half the time |
 | [Tech Reborn](#tech-mods) 6.2.0 | Works, checked in game | The geology's ore bodies hold its tin, lead, silver, uranium, rubies, sapphires and the rest in their host rocks, and its bauxite lies in tropical laterite |
 | Create, Mekanism, other tech mods | Should work: not checked | The same for any ore under the common tags `c:ores/<metal>` |
@@ -349,28 +353,53 @@ ran on Mesa's driver for an Intel UHD 770, with Terrain Diffusion on CUDA on the
 
 ## Biome mods
 
-Biome mods that add to the overworld's biome table, such as TerraBlender and the mods built on it (Biomes O' Plenty,
-BYG), place their biomes by the six climate parameters. Diffusicraft computes those parameters from the real climate
-(see [WORLDGEN.md](WORLDGEN.md#biome-parameters)), so their biomes land where the climate matches what they asked for.
+Other mods may add to a Diffusicraft world, never change it. With any of the mods below installed, the terrain, the
+caves, the rivers, the biome map and the ground of vanilla's biomes and Diffusicraft's stay as they are without them.
+The mods bring their biomes, in the regions open to them, the ground of those biomes, and the features they give
+vanilla's biomes. [WORLDGEN.md](WORLDGEN.md#other-mods-biomes) says how, and [MOD_SURVEY.md](MOD_SURVEY.md) what each
+mod changes in a vanilla world.
 
-**Checked with Biomes O' Plenty.** The client game test, run with Biomes O' Plenty and TerraBlender
-(`-PdevMods=biomes-o-plenty,glitchcore,terrablender`), finds them sharing the land with vanilla's biomes and
-Diffusicraft's own: around a temperate spawn, redwood forest, old-growth woodland, woodland, orchard, highland and
-field next to vanilla's forest and plains, and within 24 km the same nine of Diffusicraft's refined biomes as without
-them.
+- **Where their biomes go.** The world is cut into regions about a kilometre across, and a share of them, half by
+  default ([`moddedBiomes`](CONFIG.md#moddedbiomes)), is open to other mods. There a column takes the mods' biome
+  wherever their libraries pick one for its climate. Diffusicraft computes the six climate parameters from the real
+  climate ([WORLDGEN.md](WORLDGEN.md#biome-parameters)), so their biomes land where the climate matches what they
+  asked for. Everywhere else, and wherever the mods' pick is vanilla's, the column keeps Diffusicraft's biome.
+  Diffusicraft refines only vanilla's picks ([WORLDGEN.md](WORLDGEN.md#refined-biomes)), so the mods' biomes stay as
+  they are.
+- **Their ground.** The mods' material rules, and the surface builders of Biolith's mods, run only in their own
+  biomes, on Diffusicraft's rock, rivers and slopes. The rest of the surface comes from Diffusicraft's rules alone.
+- **Their features.** What a mod adds to vanilla's biomes, by Fabric's biome modifications, Lithostitched's
+  `add_features` or a biome file of its own, reaches a Diffusicraft world too, which shares vanilla's biomes.
+- **Distant Horizons.** The LODs run the same rules, and draw the mods' trees (see
+  [Trees of biome mods](#distant-horizons)). In the test with Biomes O' Plenty alone, the LOD shows crowns over 83% of
+  the redwood forest, 70% of the old-growth woodland and 43% of the woodland.
 
-- **Regions.** TerraBlender divides the world into regions, each with the biome table of one mod, by a noise of its
-  own. A Biomes O' Plenty region takes its biomes from Biomes O' Plenty's table, with Diffusicraft's parameters.
-  Diffusicraft refines only vanilla's picks (see [WORLDGEN.md](WORLDGEN.md#refined-biomes)), so the mod's biomes stay
-  as they are. The regions keep TerraBlender's size in blocks at every scale, which is small next to the terrain of
-  Diffusicraft's larger sizes.
-- **Surfaces.** TerraBlender tries the mods' material rules first, in the mods' own biomes, and the world's wherever
-  they place nothing. Everything else, the rivers, the rock and Diffusicraft's soils, comes from Diffusicraft's rules.
-  TerraBlender does this by wrapping the world's rule in a new one, so Diffusicraft tells its worlds by the rule the
-  noise settings were loaded with, not by the one they hand out.
-- **Distant Horizons.** The LODs run the same combined rules, and draw the mods' trees (see
-  [Trees of biome mods](#distant-horizons)). In the test the LOD shows crowns over 83% of the redwood forest, 70% of
-  the old-growth woodland and 43% of the woodland.
+| Mod | Places its biomes through | What reaches a Diffusicraft world |
+|---|---|---|
+| Biomes O' Plenty, Oh The Biomes We've Gone | TerraBlender | Their biomes, with their ground |
+| Terralith | Lithostitched, and its own copy of vanilla's biome table | Its biomes, with their ground, and its changes to vanilla's biomes. Its table, which moves every vanilla biome, its noises, density functions and canyon carver, and its surface rules for vanilla's biomes stay out |
+| Tectonic | No biomes | Nothing. Its noise settings, noises and surface rules are vanilla's, and Diffusicraft uses copies of those; the chunks it would blend are marked current; its snow line moves vanilla's cooling with height, which a Diffusicraft world switches off. Its taller overworld, when turned on, only adds air above the Vanilla size |
+| Terrestria, Traverse, Promenade | Biolith | Their biomes, with their ground and Terrestria's calderas, canyons, dunes and volcanic islands |
+| Wilder Wild | FrozenLib, or Biolith when it is installed | Its biomes, with their ground, and its features in vanilla's biomes. Its moves of vanilla's jungle, cherry grove and beaches stay out |
+| Regions Unexplored, Nature's Spirit | Lithostitched | Not checked, no release for 26.3 yet: their biomes, with their ground. Regions Unexplored's wrapper of the aquifers stays out |
+| Climate Rivers | Lithostitched | Not checked: its warm, cold and dry rivers, wherever the mods' pick in an open region is a river |
+| Cascades, Continents, Larion, Larger Biomes, JJThunder To The Max | Vanilla's data, replaced by its id | Not checked: nothing of the terrain, which uses Diffusicraft's copies; their changes to vanilla's biomes |
+| Big Globe, Terra, Moderner Beta | Their own generators | Nothing: a world is theirs or Diffusicraft's |
+
+**Checked in game.** `ModdedBiomesGameTest`, run with Biomes O' Plenty, Terralith, Tectonic, Wilder Wild, Terrestria
+and Promenade together, and their libraries (the command is in its Javadoc), finds 201 biomes of other mods in the
+biome source. On an 8 km map around the spawn, 45% of the columns are in open regions, and 41% of those take a biome
+of another mod: Biomes O' Plenty 9,122 columns, Terralith 2,139, Wilder Wild 797, Terrestria 131 and Promenade 74.
+Not one column outside the open regions does. The height of the ground on a grid of 4,096 points around the origin
+is the same as without the mods, even with a data pack that has Lithostitched wrap the overworld's final density into
+air: 13 points differ by a block, as many as between two runs without the mods (15). With Wilder Wild and FrozenLib
+alone, without Biolith, its 29 biomes take 5,152 open columns and none of the closed ones.
+
+Biolith orders the biomes that replace each vanilla biome by the seed, but in an order that changes from one start of
+the game to the next (it shuffles them while going through a hash map of identity-hashed keys), so a new world from
+the same seed can put its mods' biomes in other places, in Diffusicraft's worlds as in vanilla's: Terrestria took
+between 131 and 399 columns in three runs of the test. A world keeps the order it was made with, which Biolith saves
+with it.
 
 ## Tech mods
 
