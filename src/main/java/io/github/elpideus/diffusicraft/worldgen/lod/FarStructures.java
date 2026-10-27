@@ -1,7 +1,12 @@
 package io.github.elpideus.diffusicraft.worldgen.lod;
 
 import com.mojang.logging.LogUtils;
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectSortedMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Reference2IntMap;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -35,7 +40,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The structures a far view shows: those that stand on the surface, the villages, temples, outposts, shipwrecks and
- * the like, as blocks of their height and colour. The chunk generator's own choice picks them, from the same seeds,
+ * the like, block by block where its columns are a block apart and in outline further out. The chunk generator's own
+ * choice picks them, from the same seeds,
  * and their pieces are placed as it places them, in a {@link StructureSketch} of the far view's ground, so that they
  * stand where they will once their chunks generate and look from afar as they will then. The giant trees, which grow
  * as structures too, are {@link GreatTrees}'s.
@@ -54,10 +60,11 @@ final class FarStructures {
 	private static final Logger LOGGER = LogUtils.getLogger();
 
 	/**
-	 * What the structures put in a cell of a grid: blocks that rise to {@code y}, {@code top} over {@code body}, or,
-	 * where they do not rise, {@code top} in place of the ground's top block.
+	 * What the structures put in a cell of a grid: the blocks they stack over the ground, {@code states[i]} at block Y
+	 * {@code ys[i]}, lowest first, with air between them; and {@code paving}, which takes the place of the ground's
+	 * top block, or {@code null}.
 	 */
-	record Cell(boolean risen, int y, BlockState top, BlockState body) {
+	record Cell(int[] ys, BlockState[] states, @Nullable BlockState paving) {
 	}
 
 	/** A set of structures spread over the world, one start at most in each cell of its grid. */
@@ -125,7 +132,7 @@ final class FarStructures {
 		for (StructureStart start : found) {
 			place(start, sketch, random, minX, minZ, maxX, maxZ);
 		}
-		return cells(sketch, minX, minZ, width, step);
+		return cells(sketch.columns(), sketch::land, minX, minZ, width, step);
 	}
 
 	/** The starts of the structures that reach into the blocks from {@code (minX, minZ)} to {@code (maxX, maxZ)}. */
@@ -267,18 +274,24 @@ final class FarStructures {
 	}
 
 	/**
-	 * Sums the sketch up cell by cell. A cell rises where the structures rise over the ground in a quarter of its
-	 * columns at least, to the highest of them, the block under its top making its body; it is paved where they lie on
-	 * the ground in a quarter of its columns, or rise in some and lie in others.
+	 * Sums up the blocks the structures put in each column that show from afar, by {@link ChunkPos#pack} of the column,
+	 * cell by cell of the grid of {@code width}² columns {@code step} blocks apart whose corner block is
+	 * {@code (minX, minZ)}, standing on {@code ground}. A cell keeps a block at each height where the structures put
+	 * one over the ground in a quarter of its columns at least, the one they put there most: a house keeps its walls,
+	 * its roof and its eaves, block by block where each cell is a column and in outline where cells are wider, rather
+	 * than standing as a solid block. A cell is paved where they lie on the ground in a quarter of its columns, or
+	 * rise in some and lie in others, as a village's paths do.
 	 */
-	private static @Nullable Cell[] cells(StructureSketch sketch, int minX, int minZ, int width, int step) {
+	static @Nullable Cell[] cells(Long2ObjectMap<StructureSketch.Column> columns, StructureSketch.Ground ground,
+								  int minX, int minZ, int width, int step) {
 		int count = width * width;
 		int[] risen = new int[count];
 		int[] paved = new int[count];
-		StructureSketch.Column[] highest = new StructureSketch.Column[count];
-		int[] highestGround = new int[count];
 		BlockState[] paving = new BlockState[count];
-		for (Long2ObjectMap.Entry<StructureSketch.Column> entry : sketch.columns().long2ObjectEntrySet()) {
+		// For each cell, by block Y, how many of its columns have each block there.
+		@SuppressWarnings("unchecked")
+		Int2ObjectSortedMap<Reference2IntOpenHashMap<BlockState>>[] layers = new Int2ObjectSortedMap[count];
+		for (Long2ObjectMap.Entry<StructureSketch.Column> entry : columns.long2ObjectEntrySet()) {
 			int x = ChunkPos.getX(entry.getLongKey());
 			int z = ChunkPos.getZ(entry.getLongKey());
 			int a = Math.floorDiv(x - minX, step);
@@ -288,34 +301,54 @@ final class FarStructures {
 			}
 			int cell = b * width + a;
 			StructureSketch.Column column = entry.getValue();
-			int ground = sketch.land(x, z).ground();
-			if (column.topY > ground) {
-				risen[cell]++;
-				if (highest[cell] == null || column.topY > highest[cell].topY) {
-					highest[cell] = column;
-					highestGround[cell] = ground;
-				}
-			} else if (column.topY == ground) {
+			int groundY = ground.at(x, z).ground();
+			if (column.topY == groundY) {
 				paved[cell]++;
 				paving[cell] = column.top;
+			} else if (column.topY > groundY) {
+				risen[cell]++;
+				if (layers[cell] == null) {
+					layers[cell] = new Int2ObjectAVLTreeMap<>();
+				}
+				for (int i = 0; i < column.count; i++) {
+					if (column.ys[i] > groundY) {
+						layers[cell].computeIfAbsent(column.ys[i], y -> new Reference2IntOpenHashMap<>())
+							.addTo(column.states[i], 1);
+					}
+				}
 			}
 		}
 		Cell[] cells = null;
 		int area = step * step;
+		IntArrayList ys = new IntArrayList();
+		List<BlockState> states = new ArrayList<>();
 		for (int cell = 0; cell < count; cell++) {
-			Cell made = null;
-			if (risen[cell] * 4 >= area) {
-				StructureSketch.Column column = highest[cell];
-				BlockState body = column.belowY > highestGround[cell] ? column.below : column.top;
-				made = new Cell(true, column.topY, column.top, body);
-			} else if (paving[cell] != null && (risen[cell] + paved[cell]) * 4 >= area) {
-				made = new Cell(false, 0, paving[cell], paving[cell]);
+			ys.clear();
+			states.clear();
+			if (layers[cell] != null) {
+				for (Int2ObjectMap.Entry<Reference2IntOpenHashMap<BlockState>> layer : layers[cell].int2ObjectEntrySet()) {
+					int shown = 0;
+					int most = 0;
+					BlockState state = null;
+					for (Reference2IntMap.Entry<BlockState> kind : layer.getValue().reference2IntEntrySet()) {
+						shown += kind.getIntValue();
+						if (kind.getIntValue() > most) {
+							most = kind.getIntValue();
+							state = kind.getKey();
+						}
+					}
+					if (shown * 4 >= area) {
+						ys.add(layer.getIntKey());
+						states.add(state);
+					}
+				}
 			}
-			if (made != null) {
+			BlockState paves = paving[cell] != null && (risen[cell] + paved[cell]) * 4 >= area ? paving[cell] : null;
+			if (!ys.isEmpty() || paves != null) {
 				if (cells == null) {
 					cells = new Cell[count];
 				}
-				cells[cell] = made;
+				cells[cell] = new Cell(ys.toIntArray(), states.toArray(BlockState[]::new), paves);
 			}
 		}
 		return cells;

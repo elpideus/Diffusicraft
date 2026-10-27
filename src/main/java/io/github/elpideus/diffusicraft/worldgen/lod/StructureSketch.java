@@ -52,6 +52,7 @@ import net.minecraft.world.ticks.ScheduledTick;
 import net.minecraft.world.ticks.TickPriority;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -81,22 +82,28 @@ final class StructureSketch implements WorldGenLevel {
 		Land at(int x, int z);
 	}
 
-	/** The highest two blocks a structure put in a column that show from afar. */
+	/**
+	 * The blocks the structures put in a column that show from afar: the first {@code count} of {@code states}, at
+	 * block Y {@code ys}, in no order, one at most at each Y, and the highest of them.
+	 */
 	static final class Column {
 		int topY = Integer.MIN_VALUE;
 		@Nullable BlockState top;
-		int belowY = Integer.MIN_VALUE;
-		@Nullable BlockState below;
+		int[] ys = new int[4];
+		BlockState[] states = new BlockState[4];
+		int count;
 
-		private void add(int y, BlockState state) {
+		void add(int y, BlockState state) {
+			if (count == ys.length) {
+				ys = Arrays.copyOf(ys, count * 2);
+				states = Arrays.copyOf(states, count * 2);
+			}
+			ys[count] = y;
+			states[count] = state;
+			count++;
 			if (y > topY) {
-				belowY = topY;
-				below = top;
 				topY = y;
 				top = state;
-			} else if (y > belowY) {
-				belowY = y;
-				below = state;
 			}
 		}
 	}

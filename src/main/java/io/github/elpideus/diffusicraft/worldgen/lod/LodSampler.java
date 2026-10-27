@@ -434,8 +434,8 @@ public final class LodSampler {
 						surface[top - y] = apply(x, y, z, groundTop - y + 1, y - minY + 1, waterHeight);
 					}
 					FarStructures.Cell cell = built == null ? null : built[b * width + a];
-					if (cell != null && !cell.risen()) {
-						surface[0] = cell.top();
+					if (cell != null && cell.paving() != null) {
+						surface[0] = cell.paving();
 					}
 					// The rules see the surface first and then the rock under it, as they do in the chunks.
 					int rockY = Math.max(minY, top - ROCK_DEPTH);
@@ -449,14 +449,18 @@ public final class LodSampler {
 					for (int y = surfaceBottom; y <= top; y++) {
 						column.add(surface[top - y], y, y + 1);
 					}
-					// A structure's roof is the ground, as it is in the chunks (see ChunkColumns).
+					// A structure's roof is the ground, as it is in the chunks (see ChunkColumns). The water fills what it
+					// leaves open under the water's surface, as in a sunken ship.
 					int floor = top;
-					if (cell != null && cell.risen() && cell.y() > top) {
-						if (cell.y() > top + 1) {
-							column.add(cell.body(), top + 1, cell.y());
+					if (cell != null) {
+						int[] ys = cell.ys();
+						for (int i = 0; i < ys.length; i++) {
+							if (ys[i] > floor) {
+								column.add(WATER, floor + 1, Math.min(ys[i], water + 1));
+								column.add(cell.states()[i], ys[i], ys[i] + 1);
+								floor = ys[i];
+							}
 						}
-						column.add(cell.top(), cell.y(), cell.y() + 1);
-						floor = cell.y();
 					}
 					column.markGround();
 

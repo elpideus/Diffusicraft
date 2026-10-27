@@ -127,12 +127,15 @@ without chunks, solid up to the far terrain's ground and water over it where the
 read it as they read a chunk being generated, so foundations reach down to that ground, paths follow it and turn into
 bridges over water. The sketch keeps only the blocks; entities, block entities and ticks are dropped.
 
-Each cell then sums up the blocks in its columns. It rises where they stand above the ground in a quarter of them at
-least, to the highest roof, with the block under that roof for its walls; it is paved where they lie on the ground, as
-a village's paths do. No tree grows on such a cell. A structure may sit a block or two off where it generates: it
-stands on the far ground, which lacks the ledges and gullies, and the earth vanilla heaps up and cuts away round some
-structures. Grids sampled without the rivers or from the coarse map show no structures, so the starts kept are all
-made on the finished terrain. A structure that fails to place in a sketch is left out with one warning in the log.
+Each cell then sums up the blocks in its columns. It keeps a block at each height where the structures put one above
+the ground in a quarter of its columns at least, the block they put there most, with air between them, or water under
+the water's surface. So where a cell is a column, near the chunks, a house keeps its walls, windows, roof and eaves
+block by block, and further out its outline, never a solid box. A cell is paved where the structures lie on the
+ground, as a village's paths do. No tree grows on such a cell. A structure may sit a block or two off where it
+generates: it stands on the far ground, which lacks the ledges and gullies, and the earth vanilla heaps up and cuts
+away round some structures. Grids sampled without the rivers or from the coarse map show no structures, so the
+starts kept are all made on the finished terrain. A structure that fails to place in a sketch is left out with one
+warning in the log.
 Vanilla caches a template's blocks by kind in a map that only one thread was meant to fill at a time. The far
 terrain's workers place pieces beside the chunks' own, so `StructureTemplatePaletteMixin` makes that map a concurrent
 one: before, two threads filling it at once threw, and could have thrown in the chunks' generation.
