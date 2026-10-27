@@ -45,7 +45,8 @@ geography, climate and geology.
   [COMPATIBILITY.md](docs/COMPATIBILITY.md).
 - **A relief map.** `/diffusicraft map` opens the world in your browser, shaded by its relief, with the land drawn
   before anyone has walked there. Click a place for its coordinates and a `/tp` to copy, or search for a biome. See
-  [MAP.md](docs/MAP.md).
+  [MAP.md](docs/MAP.md). `/diffusicraft find` gives the nearest Hollow, Ancient Grand Hollow, cave biome or underground
+  lake, with a link to it on the map.
 - **Shaders and Vulkan.** Checked with Iris and the Bliss shaders, and on Minecraft's Vulkan renderer with Sodium and
   the Sulkan shaders.
 - **A resource screen.** It opens at first launch, and later from Create World > More or Mod Menu. It downloads the

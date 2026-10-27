@@ -259,5 +259,21 @@
 	"diffusicraft.map.local": "It opens on the server's own machine only: see reliefMapAddress in docs/CONFIG.md to share it.",
 	"diffusicraft.map.failed": "Could not start the relief map: %s",
 	"diffusicraft.map.none": "No level of this world has Diffusicraft terrain to map.",
-	"diffusicraft.map.off": "The relief map is turned off (reliefMap in config/diffusicraft.json)."
+	"diffusicraft.map.off": "The relief map is turned off (reliefMap in config/diffusicraft.json).",
+	"diffusicraft.find.list": "Sights to find: %s",
+	"diffusicraft.find.not_diffusicraft": "Diffusicraft does not generate this dimension.",
+	"diffusicraft.find.looking": "Looking for the nearest %s…",
+	"diffusicraft.find.failed": "Could not find the nearest %s: see the log",
+	"diffusicraft.find.none": "No %s within %s blocks",
+	"diffusicraft.find.found": "The nearest %s is at %s, %s blocks away%s",
+	"diffusicraft.find.lake": "Its floor lies under water: the place is just over it.",
+	"diffusicraft.find.lava": "Its floor lies under a lava sea: the place is just over it.",
+	"diffusicraft.find.map": "Map",
+	"diffusicraft.find.map.open": "Show it on the relief map",
+	"diffusicraft.sight.hollow": "Hollow",
+	"diffusicraft.sight.deep_hollow": "Deep Hollow",
+	"diffusicraft.sight.grand_hollow": "Grand Hollow",
+	"diffusicraft.sight.ancient_grand_hollow": "Ancient Grand Hollow",
+	"diffusicraft.sight.deep_grand_hollow": "Deep Grand Hollow",
+	"diffusicraft.sight.hollow_lake": "Hollow Lake"
 }

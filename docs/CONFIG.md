@@ -188,7 +188,8 @@ for terrain does. Read when a world opens. See [PERFORMANCE.md](PERFORMANCE.md#g
 ### `reliefMap`
 
 Offers the [relief map](MAP.md) through the `/diffusicraft map` command. Set it to `false` to take the command away
-and never start the map's web server. Read whenever someone asks for the map.
+and never start the map's web server. Read whenever someone asks for the map. `/diffusicraft find` stays, without
+its links to the map.
 
 ### `reliefMapAddress`
 

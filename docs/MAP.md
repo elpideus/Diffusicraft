@@ -14,6 +14,13 @@ The map's web server starts with the first link and stops when the world closes;
 longer works, so ask for a new one. The command is there only in worlds that Diffusicraft generates, and only
 while [`reliefMap`](CONFIG.md#reliefmap) is on.
 
+### Finding the Hollows
+
+`/diffusicraft find <sight>` gives the nearest Hollow of a kind, cave biome of the Grand Hollows or lake in their
+basins, with its coordinates to click for a `/tp` and, while the map is on, a *Map* link that opens the map on it.
+`/diffusicraft find` alone lists what it can find. The same players can run it. See
+[WORLDGEN.md](WORLDGEN.md#finding-the-hollows).
+
 ## Using it
 
 | To | Do |

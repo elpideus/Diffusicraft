@@ -240,6 +240,16 @@ public final class Hollows {
 		throw new IllegalArgumentException("No chambers of kind " + kind);
 	}
 
+	/** The width of the cells of a kind of hollow, each of which holds one chamber at most. */
+	public int cell(Kind kind) {
+		for (Tier tier : tiers) {
+			if (tier.kind == kind) {
+				return tier.cell;
+			}
+		}
+		throw new IllegalArgumentException("No chambers of kind " + kind);
+	}
+
 	/** A height above every lake: {@link #lakeAt} finds none from here up. */
 	public int highestLake() {
 		return highestLake;

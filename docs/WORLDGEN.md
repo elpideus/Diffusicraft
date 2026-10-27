@@ -1469,6 +1469,42 @@ The ground is the material rule `diffusicraft:biome_caves`, the last of the rule
 The erosion that bares rock on steep ground and lays scree under cliffs keeps to the land's surface, so the soils of
 cave floors stay.
 
+### Finding the Hollows
+
+`/diffusicraft find <sight>` gives the nearest Hollow of a kind, Grand Hollow of a cave biome, or lake in a Grand
+Hollow's basin; `/diffusicraft find` alone lists the sights. The command is `map.FindCommand` and the search is
+`worldgen.Sights`. The model places every chamber from the seed alone, so the search loads no chunks. It walks the
+cells of that kind of hollow out from where it is run, in squares twice as wide each time, nearest first. For each
+Grand and Ancient Grand Hollow it asks `HollowBiomes` for the biome and the lake from the coarse climate over it, as
+the world does. This part takes a few milliseconds.
+
+The place it gives is then checked against the terrain itself. The model's floor is not quite the world's: the world
+interpolates the density between the corners of 4 by 8 by 4 cells, vanilla's caves cut into it and its aquifers flood
+it. The search tries columns along the cavern's two axes, first three quarters of the way out, then farther out and then
+in, wherever the model leaves a floor. For each it asks the chunk generator for the column's blocks as the noise of its
+chunk lays them out (`getBaseColumn`), under the model's roof there: the rock over the lower edges of a dome holds
+vanilla's caves, which are not the cavern. It takes the first floor with 4 blocks of open air over it, without water or
+lava, and gives the block one over that floor's top. Where no column has one, the place is just over the first water or
+lava with as much air over it, and the command says so. A cavern with neither is passed over for the next. The features
+come later, so a place can still land in a pool that they dig in the floor, or by a giant mushroom. The check needs that
+terrain, and the rivers around it, at full detail. Where no one has been, the models take a while to compute it: two to
+five minutes for each of `FindGameTest`'s far places, on four CPU threads at the lowest priority. So the command
+searches on a background thread and answers when it is done.
+
+| Looked for | Within |
+|---|---|
+| A kind of hollow | 65,536 blocks |
+| A cave biome or a lake | Two of the coarse map's blocks: 65,536 blocks at 1:1 and 1:2, 61,440 at 1:4, 30,720 at 1:8, 15,360 at 1:16 and 7,680 at 1:32 |
+
+The biomes and lakes need the coarse climate over each cavern, and the coarse map keeps only 64 of its blocks in
+memory, so their search stops sooner.
+
+The answer gives the coordinates, which suggest a `/tp` when clicked as `/locate`'s do, and the distance. While the
+[relief map](MAP.md) is on, it also gives a link to the place on the map. The same players can run it as
+`/diffusicraft map`: operators, and the owner of a singleplayer world even without cheats, since it changes nothing.
+`FindGameTest` looks for every sight from the spawn, generates the chunks at each place found and checks that a player
+can stand there, in the biome looked for.
+
 ### The world spawn
 
 Each seed draws the kind of place where the world spawn lies (`SpawnKind`):
@@ -1546,7 +1582,7 @@ Other searches still read the full terrain and can take a while on new land:
 | Path | What |
 |---|---|
 | `terrain/geography/` | `Geography` (the conditioning map), `Continents`, `Hypsometry`, `Tectonics`, `Hotspots`, `ClimateModel`, `ReliefLattice`, `GradientNoise`, `SpawnKind` |
-| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `CoastSlope` (the land eased down to the sea), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, islets and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `DiffusicraftWorldgen` (registration) |
+| `worldgen/` | `WorldScale`, `TerrainSource`, `Glaciation` (the fjords), `Fjords` (the long fjords), `TerrainField`, `SpawnSearch` and `WorldSpawn` (the world spawn), `Coastline` (the distance to the coast), `CoastSlope` (the land eased down to the sea), `Uplift` (taller mountains), `TerrainSurface` (the ground, with its roughness, ledges, sea cliffs, islets and gullies), `ClimateMapping`, `CoarseClimate`, `TerrainFields` (one field per seed, model lifetime), `PipelineSource`, `CarverRoof`, `Sights` (what `/diffusicraft find` finds), `DiffusicraftWorldgen` (registration) |
 | `mixin/`, `client/mixin/` | The default world type, the world spawn and the respawn in a Hollow, the check for missing models on Create, the coarse stronghold search, the lava level, the carver roof, the vanilla features Diffusicraft worlds leave out and the falls they add after vanilla's water springs, the water springs they leave off the cliffs, the world attached to climate samplers, the lakes of the Hollows in front of each noise chunk's aquifer, the lapse rate, the material rules run outside chunks and the settings' own material rule, which tells a Diffusicraft world when TerraBlender wraps it |
 | `worldgen/density/` | The density function types: `SurfaceFunction`, `ClimateFunction`, `HollowsFunction`, `RiverFunction`, `CoastFunction` |
 | `worldgen/river/` | `Rivers` (what a river or lake does to a column), `RiverNetwork` (the coarse drainage), `CellRivers` (the paths inside a tile), `RiverCourses` (the water of those paths in blocks), `CellBasins` (the closed basins of a tile), `CellLakes` (the lakes inside a tile), `BlockLakes` (the lakes across tiles), `GreatLake` (the lakes of the coarse map), `CellFlows`, `RiverColumn` |

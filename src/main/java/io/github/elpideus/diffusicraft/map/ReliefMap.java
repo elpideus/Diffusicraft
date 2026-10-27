@@ -85,7 +85,8 @@ public final class ReliefMap implements AutoCloseable {
 	public static void init() {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registries, environment) -> dispatcher.register(
 			Commands.literal(Diffusicraft.MOD_ID).requires(ReliefMap::allowed)
-				.then(Commands.literal("map").executes(context -> command(context.getSource())))));
+				.then(Commands.literal("map").executes(context -> command(context.getSource())))
+				.then(FindCommand.node())));
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
 			if (map != null && map.server == server) {
 				map.close();
@@ -161,14 +162,24 @@ public final class ReliefMap implements AutoCloseable {
 	 * to map, or the map is turned off.
 	 */
 	public static @Nullable URI link(MinecraftServer server, @Nullable ServerPlayer player) throws IOException {
+		return player == null ? link(server, null, null, 0, 0)
+			: link(server, player, player.level(), Mth.floor(player.getX()), Mth.floor(player.getZ()));
+	}
+
+	/**
+	 * The link to a player's map, centred on {@code (x, z)} in a level, starting the map as {@link #link(MinecraftServer,
+	 * ServerPlayer)} does. Centred on the world spawn if the level is {@code null} or not on the map.
+	 */
+	public static @Nullable URI link(MinecraftServer server, @Nullable ServerPlayer player, @Nullable Level level, int x,
+									 int z) throws IOException {
 		ReliefMap relief = start(server);
 		if (relief == null) {
 			return null;
 		}
 		String token = relief.service.token(player == null ? null : player.getUUID());
 		String at = "";
-		if (player != null && relief.service.level(id(player.level())) >= 0) {
-			at = "#" + id(player.level()) + "/" + Mth.floor(player.getX()) + "/" + Mth.floor(player.getZ());
+		if (level != null && relief.service.level(id(level)) >= 0) {
+			at = "#" + id(level) + "/" + x + "/" + z;
 		}
 		return URI.create(relief.base + "/" + token + "/" + at);
 	}
