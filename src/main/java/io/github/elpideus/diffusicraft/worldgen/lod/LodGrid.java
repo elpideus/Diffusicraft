@@ -27,9 +27,10 @@ import java.util.Objects;
  * <p>A voxel is a cube of blocks, {@code size} on a side, and shows the highest block in it that is not air, as it
  * looks from above: water over the ground in the same voxel hides it. Voxy's own coarser levels keep the most opaque
  * block instead, which at 16 blocks a voxel turns every sea shallower than that into dry ground standing at sea level.
- * The sky lights the air at full strength. Water loses one level of light for each block between it and its surface,
- * as it does in the world. Blocks that let light through, such as leaves and ice, take one level less than the open
- * sky, and the others none.
+ * The sky lights the air at full strength, but not the caves: their air ({@link #CAVE}) is dark. Water loses one level
+ * of light for each block between it and its surface, as it does in the world, and a lake in a cave has none. Blocks
+ * that let light through, such as leaves and ice, take one level less than the open sky, or none under the ground, and
+ * the others none.
  *
  * <p>A column that reaches above the consumer's ceiling sinks by the difference into the rock under it, so it keeps
  * its snow and soils and stands flat at that height, as it does for Distant Horizons.
@@ -52,6 +53,8 @@ public final class LodGrid {
 	/** A block that lets light through. */
 	static final byte CLEAR = 2;
 	static final byte OPAQUE = 3;
+	/** Air the sky does not reach: the caves, which hold {@link Blocks#CAVE_AIR}. */
+	static final byte CAVE = 4;
 
 	private final int width;
 	/** The runs of column {@code i} are {@code first[i]} up to {@code first[i + 1]}, bottom first. */
@@ -203,12 +206,18 @@ public final class LodGrid {
 	void add(LodColumn column, int ceiling) {
 		int size = column.size();
 		int sink = Math.max(0, column.top() - ceiling);
-		reserve(size);
-		for (int run = 0; run < size; run++) {
+		// The runs that would sink under the bottom of the world, and the caves over them, give way to the rock above.
+		int lowest = 0;
+		while (sink > 0 && lowest + 1 < size && (column.top(lowest) - sink <= column.bottom(0)
+			|| kind(column.state(lowest)) != OPAQUE)) {
+			lowest++;
+		}
+		reserve(size - lowest);
+		for (int run = lowest; run < size; run++) {
 			BlockState state = column.state(run);
 			states[runs] = state;
 			// The lowest run keeps its bottom: the rock under a sunken column still reaches the bottom of the world.
-			bottoms[runs] = run == 0 ? column.bottom(run) : column.bottom(run) - sink;
+			bottoms[runs] = run == lowest ? column.bottom(0) : column.bottom(run) - sink;
 			tops[runs] = column.top(run) - sink;
 			kinds[runs] = kind(state);
 			runs++;
@@ -231,10 +240,15 @@ public final class LodGrid {
 		int start = from.first[column];
 		int end = from.first[column + 1];
 		int sink = end == start ? 0 : Math.max(0, from.tops[end - 1] - ceiling);
-		reserve(end - start);
-		for (int run = start; run < end; run++) {
+		int lowest = start;
+		while (sink > 0 && lowest + 1 < end && (from.tops[lowest] - sink <= from.bottoms[start]
+			|| from.kinds[lowest] != OPAQUE)) {
+			lowest++;
+		}
+		reserve(end - lowest);
+		for (int run = lowest; run < end; run++) {
 			states[runs] = from.states[run];
-			bottoms[runs] = run == start ? from.bottoms[run] : from.bottoms[run] - sink;
+			bottoms[runs] = run == lowest ? from.bottoms[start] : from.bottoms[run] - sink;
 			tops[runs] = from.tops[run] - sink;
 			kinds[runs] = from.kinds[run];
 			runs++;
@@ -304,7 +318,7 @@ public final class LodGrid {
 		return tops[run];
 	}
 
-	/** {@link #AIR}, {@link #WATER}, {@link #CLEAR} or {@link #OPAQUE}. */
+	/** {@link #AIR}, {@link #WATER}, {@link #CLEAR}, {@link #OPAQUE} or {@link #CAVE}. */
 	byte kind(int run) {
 		return kinds[run];
 	}
@@ -446,9 +460,9 @@ public final class LodGrid {
 		return value >>> 1 ^ -(value & 1);
 	}
 
-	private static byte kind(BlockState state) {
+	static byte kind(BlockState state) {
 		if (state.isAir()) {
-			return AIR;
+			return state.is(Blocks.CAVE_AIR) ? CAVE : AIR;
 		}
 		if (state.is(Blocks.WATER)) {
 			return WATER;
@@ -458,7 +472,8 @@ public final class LodGrid {
 
 	/**
 	 * The voxels of one column, from its runs {@code from} up to {@code to}: for each voxel the run whose block it
-	 * shows, or −1 for air, and its sky light.
+	 * shows, or −1 for air, and its sky light: none in a cave, nor in water or a block that lets light through under
+	 * the ground.
 	 */
 	static void voxels(int[] bottoms, int[] tops, byte[] kinds, int from, int to, int surface, int bottom, int size,
 					   int[] runs, byte[] sky) {
@@ -471,19 +486,21 @@ public final class LodGrid {
 				run--;
 			}
 			int shown = run;
-			while (shown >= from && tops[shown] > low && kinds[shown] == AIR) {
+			boolean cave = false;
+			while (shown >= from && tops[shown] > low && (kinds[shown] == AIR || kinds[shown] == CAVE)) {
+				cave |= kinds[shown] == CAVE;
 				shown--;
 			}
 			if (shown < from || tops[shown] <= low) {
 				runs[voxel] = -1;
-				sky[voxel] = FULL_SKY;
+				sky[voxel] = (byte) (cave ? 0 : FULL_SKY);
 			} else if (kinds[shown] == WATER) {
 				runs[voxel] = shown;
 				int highestWater = Math.min(high, tops[shown]) - 1;
 				sky[voxel] = (byte) Math.max(0, FULL_SKY - (surface - highestWater));
 			} else {
 				runs[voxel] = shown;
-				sky[voxel] = (byte) (kinds[shown] == CLEAR ? FULL_SKY - 1 : 0);
+				sky[voxel] = (byte) (kinds[shown] == CLEAR && tops[shown] >= surface ? FULL_SKY - 1 : 0);
 			}
 		}
 	}

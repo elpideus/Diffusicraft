@@ -52,7 +52,7 @@ import org.lwjgl.system.MemoryUtil;
 final class ChunkMask implements AutoCloseable {
 	private static final int INFO_SIZE = 64;
 	/** How much nearer than Sodium needs a section must lie to count as drawn, in blocks, for rounding. */
-	static final float REACH_MARGIN = 0.0625F;
+	private static final float REACH_MARGIN = 0.0625F;
 	/** Most sections looked up in a frame: the whole mask at a render distance of 12, a twentieth of it at 32. */
 	private static final int SECTIONS_PER_FRAME = 16384;
 	private static final byte DRAWN = (byte) 0xFF;
@@ -152,7 +152,7 @@ final class ChunkMask implements AutoCloseable {
 	 * {@code viewDistance} and the fog ending {@code fogEnd} blocks from the camera, or NaN for none that hides what lies
 	 * behind it; or 0 where Sodium is not installed and the world goes by whole chunks.
 	 */
-	static float reach(int viewDistance, float fogEnd) {
+	private static float reach(int viewDistance, float fogEnd) {
 		// RenderSectionManager.getSearchDistance, with Sodium's fog occlusion on, as it is unless turned off: then
 		// Sodium draws more, which only the fog hides.
 		return SODIUM ? Math.min(viewDistance * 16F, Float.isNaN(fogEnd) ? Float.MAX_VALUE : fogEnd + 0.5F) : 0;

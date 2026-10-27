@@ -2,6 +2,7 @@ package io.github.elpideus.diffusicraft.worldgen.lod;
 
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Arrays;
@@ -60,17 +61,36 @@ public final class LodColumn {
 		waterDepth = depth;
 	}
 
-	/** A copy that stays as it is when this column is reused. */
-	LodColumn copy() {
-		LodColumn copy = new LodColumn();
-		copy.states = Arrays.copyOf(states, Math.max(1, count));
-		copy.bottoms = Arrays.copyOf(bottoms, Math.max(1, count));
-		copy.tops = Arrays.copyOf(tops, Math.max(1, count));
-		copy.count = count;
-		copy.ground = ground;
-		copy.biome = biome;
-		copy.waterDepth = waterDepth;
-		return copy;
+	/**
+	 * A copy that stays as it is when this column is reused, without the caves under the ground fewer than
+	 * {@code thinnest} blocks high: the stretches of cave air and the water and lava in it, which take the block under
+	 * them instead.
+	 */
+	LodColumn closed(int thinnest) {
+		LodColumn closed = new LodColumn();
+		closed.reset(biome);
+		closed.waterDepth = waterDepth;
+		for (int run = 0; run < count; ) {
+			int end = run;
+			boolean cave = false;
+			while (run > 0 && end < ground && (states[end].is(Blocks.CAVE_AIR)
+				|| !states[end].getFluidState().isEmpty())) {
+				cave |= states[end].is(Blocks.CAVE_AIR);
+				end++;
+			}
+			if (cave && tops[end - 1] - bottoms[run] < thinnest) {
+				closed.add(closed.states[closed.count - 1], bottoms[run], tops[end - 1]);
+				run = end;
+				continue;
+			}
+			for (end = Math.max(end, run + 1); run < end; run++) {
+				closed.add(states[run], bottoms[run], tops[run]);
+				if (run == ground) {
+					closed.ground = closed.count - 1;
+				}
+			}
+		}
+		return closed;
 	}
 
 	/** Number of runs, bottom first. */

@@ -20,8 +20,9 @@ taken from them. Voxy is All Rights Reserved and Distant Horizons is LGPL.
   level 0 has a column every block, level 9 one every 512 blocks.
 - **Chunks taken as they are saved**, as both mods take what is loaded. Places players have been show as they are,
   not as they were generated.
-- **Caves filled in**, as Distant Horizons fills them. A far view never sees inside a closed space, so a column
-  keeps only what the sky can reach.
+- **Caves filled in further out**, as Distant Horizons fills them. A view from a long way off never sees inside a
+  closed space, so a column whose level has columns more than 8 blocks apart keeps only what the sky can reach.
+  The finer levels keep the caves, which the sky does not light (see [below](#caves-farhollows)).
 - **A rough surface first**, as Distant Horizons' generator builds one before it generates any chunk. A tile whose
   terrain the models have not computed yet is built from what they have: without the rivers, or from the coarse map
   alone. The models compute what is missing later, one tile at a time and only while chunk generation leaves them
@@ -41,11 +42,19 @@ On the store's thread, `ChunkColumns` reads each column of the copy:
 - **The ground.** The ground is the highest block that is neither leaves nor ice: a roof, or the sea floor under a
   frozen sea, as `LodSampler` has it.
 - **How deep it keeps blocks.** A column keeps its blocks one by one down to four blocks under the lowest ground
-  around it, so that a wall or a cliff shows its face. Below that, one run of the rock there reaches the bottom of
-  the world.
+  around it, so that a wall or a cliff shows its face. Below that, the rock there reaches the bottom of the world,
+  around the caves.
 - **Open space under things.** Where the sky lights the space under the ground, as under a bridge, a pier, an
-  overhang or a floating build, the column keeps that space and the water in it, down to the next ground. Closed
-  rooms and caves fill in.
+  overhang or a floating build, the column keeps that space and the water in it, down to the next ground.
+- **Caves and closed rooms.** The air the sky leaves dark, in a cave or a room under its roof, is kept as cave air,
+  with the water and lava in it and the blocks of its floor and ceiling. Around the heights the chunk's caves open
+  at, the rock comes in bands of 16 blocks, each the block in its middle, so that their walls show the strata; below
+  and above them it is one run.
+- **Sections without light.** Vanilla keeps no sky light for a section that the sky reaches nowhere. Nor does it
+  keep any for one that only repeats the bottom of the section above, and above every section it keeps, it reads
+  full light. So a section without light is dark under a dark block, such as a tunnel under the floor of a deep sea,
+  and in the open above them all. Under a lit block it may be either, and the column does not count it as a cave;
+  nor does it anywhere in a chunk with no light kept at all.
 
 ### Keeping them: `LodStore`
 
@@ -56,12 +65,21 @@ good (`SERVER_STOPPED`).
   the step, which are the points `LodSampler` takes for a grid of that step. A saved chunk adds its 256 columns to
   level 0, 64 to level 1 and so on, down to one at level 4. Beyond that, one chunk in every 2 × 2 adds a column to
   level 5, and one in every 32 × 32 adds one to level 9.
+- **Caves by level.** A level keeps a chunk's caves as high as its step at least, and only up to level 3, whose
+  columns are 8 blocks apart, as the far terrain draws caves no further out. A cave too low for a level is filled with
+  the block under it.
 - **Pages.** A level's columns come in pages of 64 × 64 columns. Each page is a `LodGrid` plus a bitset of which of
   its columns are stored. A chunk always lies within one page of each level.
 - **On disk.** Pages live in region files under `<world>/diffusicraft/lod/<namespace>/<path>/L<level>`, written
   through Minecraft's own `IOWorker`, so there are no new dependencies. Each page has its own list of the names of
   its block states and biomes, so it reads the same after mods change their numbering. A block or biome that is gone
-  reads as air, or as plains.
+  reads as air, or as plains. Each page also notes the version of what its columns hold, and a page of another
+  version reads as missing: version 2 keeps the caves.
+- **Reading the world again.** A server's store whose folder does not note the version in a `version` file, as when
+  an older build of the mod or none at all played the world, reads every chunk saved in the level again as it opens,
+  on its own thread, a slice at a time between the pages the far terrain asks for, and writes the file once it is
+  done. A chunk that an older game saved is read once the server has brought it up to date and saved it again. A
+  server stopped before the store is done starts over the next time.
 - **The terrain as generated.** The store also keeps each page of the terrain as generated that the far terrain
   sampled in full, under `G<level>` beside `L<level>`, whatever players did to it since. A world closed and opened
   again then shows its far terrain at once, where the models would otherwise compute it all over again, rough first.
@@ -124,6 +142,33 @@ exist, then generates them and checks that the far columns over most of its buil
 their roofs. On the test's seed, 870 of the 1,034 columns over a taiga village's buildings do, and the columns over
 the whole village lie 0.8 blocks off on average.
 
+### Caves: `FarHollows`
+
+In the grids whose columns are at most 8 blocks apart, the caverns of the Hollows open under the ground where the
+chunks open them: the Hollows, the Deep Hollows, the Grand Hollows of every kind and the deep noodle caverns. A view
+across a Grand Hollow then shows its far walls, its floor and its ceiling instead of the void, and a cave that runs
+out of the chunks drawn goes on in the far terrain.
+
+- **Where they open.** The chunks take the density of the Hollows at the corners of cells 4 blocks wide and 8 high,
+  fade it to solid rock over the bottom 24 blocks of the world, and run straight between the corners. `FarHollows`
+  does the same, working out each corner once for the whole grid, so a cavern's floor, walls and ceiling stand where
+  the chunks put them. A cavern lower than the grid's step is left out, as the columns could not show it.
+- **What fills them.** Cave air, which the far terrain keeps dark; each cavern's lake, water or ice or none, as the
+  chunks fill it; and lava at the bottom of the world, below the chunks' lava level.
+- **Their rock.** Each floor and ceiling takes the block the material rules lay there, in the biome of its cavern,
+  the glowing ceilings among them. An ore there would stand for a whole floor, so the rock around it does instead.
+  Around the heights the caverns open at, the rock comes in bands of 16 blocks, each the block the rules put in its
+  middle, so that the walls show the strata.
+- **What is left out.** Vanilla's own caves and the pools its aquifers leave. These show only where the chunks were
+  saved, which the store keeps as they are (see [above](#reading-saved-chunks-chunkcolumns)).
+
+`FarTerrainCavesGameTest` digs a sealed tunnel 40 blocks under the spawn and 120 blocks south, past the chunks drawn,
+and checks that the far terrain keeps its far end open, closed and dark. On the test's seed the tunnel runs under the
+floor of the sea, whose sections vanilla saves without light. The test then views the Ancient Grand Hollow nearest the
+spawn, 445 by 385 blocks across, from its floor: 629 of the 646 far columns 8 blocks apart around its middle open into
+it, none of them lit by the sky. A tile 512 blocks wide over it, at that step, takes 141 ms to sample once the models
+have computed the terrain under it, and has 21,372 faces, 15,585 of them in the dark.
+
 ### On a server: `LodFeed`, `RemoteLods` and `SeenChunks`
 
 A server with Diffusicraft sends the far terrain of its Diffusicraft worlds to the clients with Diffusicraft that ask
@@ -166,16 +211,22 @@ These parts are unit-tested and feed the renderer below.
 - **Meshes (`LodMesher`).** A tile becomes faces, solid and water apart:
   - **Tops.** The tops of the highest solid run and the highest water in each column merge into rectangles of one
     block, biome, height and light, as Voxy and Distant Horizons merge theirs. A plain or a sea then takes a few
-    faces. The tops under a bridge or an overhang stay one per column.
+    faces. So do the highest floor of a cave in each column, the highest lake in one and the highest ceiling, so
+    that the floor of a Grand Hollow takes few faces too. The other tops, under a bridge or an overhang, stay one per
+    column.
   - **Sides.** A side shows only the part of a run that the neighbouring column leaves open.
   - **Skirts.** Along a tile's edges, the neighbour may be a tile of another level, so the solid runs show their
     sides down to two steps under the ground of the column and of its neighbours along the edge. Where the ground
     rises away from the edge, the skirt also reaches as far down as the slope goes three steps on past it, where the
     column of a tile two levels coarser may meet the edge. This skirt closes the cracks between tiles, even on steep
-    mountainsides. Water has no skirt, which would show as walls under the sea.
-  - **Bottoms.** The underside of a bridge or overhang shows.
+    mountainsides. It also runs through the depths where the tile has caves, so that a cave that runs a little
+    differently in the tile beside it, sampled more or less finely, meets rock there and not a hole. Water has no
+    skirt, which would show as walls under the sea.
+  - **Bottoms.** The underside of a bridge, an overhang or the ceiling of a cave shows.
   - **Light.** The ground under something takes a little less sky light. Faces under water darken with depth, as
-    the world's do.
+    the world's do. The faces in a cave, and those in or under the water of a lake in one, take no sky light at all,
+    so that the caves stay as dark as the world's own and a shader pack does not light them as if the sun reached
+    them.
 - **Colours (`LodColors`, client).** Each block has a colour for its top, bottom and sides: the average of the
   textures its model shows there, weighted by the area each covers, leaving out see-through pixels. The parts the
   world tints, such as grass, leaves and water, take the same tints for the column's biome, through the game's own
@@ -223,18 +274,15 @@ These parts are unit-tested and feed the renderer below.
   camera moves, as the world's own grid of sections does, and a few lines of chunks are looked up each frame, so a
   large render distance spreads the work. A tile that lies wholly within sections the world draws is not drawn at
   all, since the shader would drop every fragment of it: the mask's bytes are checked on the CPU as well.
-- **Caves that run out of the chunks (`CaveWalls`).** The far terrain is solid ground with faces only where it meets
-  the air, so from inside it, as from a cave that leads out of the chunks drawn, the eye went on through it to the
-  sky and to the undersides of the canopies above. On each side of a chunk the world draws that faces one it does
-  not, the open blocks along the edge that lie below the ground and out of the sky's light get a face of the rock
-  there, looking back in. Which chunks the world draws goes by where the camera stands, as `ChunkMask` reckons it,
-  so the walls stay put as the camera turns, and the fragment shader drops a wall where the world draws the chunk
-  behind it after all. An edge is looked up a few at a time, and again every second for blocks broken and light
-  that changed.
+- **From a cave.** A cave that leads out of the chunks drawn goes on in the far terrain, which keeps the caves of
+  the chunks saved and opens those of the Hollows (see [above](#caves-farhollows)). A chunk changed is saved, and so
+  shows, within about ten seconds; one that only loaded waits for the autosave. When the far terrain was solid under
+  the ground, the eye went on through it from a cave to the sky; flat walls of rock along the edge of the chunks
+  then closed the view instead, which hid the far side of a Grand Hollow.
 - **Debug screen.** The `diffusicraft:far_terrain` entry, turned on among the others with F3 + F6, shows the tiles
   with a mesh and those drawn in the last frame, those left rough and those still to build, the memory their meshes
-  take on the GPU, the faces of the cave walls and the chunks saved that the store has still to read, which pile up
-  if it falls behind. Under a shader pack, a second line counts the tiles drawn into its shadow map.
+  take on the GPU and the chunks saved that the store has still to read, which pile up if it falls behind. Under a
+  shader pack, a second line counts the tiles drawn into its shadow map.
 - **Reach.** The camera's far plane moves out to twice the far terrain's distance, and the fog closes in at its
   end instead of at the end of the chunks. The air's haze, which vanilla ends at 1024 blocks, stretches as far.
   Fog under water, in lava and from blindness or darkness stays as it is. Sodium reads the fog at the same point,
@@ -281,3 +329,6 @@ plays its part for Iris:
    of 6: 64 bytes a quad, and about 12,000 quads a tile. Merging side faces along a row, as Distant Horizons does,
    and tops by their final colour rather than their biome would leave a third to a half fewer quads. Quads of 8 bytes
    read from a buffer, as Voxy draws its own, would take an eighth of the memory, outside shader packs.
+4. **Vanilla's caves.** The far terrain as generated opens only the Hollows, so a vanilla cave that leads out of the
+   chunks drawn into land nobody has saved yet ends in rock. Opening them too would mean working out the noise
+   router's caves at the corners of each cell, as `FarHollows` does the Hollows'.

@@ -187,7 +187,7 @@ class ChunkColumnsTest {
 	}
 
 	@Test
-	void aClosedHouseIsFilledUnderItsRoofButShowsItsWalls() {
+	void aClosedHouseKeepsItsDarkRoomUnderItsRoofAndShowsItsWalls() {
 		Chunk chunk = meadow();
 		chunk.fill(8, 64, 8, 12, 64, 12, Blocks.OAK_PLANKS);
 		chunk.fill(8, 65, 8, 12, 68, 12, Blocks.COBBLESTONE);
@@ -200,15 +200,53 @@ class ChunkColumnsTest {
 		assertEquals(70, middle.top());
 		assertEquals(70, middle.top(middle.ground()), "the roof is the ground");
 		assertEquals(Blocks.OAK_PLANKS.defaultBlockState(), middle.state(middle.ground()));
-		// The dark room under the roof sinks into one run with the floor and all below it.
+		// The dark room under the roof is a cave between its floor and the roof.
 		assertEquals(0, middle.bottom(0));
-		assertTrue(middle.top(0) >= 65, "filled up to " + middle.top(0));
-		assertTrue(middle.size() <= 3, middle.size() + " runs");
+		assertEquals(Blocks.OAK_PLANKS.defaultBlockState(), at(middle, 64), "the floor");
+		for (int y = 65; y <= 68; y++) {
+			assertEquals(Blocks.CAVE_AIR.defaultBlockState(), at(middle, y), "the room at y = " + y);
+		}
 
 		LodColumn wall = columns[10 * 16 + 8];
 		assertEquals(Blocks.COBBLESTONE.defaultBlockState(), at(wall, 66));
 		assertEquals(Blocks.OAK_PLANKS.defaultBlockState(), at(wall, 64));
 		assertEquals(Blocks.GRASS_BLOCK.defaultBlockState(), at(wall, 63), "the wall keeps the soil beside it");
+	}
+
+	@Test
+	void aCaveUnderTheGroundIsKeptDarkBetweenItsFloorAndItsCeiling() {
+		Chunk chunk = meadow();
+		chunk.fill(2, 20, 2, 13, 25, 13, Blocks.CAVE_AIR);
+		chunk.fill(2, 20, 2, 5, 20, 13, Blocks.WATER);
+		chunk.lightFromAbove();
+		LodColumn[] columns = chunk.read();
+
+		LodColumn cave = columns[8 * 16 + 8];
+		assertEquals(64, cave.top());
+		assertEquals(Blocks.GRASS_BLOCK.defaultBlockState(), cave.state(cave.ground()));
+		assertEquals(0, cave.bottom(0));
+		assertEquals(Blocks.STONE.defaultBlockState(), at(cave, 19), "the floor");
+		for (int y = 20; y <= 25; y++) {
+			assertEquals(Blocks.CAVE_AIR.defaultBlockState(), at(cave, y), "the cave at y = " + y);
+		}
+		assertEquals(Blocks.STONE.defaultBlockState(), at(cave, 26), "the ceiling");
+
+		LodColumn pool = columns[8 * 16 + 3];
+		assertEquals(Blocks.WATER.defaultBlockState(), at(pool, 20));
+		assertEquals(Blocks.CAVE_AIR.defaultBlockState(), at(pool, 21));
+
+		LodColumn rock = columns[0];
+		for (int run = 0; run < rock.size(); run++) {
+			assertFalse(rock.state(run).is(Blocks.CAVE_AIR), "no cave beside the cave");
+		}
+		assertEquals(Blocks.STONE.defaultBlockState(), at(rock, 22));
+
+		// A level of detail coarser than the cave is high closes it with the block under it, and keeps the ground.
+		LodColumn closed = cave.closed(8);
+		assertEquals(Blocks.STONE.defaultBlockState(), at(closed, 22));
+		assertEquals(64, closed.top(closed.ground()));
+		assertEquals(Blocks.STONE.defaultBlockState(), at(pool.closed(8), 20), "with the water in it");
+		assertEquals(Blocks.CAVE_AIR.defaultBlockState(), at(cave.closed(4), 22));
 	}
 
 	@Test
@@ -237,6 +275,34 @@ class ChunkColumnsTest {
 		assertEquals(Blocks.WATER.defaultBlockState(), at(kelp, 61), "kelp is water from afar");
 		assertEquals(Blocks.DIRT.defaultBlockState(), kelp.state(kelp.ground()));
 		assertEquals(3, kelp.waterDepth());
+	}
+
+	@Test
+	void aTunnelUnderTheSeaFloorIsKeptDarkWhereNoLightIsKept() {
+		Chunk chunk = new Chunk();
+		chunk.fill(0, 0, 0, 15, 33, 15, Blocks.STONE);
+		chunk.fill(0, 34, 0, 15, 62, 15, Blocks.WATER);
+		chunk.fill(7, 30, 0, 9, 32, 15, Blocks.AIR);
+		chunk.lightFromAbove();
+		// The sea dims the sky a level a block, to nothing at y = 48, and vanilla keeps no light for the sections
+		// all dark under that.
+		for (int y = 34; y <= 62; y++) {
+			for (int z = 0; z < 16; z++) {
+				for (int x = 0; x < 16; x++) {
+					chunk.light(x, y, z, Math.max(0, 14 - (62 - y)));
+				}
+			}
+		}
+		chunk.sky[0] = chunk.sky[1] = chunk.sky[2] = null;
+		LodColumn[] columns = chunk.read();
+
+		LodColumn tunnel = columns[8 * 16 + 8];
+		assertEquals(34, tunnel.top(tunnel.ground()), "the tunnel's roof is the sea floor");
+		assertEquals(Blocks.WATER.defaultBlockState(), at(tunnel, 40));
+		assertEquals(Blocks.STONE.defaultBlockState(), at(tunnel, 29), "the tunnel's floor");
+		for (int y = 30; y <= 32; y++) {
+			assertEquals(Blocks.CAVE_AIR.defaultBlockState(), at(tunnel, y), "the tunnel at y = " + y);
+		}
 	}
 
 	@Test

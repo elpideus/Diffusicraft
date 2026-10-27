@@ -31,6 +31,7 @@ class LodMesherTest {
 	private static BlockState planks;
 	private static BlockState water;
 	private static BlockState air;
+	private static BlockState caveAir;
 
 	@BeforeAll
 	static void bootstrap() {
@@ -43,6 +44,7 @@ class LodMesherTest {
 		planks = Blocks.OAK_PLANKS.defaultBlockState();
 		water = Blocks.WATER.defaultBlockState();
 		air = Blocks.AIR.defaultBlockState();
+		caveAir = Blocks.CAVE_AIR.defaultBlockState();
 	}
 
 	private record Face(Direction side, int x0, int y0, int z0, int x1, int y1, int z1, BlockState state, int sky) {
@@ -213,5 +215,38 @@ class LodMesherTest {
 		assertEquals(4, sides.stream().filter(face -> face.state() == planks && face.y0() == 70 && face.y1() == 71)
 			.count(), sides.toString());
 		assertEquals(8, sides.size(), sides.toString());
+	}
+
+	@Test
+	void aCaveShowsItsFloorItsCeilingAndItsWallsInTheDark() {
+		Mesh mesh = new Mesh(grid(3, column -> {
+			if (column != 4) {
+				return stone(64);
+			}
+			LodColumn cave = new LodColumn();
+			cave.reset(plains);
+			cave.add(stone, MIN_Y, 20);
+			cave.add(caveAir, 20, 26);
+			cave.add(gold, 26, 64);
+			cave.markGround();
+			return cave;
+		}), 1);
+		assertTrue(mesh.solid(Direction.UP).contains(new Face(Direction.UP, 1, 20, 1, 2, 20, 2, stone, 0)),
+			mesh.solid(Direction.UP).toString());
+		assertEquals(List.of(new Face(Direction.DOWN, 1, 26, 1, 2, 26, 2, gold, 0)), mesh.solid(Direction.DOWN));
+		assertEquals(List.of(
+			new Face(Direction.SOUTH, 1, 20, 1, 2, 26, 1, stone, 0),
+			new Face(Direction.EAST, 1, 20, 1, 1, 26, 2, stone, 0),
+			new Face(Direction.WEST, 2, 20, 1, 2, 26, 2, stone, 0),
+			new Face(Direction.NORTH, 1, 20, 2, 2, 26, 2, stone, 0)
+		), mesh.solidSides().stream().filter(face -> !face.onBorder(3)).toList());
+		// Along the edges the skirts reach through the depths of the cave too, in the dark, for a cave beside.
+		List<Face> deep = mesh.solidSides().stream().filter(face -> face.onBorder(3) && face.sky() == 0).toList();
+		assertEquals(12, deep.size(), deep.toString());
+		for (Face face : deep) {
+			assertEquals(18, face.y0(), face.toString());
+			assertEquals(28, face.y1(), face.toString());
+		}
+		assertEquals(List.of(), mesh.water);
 	}
 }

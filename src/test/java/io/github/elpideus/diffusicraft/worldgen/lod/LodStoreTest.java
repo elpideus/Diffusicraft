@@ -142,6 +142,34 @@ class LodStoreTest {
 	}
 
 	@Test
+	void aChunkKeepsItsCavesAtTheLevelsAsFineAsTheyAreHigh() throws IOException {
+		LodColumn[] columns = new LodColumn[256];
+		for (int i = 0; i < columns.length; i++) {
+			LodColumn column = new LodColumn();
+			column.reset(plains);
+			column.add(Blocks.STONE.defaultBlockState(), 0, 30);
+			column.add(Blocks.CAVE_AIR.defaultBlockState(), 30, 36);
+			column.add(Blocks.STONE.defaultBlockState(), 36, 69);
+			column.add(Blocks.GRASS_BLOCK.defaultBlockState(), 69, 70);
+			column.markGround();
+			columns[i] = column;
+		}
+		try (LodStore store = store()) {
+			store.saved(new ChunkPos(0, 0), columns);
+			for (int level = 0; level <= 2; level++) {
+				LodGrid grid = store.page(level, 0, 0).join().grid();
+				assertEquals(Blocks.AIR.defaultBlockState(), at(grid, 0, 33), "open at level " + level);
+				byte[] sky = new byte[1];
+				grid.voxels(0, 33, 1, new BlockState[1], sky);
+				assertEquals(0, sky[0], "dark at level " + level);
+			}
+			// Eight blocks apart, a cave six blocks high is closed, as the generated terrain's are.
+			assertEquals(Blocks.STONE.defaultBlockState(), at(store.page(3, 0, 0).join().grid(), 0, 33));
+			assertEquals(Blocks.GRASS_BLOCK.defaultBlockState(), at(store.page(3, 0, 0).join().grid(), 0, 69));
+		}
+	}
+
+	@Test
 	void aChunkSavedAgainReplacesItsColumnsAndKeepsTheOthers() throws IOException {
 		try (LodStore store = store()) {
 			store.saved(new ChunkPos(0, 0), chunk(70, desert));

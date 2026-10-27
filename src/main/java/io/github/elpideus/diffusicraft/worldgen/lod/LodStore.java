@@ -10,8 +10,10 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.SharedConstants;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -32,13 +34,18 @@ import net.minecraft.world.level.chunk.status.ChunkType;
 import net.minecraft.world.level.chunk.storage.IOWorker;
 import net.minecraft.world.level.chunk.storage.RegionStorageInfo;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.storage.LevelResource;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -77,7 +84,12 @@ import java.util.function.Supplier;
  * runs on a thread of the store's own: the server thread hands over the copy of a chunk that vanilla takes to save it,
  * the client the sections it copied of a chunk it let go of, and readers get a future. Vanilla saves a chunk again
  * whenever something in it changed, as grass spreads or a crop grows, so a page whose columns come out as they were
- * is neither written nor heard of again.
+ * is neither written nor heard of again. A coarser level keeps the caves of a chunk only where it draws caves at all,
+ * and those as high as its step at least, as {@link LodSampler} does.
+ *
+ * <p>A server's store that a build of the mod keeping other columns left, or that a world played without the mod has
+ * none of, reads every chunk saved in the level again in the background as it opens, and notes in its folder that it
+ * did ({@link #VERSION_FILE}); a page another build wrote reads as missing until then.
  *
  * <p>The store also keeps the pages of the terrain as generated, whatever players did to it, so that the far terrain
  * need not run the models again after the world is closed and opened ({@link #generated(int, int, int)}). They are
@@ -89,7 +101,12 @@ public final class LodStore implements AutoCloseable {
 	public static final int PAGE = 64;
 	/** Levels of detail kept: steps of 1 up to 512 blocks between columns. */
 	public static final int LEVELS = 10;
-	private static final int VERSION = 1;
+	/** What the stored columns hold; a page of another version is dropped. 2: the caves under the ground. */
+	private static final int VERSION = 2;
+	/** The file in a server's store that names the {@link #VERSION} of the columns it has read every saved chunk to. */
+	private static final String VERSION_FILE = "version";
+	/** Places of saved chunks looked up before the pages they touch are written, when the store reads them again. */
+	private static final int CATCH_UP_SLICE = 256;
 	/** Pages kept in memory, of every level together. */
 	private static final int CACHED_PAGES = 192;
 	/** Pages known to be missing kept in memory, so that asking for them again reads nothing. */
@@ -130,6 +147,7 @@ public final class LodStore implements AutoCloseable {
 	private static final Map<ResourceKey<Level>, Optional<LodStore>> STORES = new ConcurrentHashMap<>();
 	private static volatile @Nullable MinecraftServer server;
 
+	private final Path folder;
 	private final IOWorker[] workers = new IOWorker[LEVELS];
 	private final IOWorker[] generated = new IOWorker[LEVELS];
 	/** Held to read or write the generated pages, and to stop that as the store closes. */
@@ -153,8 +171,11 @@ public final class LodStore implements AutoCloseable {
 	private boolean draining;
 	/** How many chunks were handed over and not read yet, for the debug screen. */
 	private volatile int backlog;
+	/** The places of the saved chunks still to read again (see {@link #catchUp}). Read on the store's thread only. */
+	private final ArrayDeque<ChunkPos> behind = new ArrayDeque<>();
 
 	public LodStore(Path folder, ResourceKey<Level> dimension, HolderLookup<Biome> biomes, Holder<Biome> fallback) {
+		this.folder = folder;
 		for (int level = 0; level < LEVELS; level++) {
 			RegionStorageInfo info = new RegionStorageInfo(dimension.identifier().toString(), dimension,
 				"diffusicraft_lod_" + level);
@@ -200,9 +221,101 @@ public final class LodStore implements AutoCloseable {
 				return Optional.empty();
 			}
 			HolderLookup.RegistryLookup<Biome> biomes = level.registryAccess().lookupOrThrow(Registries.BIOME);
-			return Optional.of(new LodStore(folder(current.getWorldPath(LevelResource.ROOT), key), key, biomes,
-				biomes.getOrThrow(Biomes.PLAINS)));
+			LodStore store = new LodStore(folder(current.getWorldPath(LevelResource.ROOT), key), key, biomes,
+				biomes.getOrThrow(Biomes.PLAINS));
+			store.catchUp(level);
+			return Optional.of(store);
 		}).orElse(null);
+	}
+
+	/**
+	 * Reads every chunk saved in {@code level} again, in the background, unless the store has done so since
+	 * {@link #VERSION} last changed.
+	 */
+	private void catchUp(ServerLevel level) {
+		Path marker = folder.resolve(VERSION_FILE);
+		try {
+			if (Files.isRegularFile(marker) && Files.readString(marker).strip().equals(Integer.toString(VERSION))) {
+				return;
+			}
+		} catch (IOException e) {
+			LOGGER.warn("Could not read {}", marker, e);
+		}
+		Path regions = DimensionType.getStorageFolder(level.dimension(), level.getServer().getWorldPath(
+			LevelResource.ROOT)).resolve("region");
+		thread.execute(() -> {
+			try (DirectoryStream<Path> files = Files.newDirectoryStream(regions, "r.*.*.mca")) {
+				for (Path file : files) {
+					String[] parts = file.getFileName().toString().split("\\.");
+					int regionX = Integer.parseInt(parts[1]);
+					int regionZ = Integer.parseInt(parts[2]);
+					for (int z = 0; z < 32; z++) {
+						for (int x = 0; x < 32; x++) {
+							behind.add(new ChunkPos(regionX * 32 + x, regionZ * 32 + z));
+						}
+					}
+				}
+			} catch (NoSuchFileException e) {
+				// Nothing saved yet.
+			} catch (IOException | RuntimeException e) {
+				LOGGER.warn("Could not list the chunks saved in {} for the far terrain", regions, e);
+				behind.clear();
+				return;
+			}
+			if (!behind.isEmpty()) {
+				LOGGER.info("Reading the chunks saved in {} again for the far terrain", level.dimension().identifier());
+			}
+			catchUpSlice(level, marker);
+		});
+	}
+
+	/**
+	 * Reads the next of the saved chunks {@link #catchUp} found and updates their pages, then the rest after the pages
+	 * asked for meanwhile. Notes in the store's folder that it is done once there are none left, unless the server
+	 * stops first: then it starts over the next time.
+	 */
+	private void catchUpSlice(ServerLevel level, Path marker) {
+		Map<Long, Map<Integer, LodColumn>>[] changes = newChanges();
+		int current = SharedConstants.getCurrentVersion().dataVersion().version();
+		int found = 0;
+		for (int n = 0; n < CATCH_UP_SLICE && found < DRAIN_SLICE && !behind.isEmpty(); n++) {
+			if (!level.getServer().isRunning()) {
+				behind.clear();
+				return;
+			}
+			ChunkPos pos = behind.poll();
+			try {
+				Optional<CompoundTag> tag = level.getChunkSource().chunkMap.read(pos).join();
+				// A chunk an older game saved is read once the server has brought it up to date and saved it again.
+				if (tag.isEmpty() || NbtUtils.getDataVersion(tag.get(), 0) < current) {
+					continue;
+				}
+				SerializableChunkData data = SerializableChunkData.parse(level, level.palettedContainerFactory(),
+					tag.get());
+				if (data.chunkStatus().getChunkType() == ChunkType.LEVELCHUNK) {
+					read(new Saved(pos, sink -> reader.read(data, sink)), changes);
+					found++;
+				}
+			} catch (RuntimeException e) {
+				LOGGER.warn("Could not read chunk {} again for the far terrain", pos, e);
+			}
+		}
+		update(changes);
+		if (!behind.isEmpty()) {
+			try {
+				thread.execute(() -> catchUpSlice(level, marker));
+			} catch (RejectedExecutionException e) {
+				// Closing: the rest is read the next time.
+				behind.clear();
+			}
+			return;
+		}
+		try {
+			Files.createDirectories(folder);
+			Files.writeString(marker, Integer.toString(VERSION));
+		} catch (IOException e) {
+			LOGGER.warn("Could not write {}", marker, e);
+		}
 	}
 
 	/** The folder a level's store keeps its pages in, under the world's. */
@@ -301,6 +414,15 @@ public final class LodStore implements AutoCloseable {
 				LOGGER.warn("Could not read chunk {} for the far terrain", chunk.pos(), e);
 			}
 		}
+		update(changes);
+		synchronized (saved) {
+			draining = !saved.isEmpty();
+			return draining;
+		}
+	}
+
+	/** Updates each page of each level that the chunks read changed. */
+	private void update(Map<Long, Map<Integer, LodColumn>>[] changes) {
 		for (int level = 0; level < LEVELS; level++) {
 			for (Map.Entry<Long, Map<Integer, LodColumn>> entry : changes[level].entrySet()) {
 				long key = entry.getKey();
@@ -310,10 +432,6 @@ public final class LodStore implements AutoCloseable {
 					LOGGER.warn("Could not update page {} of level {} of the far terrain", ChunkPos.unpack(key), level, e);
 				}
 			}
-		}
-		synchronized (saved) {
-			draining = !saved.isEmpty();
-			return draining;
 		}
 	}
 
@@ -341,8 +459,10 @@ public final class LodStore implements AutoCloseable {
 				int pageX = Math.floorDiv(blockX, span);
 				int pageZ = Math.floorDiv(blockZ, span);
 				int index = (blockZ - pageZ * span) / step * PAGE + (blockX - pageX * span) / step;
+				// Caves narrower than the columns are apart, or any where the far terrain draws none, are filled in.
+				int thinnest = step > LodSampler.CAVE_STEP ? Integer.MAX_VALUE : step;
 				changes[level].computeIfAbsent(ChunkPos.pack(pageX, pageZ), k -> new HashMap<>())
-					.put(index, column.copy());
+					.put(index, column.closed(thinnest));
 			}
 		});
 	}

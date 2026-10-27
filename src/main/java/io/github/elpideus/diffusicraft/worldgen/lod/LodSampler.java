@@ -8,6 +8,7 @@ import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeWorld;
 import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
+import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
@@ -30,6 +31,7 @@ import net.minecraft.world.level.levelgen.material.rule.MaterialRule;
 import net.minecraft.world.level.levelgen.material.rule.RuleEvaluator;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,8 +48,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * crowns of leaves, as many and as large as the biome's own trees (see {@link TreeCover}), and the giants, those that
  * grow as structures and the redwoods the biomes plant, stand where the world grows them (see {@link GreatTrees}), their
  * crowns over water too. The structures on the surface, villages, temples, shipwrecks and the like, stand where the
- * world starts them in the grids whose columns are close enough to show them (see {@link FarStructures}). What the
- * column leaves out is what a far view cannot show: caves, plants and the structures underground.
+ * world starts them in the grids whose columns are close enough to show them (see {@link FarStructures}).
+ *
+ * <p>In the grids whose columns are at most {@value #CAVE_STEP} blocks apart, the caverns of the Hollows open under the
+ * ground where the chunks open them (see {@link FarHollows}), so that a far view across a Grand Hollow shows its far
+ * walls, its floor and its ceiling rather than the void. They hold {@link Blocks#CAVE_AIR}, which the far terrain
+ * keeps dark, their lakes and the lava at the bottom of the world; their floors and ceilings take the blocks the
+ * material rules lay there, the glowing patches of the lit ceilings among them, and the rock around them shows its
+ * strata. What the column leaves out is what a far view cannot show: vanilla's caves, plants and the structures
+ * underground.
  *
  * <p>A grid wider than {@value #FULL_DETAIL_TILES} terrain tiles is sampled from the coarse map alone, inside
  * {@link CoarseClimate#call}: it costs no model inference beyond the coarse stage, but leaves out the rivers and
@@ -76,14 +85,23 @@ public final class LodSampler {
 	private static final int SURFACE_DEPTH = 4;
 	/** Depth whose block stands for all the rock below the surface blocks. */
 	private static final int ROCK_DEPTH = 12;
+	/** Grids whose columns are further apart than this show no caves. */
+	static final int CAVE_STEP = 8;
+	/** Height of the bands of rock around the caves, each one block. */
+	private static final int BAND = 16;
+	/** Where in its band the block of a band is taken, and where again if that is an ore. */
+	private static final int[] BAND_SAMPLES = {8, 11, 5, 14, 2};
 	private static final BlockState WATER = Blocks.WATER.defaultBlockState();
 	private static final BlockState ICE = Blocks.ICE.defaultBlockState();
 	private static final BlockState SNOW = Blocks.SNOW.defaultBlockState();
 	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+	private static final BlockState CAVE_AIR = Blocks.CAVE_AIR.defaultBlockState();
+	private static final BlockState LAVA = Blocks.LAVA.defaultBlockState();
 
 	private final NoiseBasedChunkGenerator generator;
 	private final RandomState randomState;
 	private final LevelHeightAccessor heights;
+	private final BiomeWorld world;
 	private final TerrainField field;
 	private final WorldScale scale;
 	private final MaterialRule rule;
@@ -91,6 +109,8 @@ public final class LodSampler {
 	private final int seaLevel;
 	private final int minY;
 	private final int maxY;
+	/** Open space below this fills with lava. */
+	private final int lavaLevel;
 	private final long seed;
 	private final Map<Holder<Biome>, TreeCover> trees = new ConcurrentHashMap<>();
 	private final @Nullable GreatTrees greatTrees;
@@ -120,6 +140,7 @@ public final class LodSampler {
 		this.generator = generator;
 		this.randomState = randomState;
 		this.heights = heights;
+		this.world = world;
 		this.field = world.field();
 		this.scale = world.scale();
 		NoiseGeneratorSettings settings = generator.generatorSettings().value();
@@ -129,6 +150,8 @@ public final class LodSampler {
 		WorldGenerationContext context = new WorldGenerationContext(generator, heights);
 		this.minY = context.getMinGenY();
 		this.maxY = context.getMinGenY() + context.getGenDepth() - 1;
+		// As the chunks' fluid picker has it (see NoiseBasedChunkGeneratorMixin).
+		this.lavaLevel = Math.min(settings.noiseSettings().minY() + 10, seaLevel);
 		this.seed = seed;
 		this.greatTrees = greatTrees;
 		this.structures = structures;
@@ -325,6 +348,23 @@ public final class LodSampler {
 		/** The rivers and the full-resolution ground, or {@code null} in a grid of the coarse map. */
 		private @Nullable Rivers rivers;
 		private @Nullable TerrainSurface terrain;
+		private BiomeResolver biomes;
+		/** The biome the material rules see. */
+		private Holder<Biome> biome;
+		private MaterialRuleContextAccessor rules;
+		private RuleEvaluator evaluator;
+		/**
+		 * The column whose rock {@link #underground} lays: where the bands of rock around its caves start and end, the
+		 * block of each band, once known, and the rock over them.
+		 */
+		private int columnX;
+		private int columnZ;
+		private int columnGround;
+		private int bandLow;
+		private int bandHigh;
+		private BlockState[] bands = new BlockState[8];
+		private BlockState upper;
+		private final int[] level = new int[1];
 
 		Grid(int minX, int minZ, int width, int step) {
 			this.minX = minX;
@@ -345,16 +385,14 @@ public final class LodSampler {
 		void sample(boolean coarse, Sink sink) {
 			sampleHeights(coarse);
 
-			BiomeResolver biomes = generator.getBiomeSource()
+			biomes = generator.getBiomeSource()
 				.createResolver(randomState.createClimateSampler(SamplerContext.EMPTY_UNCACHED));
-			@SuppressWarnings("unchecked")
-			Holder<Biome>[] biome = new Holder[1];
 			MaterialRuleContext context = MaterialRuleContextAccessor.diffusicraft$create(randomState.surfaceSystem(),
 				randomState, new DensityVolume(1, 1, 1, minX, minY, minZ),
-				randomState.samplersWithContext(SamplerContext.EMPTY_UNCACHED), pos -> biome[0],
+				randomState.samplersWithContext(SamplerContext.EMPTY_UNCACHED), pos -> biome,
 				new WorldGenerationContext(generator, heights), null);
-			MaterialRuleContextAccessor rules = (MaterialRuleContextAccessor) (Object) context;
-			RuleEvaluator evaluator = rule.compile(context);
+			rules = (MaterialRuleContextAccessor) (Object) context;
+			evaluator = rule.compile(context);
 			BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 			LodColumn column = new LodColumn();
 			TreeCover.Crown crown = new TreeCover.Crown();
@@ -363,6 +401,8 @@ public final class LodSampler {
 			FarStructures.Cell[] built = structures == null || rivers == null || terrain == null
 				|| step > FarStructures.MAX_STEP ? null
 				: structures.sketch(minX, minZ, width, step, this::land, biomes, defaultBlock);
+			FarHollows caves = step > CAVE_STEP ? null : new FarHollows(world, minY, this::hollowsSurface,
+				block(minX, 0), block(minZ, 0), block(minX, width - 1), block(minZ, width - 1));
 
 			for (int b = 0; b < width; b++) {
 				int z = block(minZ, b);
@@ -381,8 +421,8 @@ public final class LodSampler {
 						water = Math.max(water, seaLevel - 1);
 					}
 
-					biome[0] = biomes.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(top), QuartPos.fromBlock(z));
-					column.reset(biome[0]);
+					biome = biomes.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(top), QuartPos.fromBlock(z));
+					column.reset(biome);
 					// The chunk generator measures slopes between neighbouring blocks; these columns are a step apart.
 					int gradientX = Math.round((heightmap[k + 1] - heightmap[k - 1]) / (float) step);
 					int gradientZ = Math.round((heightmap[k + span] - heightmap[k - span]) / (float) step);
@@ -391,14 +431,21 @@ public final class LodSampler {
 					int waterHeight = sea ? seaLevel : Integer.MIN_VALUE;
 					int surfaceBottom = Math.max(minY, top - SURFACE_DEPTH + 1);
 					for (int y = top; y >= surfaceBottom; y--) {
-						surface[top - y] = apply(evaluator, rules, x, y, z, groundTop, waterHeight);
+						surface[top - y] = apply(x, y, z, groundTop - y + 1, y - minY + 1, waterHeight);
 					}
 					FarStructures.Cell cell = built == null ? null : built[b * width + a];
 					if (cell != null && !cell.risen()) {
 						surface[0] = cell.top();
 					}
+					// The rules see the surface first and then the rock under it, as they do in the chunks.
 					int rockY = Math.max(minY, top - ROCK_DEPTH);
-					column.add(apply(evaluator, rules, x, rockY, z, groundTop, waterHeight), minY, surfaceBottom);
+					BlockState rock = apply(x, rockY, z, groundTop - rockY + 1, rockY - minY + 1, waterHeight);
+					int caverns = caves == null ? 0 : caves.open(x, z, surfaceBottom, step);
+					if (caves != null && caves.near()) {
+						underground(column, caves, caverns, x, z, groundTop, surfaceBottom, waterHeight, rock);
+					} else {
+						column.add(rock, minY, surfaceBottom);
+					}
 					for (int y = surfaceBottom; y <= top; y++) {
 						column.add(surface[top - y], y, y + 1);
 					}
@@ -413,7 +460,7 @@ public final class LodSampler {
 					}
 					column.markGround();
 
-					Biome climate = biome[0].value();
+					Biome climate = biome.value();
 					boolean dry = water <= floor;
 					// Right over the ground or the water.
 					int open = floor + 1;
@@ -429,7 +476,7 @@ public final class LodSampler {
 					}
 					// No tree grows on a structure.
 					boolean grown = cell == null && dry && surface[0].is(BlockTags.SUPPORTS_VEGETATION)
-						&& trees.computeIfAbsent(biome[0], holder -> TreeCover.of(holder, scale))
+						&& trees.computeIfAbsent(biome, holder -> TreeCover.of(holder, scale))
 							.crown(seed, x, z, step, crown);
 					// A giant's crown reaches out over the water too, and over the smaller trees.
 					if (giants != null && cell == null) {
@@ -556,9 +603,134 @@ public final class LodSampler {
 			return new StructureSketch.Land(bed != Integer.MIN_VALUE ? bed : top, water);
 		}
 
-		private BlockState apply(RuleEvaluator evaluator, MaterialRuleContextAccessor rules, int x, int y, int z,
-								 int groundTop, int waterHeight) {
-			rules.diffusicraft$updateY(groundTop - y + 1, y - minY + 1, waterHeight, y);
+		/**
+		 * The rock under the surface blocks of a column the Hollows come near, from the bottom of the world up to
+		 * {@code surfaceBottom}, with their caverns open in it: the lava at the bottom of the world, their lakes, and
+		 * their dark air. Each floor and ceiling takes the block the material rules lay there, in the biome of its
+		 * cavern. Around the caverns, where their walls show, the rock comes in bands of {@value #BAND} blocks, each
+		 * the block the rules put in its middle, so that the walls show the strata; below and above, where no wall
+		 * shows, it is one run, the upper one {@code rock}, the block under the surface.
+		 */
+		private void underground(LodColumn column, FarHollows caves, int caverns, int x, int z, int groundTop,
+								 int surfaceBottom, int waterHeight, BlockState rock) {
+			columnX = x;
+			columnZ = z;
+			columnGround = groundTop;
+			bandLow = Math.max(minY, Math.floorDiv(caves.reachBottom(), BAND) * BAND);
+			bandHigh = Math.max(bandLow, Math.min(surfaceBottom, Math.ceilDiv(caves.reachTop(), BAND) * BAND));
+			int count = (bandHigh - bandLow) / BAND + 1;
+			if (bands.length < count) {
+				bands = new BlockState[count];
+			}
+			Arrays.fill(bands, 0, count, null);
+			upper = rock;
+			Holder<Biome> ground = biome;
+			Holder<Biome> under = ground;
+			// Rock stretch i lies under cavern i, and over cavern i - 1.
+			for (int i = 0; i <= caverns; i++) {
+				int bottom = i == 0 ? minY : caves.top(i - 1);
+				int top = i < caverns ? caves.bottom(i) : surfaceBottom;
+				// The block over the stretch's highest and the surface of the water the rules see over it, which for
+				// the highest stretch are the ground's.
+				int over = i < caverns ? top : groundTop + 1;
+				int water = i < caverns ? Integer.MIN_VALUE : waterHeight;
+				BlockState fluid = null;
+				int fluidTop = top;
+				Holder<Biome> cavern = ground;
+				if (i < caverns) {
+					cavern = biomes.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(top), QuartPos.fromBlock(z));
+					if (top < lavaLevel) {
+						fluid = LAVA;
+						fluidTop = Math.min(caves.top(i), lavaLevel);
+					} else {
+						fluid = caves.lake(x, z, top, caves.top(i), level);
+						fluidTop = fluid == null ? top : level[0];
+					}
+				}
+				int from = bottom;
+				int to = top;
+				if (i > 0) {
+					// The ceiling of the cavern under the stretch, which may glow.
+					biome = under;
+					column.add(rock(bottom, over - bottom, 1, water), bottom, bottom + 1);
+					from++;
+				}
+				BlockState floor = null;
+				if (i < caverns && to > from) {
+					// Ice is solid: the rules count it into the depth. Water and lava stand over the floor.
+					biome = cavern;
+					floor = fluid == ICE ? rock(top - 1, fluidTop - top + 1, top - bottom, Integer.MIN_VALUE)
+						: rock(top - 1, 1, top - bottom, fluid == null ? Integer.MIN_VALUE : fluidTop);
+					to--;
+				}
+				biome = ground;
+				for (int y = from; y < to; ) {
+					int end = y >= bandHigh ? to : y < bandLow ? bandLow : Math.floorDiv(y, BAND) * BAND + BAND;
+					column.add(band(y), y, Math.min(end, to));
+					y = Math.min(end, to);
+				}
+				if (floor != null) {
+					column.add(floor, top - 1, top);
+				}
+				if (i < caverns) {
+					if (fluid != null) {
+						column.add(fluid, top, fluidTop);
+					}
+					column.add(CAVE_AIR, fluidTop, caves.top(i));
+				}
+				under = cavern;
+			}
+			biome = ground;
+		}
+
+		/**
+		 * The block the material rules lay at height {@code y} of the column {@link #underground} lays, with
+		 * {@code above} blocks of rock over it down to the block itself, {@code below} under it up to it, and the
+		 * surface of the water over it, if any. An ore found there would stand for a whole floor or ceiling: the band's
+		 * rock does instead.
+		 */
+		private BlockState rock(int y, int above, int below, int waterHeight) {
+			BlockState state = apply(columnX, y, columnZ, above, below, waterHeight);
+			return state.is(ConventionalBlockTags.ORES) ? band(y) : state;
+		}
+
+		/**
+		 * The rock of the band of the column {@link #underground} lays that takes in height {@code y}: the block the
+		 * rules put in the middle of the band, or near it if that is an ore. The rock below the bands is the lowest's,
+		 * and that above them the block under the surface.
+		 */
+		private BlockState band(int y) {
+			if (y >= bandHigh) {
+				return upper;
+			}
+			int index = y < bandLow ? 0 : (Math.floorDiv(y, BAND) * BAND - bandLow) / BAND;
+			BlockState state = bands[index];
+			if (state == null) {
+				int bandBottom = bandLow + index * BAND;
+				for (int offset : BAND_SAMPLES) {
+					int at = Math.max(minY, bandBottom + offset);
+					state = apply(columnX, at, columnZ, columnGround - at + 1, at - minY + 1, Integer.MIN_VALUE);
+					if (!state.is(ConventionalBlockTags.ORES)) {
+						break;
+					}
+				}
+				bands[index] = state;
+			}
+			return state;
+		}
+
+		/** The surface the Hollows keep their roof under, as the chunks find it, or the coarse map's. */
+		private int hollowsSurface(int x, int z) {
+			return (int) Math.floor(terrain != null ? terrain.y(x, z)
+				: scale.surfaceY(field.coarseElevation(scale.toPixel(z), scale.toPixel(x))));
+		}
+
+		/**
+		 * The block the material rules lay at height {@code y} of column {@code (x, z)}, with {@code above} blocks of
+		 * rock over it down to the block itself, {@code below} under it up to it, and the surface of the water over it.
+		 */
+		private BlockState apply(int x, int y, int z, int above, int below, int waterHeight) {
+			rules.diffusicraft$updateY(above, below, waterHeight, y);
 			BlockState state = evaluator.tryApply(x, y, z);
 			return state != null ? state : defaultBlock;
 		}

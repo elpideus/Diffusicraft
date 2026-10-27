@@ -64,8 +64,8 @@ import org.jspecify.annotations.Nullable;
  * the world's own solid pass, so that it shares the depth buffer, the fog and the light of the chunks, and shader packs
  * can take it over. The grids come from the integrated server's generator, with the chunks players changed laid over
  * them ({@link LodGrid#sample}), or from the server's feed ({@link RemoteLods}); tiles whose stored chunks change are
- * built again. Where the world draws a chunk itself, {@link ChunkMask} leaves the far terrain out, and where a cave
- * leads out of the chunks drawn, {@link CaveWalls} closes it off. Under a shader pack, {@link IrisFarTerrain} draws
+ * built again. Where the world draws a chunk itself, {@link ChunkMask} leaves the far terrain out; a cave that leads
+ * out of the chunks drawn goes on into the caves of the far terrain. Under a shader pack, {@link IrisFarTerrain} draws
  * the tiles with the pack's programs for Distant Horizons instead, and the pack leaves out the chunks.
  *
  * <p>Off where Distant Horizons or Voxy is installed, which draw their own. Driven from the render thread.
@@ -113,7 +113,6 @@ public final class FarTerrain {
 	private final LodView<FarMesh> view = new LodView<>(FarMesh::close);
 	private final LodTiles.Chooser chooser = new LodTiles.Chooser();
 	private final ChunkMask mask = new ChunkMask();
-	private final CaveWalls walls;
 	private final Queue<Built> built = new ConcurrentLinkedQueue<>();
 	private final Queue<LodTiles.Tile> changed = new ConcurrentLinkedQueue<>();
 	private final Queue<Opened> opened = new ConcurrentLinkedQueue<>();
@@ -129,8 +128,6 @@ public final class FarTerrain {
 	private long refineAfter;
 	/** The tiles drawn in this frame, nearest first. */
 	private final List<FarMesh> drawn = new ArrayList<>();
-	/** Whether the cave walls are drawn in this frame. */
-	private boolean wallsDrawn;
 	private @Nullable GpuBufferSlice terrainTransform;
 	private int maxQuads;
 	/** The most quads of land any tile with a mesh has, which casts shadows from outside the view too. */
@@ -155,7 +152,6 @@ public final class FarTerrain {
 		this.far = Resources.get().config().farTerrainDistance;
 		this.bottom = level.getMinY();
 		this.ceiling = level.getMaxY() + 1;
-		this.walls = new CaveWalls(colors, bottom);
 	}
 
 	/**
@@ -206,10 +202,7 @@ public final class FarTerrain {
 		return terrain != null ? terrain.bottom : 0;
 	}
 
-	/**
-	 * The most quads of land or of water a tile drawn in this frame has, or the cave walls if more, which the index
-	 * buffer holds.
-	 */
+	/** The most quads of land or of water a tile drawn in this frame has, which the index buffer holds. */
 	public static int drawnQuads() {
 		FarTerrain terrain = current;
 		return terrain != null ? terrain.maxQuads : 0;
@@ -231,8 +224,8 @@ public final class FarTerrain {
 	}
 
 	/**
-	 * Hands {@code tiles} the tiles in view in this frame that have land, nearest first, after the cave walls
-	 * ({@link CaveWalls}), or, if {@code water}, water, furthest first, for a shader pack to draw. On the render thread.
+	 * Hands {@code tiles} the tiles in view in this frame that have land, nearest first, or, if {@code water}, water,
+	 * furthest first, for a shader pack to draw. On the render thread.
 	 */
 	public static void forEachDrawn(boolean water, Tiles tiles) {
 		FarTerrain terrain = current;
@@ -240,11 +233,6 @@ public final class FarTerrain {
 			return;
 		}
 		Vec3 camera = terrain.camera;
-		CaveWalls walls = terrain.walls;
-		if (!water && terrain.wallsDrawn && walls.buffer() != null) {
-			tiles.tile(walls.buffer(), 0, walls.quads(), (float) (walls.cornerX() - camera.x),
-				(float) (terrain.bottom - camera.y), (float) (walls.cornerZ() - camera.z));
-		}
 		for (FarMesh mesh : water ? terrain.drawn.reversed() : terrain.drawn) {
 			int quads = water ? mesh.waterQuads : mesh.solidQuads;
 			if (quads > 0 && mesh.buffer != null) {
@@ -291,15 +279,6 @@ public final class FarTerrain {
 	public static int casters() {
 		FarTerrain terrain = current;
 		return terrain != null && terrain.shaders ? terrain.casters : 0;
-	}
-
-	/**
-	 * How many faces of cave wall close the caves that run out of the chunks drawn, as {@link CaveWalls} built them
-	 * last.
-	 */
-	public static int caveWalls() {
-		FarTerrain terrain = current;
-		return terrain != null ? terrain.walls.quads() : 0;
 	}
 
 	/** How many tiles of far terrain have been built and uploaded since the game started. */
@@ -356,7 +335,6 @@ public final class FarTerrain {
 	private void frame(CameraRenderState camera, @Nullable ViewArea viewArea, int viewDistance) {
 		drawn.clear();
 		maxQuads = 0;
-		wallsDrawn = false;
 		updateSource();
 		Source source = this.source;
 		if (source == null || !source.serves()) {
@@ -392,15 +370,12 @@ public final class FarTerrain {
 				maxQuads = Math.max(maxQuads, Math.max(mesh.solidQuads, mesh.waterQuads));
 			}
 		}
-		walls.update(level, viewDistance, at, fogEnd);
-		wallsDrawn = walls.buffer() != null;
-		maxQuads = Math.max(maxQuads, walls.quads());
 		// A shader pack's shadows draw the land of tiles out of view as well.
 		int indices = shaders ? Math.max(maxQuads, casterQuads) : maxQuads;
 		if (indices > 0) {
 			RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS).requestIndexCount(indices * 6);
 		}
-		if (drawn.isEmpty() && !wallsDrawn) {
+		if (drawn.isEmpty()) {
 			return;
 		}
 		// Near land hides what lies behind it before it is shaded; water blends over what is drawn behind it.
@@ -419,7 +394,7 @@ public final class FarTerrain {
 	}
 
 	private void render(RenderPass pass) {
-		if (shaders || drawn.isEmpty() && !wallsDrawn || terrainTransform == null || mask.view() == null) {
+		if (shaders || drawn.isEmpty() || terrainTransform == null || mask.view() == null) {
 			return;
 		}
 		CompiledRenderPipeline solid = pipeline(FarTerrainPipelines.SOLID);
@@ -435,13 +410,8 @@ public final class FarTerrain {
 			RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
 		pass.setUniform("FarTerrainInfo", mask.info());
 		pass.setUniform("ChunkMask", mask.view(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-		List<RenderPass.Draw<List<FarMesh>>> solidDraws = new ArrayList<>(drawn.size() + 1);
+		List<RenderPass.Draw<List<FarMesh>>> solidDraws = new ArrayList<>(drawn.size());
 		List<RenderPass.Draw<List<FarMesh>>> waterDraws = new ArrayList<>();
-		GpuBuffer wallSection = walls.section();
-		if (wallsDrawn && wallSection != null) {
-			solidDraws.add(new RenderPass.Draw<>(0, walls.buffer(), null, null, 0, walls.quads() * 6, 0,
-				(meshes, uploader) -> uploader.setUniform("ChunkSection", wallSection.slice())));
-		}
 		for (int i = 0; i < drawn.size(); i++) {
 			FarMesh mesh = drawn.get(i);
 			int index = i;
@@ -689,7 +659,6 @@ public final class FarTerrain {
 		}
 		view.clear();
 		mask.close();
-		walls.close();
 		for (Built left; (left = built.poll()) != null; ) {
 			free(left);
 		}
@@ -697,9 +666,9 @@ public final class FarTerrain {
 
 	/**
 	 * A line of the debug screen, which the player turns on among its entries (F3 + F6): the tiles with a mesh and
-	 * those drawn in the last frame, those left rough and those still to build, the memory their meshes take on the GPU,
-	 * the faces of the cave walls and the chunks saved that the store has still to read, which pile up if it falls
-	 * behind; and under a shader pack, a second line with the tiles drawn into its shadow map.
+	 * those drawn in the last frame, those left rough and those still to build, the memory their meshes take on the GPU
+	 * and the chunks saved that the store has still to read, which pile up if it falls behind; and under a shader pack,
+	 * a second line with the tiles drawn into its shadow map.
 	 */
 	private static final class DebugEntry implements DebugScreenEntry {
 		@Override
@@ -712,11 +681,10 @@ public final class FarTerrain {
 			}
 			LodStore store = source.store();
 			displayer.addLine(String.format(Locale.ROOT,
-				"Far terrain: %d tiles, %d drawn, %d rough, %d to build, %.1f MiB, %d cave walls, %d chunks to store",
+				"Far terrain: %d tiles, %d drawn, %d rough, %d to build, %.1f MiB, %d chunks to store",
 				terrain.view.size(), terrain.drawn.size(), terrain.rough.size(),
 				terrain.missing.size() + terrain.rebuild.size() + terrain.building.size(),
-				FarMesh.allocated() / (double) (1 << 20), terrain.wallsDrawn ? terrain.walls.quads() : 0,
-				store == null ? 0 : store.backlog()));
+				FarMesh.allocated() / (double) (1 << 20), store == null ? 0 : store.backlog()));
 			if (terrain.shaders) {
 				displayer.addLine(String.format(Locale.ROOT, "Far terrain shadows: %d tiles", casters()));
 			}

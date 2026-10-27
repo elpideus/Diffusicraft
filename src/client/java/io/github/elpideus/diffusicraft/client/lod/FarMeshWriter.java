@@ -16,7 +16,7 @@ import org.lwjgl.system.MemoryUtil;
  * face, wound counter-clockwise seen from the side the face looks to. Safe off the render thread.
  */
 final class FarMeshWriter {
-	static final int QUAD = 4 * FarTerrainPipelines.VERTEX_SIZE;
+	private static final int QUAD = 4 * FarTerrainPipelines.VERTEX_SIZE;
 	/** How much the water lets through of what lies under it. */
 	private static final int WATER_ALPHA = 191;
 	private static final int MAX_Y = 0xFFFF;
@@ -51,8 +51,8 @@ final class FarMeshWriter {
 	 * downward face lies at {@code y0}, a northward or southward one at {@code z0} and a westward or eastward one at
 	 * {@code x0}. X and Z count from the corner of the mesh, Y from the bottom of the level.
 	 */
-	static void quad(ByteBuffer buffer, Direction side, int x0, int y0, int z0, int x1, int y1, int z1, int light,
-					 int color, int alpha, int material) {
+	private static void quad(ByteBuffer buffer, Direction side, int x0, int y0, int z0, int x1, int y1, int z1,
+							 int light, int color, int alpha, int material) {
 		switch (side) {
 			case UP -> {
 				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
