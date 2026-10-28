@@ -340,21 +340,44 @@ plays its part for Iris:
   its depth textures. The far terrain answers in its place.
 - **Drawing.** The land is drawn as the world's solid pass begins, before the chunks, into the pack's buffers and a
   depth buffer of its own, which is then copied to the two textures the pack reads. The water is drawn after the
-  pack's deferred passes, as the translucent pass begins, as Distant Horizons draws it. The pack itself leaves out
-  the far terrain within the chunks' reach, and its `dh_water` the water wherever the chunks have drawn, which it
-  would cover from a cave, as it is drawn after them; so the tiles start at its edge, `ChunkMask` is not used, and the
-  pack's own fog applies. A pack without `dh_water` has its water drawn with `dh_terrain`, as Iris does.
+  pack's deferred passes, as the translucent pass begins, as Distant Horizons draws it. The pack's own fog applies.
+  A pack without `dh_water` has its water drawn with `dh_terrain`, as Iris does.
+- **Where the chunks take over.** The pack itself leaves out Distant Horizons' terrain near the camera, where it expects
+  the chunks to be drawn: within its `far`, the render distance in blocks, but in Bliss never nearer than a floor of its
+  own, whatever `far` is (the land within `far - 32` and at least 32 blocks, the water within `far - 64` and at least
+  16, where it also makes it clear, and the shadows within `far`), and in Complementary fading it out by a dither from
+  `0.6 far` to `0.4 far`. Its `dh_water` also drops the water wherever the chunks have drawn, which it would cover from
+  a cave, as it is drawn after them. With the tiles starting at the edge of the render distance, a player flying fast
+  saw a disc of sky out to the far terrain, where the chunks ahead were loaded but still waited for their meshes;
+  bringing `far` in to the nearest chunk not yet loaded did not help, as it is the meshes that lag. So the pack's
+  programs are given the far terrain's own test (`ChunkMaskPatch`): the pack's `main`, as Iris patched it, is renamed
+  and called from a new one, which in the fragment shader first drops the fragments over the sections the world draws,
+  read from `ChunkMask`'s texture, bound along with the pack's samplers. The tiles reach all the way in, as without a
+  pack, and the far terrain stays until the world draws each section. Telling the pack that `far` was next to nothing
+  still left Bliss's floors, a disc of sky round a player flying low over the land or teleported, so the pack's own
+  tests are disarmed as well (`OverdrawTests`): in an `if` whose body starts by dropping the fragment, with `discard`,
+  or by making it clear, setting the alpha of its first output to zero, each part of the condition, joined to the rest
+  by `||`, that reads `far` or a name set from it in either shader, such as Bliss's `maxOverdrawDistance`, becomes
+  `false`. The parts that do not stay, such as the packs' tests of the depth the chunks drew. The pack is still told
+  that `far` is 16 blocks, so that what it keys on `far` otherwise moves in to the camera, such as Bliss's steps of
+  noise and Complementary's highlights, and not to less, so that the sums it works out from it, such as Bliss's
+  `far - 8`, keep their order. The shadow program keeps the pack's own tests, which with `far` at 16 blocks leave out
+  the far terrain's shadows within 16 blocks of the camera: there the far terrain shaded itself in stripes, as packs
+  bias the shadows for the chunks alone, and the shadows of the chunks still loading can wait for them. The new `main`
+  relies on `modelOffset` and on the names Iris's patch gives the vertex's position and normal, `_vert_position` and
+  `_vert_normal`. A program with a geometry or tessellation stage, or without those names, is left as it is, with a
+  warning in the log: the pack's own `far` and tests then apply, and the disc of sky with them.
 - **Shadows.** Where the pack has a `dh_shadow` program, the land of the far terrain is drawn into the pack's shadow
   map, through Iris's public callback for the shadow pass, which runs after the chunks' solid terrain. Every tile the
-  shadow's box sees casts, those out of view as well, since the sun throws shadows into view from behind the camera.
-  The water does not: what is drawn there also lands in `shadowtex1`, the depth without the translucent blocks, which
-  Iris copies after the callbacks. How far the shadows reach is the pack's `shadowDistance`. It casts even where the
-  pack turns Distant Horizons' shadows off (`dhShadow.enabled`, which Bliss ties to its `DISTANT_HORIZONS_SHADOWMAP`
-  option and leaves off). Iris then keeps the shadow's box to the pack's own reach, 128 blocks in Bliss, and with a
-  render distance shorter than that the far terrain begins inside it. Bliss lights everything there from the shadow
-  map and its sky light only beyond it, so a far cave with nothing drawn over it in the shadow map would be lit as if
-  in the open. Complementary has no `dh_shadow` and lights Distant Horizons' terrain from its sky light alone, so its
-  far caves stay dark without it.
+  shadow's box sees casts, those out of view as well, since the sun throws shadows into view from behind the camera, but
+  not over the sections the world draws in view, which cast their own. The water does not: what is drawn there also
+  lands in `shadowtex1`, the depth without the translucent blocks, which Iris copies after the callbacks. How far the
+  shadows reach is the pack's `shadowDistance`. It casts even where the pack turns Distant Horizons' shadows off
+  (`dhShadow.enabled`, which Bliss ties to its `DISTANT_HORIZONS_SHADOWMAP` option and leaves off). Iris then keeps the
+  shadow's box to the pack's own reach, 128 blocks in Bliss, and with a render distance shorter than that the far
+  terrain begins inside it. Bliss lights everything there from the shadow map and its sky light only beyond it, so a far
+  cave with nothing drawn over it in the shadow map would be lit as if in the open. Complementary has no `dh_shadow` and
+  lights Distant Horizons' terrain from its sky light alone, so its far caves stay dark without it.
 
 ## Next
 

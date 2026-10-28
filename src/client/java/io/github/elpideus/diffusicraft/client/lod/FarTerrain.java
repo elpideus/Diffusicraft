@@ -8,6 +8,7 @@ import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.client.compat.iris.IrisFarTerrain;
 import io.github.elpideus.diffusicraft.runtime.Resources;
@@ -18,6 +19,7 @@ import io.github.elpideus.diffusicraft.worldgen.lod.LodTiles;
 import io.github.elpideus.diffusicraft.worldgen.lod.LodView;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -66,7 +68,7 @@ import org.jspecify.annotations.Nullable;
  * them ({@link LodGrid#sample}), or from the server's feed ({@link RemoteLods}); tiles whose stored chunks change are
  * built again. Where the world draws a chunk itself, {@link ChunkMask} leaves the far terrain out; a cave that leads
  * out of the chunks drawn goes on into the caves of the far terrain. Under a shader pack, {@link IrisFarTerrain} draws
- * the tiles with the pack's programs for Distant Horizons instead, and the pack leaves out the chunks.
+ * the tiles with the pack's programs for Distant Horizons instead, given the mask's test as well.
  *
  * <p>Off where Distant Horizons or Voxy is installed, which draw their own. Driven from the render thread.
  *
@@ -128,6 +130,8 @@ public final class FarTerrain {
 	private long refineAfter;
 	/** The tiles drawn in this frame, nearest first. */
 	private final List<FarMesh> drawn = new ArrayList<>();
+	/** The tiles that may cast shadows in this frame under a shader pack: those drawn, and those out of view. */
+	private final List<FarMesh> casting = new ArrayList<>();
 	private @Nullable GpuBufferSlice terrainTransform;
 	private int maxQuads;
 	/** The most quads of land any tile with a mesh has, which casts shadows from outside the view too. */
@@ -142,7 +146,6 @@ public final class FarTerrain {
 	private int generation;
 	private double chosenX = Double.NaN;
 	private double chosenZ = Double.NaN;
-	private int chosenNear = -1;
 	private long chosen;
 	private volatile boolean closed;
 
@@ -208,7 +211,37 @@ public final class FarTerrain {
 		return terrain != null ? terrain.maxQuads : 0;
 	}
 
-	/** The most quads of land a tile has, which the index buffer holds while a shader pack draws shadows. */
+	/** Where the camera stood as this frame's far terrain was got ready, which {@link #forEachDrawn} places the tiles from. */
+	public static @Nullable Vec3 camera() {
+		FarTerrain terrain = current;
+		return terrain != null ? terrain.camera : null;
+	}
+
+	/**
+	 * The texture of the sections the world draws in this frame ({@link ChunkMask}), for a shader pack's programs to leave
+	 * the far terrain out of them as the far terrain's own shader does, or null while there is none. On the render
+	 * thread.
+	 */
+	public static @Nullable GpuTextureView chunkMask() {
+		FarTerrain terrain = current;
+		return terrain != null ? terrain.mask.view() : null;
+	}
+
+	/**
+	 * Copies the sixteen values of the chunk mask's {@code FarTerrainInfo} uniform for this frame into {@code into}, in
+	 * the order {@code far_terrain.fsh} reads them: {@code Columns}, {@code Rows}, {@code Slots}, and the bits of
+	 * {@code Reach} first of the fourth. All 0 while there is no mask. On the render thread.
+	 */
+	public static void chunkMaskInfo(int[] into) {
+		FarTerrain terrain = current;
+		if (terrain != null) {
+			terrain.mask.infoValues(into);
+		} else {
+			Arrays.fill(into, 0);
+		}
+	}
+
+	/** The most quads of land a tile that casts has, which the index buffer holds while a shader pack draws shadows. */
 	public static int casterQuads() {
 		FarTerrain terrain = current;
 		return terrain != null && terrain.shaders ? terrain.casterQuads : 0;
@@ -250,8 +283,8 @@ public final class FarTerrain {
 
 	/**
 	 * Hands {@code tiles} the land of every tile with a mesh whose box {@code visible} passes, placed from the camera at
-	 * {@code (x, y, z)}, for a shader pack to draw into its shadow map, which also sees what lies outside the view. On
-	 * the render thread.
+	 * {@code (x, y, z)}, for a shader pack to draw into its shadow map, which also sees what lies outside the view, but
+	 * those the chunks stand in for, as in view. On the render thread.
 	 */
 	public static void forEachCaster(double x, double y, double z, Box visible, Tiles tiles) {
 		FarTerrain terrain = current;
@@ -260,7 +293,7 @@ public final class FarTerrain {
 		}
 		float bottom = (float) (terrain.bottom - y);
 		terrain.casters = 0;
-		for (FarMesh mesh : terrain.view.drawn()) {
+		for (FarMesh mesh : terrain.casting) {
 			if (mesh.solidQuads == 0 || mesh.buffer == null) {
 				continue;
 			}
@@ -334,6 +367,7 @@ public final class FarTerrain {
 
 	private void frame(CameraRenderState camera, @Nullable ViewArea viewArea, int viewDistance) {
 		drawn.clear();
+		casting.clear();
 		maxQuads = 0;
 		updateSource();
 		Source source = this.source;
@@ -345,27 +379,36 @@ public final class FarTerrain {
 		Vec3 at = camera.pos;
 		this.camera = at;
 		shaders = IRIS && IrisFarTerrain.drawsInstead();
-		// Tiles all the way in, for whatever the world does not draw near the camera: sections still waiting for their
-		// mesh, and those above and below the rows it draws. A shader pack leaves out the chunks' reach itself.
-		int near = shaders ? Math.max(0, (viewDistance - 1) * 16 - 16) : 0;
 		int far = Resources.get().config().farTerrainDistance;
 		long now = Util.getMillis();
 		if (Double.isNaN(chosenX) || Math.abs(at.x - chosenX) > MOVE || Math.abs(at.z - chosenZ) > MOVE
-			|| near != chosenNear || far != this.far || now - chosen > RECHOOSE_MILLIS) {
+			|| far != this.far || now - chosen > RECHOOSE_MILLIS) {
 			this.far = far;
-			choose(at.x, at.z, near);
+			choose(at.x, at.z);
 			chosen = now;
 		}
 		dispatch(source, at);
+		// Tiles all the way in, for whatever the world does not draw near the camera: sections still waiting for their
+		// mesh, and those above and below the rows it draws. A shader pack's programs leave out the rest with the mask
+		// as well.
+		mask.update(level, viewArea, viewDistance, at, fogEnd);
 		casterQuads = 0;
 		for (FarMesh mesh : view.drawn()) {
 			LodTiles.Tile tile = mesh.tile;
 			if (mesh.buffer == null) {
 				continue;
 			}
+			boolean visible = camera.cullFrustum.isVisible(new AABB(tile.minBlockX(), mesh.minY, tile.minBlockZ(),
+				tile.minBlockX() + tile.size(), mesh.maxY, tile.minBlockZ() + tile.size()));
+			// Out of view, only a shader pack's shadows draw the land. The shader would drop every fragment of a tile
+			// wholly within the sections the world draws.
+			if (!visible && !shaders || mask.covers(tile.minBlockX(), mesh.minY, tile.minBlockZ(),
+				tile.minBlockX() + tile.size(), mesh.maxY, tile.minBlockZ() + tile.size())) {
+				continue;
+			}
+			casting.add(mesh);
 			casterQuads = Math.max(casterQuads, mesh.solidQuads);
-			if (camera.cullFrustum.isVisible(new AABB(tile.minBlockX(), mesh.minY, tile.minBlockZ(),
-				tile.minBlockX() + tile.size(), mesh.maxY, tile.minBlockZ() + tile.size()))) {
+			if (visible) {
 				drawn.add(mesh);
 				maxQuads = Math.max(maxQuads, Math.max(mesh.solidQuads, mesh.waterQuads));
 			}
@@ -381,16 +424,12 @@ public final class FarTerrain {
 		// Near land hides what lies behind it before it is shaded; water blends over what is drawn behind it.
 		drawn.sort(Comparator.comparingDouble(mesh -> LodTiles.distance(mesh.tile, at.x, at.z)));
 		if (shaders) {
-			// The pack's programs read neither, and leave out the chunks themselves.
+			// The pack's programs read the mask through chunkMask, and not the transform.
 			return;
 		}
 		// Not DynamicGpuData.writeChunkSections, which would close the instanced sections vanilla wrote this frame.
 		terrainTransform = RenderSystem.getDynamicUniforms().writeTerrainTransform(new Matrix4f(camera.viewRotationMatrix),
 			1, 1);
-		mask.update(level, viewArea, viewDistance, at, fogEnd);
-		// The shader would drop every fragment of a tile wholly within the sections the world draws.
-		drawn.removeIf(mesh -> mask.covers(mesh.tile.minBlockX(), mesh.minY, mesh.tile.minBlockZ(),
-			mesh.tile.minBlockX() + mesh.tile.size(), mesh.maxY, mesh.tile.minBlockZ() + mesh.tile.size()));
 	}
 
 	private void render(RenderPass pass) {
@@ -556,11 +595,10 @@ public final class FarTerrain {
 		}
 	}
 
-	private void choose(double x, double z, int near) {
+	private void choose(double x, double z) {
 		chosenX = x;
 		chosenZ = z;
-		chosenNear = near;
-		List<LodTiles.Tile> tiles = chooser.around(x, z, near, far, DETAIL);
+		List<LodTiles.Tile> tiles = chooser.around(x, z, 0, far, DETAIL);
 		tiles.sort(Comparator.comparingDouble(tile -> LodTiles.distance(tile, x, z)));
 		missing.clear();
 		missing.addAll(view.want(tiles));

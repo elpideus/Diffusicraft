@@ -1,6 +1,7 @@
 package io.github.elpideus.diffusicraft.client.compat.iris;
 
 import com.google.common.primitives.Ints;
+import io.github.elpideus.diffusicraft.Diffusicraft;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,7 @@ import net.irisshaders.iris.shaderpack.texture.TextureStage;
 import net.irisshaders.iris.uniforms.CommonUniforms;
 import net.irisshaders.iris.uniforms.builtin.BuiltinReplacementUniforms;
 import net.irisshaders.iris.uniforms.custom.CustomUniforms;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -33,8 +35,9 @@ import org.lwjgl.system.MemoryStack;
 /**
  * A shader pack's program for Distant Horizons' terrain, water or shadows, {@code dh_terrain}, {@code dh_water} or
  * {@code dh_shadow}, patched by Iris as it patches them for Distant Horizons, with the uniforms, samplers and blending
- * Iris gives them. The far terrain's vertices already follow Distant Horizons' layout: a position of four unsigned
- * shorts with the light in the fourth, a colour, and the material and the face's direction.
+ * Iris gives them, and then given the test that leaves out the sections the world draws ({@link ChunkMaskPatch}). The
+ * far terrain's vertices already follow Distant Horizons' layout: a position of four unsigned shorts with the light in
+ * the fourth, a colour, and the material and the face's direction.
  */
 final class FarProgram implements AutoCloseable {
 	/** The pass a program draws in, which decides the buffers its samplers read. */
@@ -53,6 +56,8 @@ final class FarProgram implements AutoCloseable {
 	private final int microOffset;
 	private final int worldYOffset;
 	private final int clipDistance;
+	/** The uniforms of the test of the sections the world draws, or null if the pack's shaders could not be given it. */
+	private final ChunkMaskPatch.@Nullable Uniforms mask;
 	private final int projection;
 	private final int projectionInverse;
 	private final int modelView;
@@ -65,6 +70,15 @@ final class FarProgram implements AutoCloseable {
 			source.getTessEvalSource().orElse(null), source.getGeometrySource().orElse(null),
 			source.getFragmentSource().orElseThrow(), pipeline.getTextureMap(),
 			pipeline.getTextureOverrides(TextureStage.GBUFFERS_AND_SHADOW));
+		// The shadows keep the pack's own tests: the far terrain would shade itself next to the camera, where packs
+		// bias the shadows for the chunks alone, and there the shadows of the chunks still loading can wait for them.
+		Map<PatchShaderType, String> masked = ChunkMaskPatch.apply(patched, pass != Pass.SHADOW);
+		if (masked != null) {
+			patched = masked;
+		} else {
+			Diffusicraft.LOGGER.warn("Could not give the shader pack's {} the test of the sections the world draws; it"
+				+ " leaves out the far terrain within the render distance, and chunks still loading show the sky", name);
+		}
 		id = GL20C.glCreateProgram();
 		GL20C.glBindAttribLocation(id, 0, "vPosition");
 		GL20C.glBindAttribLocation(id, 1, "iris_color");
@@ -104,6 +118,9 @@ final class FarProgram implements AutoCloseable {
 			case WATER -> pipeline::getFlippedAfterTranslucent;
 			case SHADOW -> pipeline::getFlippedBeforeShadow;
 		}, pass == Pass.SHADOW, false, true, false);
+		if (masked != null) {
+			ChunkMaskPatch.addSampler(samplerBuilder);
+		}
 		customUniforms.mapholderToPass(uniformBuilder, this);
 		uniforms = uniformBuilder.buildUniforms();
 		samplers = samplerBuilder.build();
@@ -126,6 +143,7 @@ final class FarProgram implements AutoCloseable {
 		modelView = GL20C.glGetUniformLocation(id, "iris_ModelViewMatrix");
 		modelViewInverse = GL20C.glGetUniformLocation(id, "iris_ModelViewMatrixInverse");
 		normalMatrix = GL20C.glGetUniformLocation(id, "iris_NormalMatrix");
+		mask = masked != null ? new ChunkMaskPatch.Uniforms(id) : null;
 	}
 
 	/** Builds the pack's program from {@code source}, for {@code pass}. Throws if it does not build. */
@@ -141,10 +159,11 @@ final class FarProgram implements AutoCloseable {
 
 	/**
 	 * Uses the program for the far terrain of this frame, seen through {@code projection} and {@code modelView}, in a
-	 * level whose lowest block is at {@code bottom}, drawn no nearer than {@code near}: sets its uniforms, binds its
-	 * samplers and applies its blending. Leaves the blending to restore in {@link #unbind}.
+	 * level whose lowest block is at {@code bottom}, drawn no nearer than {@code near}, with the tiles placed from a
+	 * camera at {@code camera}: sets its uniforms, binds its samplers and applies its blending. Leaves the blending to
+	 * restore in {@link #unbind}.
 	 */
-	void bind(Matrix4fc projection, Matrix4fc modelView, int bottom, float near) {
+	void bind(Matrix4fc projection, Matrix4fc modelView, int bottom, float near, Vec3 camera) {
 		GL20C.glUseProgram(id);
 		matrix(this.projection, projection);
 		matrix(projectionInverse, projection.invert(new Matrix4f()));
@@ -170,6 +189,9 @@ final class FarProgram implements AutoCloseable {
 		samplers.update();
 		uniforms.update();
 		customUniforms.push(this);
+		if (mask != null) {
+			mask.set(camera.x, camera.y, camera.z);
+		}
 		images.update();
 		if (blend != null) {
 			blend.apply();

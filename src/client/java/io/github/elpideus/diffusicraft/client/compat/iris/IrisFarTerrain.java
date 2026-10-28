@@ -23,6 +23,7 @@ import net.irisshaders.iris.shadows.ShadowRenderingState;
 import net.irisshaders.iris.targets.DepthTexture;
 import net.irisshaders.iris.uniforms.CapturedRenderingState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -40,6 +41,9 @@ import org.lwjgl.opengl.GL32C;
  * part: the pack is told that Distant Horizons draws ({@code DISTANT_HORIZONS} is defined, and Iris's {@code DHCompat}
  * reports the far terrain's planes, reach and depth textures), and the tiles of {@link FarTerrain} are drawn with those
  * programs, the land before the chunks, as Distant Horizons draws it, and the water before the translucent chunks.
+ * The programs leave out the far terrain in the sections the world draws, as the far terrain's own shader does
+ * ({@link ChunkMaskPatch}), rather than within the render distance, so that chunks still loading or waiting for their
+ * meshes show the far terrain and not the sky.
  * Where the pack has a {@code dh_shadow} program and a shadow map, the land of the tiles is drawn into its shadow map as
  * well, as Iris's shadow pass calls back, even where the pack keeps Distant Horizons out of it: within the shadow's
  * reach the far terrain stands where the chunks would, and a pack that lights it from the shadow map would light a cave
@@ -209,8 +213,8 @@ public final class IrisFarTerrain {
 	/**
 	 * Draws the land of the far terrain into the shadow map with the pack's {@code dh_shadow}, as Iris's shadow pass
 	 * calls back after the chunks' solid terrain, through the shadow's {@code modelView} and {@code projection} from the
-	 * camera at {@code (x, y, z)}. Every tile the shadow map sees casts, out of view too. The land only: what is drawn
-	 * here also lands in the depth the pack reads without the translucent blocks.
+	 * camera at {@code (x, y, z)}. Every tile the shadow map sees casts, out of view too, but in the sections the world
+	 * draws. The land only: what is drawn here also lands in the depth the pack reads without the translucent blocks.
 	 */
 	private static void drawShadows(Matrix4f modelView, Matrix4f projection, double x, double y, double z,
 									float tickDelta) {
@@ -240,7 +244,7 @@ public final class IrisFarTerrain {
 			GlStateManager._colorMask(i, 15);
 			GlStateManager._disableBlend(i);
 		}
-		draw(current, current.shadow, clip, modelView, FarTerrain.casterQuads(),
+		draw(current, current.shadow, clip, modelView, FarTerrain.casterQuads(), new Vec3(x, y, z),
 			tiles -> FarTerrain.forEachCaster(x, y, z, frustum::testAab, tiles));
 		GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, read);
 		GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, draw);
@@ -276,8 +280,11 @@ public final class IrisFarTerrain {
 
 	/** Draws the tiles in view, their land or their water, with {@code program} into the framebuffer bound. */
 	private static void draw(Targets current, FarProgram program, Matrix4fc projection, boolean water) {
-		draw(current, program, projection, CapturedRenderingState.INSTANCE.getGbufferModelView(),
-			FarTerrain.drawnQuads(), tiles -> FarTerrain.forEachDrawn(water, tiles));
+		Vec3 camera = FarTerrain.camera();
+		if (camera != null) {
+			draw(current, program, projection, CapturedRenderingState.INSTANCE.getGbufferModelView(),
+				FarTerrain.drawnQuads(), camera, tiles -> FarTerrain.forEachDrawn(water, tiles));
+		}
 	}
 
 	/** Some of the far terrain's tiles, of at most {@code quads} quads each, handed to {@code tiles}. */
@@ -286,18 +293,18 @@ public final class IrisFarTerrain {
 	}
 
 	/**
-	 * Draws the tiles of {@code source}, of at most {@code quads} quads each, with {@code program} into the framebuffer
-	 * bound, through {@code projection} and {@code modelView}.
+	 * Draws the tiles of {@code source}, of at most {@code quads} quads each and placed from a camera at {@code camera},
+	 * with {@code program} into the framebuffer bound, through {@code projection} and {@code modelView}.
 	 */
 	private static void draw(Targets current, FarProgram program, Matrix4fc projection, Matrix4fc modelView, int quads,
-							 Source source) {
+							 Vec3 camera, Source source) {
 		RenderSystem.AutoStorageIndexBuffer indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
 		// The index buffer grows to what the far terrain asked for as the frame's passes begin.
 		if (quads == 0 || !indices.hasStorage(quads * 6) || !(indices.getBuffer() instanceof GlBuffer indexBuffer)) {
 			return;
 		}
 		int indexType = GlConst.toGl(indices.type());
-		program.bind(projection, modelView, FarTerrain.bottom(), NEAR);
+		program.bind(projection, modelView, FarTerrain.bottom(), NEAR, camera);
 		GlStateManager._glBindVertexArray(current.vertexArray);
 		GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, indexBuffer.handle());
 		source.forEach((vertices, firstVertex, count, x, y, z) -> {

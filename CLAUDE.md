@@ -96,7 +96,10 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `executeClassicTransparency`, which rely on Iris starting its deferred passes and a new pass just before the
     latter. `client.compat.iris` builds the pack's `dh_terrain` and `dh_water` from Iris's own classes
     (`TransformPatcher.patchDHTerrain`, `ProgramUniforms`, `ProgramSamplers`, `IrisRenderingPipeline`'s DH getters and
-    `createDHFramebuffer`). Check them all on every Iris update.
+    `createDHFramebuffer`), and its `ChunkMaskPatch` renames the patched `void main()` and reads `modelOffset` and the
+    `_vert_position` and `_vert_normal` that Iris's `DHTerrainTransformer` declares. `OverdrawTests` reads the source
+    as Iris prints it: preprocessed, with no comments, and the first output as `layout(location = 0) out vec4`. Check
+    them all on every Iris update.
 - **Positions.** `BlockPos` packs 24/16/24 bits, not 26/12/26, and worlds end at ±8,000,000. Never pack positions by
   hand or assume ±30,000,000: use `BlockPos.asLong`/`of`, and the numbers in `ExtendedHeight`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under

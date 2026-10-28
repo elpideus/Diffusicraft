@@ -48,6 +48,9 @@ import org.lwjgl.system.MemoryUtil;
  * does: section {@code (x, y, z)} always lives in slot {@code (x mod size, y mod rows, z mod size)}. Moving the
  * camera clears the slots of the sections that enter the mask, and the others keep what they held. The sections are
  * looked up a few lines of chunks at a time, so that a large render distance spreads the work over several frames.
+ *
+ * <p>Under a shader pack, the pack's programs for Distant Horizons are given the same test, and read the texture and
+ * the uniform's values through {@link FarTerrain#chunkMask} and {@link FarTerrain#chunkMaskInfo}.
  */
 final class ChunkMask implements AutoCloseable {
 	private static final int INFO_SIZE = 64;
@@ -106,6 +109,11 @@ final class ChunkMask implements AutoCloseable {
 
 	@Nullable GpuTextureView view() {
 		return view;
+	}
+
+	/** Copies the values of the {@code FarTerrainInfo} uniform as the last {@link #update} wrote them into {@code into}. */
+	void infoValues(int[] into) {
+		System.arraycopy(infoValues, 0, into, 0, infoValues.length);
 	}
 
 	/**
