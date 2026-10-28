@@ -50,10 +50,20 @@ def optionalDevMods = [
 	'terralith'                  : 'aGE3hYAA',  // 2.6.5+26.3 (replaces vanilla's parameter list and surface rule)
 	'lithostitched'              : 'pZgI6b2t',  // 2.0.6-fabric-26.3 (Terralith's and Tectonic's library)
 	'tectonic'                   : 'tRBGDcCT',  // 3.0.32-fabric-26.3 (terrain mod: blends old chunks, raises the height)
+	// Wilder Wild does not start beside C2ME or Lithium in a dev run, where FrozenLib loads CompoundTag from its mixin
+	// plugin before their mixins into it apply.
 	'wilder-wild'                : 'mVVZgOKN',  // 4.3.3-mc26.3-fabric (biomes, and surface rules through FrozenLib)
 	'frozenlib'                  : 'W1wrCkKg',  // 3.0.3-mc26.3-fabric (required by Wilder Wild)
 	'terrestria'                 : 'K6mjWjWm',  // 8.2.0-alpha.1 (Biolith biomes and surface builders; embeds Biolith)
 	'promenade'                  : 'mxbWA9DX',  // 6.0.2+fabric (Biolith biomes)
+	// The other mods of docs/MOD_SURVEY.md with a 26.3 release that work with Diffusicraft, not yet checked in game.
+	'climate-rivers'             : '5XH8f4HB',  // 26.3.1 (warm, cold and dry rivers, through Lithostitched)
+	'puzzles-lib'                : 'b1UA02v8',  // 26.3.17 (required by Climate Rivers)
+	'forge-config-api-port'      : 'JpKvrr9J',  // 26.3.1 (required by Climate Rivers and Puzzles Lib)
+	'wwoo'                       : '23VeM3qz',  // 3.0.1 (William Wythers' biomes, CC-BY-NC-ND: dev runtime only)
+	'cristel-lib'                : 'rWxmPrGC',  // fabric-26.3-3.1.13 (required by WWOO; needs cloth-config)
+	'ecologics'                  : '7t3hinz9',  // 2.7.2-NeoFab (features and mobs in vanilla's biomes)
+	'geophilic'                  : '5kFV8CEz',  // 3.7 (features in vanilla's biomes, ARR: dev runtime only)
 ]
 
 // Shader packs, also named in -PdevMods and put in the client runs' shaderpacks folder as <slug>.zip. Like the mods,

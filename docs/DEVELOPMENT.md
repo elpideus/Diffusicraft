@@ -39,7 +39,13 @@ project directly, and Loom generates run configurations.
 - **Mods outside the modpack.** Some compatibility targets are not in the maintainer's pack and load only when named
   in `-PdevMods`, for example `-PdevMods=techreborn` to see the geology place the ores of a tech mod, or
   `-PdevMods=voxy,sodium` for Voxy, which needs Sodium. They are listed under `optionalDevMods` in the same file.
-  Sulkan (`-PdevMods=sodium,sulkan`), shaders for Minecraft's Vulkan backend, is one of them.
+  Sulkan (`-PdevMods=sodium,sulkan`), shaders for Minecraft's Vulkan backend, is one of them, and so are the biome and
+  terrain mods of [MOD_SURVEY.md](MOD_SURVEY.md) that work with Diffusicraft on 26.3, with their libraries: Terralith
+  and Tectonic (`lithostitched`), Wilder Wild (`frozenlib`), Terrestria, Promenade, Climate Rivers (`lithostitched`,
+  `puzzles-lib`, `forge-config-api-port`), William Wythers' Overhauled Overworld (`wwoo`, with `cristel-lib` and
+  `cloth-config`), Ecologics and Geophilic. Wilder Wild does not start beside C2ME (`c2me-fabric`) or Lithium, both in
+  the modpack: in a development run FrozenLib loads Minecraft's `CompoundTag` from Wilder Wild's mixin plugin, before
+  their mixins into it apply, so leave those two out to try it.
 - **Shader packs.** Named in `-PdevMods` as well, the packs under `devShaderPacks`, Bliss
   (`-PdevMods=sodium,iris,bliss-shader`) and Complementary Unbound (`complementary-unbound`), go into the client's
   `shaderpacks` folder as `<slug>.zip`. Like the mods, they are pinned by Modrinth version id and never leave the dev
