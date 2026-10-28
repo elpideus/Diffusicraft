@@ -9,6 +9,7 @@ import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeWorld;
 import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
+import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -16,6 +17,7 @@ import net.minecraft.core.QuartPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeResolver;
@@ -45,11 +47,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>The surface is the one the chunk generator builds: the terrain's height, cut by the rivers, with the sea up to
  * its level. The blocks come from the world's own material rules (soils, sand, gravel, snow on the peaks and the rock
  * strata in the cliffs), run on each column as the chunk generator runs them, with the neighbouring columns giving
- * the slope. Snow and ice follow the biome's temperature, as they do in the world. Trees stand on the soils as
- * crowns of leaves, as many and as large as the biome's own trees (see {@link TreeCover}), and the giants, those that
- * grow as structures and the redwoods the biomes plant, stand where the world grows them (see {@link GreatTrees}), their
- * crowns over water too. The structures on the surface, villages, temples, shipwrecks and the like, stand where the
- * world starts them in the grids whose columns are close enough to show them (see {@link FarStructures}).
+ * the slope. Snow and ice follow the biome's temperature, as they do in the world. In the grids whose columns are
+ * close enough to tell one tree from another, the trees stand where the world grows them (see {@link FarTrees});
+ * further out they stand on the soils as crowns of leaves, as many and as large as the biome's own trees, scattered at
+ * random (see {@link TreeCover}). The giants, those that grow as structures and the redwoods the biomes plant, stand
+ * where the world grows them at every distance (see {@link GreatTrees}), their crowns over water too. The structures
+ * on the surface, villages, temples, shipwrecks and the like, stand where the world starts them in the grids whose
+ * columns are close enough to show them (see {@link FarStructures}).
  *
  * <p>In the grids whose columns are at most {@value #CAVE_STEP} blocks apart, the caverns of the Hollows open under the
  * ground where the chunks open them (see {@link FarHollows}), so that a far view across a Grand Hollow shows its far
@@ -115,6 +119,7 @@ public final class LodSampler {
 	private final long seed;
 	private final Map<Holder<Biome>, TreeCover> trees = new ConcurrentHashMap<>();
 	private final @Nullable GreatTrees greatTrees;
+	private final @Nullable FarTrees farTrees;
 	private final @Nullable FarStructures structures;
 	private final @Nullable LodStore store;
 
@@ -136,8 +141,8 @@ public final class LodSampler {
 	}
 
 	private LodSampler(NoiseBasedChunkGenerator generator, RandomState randomState, LevelHeightAccessor heights,
-					   BiomeWorld world, long seed, @Nullable GreatTrees greatTrees, @Nullable FarStructures structures,
-					   @Nullable LodStore store) {
+					   BiomeWorld world, long seed, @Nullable GreatTrees greatTrees, @Nullable FarTrees farTrees,
+					   @Nullable FarStructures structures, @Nullable LodStore store) {
 		this.generator = generator;
 		this.randomState = randomState;
 		this.heights = heights;
@@ -155,6 +160,7 @@ public final class LodSampler {
 		this.lavaLevel = Math.min(settings.noiseSettings().minY() + 10, seaLevel);
 		this.seed = seed;
 		this.greatTrees = greatTrees;
+		this.farTrees = farTrees;
 		this.structures = structures;
 		this.store = store;
 	}
@@ -165,7 +171,7 @@ public final class LodSampler {
 		return world == null ? null : new LodSampler((NoiseBasedChunkGenerator) level.getChunkSource().getGenerator(),
 			level.getChunkSource().randomState(), level, world, level.getSeed(),
 			GreatTrees.of(level.getChunkSource().getGenerator(), level.getChunkSource().getGeneratorState(), world.scale(),
-				level.getMaxY()), FarStructures.of(level), LodStore.of(level));
+				level.getMaxY()), FarTrees.of(level, world.scale()), FarStructures.of(level), LodStore.of(level));
 	}
 
 	/** Whether Diffusicraft generates a world. */
@@ -366,6 +372,8 @@ public final class LodSampler {
 		private BlockState[] bands = new BlockState[8];
 		private BlockState upper;
 		private final int[] level = new int[1];
+		/** The ground at the corners of the cells the chunks interpolate it over, as {@link #fineLand} finds it. */
+		private final Long2FloatOpenHashMap corners = new Long2FloatOpenHashMap();
 
 		Grid(int minX, int minZ, int width, int step) {
 			this.minX = minX;
@@ -377,6 +385,7 @@ public final class LodSampler {
 			this.heightmap = new int[span * span];
 			this.bed = new int[span * span];
 			this.riverTop = new int[span * span];
+			corners.defaultReturnValue(Float.NaN);
 		}
 
 		private int block(int min, int index) {
@@ -398,6 +407,8 @@ public final class LodSampler {
 			LodColumn column = new LodColumn();
 			TreeCover.Crown crown = new TreeCover.Crown();
 			GreatTrees.Stand giants = greatTrees == null ? null : greatTrees.stand(this::dryGround, biomes);
+			FarTrees.Crowns crowns = farTrees == null || terrain == null || step > FarTrees.MAX_STEP ? null
+				: farTrees.grow(minX, minZ, width, step, this::fineLand, this::soil, defaultBlock, biomes);
 			// Only over the full terrain with its rivers, which the starts kept for later grids are made on.
 			FarStructures.Cell[] built = structures == null || rivers == null || terrain == null
 				|| step > FarStructures.MAX_STEP ? null
@@ -480,9 +491,10 @@ public final class LodSampler {
 						open = water + 1;
 					}
 					// No tree grows on a structure.
-					boolean grown = cell == null && dry && surface[0].is(BlockTags.SUPPORTS_VEGETATION)
+					boolean grown = cell == null && (crowns != null ? crowns.crown(a, b, crown)
+						: dry && surface[0].is(BlockTags.SUPPORTS_VEGETATION)
 						&& trees.computeIfAbsent(biome, holder -> TreeCover.of(holder, scale))
-							.crown(seed, x, z, step, crown);
+							.crown(seed, x, z, step, crown));
 					// A giant's crown reaches out over the water too, and over the smaller trees.
 					if (giants != null && cell == null) {
 						grown = giants.crown(x, z, top, step, grown, crown);
@@ -576,7 +588,7 @@ public final class LodSampler {
 		 * {@link Integer#MIN_VALUE} if the sea or a river covers it: where a giant may stand.
 		 */
 		private int dryGround(int x, int z) {
-			StructureSketch.Land land = land(x, z);
+			FarSketch.Land land = land(x, z);
 			return land.water() > land.ground() ? Integer.MIN_VALUE : land.ground() + 1;
 		}
 
@@ -584,9 +596,57 @@ public final class LodSampler {
 		 * The ground of column {@code (x, z)} and the water over it, as {@link #sampleHeights} and {@link #sample} find
 		 * them, but without the ledges and the gullies.
 		 */
-		private StructureSketch.Land land(int x, int z) {
-			float surfaceY = terrain != null ? terrain.shore(x, z)
-				: scale.surfaceY(field.coarseElevation(scale.toPixel(z), scale.toPixel(x)));
+		private FarSketch.Land land(int x, int z) {
+			return land(x, z, terrain != null ? terrain.shore(x, z)
+				: scale.surfaceY(field.coarseElevation(scale.toPixel(z), scale.toPixel(x))));
+		}
+
+		/**
+		 * The ground of column {@code (x, z)} and the water over it as the chunks find them, with the ledges and the
+		 * gullies however far apart the grid's columns are: where the trees take root. Only over the full-resolution
+		 * terrain.
+		 */
+		private FarSketch.Land fineLand(int x, int z) {
+			float surfaceY = terrain.cliff(x, z);
+			if (Float.isNaN(surfaceY)) {
+				int cellX = Math.floorDiv(x, CELL), cellZ = Math.floorDiv(z, CELL);
+				surfaceY = Mth.lerp2((x - cellX * CELL) / (float) CELL, (z - cellZ * CELL) / (float) CELL,
+					corner(cellX, cellZ), corner(cellX + 1, cellZ), corner(cellX, cellZ + 1),
+					corner(cellX + 1, cellZ + 1));
+			}
+			return land(x, z, surfaceY);
+		}
+
+		/** The ground at the corner of cell {@code (cellX, cellZ)}, as {@link #sampleHeights} takes it. */
+		private float corner(int cellX, int cellZ) {
+			long key = ChunkPos.pack(cellX, cellZ);
+			float y = corners.get(key);
+			if (Float.isNaN(y)) {
+				y = (float) terrain.y(cellX * CELL, cellZ * CELL);
+				corners.put(key, y);
+			}
+			return y;
+		}
+
+		/**
+		 * The block the material rules lay on top of the ground of column {@code (x, z)}, which is {@code land}'s, with
+		 * the slope to its neighbours as {@link #fineLand} finds them. A river's bed takes the soil of dry ground.
+		 */
+		private BlockState soil(int x, int z, FarSketch.Land land) {
+			int top = land.ground();
+			biome = biomes.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(top), QuartPos.fromBlock(z));
+			rules.diffusicraft$updateXZ(x, z, surfaceHeight(x + 1, z) - surfaceHeight(x - 1, z),
+				surfaceHeight(x, z + 1) - surfaceHeight(x, z - 1));
+			return apply(x, top, z, 1, top - minY + 1, top < seaLevel - 1 ? seaLevel : Integer.MIN_VALUE);
+		}
+
+		/** The highest block of column {@code (x, z)} that is not air, the ground or the sea. */
+		private int surfaceHeight(int x, int z) {
+			return Math.max(fineLand(x, z).ground(), seaLevel - 1);
+		}
+
+		/** The ground of column {@code (x, z)} and the water over it, under {@code surfaceY}, the terrain's surface. */
+		private FarSketch.Land land(int x, int z, float surfaceY) {
 			int top = Mth.ceil(surfaceY) - 1;
 			int bed = Integer.MIN_VALUE;
 			int water = Integer.MIN_VALUE;
@@ -605,7 +665,7 @@ public final class LodSampler {
 			if (top < seaLevel - 1) {
 				water = Math.max(water, seaLevel - 1);
 			}
-			return new StructureSketch.Land(bed != Integer.MIN_VALUE ? bed : top, water);
+			return new FarSketch.Land(bed != Integer.MIN_VALUE ? bed : top, water);
 		}
 
 		/**

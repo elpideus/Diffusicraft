@@ -63,7 +63,7 @@ included, on servers as in singleplayer.
 - the biome, which Distant Horizons uses to tint grass, leaves and water.
 
 Caves, plants, fallen trees and the structures underground are left out. The structures on the surface show in the
-LODs whose columns are at most 8 blocks apart, as [LOD.md](LOD.md#structures-farstructures-and-structuresketch)
+LODs whose columns are at most 8 blocks apart, as [LOD.md](LOD.md#structures-farstructures-and-farsketch)
 describes. Lighting follows Distant Horizons' own conventions: full sky light above the ground, the sky dimmed by the
 water over it, and none below the surface.
 
@@ -80,7 +80,9 @@ any in the world:
   number of trees around one. Like the world, a tree does not grow where an earlier tree's crown already shades its
   spot. Without that, or with trees spread evenly, the crowns would overlap less than the world's and the LODs would
   show up to a third more canopy. A column is under the highest crown that reaches it, with the trunk drawn only in
-  the nearest LODs. The wider columns of farther LODs are under a canopy as often as the ground is.
+  the nearest LODs. The wider columns of farther LODs are under a canopy as often as the ground is. The LODs whose
+  columns are at most 8 blocks apart grow the trees where the world grows them instead, as
+  [LOD.md](LOD.md#trees-fartrees) describes.
 - **Giants.** [Giant trees](WORLDGEN.md#giant-trees) reach so far from their trunks that on the small trees' grid each
   column would look over hundreds of cells for them, and a giant the LOD shows that is not there when the player comes
   close is plain to see, so `worldgen.lod.GreatTrees` stands them where the world grows them. The ancient oaks and the

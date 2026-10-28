@@ -116,13 +116,13 @@ Chunk generation asks for its next tile as soon as one is done, so a refinement 
 holds chunk generation up by one tile at most. A grid reads the full-resolution terrain only while it spans four
 tiles or fewer, so with its rings it needs 81 at most, within the 160 the terrain keeps in memory.
 
-### Structures: `FarStructures` and `StructureSketch`
+### Structures: `FarStructures` and `FarSketch`
 
 The villages, temples, outposts, shipwrecks and other structures on the surface show in the grids whose columns are
 at most 8 blocks apart, so they no longer pop up out of nowhere as one flies towards them. `FarStructures` picks their
 starts as the chunk generator does, from the same seeds and the same structure sets, and keeps the last 4,096 it made
 in memory. Only the sets spread at random are read: strongholds and whatever is underground stay out. It places their
-pieces chunk by chunk, with the chunk generator's own decoration seeds, into a `StructureSketch`: a `WorldGenLevel`
+pieces chunk by chunk, with the chunk generator's own decoration seeds, into a `FarSketch`: a `WorldGenLevel`
 without chunks, solid up to the far terrain's ground and water over it where the sea or a river covers it. The pieces
 read it as they read a chunk being generated, so foundations reach down to that ground, paths follow it and turn into
 bridges over water. The sketch keeps only the blocks; entities, block entities and ticks are dropped.
@@ -144,6 +144,38 @@ one: before, two threads filling it at once threw, and could have thrown in the 
 exist, then generates them and checks that the far columns over most of its buildings rise to within 3 blocks of
 their roofs. On the test's seed, 870 of the 1,034 columns over a taiga village's buildings do, and the columns over
 the whole village lie 0.8 blocks off on average.
+
+### Trees: `FarTrees`
+
+The grids whose columns are at most 8 blocks apart grow their trees where the world grows them, so that a tree seen
+from afar is still there when the player comes close. Further out, `TreeCover` scatters each biome's trees at random,
+as many as the world grows and of the same shapes ([COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons)), and the
+giants stand where the world grows them at every distance (`GreatTrees`).
+
+`FarTrees` places each chunk's vegetation features that grow trees again, as the chunk generator decorates the chunk:
+in the same order, from the same decoration and feature seeds, those of the biomes of the chunk and of the chunks
+around it, each only where its own biome is. They grow in a `FarSketch` of the far terrain's ground, topped with the
+block its surface rules put there, so they take root where a sapling would, keep out of the water and clear of each
+other's crowns in their chunk, as in the world. Each column of the grid keeps the lowest and highest leaf over it,
+and the lowest and highest log, and is drawn under that crown. A trunk shows where the columns are no further apart
+than it is wide.
+
+A few things differ from the world:
+
+- **Each chunk grows on the bare ground**, as if it were decorated first. Where the crown of a tree in a chunk
+  decorated before would keep a tree from growing, the far terrain still shows that tree, and the world's trees after
+  it in its chunk may then stand elsewhere. Which of the two the world grows depends on the order its chunks generate
+  in. In `FarTreesTest`'s oak woods, three trees to a chunk, 9 of 102 trees show that the world does not grow, and 3
+  that it grows are missing.
+- **Only trees.** The other vegetation, the features of the other steps and the structures are not placed, and no
+  tree grows on a structure's cell.
+- **The surface's biomes.** A chunk grows the features of the biomes at the surface of its columns, so the azaleas
+  over lush caves, whose biome lies under the ground, are left out.
+- **A point a column.** A column 8 blocks wide shows a crown when the block at its point is under one.
+
+A grid grows every tree in the chunks it covers and in the ring around them: some 1,150 chunks for 64 × 64 columns
+8 blocks apart, which takes 0.2 seconds for the oak woods of the test. A tree feature that throws is left out with one
+warning in the log.
 
 ### Caves: `FarHollows`
 

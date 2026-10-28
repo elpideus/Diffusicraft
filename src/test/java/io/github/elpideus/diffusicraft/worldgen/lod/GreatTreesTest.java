@@ -335,7 +335,7 @@ class GreatTreesTest {
 	}
 
 	/** A generator that only tells the biome filter which features a biome holds. */
-	private static final class Generator extends ChunkGenerator {
+	static final class Generator extends ChunkGenerator {
 		Generator(Holder<Biome> biome) {
 			super(new FixedBiomeSource(biome));
 		}

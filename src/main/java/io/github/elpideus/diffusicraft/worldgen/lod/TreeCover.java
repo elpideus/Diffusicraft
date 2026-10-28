@@ -52,8 +52,8 @@ import java.util.function.Predicate;
 
 /**
  * The trees of one biome as a far view sees them: how many grow, where, and the shapes of their crowns, worked out
- * from the biome's vegetation features without placing any in the world. {@link LodSampler} draws the canopy of its
- * columns from it.
+ * from the biome's vegetation features without placing any in the world. {@link LodSampler} draws the canopy of the
+ * grids too coarse for {@link FarTrees}, which grows the nearer ones' trees where the world grows them, from it.
  *
  * <p>The number follows each placed feature of the vegetation step down to its trees. The placement modifiers give the
  * expected number per chunk: counts averaged over many draws, rarity and chance filters as probabilities, and the other
@@ -316,6 +316,27 @@ final class TreeCover {
 		TreeCover giants = layer(biome, giant, null);
 		TreeCover cover = layer(biome, small, giants);
 		return cover != null ? cover : giants != null ? giants : NONE;
+	}
+
+	/**
+	 * Whether a placed feature grows trees that can be drawn, however rarely: a {@link TreeFeature} it leads to, or a
+	 * mod's feature that places leaves on the stand-in in a world of {@code scale}.
+	 */
+	static boolean growsTrees(PlacedFeature placed, WorldScale scale) {
+		Map<Feature, Double> counts = new LinkedHashMap<>();
+		RandomSource random = RandomSource.create(0x7EE5L);
+		try {
+			collect(placed.feature().value(), 1, counts, random, 0);
+		} catch (RuntimeException e) {
+			LOGGER.debug("Could not follow {} to its trees", placed, e);
+			return false;
+		}
+		for (Feature feature : counts.keySet()) {
+			if (feature instanceof TreeFeature || placed(feature, random, scale) != null) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

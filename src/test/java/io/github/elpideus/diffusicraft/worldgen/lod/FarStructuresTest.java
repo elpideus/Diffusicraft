@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class FarStructuresTest {
 	private static final int GROUND = 64;
-	private static final StructureSketch.Ground FLAT = (x, z) -> StructureSketch.Land.dry(GROUND);
+	private static final FarSketch.Ground FLAT = (x, z) -> FarSketch.Land.dry(GROUND);
 	private static BlockState planks;
 	private static BlockState glass;
 	private static BlockState roof;
@@ -38,11 +38,11 @@ class FarStructuresTest {
 	 * glass in the wall at {@code (1, 0)}, a floor on the ground and a roof over all of it; and a path at
 	 * {@code (3, 3)}.
 	 */
-	private static Long2ObjectOpenHashMap<StructureSketch.Column> house() {
-		Long2ObjectOpenHashMap<StructureSketch.Column> columns = new Long2ObjectOpenHashMap<>();
+	private static Long2ObjectOpenHashMap<FarSketch.Column> house() {
+		Long2ObjectOpenHashMap<FarSketch.Column> columns = new Long2ObjectOpenHashMap<>();
 		for (int z = 0; z < 3; z++) {
 			for (int x = 0; x < 3; x++) {
-				StructureSketch.Column column = new StructureSketch.Column();
+				FarSketch.Column column = new FarSketch.Column();
 				column.add(GROUND, floor);
 				if (x != 1 || z != 1) {
 					for (int y = GROUND + 1; y <= GROUND + 3; y++) {
@@ -53,7 +53,7 @@ class FarStructuresTest {
 				columns.put(ChunkPos.pack(x, z), column);
 			}
 		}
-		StructureSketch.Column walk = new StructureSketch.Column();
+		FarSketch.Column walk = new FarSketch.Column();
 		walk.add(GROUND, path);
 		columns.put(ChunkPos.pack(3, 3), walk);
 		return columns;
@@ -93,8 +93,8 @@ class FarStructuresTest {
 
 	@Test
 	void aPostTooThinForTheCellLeavesNothing() {
-		Long2ObjectOpenHashMap<StructureSketch.Column> columns = new Long2ObjectOpenHashMap<>();
-		StructureSketch.Column post = new StructureSketch.Column();
+		Long2ObjectOpenHashMap<FarSketch.Column> columns = new Long2ObjectOpenHashMap<>();
+		FarSketch.Column post = new FarSketch.Column();
 		for (int y = GROUND + 1; y <= GROUND + 3; y++) {
 			post.add(y, planks);
 		}

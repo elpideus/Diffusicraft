@@ -1684,7 +1684,7 @@ Other searches still read the full terrain and can take a while on new land:
 | `worldgen/feature/` | `HollowSurfacePlacement` (`diffusicraft:hollow_surface`), which finds the floors and ceilings of the Grand Hollows, `SeleniteBeamFeature` (`diffusicraft:selenite_beam`), `GiantTreeFeature` and `GiantTreeStructure` (both `diffusicraft:giant_tree`), `GiantTreePiece` (a giant written a chunk at a time) and `GiantTree` (the giant trees' shapes), `RiverFallFeature` (`diffusicraft:river_falls`) and `RiverFalls` (the curtains and pools of the rivers' falls), `Springs` (vanilla's water springs left off the cliffs), `LianaFeature` (`diffusicraft:lianas`), `UndergrowthFeature` (`diffusicraft:undergrowth`) and `Thickets` (where it grows thick), `ErraticFeature` (`diffusicraft:erratic`), `RockfallFeature` (`diffusicraft:rockfall`), `Boulder` (their shapes, and where a cliff's foot is) and `Boulders` (setting them down), and `DiffusicraftWorldFilter` (`diffusicraft:diffusicraft_world`), which keeps a feature to Diffusicraft worlds |
 | `worldgen/geology/` | `Geology` (the rock and ore model), `Rock`, `Ore`, `Soils` (the soil model), `Hollows` (the cavern model), `Erosion` (cliffs and scree), `Roughness` (knolls and scarps), `Gullies`, `GeoNoise` |
 | `worldgen/material/` | `StrataRule`, the material rule type that applies the geology and lights the Hollows; `ModOres`, the ores of tech mods; `RiverRule`, the rivers' water and beds; `WorldRule`, `SplitRule` and `OtherModsRule`, which keep other mods' rules to their biomes |
-| `worldgen/lod/` | `LodSampler`, `LodColumn`, `TreeCover` and `GreatTrees`: columns of the finished surface and its trees without chunks, for LOD mods; `FarStructures` and `StructureSketch`: the structures on the surface in those columns, placed without chunks; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
+| `worldgen/lod/` | `LodSampler`, `LodColumn`, `TreeCover`, `FarTrees` and `GreatTrees`: columns of the finished surface and its trees without chunks, for LOD mods; `FarStructures`: the structures on the surface in those columns; `FarSketch`: the level without chunks that they and the nearest trees are placed in; `LodGrid`: those columns cut into voxels, for Voxy; `LodFeed` and `LodPayloads`: grids sent from a server to its players' clients |
 | `compat/dh/` | The Distant Horizons generator; loaded only with Distant Horizons. See [COMPATIBILITY.md](COMPATIBILITY.md) |
 | `compat/tectonic/`, `compat/biolith/` | `TectonicBlending` and `BiolithRules`, which read Tectonic and Biolith by reflection; see [Other mods' biomes](#other-mods-biomes) |
 | `block/` | `DiffusicraftBlocks`, the new rocks, soils, plants and salt crust, glowworm silk and selenite |
@@ -1813,6 +1813,10 @@ Other searches still read the full terrain and can take a while on new land:
   stand the structures' giants at the feet their chunks draw, with their trunks there and nowhere else, only the
   giant of the biome at the foot, none under water, on steep ground or in chunks the set does not place in, crowns
   wider than a feature's at 1:1 that shrink at 1:32, and leaves that stay put as the ground rises under them.
+  `FarTreesTest` checks that the nearest LODs stand oaks where a world decorated chunk by chunk grows them, with no
+  more than one in twenty missing and one in eight that the world does not grow, none rooted in the desert beside the
+  woods, and that grids of every step and corner draw the same crowns where their columns meet, with trunks only where
+  they are a block apart.
 - `RiverFallsTest` lays out the falls of a river over a step: a curtain from the higher water in the columns below the
   step alone, a pool deepest at its foot and shallower downstream, none above the step, under a step of a block or in a
   lake the river falls into, none deeper than allowed, and a pool across the side of a chunk dug alike on both sides.

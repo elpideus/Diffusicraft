@@ -41,10 +41,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The structures a far view shows: those that stand on the surface, the villages, temples, outposts, shipwrecks and
  * the like, block by block where its columns are a block apart and in outline further out. The chunk generator's own
- * choice picks them, from the same seeds,
- * and their pieces are placed as it places them, in a {@link StructureSketch} of the far view's ground, so that they
- * stand where they will once their chunks generate and look from afar as they will then. The giant trees, which grow
- * as structures too, are {@link GreatTrees}'s.
+ * choice picks them, from the same seeds, and their pieces are placed as it places them, in a {@link FarSketch} of
+ * the far view's ground, so that they stand where they will once their chunks generate and look from afar as they
+ * will then. The giant trees, which grow as structures too, are {@link GreatTrees}'s.
  *
  * <p>Only grids whose columns are at most {@value #MAX_STEP} blocks apart show them: further out a house is narrower
  * than a column. Thread-safe.
@@ -119,7 +118,7 @@ final class FarStructures {
 	 * corner block is {@code (minX, minZ)}, row by row, standing on {@code ground} made of {@code rock}; or
 	 * {@code null} if they put nothing in it.
 	 */
-	@Nullable Cell[] sketch(int minX, int minZ, int width, int step, StructureSketch.Ground ground, BiomeResolver biomes,
+	@Nullable Cell[] sketch(int minX, int minZ, int width, int step, FarSketch.Ground ground, BiomeResolver biomes,
 							BlockState rock) {
 		int maxX = minX + width * step - 1;
 		int maxZ = minZ + width * step - 1;
@@ -127,7 +126,7 @@ final class FarStructures {
 		if (found.isEmpty()) {
 			return null;
 		}
-		StructureSketch sketch = new StructureSketch(level, ground, rock, biomes);
+		FarSketch sketch = new FarSketch(level, ground, rock, biomes);
 		WorldgenRandom random = new WorldgenRandom(new XoroshiroRandomSource(0L));
 		for (StructureStart start : found) {
 			place(start, sketch, random, minX, minZ, maxX, maxZ);
@@ -237,7 +236,7 @@ final class FarStructures {
 	 * Places the pieces of a start that lie in the blocks from {@code (minX, minZ)} to {@code (maxX, maxZ)}, chunk by
 	 * chunk, as the chunk generator places them ({@code applyBiomeDecoration}).
 	 */
-	private void place(StructureStart start, StructureSketch sketch, WorldgenRandom random, int minX, int minZ,
+	private void place(StructureStart start, FarSketch sketch, WorldgenRandom random, int minX, int minZ,
 					   int maxX, int maxZ) {
 		BoundingBox box = start.getBoundingBox();
 		int index = order.getInt(start.getStructure());
@@ -282,7 +281,7 @@ final class FarStructures {
 	 * than standing as a solid block. A cell is paved where they lie on the ground in a quarter of its columns, or
 	 * rise in some and lie in others, as a village's paths do.
 	 */
-	static @Nullable Cell[] cells(Long2ObjectMap<StructureSketch.Column> columns, StructureSketch.Ground ground,
+	static @Nullable Cell[] cells(Long2ObjectMap<FarSketch.Column> columns, FarSketch.Ground ground,
 								  int minX, int minZ, int width, int step) {
 		int count = width * width;
 		int[] risen = new int[count];
@@ -291,7 +290,7 @@ final class FarStructures {
 		// For each cell, by block Y, how many of its columns have each block there.
 		@SuppressWarnings("unchecked")
 		Int2ObjectSortedMap<Reference2IntOpenHashMap<BlockState>>[] layers = new Int2ObjectSortedMap[count];
-		for (Long2ObjectMap.Entry<StructureSketch.Column> entry : columns.long2ObjectEntrySet()) {
+		for (Long2ObjectMap.Entry<FarSketch.Column> entry : columns.long2ObjectEntrySet()) {
 			int x = ChunkPos.getX(entry.getLongKey());
 			int z = ChunkPos.getZ(entry.getLongKey());
 			int a = Math.floorDiv(x - minX, step);
@@ -300,7 +299,7 @@ final class FarStructures {
 				continue;
 			}
 			int cell = b * width + a;
-			StructureSketch.Column column = entry.getValue();
+			FarSketch.Column column = entry.getValue();
 			int groundY = ground.at(x, z).ground();
 			if (column.topY == groundY) {
 				paved[cell]++;

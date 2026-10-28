@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.lod;
 
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
@@ -57,16 +58,19 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * A level that structures are placed in for a far view, without any chunk: it keeps the blocks their pieces put, and
+ * A level that structures and trees are placed in for a far view, without any chunk: it keeps the blocks they put, and
  * answers for the rest from the far view's ground, solid up to its top and water over it where the sea or a river
- * covers it. The structures read it as they read a chunk being generated, to sink their foundations to the ground, lay
- * their paths along it and turn them to bridges over water. Their entities, block entities and ticks are dropped.
+ * covers it. They read it as they read a chunk being generated: the structures to sink their foundations to the
+ * ground, lay their paths along it and turn them to bridges over water, the trees to take root in its soil and keep
+ * clear of each other. As in a chunk being decorated, the heightmaps kept after worldgen rise over the blocks placed
+ * (they never sink again), and the worldgen ones stay at the ground. Entities, block entities and ticks are dropped.
  *
- * <p>Not thread-safe: each grid places its structures in a sketch of its own.
+ * <p>Not thread-safe: each grid places its structures and its trees in sketches of its own.
  */
-final class StructureSketch implements WorldGenLevel {
+final class FarSketch implements WorldGenLevel {
 	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 	private static final BlockState WATER = Blocks.WATER.defaultBlockState();
+	private static final Heightmap.Types[] TYPES = Heightmap.Types.values();
 
 	/** The far view's ground under a column: its top block, and the top block of the water over it, if any. */
 	record Land(int ground, int water) {
@@ -80,6 +84,12 @@ final class StructureSketch implements WorldGenLevel {
 	@FunctionalInterface
 	interface Ground {
 		Land at(int x, int z);
+	}
+
+	/** The block on top of the far view's ground, at {@code land}'s ground in column {@code (x, z)}. */
+	@FunctionalInterface
+	interface Soil {
+		BlockState at(int x, int z, Land land);
 	}
 
 	/**
@@ -108,25 +118,73 @@ final class StructureSketch implements WorldGenLevel {
 		}
 	}
 
-	private final ServerLevel level;
+	private final @Nullable ServerLevel level;
+	private final LevelHeightAccessor heights;
+	private final int seaLevel;
+	private final long seed;
 	private final Ground ground;
+	private final @Nullable Soil soil;
 	private final BlockState rock;
 	private final BiomeResolver biomes;
 	private final BiomeManager biomeManager;
 	private final RandomSource random = new XoroshiroRandomSource(0L);
 	/** The blocks placed, by {@link BlockPos#asLong}. */
 	private final Long2ObjectOpenHashMap<BlockState> blocks = new Long2ObjectOpenHashMap<>();
+	/**
+	 * How high the blocks placed raise each heightmap kept after worldgen, by {@link ChunkPos#pack} of the column, or
+	 * {@code null} for the worldgen ones.
+	 */
+	private final @Nullable Long2IntOpenHashMap[] raised = new Long2IntOpenHashMap[TYPES.length];
 	/** The land of the columns asked about, by {@link ChunkPos#pack}, which packs any two ints. */
 	private final Long2ObjectOpenHashMap<Land> lands = new Long2ObjectOpenHashMap<>();
+	/** The block on top of the ground of the columns asked about, by {@link ChunkPos#pack}. */
+	private final Long2ObjectOpenHashMap<BlockState> soils = new Long2ObjectOpenHashMap<>();
+	/** The biomes of the quarts asked about, by {@link BlockPos#asLong} of the quart. */
+	private final Long2ObjectOpenHashMap<Holder<Biome>> noiseBiomes = new Long2ObjectOpenHashMap<>();
 	private @Nullable ChunkAccess placeholder;
 
-	/** A sketch over {@code ground}, made of {@code rock}, among {@code biomes}. */
-	StructureSketch(ServerLevel level, Ground ground, BlockState rock, BiomeResolver biomes) {
+	/** A sketch of {@code level} over {@code ground}, made of {@code rock}, among {@code biomes}. */
+	FarSketch(ServerLevel level, Ground ground, BlockState rock, BiomeResolver biomes) {
+		this(level, level, level.getSeaLevel(), level.getSeed(), ground, null, rock, biomes);
+	}
+
+	/**
+	 * A sketch as high as {@code heights} over {@code ground}, made of {@code rock} under {@code soil}, or of rock
+	 * alone without one, among {@code biomes}. Without a {@code level}, what only a world can answer throws.
+	 */
+	FarSketch(@Nullable ServerLevel level, LevelHeightAccessor heights, int seaLevel, long seed, Ground ground,
+			  @Nullable Soil soil, BlockState rock, BiomeResolver biomes) {
 		this.level = level;
+		this.heights = heights;
+		this.seaLevel = seaLevel;
+		this.seed = seed;
 		this.ground = ground;
+		this.soil = soil;
 		this.rock = rock;
 		this.biomes = biomes;
-		this.biomeManager = new BiomeManager(biomes, BiomeManager.obfuscateSeed(level.getSeed()));
+		this.biomeManager = new BiomeManager(this, BiomeManager.obfuscateSeed(seed));
+		for (Heightmap.Types type : TYPES) {
+			if (type.keepAfterWorldgen()) {
+				Long2IntOpenHashMap heightmap = new Long2IntOpenHashMap();
+				heightmap.defaultReturnValue(Integer.MIN_VALUE);
+				raised[type.ordinal()] = heightmap;
+			}
+		}
+	}
+
+	/** Takes away the blocks placed, which leaves the bare ground. */
+	void clear() {
+		blocks.clear();
+		for (Long2IntOpenHashMap heightmap : raised) {
+			if (heightmap != null) {
+				heightmap.clear();
+			}
+		}
+	}
+
+	/** The blocks placed, by {@link BlockPos#asLong}. */
+	Long2ObjectMap<BlockState> blocks() {
+		return blocks;
 	}
 
 	/** The far view's land under column {@code (x, z)}. */
@@ -164,7 +222,27 @@ final class StructureSketch implements WorldGenLevel {
 			return placed;
 		}
 		Land land = land(pos.getX(), pos.getZ());
-		return pos.getY() <= land.ground() ? rock : pos.getY() <= land.water() ? WATER : AIR;
+		int y = pos.getY();
+		if (y < land.ground()) {
+			return rock;
+		}
+		if (y == land.ground()) {
+			return soil(pos.getX(), pos.getZ(), land);
+		}
+		return y <= land.water() ? WATER : AIR;
+	}
+
+	private BlockState soil(int x, int z, Land land) {
+		if (soil == null) {
+			return rock;
+		}
+		long key = ChunkPos.pack(x, z);
+		BlockState state = soils.get(key);
+		if (state == null) {
+			state = soil.at(x, z, land);
+			soils.put(key, state);
+		}
+		return state;
 	}
 
 	@Override
@@ -185,6 +263,13 @@ final class StructureSketch implements WorldGenLevel {
 	@Override
 	public boolean setBlock(BlockPos pos, BlockState state, int flags, int recursionLeft) {
 		blocks.put(pos.asLong(), state);
+		long column = ChunkPos.pack(pos.getX(), pos.getZ());
+		for (Heightmap.Types type : TYPES) {
+			Long2IntOpenHashMap heightmap = raised[type.ordinal()];
+			if (heightmap != null && pos.getY() >= heightmap.get(column) && type.isOpaque().test(state)) {
+				heightmap.put(column, pos.getY() + 1);
+			}
+		}
 		return true;
 	}
 
@@ -198,12 +283,17 @@ final class StructureSketch implements WorldGenLevel {
 		return !getBlockState(pos).isAir() && removeBlock(pos, false);
 	}
 
-	/** Over the ground, or over the water too but for the floor of the ocean, as the chunks' heightmaps have it. */
+	/**
+	 * Over the ground, or over the water too but for the floor of the ocean, as the chunks' heightmaps have it, and over
+	 * the blocks placed for those kept after worldgen.
+	 */
 	@Override
 	public int getHeight(Heightmap.Types type, int x, int z) {
 		Land land = land(x, z);
 		boolean floor = type == Heightmap.Types.OCEAN_FLOOR || type == Heightmap.Types.OCEAN_FLOOR_WG;
-		return (floor ? land.ground() : Math.max(land.ground(), land.water())) + 1;
+		int height = (floor ? land.ground() : Math.max(land.ground(), land.water())) + 1;
+		Long2IntOpenHashMap heightmap = raised[type.ordinal()];
+		return heightmap == null ? height : Math.max(height, heightmap.get(ChunkPos.pack(x, z)));
 	}
 
 	@Override
@@ -224,7 +314,7 @@ final class StructureSketch implements WorldGenLevel {
 	public ChunkAccess getChunk(int x, int z, ChunkStatus status, boolean loadOrGenerate) {
 		if (placeholder == null) {
 			placeholder = new ProtoChunk(ChunkPos.ZERO, UpgradeData.EMPTY,
-				LevelHeightAccessor.create(level.getMinY() - 16, 16), level.palettedContainerFactory(), null);
+				LevelHeightAccessor.create(getMinY() - 16, 16), world().palettedContainerFactory(), null);
 		}
 		return placeholder;
 	}
@@ -236,12 +326,18 @@ final class StructureSketch implements WorldGenLevel {
 
 	@Override
 	public Holder<Biome> getNoiseBiome(int quartX, int quartY, int quartZ) {
-		return biomes.getNoiseBiome(quartX, quartY, quartZ);
+		long key = BlockPos.asLong(quartX, quartY, quartZ);
+		Holder<Biome> biome = noiseBiomes.get(key);
+		if (biome == null) {
+			biome = biomes.getNoiseBiome(quartX, quartY, quartZ);
+			noiseBiomes.put(key, biome);
+		}
+		return biome;
 	}
 
 	@Override
 	public Holder<Biome> getUncachedNoiseBiome(int quartX, int quartY, int quartZ) {
-		return biomes.getNoiseBiome(quartX, quartY, quartZ);
+		return getNoiseBiome(quartX, quartY, quartZ);
 	}
 
 	@Override
@@ -251,17 +347,25 @@ final class StructureSketch implements WorldGenLevel {
 
 	@Override
 	public ServerLevel getLevel() {
+		return world();
+	}
+
+	/** The world's level, which only a sketch of a world has. */
+	private ServerLevel world() {
+		if (level == null) {
+			throw new UnsupportedOperationException("A sketch of no world");
+		}
 		return level;
 	}
 
 	@Override
 	public long getSeed() {
-		return level.getSeed();
+		return seed;
 	}
 
 	@Override
 	public DifficultyInstance getCurrentDifficultyAt(BlockPos pos) {
-		return new DifficultyInstance(level.getDifficulty(), 0L, 0L, 0f);
+		return new DifficultyInstance(world().getDifficulty(), 0L, 0L, 0f);
 	}
 
 	@Override
@@ -271,62 +375,62 @@ final class StructureSketch implements WorldGenLevel {
 
 	@Override
 	public int getMinY() {
-		return level.getMinY();
+		return heights.getMinY();
 	}
 
 	@Override
 	public int getHeight() {
-		return level.getHeight();
+		return heights.getHeight();
 	}
 
 	@Override
 	public int getSeaLevel() {
-		return level.getSeaLevel();
+		return seaLevel;
 	}
 
 	@Override
 	public DimensionType dimensionType() {
-		return level.dimensionType();
+		return world().dimensionType();
 	}
 
 	@Override
 	public RegistryAccess registryAccess() {
-		return level.registryAccess();
+		return world().registryAccess();
 	}
 
 	@Override
 	public FeatureFlagSet enabledFeatures() {
-		return level.enabledFeatures();
+		return world().enabledFeatures();
 	}
 
 	@Override
 	public EnvironmentAttributeReader environmentAttributes() {
-		return level.environmentAttributes();
+		return world().environmentAttributes();
 	}
 
 	@Override
 	public LevelData getLevelData() {
-		return level.getLevelData();
+		return world().getLevelData();
 	}
 
 	@Override
 	public MinecraftServer getServer() {
-		return level.getServer();
+		return world().getServer();
 	}
 
 	@Override
 	public ChunkSource getChunkSource() {
-		return level.getChunkSource();
+		return world().getChunkSource();
 	}
 
 	@Override
 	public LevelLightEngine getLightEngine() {
-		return level.getLightEngine();
+		return world().getLightEngine();
 	}
 
 	@Override
 	public WorldBorder getWorldBorder() {
-		return level.getWorldBorder();
+		return world().getWorldBorder();
 	}
 
 	@Override
