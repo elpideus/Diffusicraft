@@ -49,6 +49,8 @@ tallest dimension Minecraft can hold once Diffusicraft lifts its limits (see [HE
 plateaus; the Vanilla size keeps vanilla's. Vanilla's clouds are drawn as many times larger as they float higher above
 the sea than vanilla's, 36 times at Ultra (`client.clouds.CloudScale`), cells, reach and fog alike, so that from the
 ground they look as they do in the overworld and reach as far towards the horizon; the far plane moves out to their end.
+Under a shader pack, Bliss's and Complementary's clouds rise with them (see
+[COMPATIBILITY.md](COMPATIBILITY.md#shaders)).
 
 A world type that needs the models cannot be created until they are downloaded. Pressing Create opens the resource
 screen instead. A dedicated server downloads them at startup, and generation waits for the download.

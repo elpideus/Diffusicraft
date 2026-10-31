@@ -92,6 +92,12 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `far_terrain.fsh` repeat the distance test of `TraversableTree` (a cylinder from the camera itself) and the
     distance `RenderSectionManager.getSearchDistance` picks from the fog, which Sodium reads at the return of
     `FogRenderer.setupFog`, after our `FogRendererMixin` (priority 900). Check them on every Sodium update.
+  - shader packs (`client/mixin/shaderpack`, applied whenever Iris is installed): the head of
+    `JcppProcessor.glslPreprocessSource`, where `client.compat.iris.BlissClouds` rewrites Bliss's
+    `#define CloudLayer[012]_height` and `ComplementaryClouds` Complementary's `float thresholdF = 4000.0;` (the reach
+    of its clouds, in `lib/atmospherics/clouds/mainClouds.glsl`, read with its `cloudHeightM`), and the call to
+    `uniform1f` with a `DoubleSupplier` (`cloudHeight`) in `IrisExclusiveUniforms$WorldInfoUniforms.addWorldInfoUniforms`.
+    Check them on every Iris, Bliss or Complementary update.
   - Iris (`client/mixin/iris`, applied only when it is installed and Distant Horizons is not): the static
     `StandardMacros.createStandardEnvironmentDefines` (where `DISTANT_HORIZONS` is defined), the `DHCompat` methods
     `checkFrame`, `hasRenderingEnabled`, `getNearPlane`, `getFarPlane`, `getRenderDistance`, `getProjection()`,

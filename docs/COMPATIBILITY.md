@@ -293,6 +293,28 @@ terrain is drawn through the same programs, so the pack shades it as it would Di
 `dh_shadow` program, so it casts shadows as Distant Horizons' does. It casts even in packs that keep Distant Horizons
 out of their shadow map, as Bliss does by default, so that its caves within the shadow's reach stay dark.
 
+**Clouds.** Bliss and Complementary turn vanilla's clouds off and draw their own, which have to rise with a
+Diffusicraft world's (see [WORLDGEN.md](WORLDGEN.md#world-types)):
+
+- Complementary flies its clouds at the height Iris's `cloudHeight` uniform gives. Iris builds a pack's pipeline at the
+  title screen, before any level is loaded, and the uniform then stays at vanilla's 192 until the pack is reloaded;
+  `client.mixin.shaderpack.WorldInfoUniformsMixin` has it read the height of the clouds where the camera is, every
+  frame. That also gives Bliss the height it needs.
+- Bliss flies its three layers at heights of its own (`CloudLayer0_height` to `CloudLayer2_height`, 250, 500 and 2000
+  by default), whatever the dimension. `client.compat.iris.BlissClouds` raises each by as much as the dimension raises
+  its clouds above vanilla's.
+- Complementary draws no clouds farther than 4000 blocks across the ground and fades them out towards there, which at
+  Ultra would cut its clouds off 49° above the horizon and leave the sky empty from the ground.
+  `client.compat.iris.ComplementaryClouds` grows that reach as `CloudScale` grows vanilla's clouds, so that they end
+  as close to the horizon as they do in the overworld. Complementary keeps its clouds' own size, so at Ultra they show
+  from the ground as a high, fine layer; its cloud size option (`CLOUD_UNBOUND_SIZE_MULT`) grows them.
+
+Both patches rewrite the packs' sources as Iris preprocesses them (`client.mixin.shaderpack.JcppProcessorMixin`), and
+change nothing in vanilla's dimensions. Under Xvfb's software renderer, `CloudsGameTest`
+(`-Pdiffusicraft.gametests=Clouds`) showed Complementary's clouds at y = 4678 in a dimension of the Ultra size's type,
+from the ground and from under them. Bliss compiled with its heights patched in all 39 programs that use them, but the
+software renderer draws none of Bliss's clouds, patched or not, so Bliss's raised clouds have not been seen yet.
+
 **Checking it.** `ShadersGameTest` turns a pack on, checks in a superflat world that Iris runs it and draws its shadow
 pass, and leaves it on for the game tests named after it (see
 [DEVELOPMENT.md](DEVELOPMENT.md#client-game-tests)). With Iris 1.11.7 and Sodium 0.9.3-beta.1 on an NVIDIA GPU:
@@ -304,7 +326,8 @@ pass, and leaves it on for the game tests named after it (see
   cliffs to the lit hollows underground, with Terrain Diffusion on CUDA beside it at a 4096 MB limit;
 - Bliss drew Distant Horizons' far terrain from a dedicated server (`-Pdiffusicraft.gametests=DistantHorizonsServer`,
   Distant Horizons on both sides): the client held all its LODs after 35 s, and the forest runs on past the chunks to
-  the horizon. The test's view from 480 blocks up is inside Bliss's second layer of clouds, at y = 500 by default;
+  the horizon. The test's view from 480 blocks up was inside Bliss's second layer of clouds, at y = 500 by default,
+  before its layers rose with a Diffusicraft world's clouds (see Clouds above);
 - Bliss and Complementary Unbound r5.9.3
   (`-PdevMods=sodium,iris,complementary-unbound -Pdiffusicraft.shaderPack=complementary-unbound.zip`) shaded
   Diffusicraft's own far terrain, without Distant Horizons (`Shaders,FarTerrain`): the sea cliffs, the sea to the
