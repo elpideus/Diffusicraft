@@ -19,14 +19,15 @@ NS = "diffusicraft"
 SEA_LEVEL = 63
 
 # The world sizes, from 1:32 to 1:1. name: (min_y, height, dimension type, highest surface the size can reach,
-# cloud height or None). The clouds float about 600 m above the sea, in the size's exaggerated heights.
+# cloud height or None). The clouds float about 3000 m above the sea, in the size's exaggerated heights, over all but
+# the highest plateaus; the client draws vanilla's clouds that much larger (client.clouds.CloudScale).
 SCALES = {
     "vanilla": (-64, 384, "minecraft:overworld", 303, None),
-    "medium": (-256, 1536, f"{NS}:medium", 1163, 192.33),
-    "large": (-256, 2560, f"{NS}:large", 2213, 234.33),
-    "grand": (-256, 4096, f"{NS}:grand", 3763, 363.33),
-    "extreme": (-256, 8448, f"{NS}:extreme", 7863, 585.33),
-    "ultra": (-256, 16624, f"{NS}:ultra", 15863, 986.33),
+    "medium": (-256, 1536, f"{NS}:medium", 1163, 532.33),
+    "large": (-256, 2560, f"{NS}:large", 2213, 920.33),
+    "grand": (-256, 4096, f"{NS}:grand", 3763, 1563.33),
+    "extreme": (-256, 8448, f"{NS}:extreme", 7863, 2672.33),
+    "ultra": (-256, 16624, f"{NS}:ultra", 15863, 4678.33),
 }
 # The size a new world starts with, and the only one listed among the world types. The Create World screen picks the
 # others with its size slider.
