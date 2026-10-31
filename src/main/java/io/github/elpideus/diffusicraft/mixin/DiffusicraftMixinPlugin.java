@@ -21,6 +21,7 @@ public final class DiffusicraftMixinPlugin implements IMixinConfigPlugin {
 		PACKAGE + "mixin.dh.", "distanthorizons",
 		PACKAGE + "mixin.tectonic.", "tectonic",
 		PACKAGE + "client.mixin.iris.", "iris",
+		PACKAGE + "client.mixin.shaderpack.", "iris",
 		PACKAGE + "client.mixin.sodium.", "sodium",
 		PACKAGE + "client.mixin.voxy.", "voxy");
 	/**

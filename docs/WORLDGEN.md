@@ -29,11 +29,11 @@ listed among the world types. On a dedicated server, set `level-type` to the siz
 | Size | `level-type` | Horizontal | Heights exaggerated | Build height | Clouds |
 |---|---|---|---|---|---|
 | Vanilla (1:32) | `diffusicraft:vanilla` | 32 m per block | 3 times, eased above 1.3 km | −64 to 319 (vanilla's) | y = 192 |
-| Medium (1:16) | `diffusicraft:medium` | 16 m per block | 2.5 times, eased above 4.8 km | −256 to 1279 | y = 192 |
-| Large (1:8) | `diffusicraft:large` | 8 m per block | 2.3 times, eased above 5.6 km | −256 to 2303 | y = 234 |
-| Grand (1:4) | `diffusicraft:grand` | 4 m per block | 2 times, eased above 6 km | −256 to 3839 | y = 363 |
-| Extreme (1:2) | `diffusicraft:extreme` | 2 m per block | 1.7 times, eased above 6.3 km | −256 to 8191 | y = 585 |
-| **Ultra (1:1)**, the default | `diffusicraft:ultra` | 1 m per block | 1.5 times, eased above 6.5 km | −256 to 16,367 | y = 986 |
+| Medium (1:16) | `diffusicraft:medium` | 16 m per block | 2.5 times, eased above 4.8 km | −256 to 1279 | y = 532 |
+| Large (1:8) | `diffusicraft:large` | 8 m per block | 2.3 times, eased above 5.6 km | −256 to 2303 | y = 920 |
+| Grand (1:4) | `diffusicraft:grand` | 4 m per block | 2 times, eased above 6 km | −256 to 3839 | y = 1563 |
+| Extreme (1:2) | `diffusicraft:extreme` | 2 m per block | 1.7 times, eased above 6.3 km | −256 to 8191 | y = 2672 |
+| **Ultra (1:1)**, the default | `diffusicraft:ultra` | 1 m per block | 1.5 times, eased above 6.5 km | −256 to 16,367 | y = 4678 |
 
 **Picking a size.** While Diffusicraft is the world type, a size slider takes the place of "Customize" in the World tab
 of the Create World screen (`client.mixin.CreateWorldScreenWorldTabMixin`, `client.worldgen.WorldSizeSlider`). Drag
@@ -43,8 +43,14 @@ high its mountains reach.
 Grand is the tallest world that Distant Horizons and Voxy hold whole; in the two above it they cut the highest ground
 flat in the far terrain (see [COMPATIBILITY.md](COMPATIBILITY.md#warnings)). With either mod installed, the slider turns
 yellow on those sizes, its tooltip says what the mod will do, and Create asks before it makes the world. Ultra fills the
-tallest dimension Minecraft can hold once Diffusicraft lifts its limits (see [HEIGHT.md](HEIGHT.md)). The clouds float
-about 600 m above the sea, in each size's heights, and never below vanilla's.
+tallest dimension Minecraft can hold once Diffusicraft lifts its limits (see [HEIGHT.md](HEIGHT.md)).
+
+**Clouds.** The clouds float about 3000 m above the sea, in each size's exaggerated heights, over all but the highest
+plateaus; the Vanilla size keeps vanilla's. Vanilla's clouds are drawn as many times larger as they float higher above
+the sea than vanilla's, 36 times at Ultra (`client.clouds.CloudScale`), cells, reach and fog alike, so that from the
+ground they look as they do in the overworld and reach as far towards the horizon; the far plane moves out to their end.
+Under a shader pack, Bliss's and Complementary's clouds rise with them (see
+[COMPATIBILITY.md](COMPATIBILITY.md#shaders)).
 
 A world type that needs the models cannot be created until they are downloaded. Pressing Create opens the resource
 screen instead. A dedicated server downloads them at startup, and generation waits for the download.

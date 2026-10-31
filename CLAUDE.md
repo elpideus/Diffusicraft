@@ -31,7 +31,10 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - client: `Gui.addInitialScreens`, `CreateWorldScreen$MoreTab.<init>`, `CreateWorldScreen$WorldTab.<init>` and its
     `customizeTypeButton`, `CreateWorldScreen.onCreate`, `WorldCreationUiState.<init>`, and for the far terrain
     (`client/mixin/lod`) the head of `LevelRenderer.addMainPass`, the tail of `LevelRenderer.executeSolid`, the first
-    `Math.max` in `Camera.update` (its far plane) and the return of `FogRenderer.setupFog`;
+    `Math.max` in `Camera.update` (its far plane) and the return of `FogRenderer.setupFog`, and for the clouds
+    (`client/mixin/clouds`) the drawing `CloudRenderer.prepare` (wrapped, named by its descriptor beside the one that
+    reloads the clouds) and its calls to `Std140Builder.putVec3`, the first write of `FogData.cloudEnd` in
+    `AtmosphericFogEnvironment.setupFog` and the same `Math.max` in `Camera.update`;
   - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
     the call to `Stream.collect` in `ChunkGeneratorStructureState.createForNormal` (where a Diffusicraft world's villages
@@ -89,6 +92,12 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `far_terrain.fsh` repeat the distance test of `TraversableTree` (a cylinder from the camera itself) and the
     distance `RenderSectionManager.getSearchDistance` picks from the fog, which Sodium reads at the return of
     `FogRenderer.setupFog`, after our `FogRendererMixin` (priority 900). Check them on every Sodium update.
+  - shader packs (`client/mixin/shaderpack`, applied whenever Iris is installed): the head of
+    `JcppProcessor.glslPreprocessSource`, where `client.compat.iris.BlissClouds` rewrites Bliss's
+    `#define CloudLayer[012]_height` and `ComplementaryClouds` Complementary's `float thresholdF = 4000.0;` (the reach
+    of its clouds, in `lib/atmospherics/clouds/mainClouds.glsl`, read with its `cloudHeightM`), and the call to
+    `uniform1f` with a `DoubleSupplier` (`cloudHeight`) in `IrisExclusiveUniforms$WorldInfoUniforms.addWorldInfoUniforms`.
+    Check them on every Iris, Bliss or Complementary update.
   - Iris (`client/mixin/iris`, applied only when it is installed and Distant Horizons is not): the static
     `StandardMacros.createStandardEnvironmentDefines` (where `DISTANT_HORIZONS` is defined), the `DHCompat` methods
     `checkFrame`, `hasRenderingEnabled`, `getNearPlane`, `getFarPlane`, `getRenderDistance`, `getProjection()`,
