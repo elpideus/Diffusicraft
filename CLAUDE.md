@@ -42,7 +42,9 @@ tools/benchmark.py vanilla-opengl performance   # real-time benchmark, off scree
     `WorldDimensions.checkStability` (which keeps a Diffusicraft dimension from counting as experimental), the heads of
     `ServerChunkCache.getChunk` and `hasChunk`, with `ServerPlayer.doTick`,
     `ServerGamePacketListenerImpl.handlePlayerPositionChange` and `ServerLevel.tickCustomSpawners` wrapped around them
-    (neither a player's own tick nor a spawner looking around one waits for a chunk), the synthetic
+    (neither a player's own tick nor a spawner looking around one waits for a chunk), as are the call to
+    `TimerQueue.tick` in `ServerLevel.tickTime` and the second call to `executeTagFunctions` in
+    `ServerFunctionManager.tick` (data packs' scheduled and tick functions, not their load functions), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
     the call to `Stream.collect` in `ChunkGeneratorStructureState.createForNormal` (where a Diffusicraft world's villages
     and pillager outposts take Diffusicraft's spreads),

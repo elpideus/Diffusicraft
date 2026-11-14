@@ -21,6 +21,7 @@
 		"RandomStateAccessor",
 		"RandomStateMixin",
 		"ServerChunkCacheMixin",
+		"ServerFunctionManagerMixin",
 		"ServerGamePacketListenerImplMixin",
 		"ServerLevelMixin",
 		"ServerPlayerMixin",

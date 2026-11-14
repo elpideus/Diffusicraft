@@ -12,10 +12,11 @@ import java.util.function.Supplier;
  * read waits for its chunk. A vanilla chunk comes in milliseconds, but here it may need the models: the server then
  * stands still for seconds after a teleport, and past a minute a dedicated server's watchdog ends it.
  *
- * <p>So while the server handles a player, or runs a spawner or a mod's check that looks around one (Lithostitched's
- * look for the structure a player stands in), a chunk that is not there reads as empty, as it does on that player's
- * client, which has no such chunk yet either. It counts as not loaded too, and a biome read from it sees plains for
- * that moment. The chunk itself comes in its turn, from the player's tickets.
+ * <p>So while the server handles a player, or runs what looks around one (a spawner, a function a data pack ticks or
+ * schedules, as Incendium's looks at each player's biome every second, or Lithostitched's look for the structure a
+ * player stands in), a chunk that is not there reads as empty, as it does on that player's client, which has no such
+ * chunk yet either. It counts as not loaded too, and a biome read from it sees plains for that moment. The chunk itself
+ * comes in its turn, from the player's tickets.
  *
  * <p>The far terrain's sketches keep off the server the same way. What grows in one may reach past it for the real
  * level, as a cat does to choose its coat among the structures around it and as a mod may for every tree, and off the
