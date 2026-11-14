@@ -19,7 +19,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Answers without waiting for a chunk while the server handles a player; see {@link UnloadedChunks}. */
+/**
+ * Answers without waiting for a chunk while the server handles a player or a thread sketches far terrain; see
+ * {@link UnloadedChunks}.
+ */
 @Mixin(ServerChunkCache.class)
 abstract class ServerChunkCacheMixin {
 	@Shadow
@@ -37,7 +40,8 @@ abstract class ServerChunkCacheMixin {
 
 	@Unique
 	private boolean diffusicraft$lenient() {
-		return Thread.currentThread() == mainThread && UnloadedChunks.lenient((ServerChunkCache) (Object) this);
+		return Thread.currentThread() == mainThread ? UnloadedChunks.lenient((ServerChunkCache) (Object) this)
+			: UnloadedChunks.sketching();
 	}
 
 	/** Vanilla says yes to a chunk with a ticket, however far from finished, and whoever asked then reads it. */

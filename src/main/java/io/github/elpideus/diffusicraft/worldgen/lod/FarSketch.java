@@ -65,6 +65,9 @@ import java.util.function.Predicate;
  * clear of each other. As in a chunk being decorated, the heightmaps kept after worldgen rise over the blocks placed
  * (they never sink again), and the worldgen ones stay at the ground. Entities, block entities and ticks are dropped.
  *
+ * <p>{@link #getLevel} gives the world's real level, which whatever is placed may go on to read. So everything placed
+ * in a sketch runs inside {@link io.github.elpideus.diffusicraft.worldgen.UnloadedChunks#sketching}.
+ *
  * <p>Not thread-safe: each grid places its structures and its trees in sketches of its own.
  */
 final class FarSketch implements WorldGenLevel {

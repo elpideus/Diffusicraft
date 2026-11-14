@@ -146,6 +146,13 @@ generates: it stands on the far ground, which lacks the ledges and gullies, and 
 away round some structures. Rough grids show no structures, so the starts kept are all made on the finished
 terrain. A structure that fails to place in a sketch is left out with one
 warning in the log.
+
+A `FarSketch` gives the real level to whatever calls `getLevel`, as features and templates expect. A mod that reads a
+chunk through it would stop the worker on the server's thread, and with it the tick: Villages & Pillages does for
+every tree, and vanilla's cats for the structure they spawn in. So everything placed in a sketch runs inside
+`UnloadedChunks.sketching`, where every chunk that is not loaded reads as empty instead. Such a check then finds
+nothing, so that a far tree may stand in a village where the real chunk has none.
+
 Vanilla caches a template's blocks by kind in a map that only one thread was meant to fill at a time. The far
 terrain's workers place pieces beside the chunks' own, so `StructureTemplatePaletteMixin` makes that map a concurrent
 one: before, two threads filling it at once threw, and could have thrown in the chunks' generation.

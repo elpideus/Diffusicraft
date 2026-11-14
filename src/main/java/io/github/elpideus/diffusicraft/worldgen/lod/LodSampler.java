@@ -5,6 +5,7 @@ import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
+import io.github.elpideus.diffusicraft.worldgen.UnloadedChunks;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeWorld;
 import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
@@ -432,11 +433,13 @@ public final class LodSampler {
 			TreeCover.Crown crown = new TreeCover.Crown();
 			GreatTrees.Stand giants = greatTrees == null ? null : greatTrees.stand(this::dryGround, biomes);
 			FarTrees.Crowns crowns = farTrees == null || terrain == null || step > FarTrees.MAX_STEP ? null
-				: farTrees.grow(minX, minZ, width, step, this::fineLand, this::soil, defaultBlock, biomes);
+				: UnloadedChunks.sketching(() ->
+					farTrees.grow(minX, minZ, width, step, this::fineLand, this::soil, defaultBlock, biomes));
 			// Only over the full terrain with its rivers, which the starts kept for later grids are made on.
 			FarStructures.Cell[] built = structures == null || rivers == null || terrain == null
 				|| step > FarStructures.MAX_STEP ? null
-				: structures.sketch(minX, minZ, width, step, this::land, biomes, defaultBlock);
+				: UnloadedChunks.sketching(() ->
+					structures.sketch(minX, minZ, width, step, this::land, biomes, defaultBlock));
 			FarHollows caves = step > CAVE_STEP ? null : new FarHollows(world, minY, this::hollowsSurface,
 				block(minX, 0), block(minZ, 0), block(minX, width - 1), block(minZ, width - 1));
 
