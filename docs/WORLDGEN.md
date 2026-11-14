@@ -8,8 +8,7 @@ step added. Several things work unchanged because of this:
 - structures and structure mods, though the villages and pillager outposts stand further apart
   ([below](#villages-and-outposts));
 - biome mods (TerraBlender, Biolith, Lithostitched and the mods built on them), whose biomes take the regions of the
-  world open to them ([below](#other-mods-biomes));
-- C2ME's parallel generation.
+  world open to them ([below](#other-mods-biomes)).
 
 Distant Horizons gets a generator of its own that reads the terrain without building chunks; see
 [COMPATIBILITY.md](COMPATIBILITY.md#distant-horizons).

@@ -23,7 +23,7 @@ project directly, and Loom generates run configurations.
 - **Directories.** The client runs in `run/` and the server (`./gradlew runServer`) in `run-server/`. Both are
   gitignored.
 - **Dev modpack.** The client starts with the dev modpack: Sodium, Iris, Distant Horizons and SeedGen, Biomes O'
-  Plenty with TerraBlender, C2ME, Lithium, Mod Menu and others. These are the compatibility targets. The list is in
+  Plenty with TerraBlender, Lithium, Mod Menu and others. These are the compatibility targets. The list is in
   [`gradle/dev-mods.gradle`](../gradle/dev-mods.gradle), pinned by Modrinth version id.
 - **Licensing.** Dev mods are `localRuntime` only: never compiled against, never bundled, never a dependency. Some
   are All Rights Reserved and can only ever be used this way. The optional integrations, Mod Menu and the Distant
@@ -43,9 +43,9 @@ project directly, and Loom generates run configurations.
   terrain mods of [MOD_SURVEY.md](MOD_SURVEY.md) that work with Diffusicraft on 26.3, with their libraries: Terralith
   and Tectonic (`lithostitched`), Wilder Wild (`frozenlib`), Terrestria, Promenade, Climate Rivers (`lithostitched`,
   `puzzles-lib`, `forge-config-api-port`), William Wythers' Overhauled Overworld (`wwoo`, with `cristel-lib` and
-  `cloth-config`), Ecologics and Geophilic. Wilder Wild does not start beside C2ME (`c2me-fabric`) or Lithium, both in
-  the modpack: in a development run FrozenLib loads Minecraft's `CompoundTag` from Wilder Wild's mixin plugin, before
-  their mixins into it apply, so leave those two out to try it.
+  `cloth-config`), Ecologics and Geophilic. Wilder Wild does not start beside Lithium, which is in the modpack: in a
+  development run FrozenLib loads Minecraft's `CompoundTag` from Wilder Wild's mixin plugin, before Lithium's mixins
+  into it apply, so leave Lithium out to try it.
 - **Shader packs.** Named in `-PdevMods` as well, the packs under `devShaderPacks`, Bliss
   (`-PdevMods=sodium,iris,bliss-shader`) and Complementary Unbound (`complementary-unbound`), go into the client's
   `shaderpacks` folder as `<slug>.zip`. Like the mods, they are pinned by Modrinth version id and never leave the dev

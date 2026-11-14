@@ -2,7 +2,8 @@
 
 Diffusicraft generates the overworld with Minecraft's own `NoiseBasedChunkGenerator` and multi-noise biome source,
 fed by Terrain Diffusion (see [WORLDGEN.md](WORLDGEN.md)). Anything that works with those works with Diffusicraft
-unless it replaces the overworld's generator itself. This page lists what has been checked, what Diffusicraft does
+unless it replaces the overworld's generator itself, or changes how chunks are generated, loaded or lit: those mods
+are [refused](#incompatible-mods). This page lists what has been checked, what Diffusicraft does
 for each mod, and what is still open.
 
 | Mod | Status | What Diffusicraft does |
@@ -17,7 +18,7 @@ for each mod, and what is still open.
 | [Tectonic](#biome-mods) 3.0.32 | Works, checked in game | Keeps it from changing the terrain or blending chunks: it changes nothing |
 | [Terrestria](#biome-mods) 8.2.0-alpha.1, Promenade 6.0.2 (Biolith) | Works, checked in game | Their biomes take the open regions, with their ground and Terrestria's landforms |
 | [Wilder Wild](#biome-mods) 4.3.3, FrozenLib 3.0.3 | Works, checked in game, with and without Biolith | Its biomes take the open regions; its moves of vanilla's biomes stay out |
-| C2ME 0.4.2-alpha.0.106+26.3 | Works, checked in game | Nothing: the terrain pipeline is thread-safe. The client game test passes with it (`-PdevMods=c2me-fabric`), LODs, rivers and lakes included, in well under half the time |
+| [C2ME, Moonrise and other chunk mods](#incompatible-mods) | Incompatible | The game stops as it starts and names the mods to remove |
 | [Tech Reborn](#tech-mods) 6.2.0 | Works, checked in game | The geology's ore bodies hold its tin, lead, silver, uranium, rubies, sapphires and the rest in their host rocks, and its bauxite lies in tropical laterite |
 | Create, Mekanism, other tech mods | Should work: not checked | The same for any ore under the common tags `c:ores/<metal>` |
 | [Sodium](#sodium) 0.9.3-beta.1 | Works, checked in game | Lets it build sections at every height of a tall dimension; inference leaves it GPU memory |
@@ -37,6 +38,48 @@ shows the highest ground cut flat, while the chunks around the player are whole 
 - entering a level taller than they hold, in any world or on any server, says it once in the chat, per level and
   connection (checked in game with Distant Horizons on Ultra, by `UltraWorldGameTest`);
 - a server that hands Distant Horizons Diffusicraft's generator logs it for each such level.
+
+## Incompatible mods
+
+Diffusicraft generates, loads and lights chunks in ways of its own: a chunk can wait on the models, a player must not
+wait on a chunk, and the light engine and the generator's rules are patched for tall worlds. Mods that rewrite the
+same machinery get in the way of that, so they are not supported at all: with one installed the game stops before
+Minecraft loads, says which mods to remove, and names the file of each. A client shows it in a window, a dedicated
+server in its log.
+
+| Mod | Mod id | What it changes |
+|---|---|---|
+| C2ME | `c2me` | The chunk system, chunk I/O, the light engine and parts of generation |
+| Moonrise | `moonrise` | The chunk system and the light engine |
+| ScalableLux | `scalablelux` | The light engine |
+| Very Many Players | `vmp` | How the server tracks players and sends chunks |
+| ServerCore | `servercore` | The view distance, chunk tickets and chunk ticking, while the server runs |
+| Ksyxis | `ksyxis` | Removes the loading of the spawn chunks |
+| Structure Layout Optimizer | `structure_layout_optimizer` | How jigsaw structures are laid out |
+| Fast Noise and its companions | `zfastnoise`, `zfastsurface`, `zmatcomp` | How noise, surfaces and materials are computed |
+
+Leaving C2ME out costs the `performance` environment nothing: the 99th percentile frame at the spawn was 15.6 ms with it
+and 7.3 ms without, and the frames per second after a teleport 442 and 697, with other fixes between the two runs (see
+[PERFORMANCE.md](PERFORMANCE.md#real-time-benchmark)).
+
+**How it works.** The list is `conflicts` in `fabric.mod.json`, which Fabric Loader itself only warns about.
+`compat.IncompatibleMods` reads it at pre-launch and stops the game. `breaks` would stop it as well, but Fabric Loader
+then gives no reason and suggests replacing Diffusicraft. The window is drawn by `FabricGuiEntry` and `FabricStatusTree`,
+Fabric Loader's internals: check them on a Loader update. To test it, run a dedicated server with a mod from the list
+(`fabric.addMods` adds one), or a client under Xvfb.
+
+**Adding a mod.** Read what its mixins target first, then add its id under `conflicts` with `"*"`. The id is the one in
+the mod's own `fabric.mod.json`, which is not always its Modrinth slug. Noisium, Starlight, Dimensional Threading and
+FastLoad would belong here but had no build for Minecraft 26.3 when this list was made, so they are not on it.
+
+**What stays allowed:**
+
+- Lithium, although it reaches into `ServerChunkCache`, `ChunkHolder`, `GenerationChunkHolder` and
+  `NoiseBasedChunkGenerator`: those mixins speed up lookups and cache settings, and the benchmark's whole route runs
+  with it;
+- FerriteCore and Sodium, which only touch `PalettedContainer`;
+- pregenerators such as Chunky, which ask for chunks through the normal pipeline;
+- the compatibility libraries the biome mods need, such as Lithostitched, TerraBlender, FrozenLib and Biolith.
 
 ## Distant Horizons
 

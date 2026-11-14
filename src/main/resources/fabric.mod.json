@@ -43,6 +43,18 @@
 		"java": ">=25",
 		"fabric-api": "*"
 	},
+	"conflicts": {
+		"c2me": "*",
+		"ksyxis": "*",
+		"moonrise": "*",
+		"scalablelux": "*",
+		"servercore": "*",
+		"structure_layout_optimizer": "*",
+		"vmp": "*",
+		"zfastnoise": "*",
+		"zfastsurface": "*",
+		"zmatcomp": "*"
+	},
 	"suggests": {
 		"distant-horizons-seedgen": "*",
 		"voxy-seedgen": "*"
