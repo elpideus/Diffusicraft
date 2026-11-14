@@ -90,7 +90,15 @@ public final class AirSections {
 		return section.hasOnlyAir() && !section.getStates().maybeHas(state -> !state.is(Blocks.AIR));
 	}
 
+	/** Whether both hold the same biomes. This runs on the server thread for most of the sections of every saved chunk. */
 	private static boolean same(PalettedContainerRO<Holder<Biome>> a, PalettedContainerRO<Holder<Biome>> b) {
+		Holder<Biome> first = a.get(0, 0, 0);
+		if (!a.maybeHas(biome -> biome != first)) {
+			// One biome throughout, as nearly all of the sky is, shows in the palettes.
+			if (!b.maybeHas(biome -> biome != first)) {
+				return true;
+			}
+		}
 		for (int y = 0; y < 4; y++) {
 			for (int z = 0; z < 4; z++) {
 				for (int x = 0; x < 4; x++) {
