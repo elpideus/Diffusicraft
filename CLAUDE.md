@@ -88,7 +88,8 @@ tools/benchmark.py vanilla-opengl performance   # real-time benchmark, off scree
     Biolith wraps to run its surface builders, the call to `Holder.unwrapKey` in `BiomeCoordinator.handleWorldStarting`,
     its `SurfaceRuleCollector.OVERWORLD.getAllBootstrapped`, read by reflection in `compat.biolith.BiolithRules`, and
     `biolith$getDimensionType`, the method Biolith adds to every biome source, which `ClimateBiomeSource` overrides.
-    Check them on every update of either mod.
+    Lithostitched (`mixin/lithostitched`): its static `StructureAttributeHandler.tick(ServerLevel)`, wrapped so that its
+    look for the structure each player stands in never waits for a chunk. Check them on every update of these mods.
   - Voxy (`client/mixin/voxy`, applied only when it is installed): the `new RenderDistanceTracker` in
     `VoxyRenderSystem.<init>`, `WorldUpdater.insertUpdate`, the call to `SectionLoader.load` in
     `ActiveSectionTracker.acquire(long, boolean)`, the private `VoxyInstance.createWorld`, the interface added to

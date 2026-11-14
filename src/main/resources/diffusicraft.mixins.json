@@ -46,6 +46,7 @@
 		"height.SingleValuePaletteAccessor",
 		"height.StrategyMixin",
 		"height.WorldBorderMixin",
+		"lithostitched.StructureAttributeHandlerMixin",
 		"tectonic.SerializableChunkDataMixin"
 	],
 	"injectors": {
