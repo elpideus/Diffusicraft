@@ -21,6 +21,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -43,9 +44,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
 import net.minecraft.client.gui.components.debug.DebugScreenEntries;
 import net.minecraft.client.gui.components.debug.DebugScreenEntry;
+import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -84,9 +87,13 @@ public final class FarTerrain {
 	private static final int BUILDS_IN_FLIGHT = 6;
 	/** How long to wait before asking again to refine a rough tile whose terrain was not ready. */
 	private static final long REFINE_MILLIS = 1000;
+	/** How often to look for rough tiles whose ground has changed for the terrain computed around them. */
+	private static final long REGROUND_MILLIS = 1000;
 	/** Most bytes of vertices uploaded in a frame, so that a burst of tiles does not stall it. */
 	private static final int UPLOAD_BUDGET = 4 << 20;
-	private static final ExecutorService WORKERS = Executors.newFixedThreadPool(2, Thread.ofPlatform()
+	/** Enough threads to keep up with a player at a sprint, and few enough to leave the chunks' threads theirs. */
+	private static final ExecutorService WORKERS = Executors.newFixedThreadPool(
+		Math.clamp(Runtime.getRuntime().availableProcessors() / 4, 2, 4), Thread.ofPlatform()
 		.name("Diffusicraft far terrain ", 0).daemon().priority(Thread.MIN_PRIORITY).factory());
 	private static final AtomicBoolean WARNED = new AtomicBoolean();
 	/** Whether the far terrain can be drawn at all: Distant Horizons and Voxy draw their own. */
@@ -123,11 +130,15 @@ public final class FarTerrain {
 	private final Set<LodTiles.Tile> stale = new HashSet<>();
 	private final Set<LodTiles.Tile> rebuild = new LinkedHashSet<>();
 	private final ArrayDeque<LodTiles.Tile> missing = new ArrayDeque<>();
-	/** Tiles built rough ({@link LodGrid#rough}), to be refined one at a time, nearest first. */
-	private final Set<LodTiles.Tile> rough = new HashSet<>();
+	/**
+	 * Tiles built rough ({@link LodGrid#rough}), to be refined one at a time, nearest first, with what
+	 * {@link Source#computed} said of each as it was built.
+	 */
+	private final Map<LodTiles.Tile, Long> rough = new HashMap<>();
 	/** Whether a rough tile is being refined. */
 	private boolean refining;
 	private long refineAfter;
+	private long regroundAfter;
 	/** The tiles drawn in this frame, nearest first. */
 	private final List<FarMesh> drawn = new ArrayList<>();
 	/** The tiles that may cast shadows in this frame under a shader pack: those drawn, and those out of view. */
@@ -184,6 +195,21 @@ public final class FarTerrain {
 	public static int reach() {
 		FarTerrain terrain = current;
 		return terrain != null && terrain.source != null && terrain.source.serves() ? terrain.far : 0;
+	}
+
+	/** What the far terrain is up to, in a line, or null while it has no source. On the render thread. */
+	public static @Nullable String status() {
+		FarTerrain terrain = current;
+		Source source = terrain == null ? null : terrain.source;
+		if (source == null) {
+			return null;
+		}
+		LodStore store = source.store();
+		return String.format(Locale.ROOT,
+			"Far terrain: %d tiles, %d drawn, %d rough, %d missing, %d to build again, %.1f MiB, %d chunks to store",
+			terrain.view.size(), terrain.drawn.size(), terrain.rough.size(),
+			terrain.missing.size() + terrain.building.size(), terrain.rebuild.size(),
+			FarMesh.allocated() / (double) (1 << 20), store == null ? 0 : store.backlog());
 	}
 
 	/**
@@ -338,6 +364,12 @@ public final class FarTerrain {
 			&& terrain.rebuild.isEmpty() && terrain.built.isEmpty();
 	}
 
+	/** How many tiles the far terrain wants for where the camera is and has not built, or -1 if it is off. */
+	public static int missing() {
+		FarTerrain terrain = current;
+		return terrain == null ? -1 : terrain.missing.size() + terrain.building.size();
+	}
+
 	/**
 	 * Gets the far terrain ready to draw in this frame: takes in the tiles built, chooses those to build, and writes
 	 * the uniforms. Called as the world's frame is put together, before any of its passes runs.
@@ -402,7 +434,7 @@ public final class FarTerrain {
 				tile.minBlockX() + tile.size(), mesh.maxY, tile.minBlockZ() + tile.size()));
 			// Out of view, only a shader pack's shadows draw the land. The shader would drop every fragment of a tile
 			// wholly within the sections the world draws.
-			if (!visible && !shaders || mask.covers(tile.minBlockX(), mesh.minY, tile.minBlockZ(),
+			if (!visible && !shaders || mask.covers(tile.minBlockX(), mesh.groundY, tile.minBlockZ(),
 				tile.minBlockX() + tile.size(), mesh.maxY, tile.minBlockZ() + tile.size())) {
 				continue;
 			}
@@ -587,7 +619,7 @@ public final class FarTerrain {
 			uploaded += done.data.bytes();
 			view.built(done.tile, done.data.upload(bottom));
 			if (done.rough) {
-				rough.add(done.tile);
+				rough.put(done.tile, done.computed);
 			} else {
 				rough.remove(done.tile);
 			}
@@ -601,16 +633,33 @@ public final class FarTerrain {
 		List<LodTiles.Tile> tiles = chooser.around(x, z, 0, far, DETAIL);
 		tiles.sort(Comparator.comparingDouble(tile -> LodTiles.distance(tile, x, z)));
 		missing.clear();
-		missing.addAll(view.want(tiles));
-		rough.removeIf(tile -> !view.wants(tile));
+		// The tiles under chunks that have come only fill in what those leave out, so all the others go first.
+		List<LodTiles.Tile> covered = new ArrayList<>();
+		for (LodTiles.Tile tile : view.want(tiles)) {
+			(arrived(tile) ? covered : missing).add(tile);
+		}
+		missing.addAll(covered);
+		rough.keySet().removeIf(tile -> !view.wants(tile));
+	}
+
+	/** Whether the chunks at the corners and in the middle of a tile have come. */
+	private boolean arrived(LodTiles.Tile tile) {
+		int minX = SectionPos.blockToSectionCoord(tile.minBlockX());
+		int minZ = SectionPos.blockToSectionCoord(tile.minBlockZ());
+		int maxX = SectionPos.blockToSectionCoord(tile.minBlockX() + tile.size() - 1);
+		int maxZ = SectionPos.blockToSectionCoord(tile.minBlockZ() + tile.size() - 1);
+		ClientChunkCache chunks = level.getChunkSource();
+		return chunks.hasChunk(minX, minZ) && chunks.hasChunk(maxX, minZ) && chunks.hasChunk(minX, maxZ)
+			&& chunks.hasChunk(maxX, maxZ) && chunks.hasChunk((minX + maxX) / 2, (minZ + maxZ) / 2);
 	}
 
 	/**
 	 * Builds the tiles wanted, rough where the terrain they need is not computed yet, so that the far terrain never
-	 * holds up chunk generation, and then refines those, one at a time, nearest first, as the terrain gets computed
-	 * while the models are idle ({@link LodGrid.Mode}).
+	 * holds up chunk generation, then builds those again as the terrain around them gets computed, and refines them,
+	 * one at a time, nearest first, as the terrain gets computed while the models are idle ({@link LodGrid.Mode}).
 	 */
 	private void dispatch(Source source, Vec3 at) {
+		reground(source);
 		while (building.size() < BUILDS_IN_FLIGHT) {
 			LodTiles.Tile tile = next();
 			if (tile == null) {
@@ -623,7 +672,7 @@ public final class FarTerrain {
 			return;
 		}
 		LodTiles.Tile nearest = null;
-		for (LodTiles.Tile tile : rough) {
+		for (LodTiles.Tile tile : rough.keySet()) {
 			if (nearest == null || LodTiles.distance(tile, at.x, at.z) < LodTiles.distance(nearest, at.x, at.z)) {
 				nearest = tile;
 			}
@@ -632,10 +681,29 @@ public final class FarTerrain {
 		build(source, nearest, LodGrid.Mode.REFINE);
 	}
 
+	/**
+	 * Marks the rough tiles to build again for the terrain computed since, by chunk generation or for a tile refined:
+	 * they meet it wherever it lies near them, so that a tile refined beside them does not stand apart from them.
+	 */
+	private void reground(Source source) {
+		long now = Util.getMillis();
+		if (now < regroundAfter || !missing.isEmpty() || !rebuild.isEmpty()) {
+			return;
+		}
+		regroundAfter = now + REGROUND_MILLIS;
+		rough.forEach((tile, computed) -> {
+			if (!building.contains(tile) && source.computed(tile) != computed) {
+				rebuild.add(tile);
+			}
+		});
+	}
+
 	private void build(Source source, LodTiles.Tile tile, LodGrid.Mode mode) {
 		building.add(tile);
 		int generation = this.generation;
 		boolean refine = mode == LodGrid.Mode.REFINE;
+		// Before the grid is sampled: terrain computed meanwhile only builds the tile once more.
+		long computed = source.computed(tile);
 		source.grid(tile, ceiling, mode)
 			.thenApplyAsync(grid -> grid == null ? null : new Written(FarMeshWriter.write(tile, grid, bottom, colors,
 				materials), grid.rough()), WORKERS)
@@ -644,20 +712,24 @@ public final class FarTerrain {
 					failed(error);
 				}
 				boolean done = error == null && written != null;
-				finished(new Built(generation, tile, done ? written.data : null, done && written.rough, refine));
+				finished(new Built(generation, tile, done ? written.data : null, done && written.rough, refine,
+					computed));
 			});
 	}
 
-	/** The next tile to build: those whose terrain changed first, then those missing, nearest first. */
+	/**
+	 * The next tile to build: those missing, in the order {@link #choose} put them, then those whose terrain changed.
+	 * Terrain changes where chunks are saved, under the chunks themselves, and that must not keep the view from filling.
+	 */
 	private LodTiles.@Nullable Tile next() {
-		while (!rebuild.isEmpty()) {
-			LodTiles.Tile tile = rebuild.iterator().next();
-			rebuild.remove(tile);
+		for (LodTiles.Tile tile; (tile = missing.poll()) != null; ) {
 			if (view.wants(tile) && !building.contains(tile)) {
 				return tile;
 			}
 		}
-		for (LodTiles.Tile tile; (tile = missing.poll()) != null; ) {
+		while (!rebuild.isEmpty()) {
+			LodTiles.Tile tile = rebuild.iterator().next();
+			rebuild.remove(tile);
 			if (view.wants(tile) && !building.contains(tile)) {
 				return tile;
 			}
@@ -712,26 +784,19 @@ public final class FarTerrain {
 		@Override
 		public void display(DebugScreenDisplayer displayer, @Nullable Level serverOrClientLevel,
 							@Nullable LevelChunk clientChunk, @Nullable LevelChunk serverChunk) {
-			FarTerrain terrain = current;
-			Source source = terrain == null ? null : terrain.source;
-			if (source == null) {
-				return;
-			}
-			LodStore store = source.store();
-			displayer.addLine(String.format(Locale.ROOT,
-				"Far terrain: %d tiles, %d drawn, %d rough, %d to build, %.1f MiB, %d chunks to store",
-				terrain.view.size(), terrain.drawn.size(), terrain.rough.size(),
-				terrain.missing.size() + terrain.rebuild.size() + terrain.building.size(),
-				FarMesh.allocated() / (double) (1 << 20), store == null ? 0 : store.backlog()));
-			if (terrain.shaders) {
-				displayer.addLine(String.format(Locale.ROOT, "Far terrain shadows: %d tiles", casters()));
+			String status = status();
+			if (status != null) {
+				displayer.addLine(status);
+				if (current.shaders) {
+					displayer.addLine(String.format(Locale.ROOT, "Far terrain shadows: %d tiles", casters()));
+				}
 			}
 		}
 	}
 
 	/** A tile built, if it was: {@code refine} if it was to be refined, and {@code rough} if it is still. */
 	private record Built(int generation, LodTiles.Tile tile, FarMesh.@Nullable Data data, boolean rough,
-						 boolean refine) {
+						 boolean refine, long computed) {
 	}
 
 	private record Written(FarMesh.Data data, boolean rough) {
@@ -752,6 +817,14 @@ public final class FarTerrain {
 
 		/** The grid of a tile, sampled in {@code mode}, or null if there is none to be had. */
 		abstract CompletableFuture<@Nullable LodGrid> grid(LodTiles.Tile tile, int ceiling, LodGrid.Mode mode);
+
+		/**
+		 * A number that changes as more of the terrain a rough grid of the tile reads gets computed, or that stays the
+		 * same where there is no telling. Cheap enough for the render thread.
+		 */
+		long computed(LodTiles.Tile tile) {
+			return 0L;
+		}
 
 		/** The store that keeps the chunks players changed or saw, if there is one. */
 		@Nullable LodStore store() {
@@ -797,6 +870,11 @@ public final class FarTerrain {
 					throw e;
 				}
 			}, WORKERS);
+		}
+
+		@Override
+		long computed(LodTiles.Tile tile) {
+			return sampler == null ? 0L : sampler.computed(tile.minBlockX(), tile.minBlockZ(), LodStore.PAGE, tile.step());
 		}
 
 		@Override

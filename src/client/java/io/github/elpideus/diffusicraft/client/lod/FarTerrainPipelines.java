@@ -23,8 +23,10 @@ import net.minecraft.resources.Identifier;
 public final class FarTerrainPipelines {
 	/**
 	 * A vertex, 16 bytes: its position from the tile's corner, X and Z in blocks and Y from the bottom of the level, with
-	 * its light as the sky light plus 16 times the block light; its colour; and, for shader packs, the Distant Horizons
-	 * material of its block ({@link FarMaterials}) and the {@link net.minecraft.core.Direction} its face looks to.
+	 * its light as the sky light plus 16 times the block light; its colour; the Distant Horizons material of its block
+	 * ({@link FarMaterials}) and the {@link net.minecraft.core.Direction} its face looks to, for shader packs too; and
+	 * how many blocks it stands over the foot of its face, up to 255, which is what the shaders darken as chunks darken
+	 * the foot of a slope.
 	 */
 	public static final VertexFormat VERTEX = VertexFormat.builder(0)
 		.addAttribute("Position", GpuFormat.RGBA16_UINT)

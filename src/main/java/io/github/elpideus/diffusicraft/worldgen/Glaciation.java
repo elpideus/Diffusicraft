@@ -182,6 +182,36 @@ public final class Glaciation implements TerrainSource {
 		return new TerrainSample(i0, j0, h, w, elevation, climate);
 	}
 
+	/**
+	 * The long fjords over native pixels {@code [i0, i0 + h) x [j0, j0 + w)}, for what stands in for the fine terrain
+	 * where it is not computed yet: they come from the coarse map alone. Null if none comes near the window.
+	 */
+	@Nullable Carving carving(int i0, int j0, int h, int w) {
+		int scale = source.coarseScale();
+		List<Fjords.Trough> troughs = fjords.near((double) i0 / scale, (double) j0 / scale, (double) (i0 + h) / scale,
+			(double) (j0 + w) / scale);
+		return troughs.isEmpty() ? null : new Carving(i0, j0, h, w, fjords.carve(troughs, scale, i0, j0, h, w));
+	}
+
+	/** The long fjords over a window of native pixels, as {@link #sample} sinks the fine terrain into them. */
+	public record Carving(int i0, int j0, int h, int w, float[] planes) {
+		/** Ground at {@code elevation}, in meters, at a native pixel coordinate, sunk into the troughs. */
+		public float sink(double i, double j, float elevation) {
+			int r = (int) Math.floor(i) - i0, c = (int) Math.floor(j) - j0;
+			if (r < 0 || r >= h || c < 0 || c >= w) {
+				return elevation;
+			}
+			int plane = h * w, px = r * w + c;
+			float beyond = planes[Fjords.BEYOND * plane + px];
+			if (beyond == Float.POSITIVE_INFINITY) {
+				return elevation;
+			}
+			float trough = planes[Fjords.FLOOR * plane + px]
+				+ Fjords.wall(Fjords.rough(beyond, planes[Fjords.ROUGH * plane + px]));
+			return trough >= elevation + Fjords.SMOOTH ? elevation : Fjords.smoothMin(elevation, trough);
+		}
+	}
+
 	/** Lowers the valleys of a window of the fine terrain where the coarse map's {@link #ice} reaches them. */
 	private static void valleys(float[] ice, int i0, int j0, int h, int w, int ci0, int cj0, int coarsePlane,
 								int width, int scale, float[] elevation, float[] climate, float @Nullable [] iceCut) {

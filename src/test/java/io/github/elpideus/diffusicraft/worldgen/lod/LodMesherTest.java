@@ -109,8 +109,8 @@ class LodMesherTest {
 		assertEquals(16, sides.size(), sides.toString());
 		for (Face face : sides) {
 			assertTrue(face.onBorder(8), face.toString());
-			// Two steps under the ground, down to where a coarser tile beside it may lie.
-			assertEquals(60, face.y0(), face.toString());
+			// Down to the bottom of the world: the tile beside it may stand any distance lower, built rough.
+			assertEquals(MIN_Y, face.y0(), face.toString());
 			assertEquals(64, face.y1(), face.toString());
 		}
 		assertEquals(List.of(), mesh.solid(Direction.DOWN));
@@ -151,23 +151,34 @@ class LodMesherTest {
 			new Face(Direction.EAST, 1, 60, 0, 1, 64, 1, stone, 15),
 			new Face(Direction.EAST, 1, 60, 1, 1, 64, 2, stone, 15)
 		), mesh.solidSides().stream().filter(face -> !face.onBorder(2)).toList());
-		// The top of the cliff, beside its foot along the northern edge, skirts down to under the foot.
-		assertTrue(mesh.solidSides().contains(new Face(Direction.NORTH, 0, 58, 0, 1, 64, 0, stone, 15)),
+		assertTrue(mesh.solidSides().contains(new Face(Direction.NORTH, 0, MIN_Y, 0, 1, 64, 0, stone, 15)),
 			mesh.solidSides().toString());
 	}
 
 	@Test
-	void aSkirtFollowsTheSlopeDownPastTheEdge() {
+	void lightFollowsTheSlopeDownPastTheEdgeOfATileWithCaves() {
 		// Ground falling 5 blocks a step towards the west: a coarser tile there may meet the edge 3 steps further down.
-		Mesh mesh = new Mesh(grid(3, column -> stone(70 + 5 * (column % 3))), 2);
-		List<Face> west = mesh.solid(Direction.WEST).stream().filter(face -> face.onBorder(6)).toList();
+		Mesh mesh = new Mesh(grid(3, column -> {
+			if (column != 4) {
+				return stone(70 + 5 * (column % 3));
+			}
+			LodColumn cave = new LodColumn();
+			cave.reset(plains);
+			cave.add(stone, MIN_Y, 40);
+			cave.add(caveAir, 40, 74);
+			cave.add(stone, 74, 75);
+			cave.markGround();
+			return cave;
+		}), 2);
+		List<Face> west = mesh.solid(Direction.WEST).stream().filter(face -> face.onBorder(6) && face.sky() == 15
+			&& face.y1() == 70).toList();
 		assertEquals(3, west.size(), west.toString());
 		for (Face face : west) {
 			assertEquals(70 - 3 * 5 - 2 * 2, face.y0(), face.toString());
-			assertEquals(70, face.y1(), face.toString());
 		}
-		// Uphill, towards the east, the skirt stays two steps under the ground.
-		List<Face> east = mesh.solid(Direction.EAST).stream().filter(face -> face.onBorder(6)).toList();
+		// Uphill, towards the east, it stays two steps under the ground.
+		List<Face> east = mesh.solid(Direction.EAST).stream().filter(face -> face.onBorder(6) && face.sky() == 15
+			&& face.y1() == 80).toList();
 		assertEquals(3, east.size(), east.toString());
 		for (Face face : east) {
 			assertEquals(80 - 2 * 2, face.y0(), face.toString());
@@ -187,8 +198,8 @@ class LodMesherTest {
 		List<Face> sides = mesh.solidSides();
 		assertEquals(16, sides.size(), sides.toString());
 		for (Face face : sides) {
-			// Skirts from two steps under the sea floor, as dark as it is.
-			assertEquals(42, face.y0(), face.toString());
+			// Skirts from the bottom of the world, as dark as the sea floor.
+			assertEquals(MIN_Y, face.y0(), face.toString());
 			assertEquals(50, face.y1(), face.toString());
 			assertEquals(2, face.sky(), face.toString());
 		}
@@ -208,9 +219,9 @@ class LodMesherTest {
 		), mesh.solid(Direction.UP));
 		assertEquals(List.of(new Face(Direction.DOWN, 0, 70, 0, 1, 70, 1, planks, LodMesher.SHADED)),
 			mesh.solid(Direction.DOWN));
-		// The skirts follow the ground, not the bridge over it.
+		// The bridge has no skirts of its own.
 		List<Face> sides = mesh.solidSides();
-		assertEquals(4, sides.stream().filter(face -> face.state() == stone && face.y0() == 62 && face.y1() == 64)
+		assertEquals(4, sides.stream().filter(face -> face.state() == stone && face.y0() == MIN_Y && face.y1() == 64)
 			.count(), sides.toString());
 		assertEquals(4, sides.stream().filter(face -> face.state() == planks && face.y0() == 70 && face.y1() == 71)
 			.count(), sides.toString());

@@ -11,7 +11,8 @@
 // X and Z in blocks from the tile's corner, Y from ChunkPosition.y, and the light: sky + 16 * block.
 layout(location = 0) in uvec4 Position;
 layout(location = 1) in vec4 Color;
-// The material of the block and the direction its face looks to, as Direction numbers it.
+// The material of the block, the direction its face looks to, as Direction numbers it, and how many blocks the vertex
+// stands over the foot of its face.
 layout(location = 2) in uvec4 Extra;
 
 uniform sampler2D Sampler2;
@@ -21,6 +22,8 @@ layout(location = 1) out float cylindricalVertexDistance;
 layout(location = 2) out vec4 vertexColor;
 layout(location = 3) out vec3 relativePosition;
 layout(location = 4) flat out vec3 faceNormal;
+layout(location = 5) out float foot;
+layout(location = 6) flat out float grain;
 
 const vec3 NORMALS[6] = vec3[](vec3(0, -1, 0), vec3(0, 1, 0), vec3(0, 0, -1), vec3(0, 0, 1), vec3(-1, 0, 0), vec3(1, 0, 0));
 // How much light each side of a block takes, as vanilla shades the faces of its chunks.
@@ -42,4 +45,6 @@ void main() {
     relativePosition = pos;
     vertexColor.rgb *= SHADE[min(Extra.y, 5u)];
     faceNormal = NORMALS[min(Extra.y, 5u)];
+    foot = float(Extra.z);
+    grain = Extra.x == WATER ? 0.0 : 1.0;
 }
