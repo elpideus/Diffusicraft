@@ -31,6 +31,8 @@ sourceSets {
 	voxyStubs {
 		compileClasspath += sourceSets.main.compileClasspath
 	}
+	// The real-time benchmark: a dev-only mod of its own, on no classpath but its run's, and never shipped.
+	benchmark
 }
 
 loom {
@@ -42,17 +44,21 @@ loom {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}
+		"diffusicraft-benchmark" {
+			sourceSet sourceSets.benchmark
+		}
 	}
 
 	runs {
 		configureEach {
 			ideConfigGenerated true
 			// The game itself, with the dev modpack, gets more than the servers and tests.
-			vmArgs it.name == 'client' ? '-Xmx24G' : '-Xmx6G'
+			vmArgs it.name == 'client' ? '-Xmx24G' : it.name == 'benchmark' ? '-Xmx12G' : '-Xmx6G'
 		}
 		client {
-			// Keep model downloads and worlds out of the source tree.
-			runDir 'run'
+			// Keep model downloads and worlds out of the source tree. -PtestEnv=<name> runs a test environment of
+			// gradle/dev-mods.gradle in a directory of its own.
+			runDir project.hasProperty('testEnv') ? "run-envs/${project.property('testEnv')}" : 'run'
 		}
 		server {
 			runDir 'run-server'
@@ -62,6 +68,13 @@ loom {
 			server()
 			runDir 'build/run/gameTestServer'
 			programArg 'nogui'
+			ideConfigGenerated false
+		}
+		// The real game, in real time, flown through a fixed route by src/benchmark (see docs/PERFORMANCE.md).
+		benchmark {
+			client()
+			source sourceSets.benchmark
+			runDir "build/run/benchmark/${project.findProperty('testEnv') ?: 'dev'}"
 			ideConfigGenerated false
 		}
 	}
@@ -81,24 +94,48 @@ fabricApi {
 
 // Forward -Pdiffusicraft.* to the game tests too: the world generation test reads diffusicraft.device.
 def gameTestServerDir = file('build/run/gameTestServer')
-tasks.matching { it.name == 'runClientGameTest' }.configureEach {
-	systemProperties project.properties.findAll { k, v -> k.startsWith('diffusicraft.') }
-	systemProperty 'diffusicraft.testServerDir', gameTestServerDir.absolutePath
+def clientRuns = [runClient: 'client', runClientGameTest: 'clientGameTest', runBenchmark: 'benchmark']
+tasks.matching { it.name in clientRuns.keySet() }.configureEach { task ->
+	if (task.name != 'runClient') {
+		systemProperties project.properties.findAll { k, v -> k.startsWith('diffusicraft.') }
+		systemProperty 'diffusicraft.testServerDir', gameTestServerDir.absolutePath
+	}
 	// -Pdiffusicraft.graphicsBackend=vulkan or opengl: the game tests reset the options, whose default tries OpenGL
 	// first, so only the launch argument picks the backend.
 	def graphicsBackend = project.findProperty('diffusicraft.graphicsBackend')
 	if (graphicsBackend) {
 		args '--graphicsBackend', graphicsBackend
 	}
-	// -Pdiffusicraft.shaderPack=<file in shaderpacks>: Iris starts with that pack on, for every game test. The run's
-	// directory, Iris's config in it, is new for each run.
+	// -Pdiffusicraft.shaderPack=<file in shaderpacks>: Iris starts with that pack on, for every game test. The game
+	// tests' directory, Iris's config in it, is new for each run.
 	def shaderPack = project.findProperty('diffusicraft.shaderPack')
 	if (shaderPack) {
+		def runDir = file(loom.runs.getByName(clientRuns[task.name]).runDir)
 		doFirst {
-			def config = file('build/run/clientGameTest/config')
+			def config = new File(runDir, 'config')
 			config.mkdirs()
 			new File(config, 'iris.properties').text = "enableShaders=true\nshaderPack=${shaderPack}\n"
 		}
+	}
+}
+
+// `./gradlew runBenchmark -PtestEnv=vanilla`: see docs/PERFORMANCE.md. A new world each time, and
+// -Pdiffusicraft.jfr=<file> records a Java Flight Recording of the run, and -Pdiffusicraft.jvmArgs adds to the JVM's.
+tasks.matching { it.name == 'runBenchmark' }.configureEach {
+	def runDir = file(loom.runs.getByName('benchmark').runDir)
+	args '--width', '1600', '--height', '900'
+	doFirst {
+		delete new File(runDir, 'saves')
+		// Or a run without a pack keeps the last run's. This runs before the action above that writes this run's.
+		delete new File(runDir, 'config/iris.properties')
+	}
+	def recording = project.findProperty('diffusicraft.jfr')
+	if (recording) {
+		jvmArgs "-XX:StartFlightRecording=filename=${file(recording)},settings=profile,dumponexit=true"
+	}
+	def jvm = project.findProperty('diffusicraft.jvmArgs')
+	if (jvm) {
+		jvmArgs jvm.split(' ')
 	}
 }
 
@@ -162,7 +199,16 @@ dependencies {
 	// The shader game test turns Iris's shader packs on through Iris itself. Compile-only; Iris runs only as a dev mod.
 	gametestCompileOnly "maven.modrinth:iris:${project.iris_version}"
 
+	// The benchmark runs as a client mod, on Diffusicraft and the game.
+	benchmarkImplementation sourceSets.main.output
+	benchmarkImplementation sourceSets.client.output
+
 	// Dev-runtime mods (client run only). See gradle/dev-mods.gradle.
+}
+
+configurations {
+	benchmarkCompileClasspath.extendsFrom clientCompileClasspath
+	benchmarkRuntimeClasspath.extendsFrom clientRuntimeClasspath
 }
 
 apply from: 'gradle/dev-mods.gradle'

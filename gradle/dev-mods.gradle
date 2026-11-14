@@ -63,6 +63,27 @@ def optionalDevMods = [
 	'cristel-lib'                : 'rWxmPrGC',  // fabric-26.3-3.1.13 (required by WWOO; needs cloth-config)
 	'ecologics'                  : '7t3hinz9',  // 2.7.2-NeoFab (features and mobs in vanilla's biomes)
 	'geophilic'                  : '5kFV8CEz',  // 3.7 (features in vanilla's biomes, ARR: dev runtime only)
+	'oh-the-trees-youll-grow'    : 'crCmSAwm',  // 12.0.3-fabric (trees)
+	// Structure mods of a fantasy pack, and their libraries, for the modded test environment below.
+	'dungeons-and-taverns'       : 'hn5CugpP',  // 6.1.0+mod
+	'towns-and-towers'           : 'vHZIKy6e',  // 1.13.13 (needs cristel-lib)
+	'repurposed-structures-fabric': '9jHXeIeI', // 7.8.4+26.3-fabric (needs midnightlib)
+	'midnightlib'                : 'G9RaNHAC',  // 1.10.0+26.3-fabric
+	'moogs-voyager-structures'   : 'PiFoSPXI',  // 5.1.3 (needs moogs-structure-lib)
+	'mss-moogs-soaring-structures': 'O20bIWkj', // 2.2.0 (needs moogs-structure-lib)
+	'mes-moogs-end-structures'   : 'S7bUhX4n',  // 2.1.1 (needs moogs-structure-lib)
+	'mns-moogs-nether-structures': 'OLTqXnsN',  // 3.1.1 (needs moogs-structure-lib)
+	'moogs-structure-lib'        : 'SkD4H9XM',  // 3.4.2-fabric-26.3
+	'structory'                  : 'GjOkOVW4',  // 1.3.18+26.3
+	'structory-towers'           : '5ntmnN83',  // 1.0.19+26.3
+	'tidal-towns'                : 'ahvrY85Y',  // 2.0+mod
+	'trek'                       : 'v6y24ZlJ',  // B0.6.2.1+mod
+	'explorations'               : 'vIjGM8Jy',  // 26.3-1.6.5-Fabric (CC-BY-NC-ND: dev runtime only)
+	'villages-and-pillages'      : 'LqFeDo10',  // fabric-2.0.0+mc26.3 (CC-BY-NC-ND: dev runtime only)
+	'adorabuild-structures'      : '6sJ3mTz5',  // 2.12 (ARR: dev runtime only)
+	'ati-structures-vanilla-edition': '3NkwZrUy', // 1.4.7 (ARR: dev runtime only)
+	'incendium'                  : 'D4vWUd23',  // 5.5.4+26.3 (the Nether)
+	'nullscape'                  : '79OyFQtd',  // 2.0.1+26.3 (the End)
 ]
 
 // Shader packs, also named in -PdevMods and put in the client runs' shaderpacks folder as <slug>.zip. Like the mods,
@@ -72,15 +93,45 @@ def devShaderPacks = [
 	'complementary-unbound'      : 'B1kyfoUZ',  // r5.9.3 (Iris pack with Distant Horizons support, dev runtime only)
 ]
 
+// The test environments: -PtestEnv=<name> picks a run's mods, and its directory is run-envs/<name>, so that their worlds
+// and options stay apart from run/. See docs/DEVELOPMENT.md. Distant Horizons and Voxy stay out of all of them: where
+// either is installed, Diffusicraft's own far terrain turns off.
+def performanceMods = [
+	'sodium', 'sodium-extra', 'reeses-sodium-options', 'lithium', 'ferrite-core', 'entityculling', 'badoptimizations',
+	'continuity', 'iris', 'modmenu', 'cloth-config', 'bliss-shader', 'complementary-unbound',
+]
+def testEnvironments = [
+	// Diffusicraft alone, on OpenGL or Vulkan.
+	vanilla    : [],
+	// The usual client mods and both shader packs, which -Pdiffusicraft.shaderPack turns on.
+	performance: performanceMods,
+	// A fantasy pack. Wilder Wild is left out: it does not start beside Lithium in a dev run (see above). So are
+	// Formations' structures: their 26.3 builds still call Minecraft by its obfuscated names and stop the game at startup.
+	modded     : performanceMods + [
+		'biomes-o-plenty', 'glitchcore', 'terrablender', 'terralith', 'lithostitched', 'tectonic', 'terrestria',
+		'promenade', 'climate-rivers', 'puzzles-lib', 'forge-config-api-port', 'wwoo', 'cristel-lib', 'ecologics',
+		'geophilic', 'oh-the-trees-youll-grow', 'dungeons-and-taverns', 'towns-and-towers',
+		'repurposed-structures-fabric', 'midnightlib', 'moogs-voyager-structures', 'mss-moogs-soaring-structures',
+		'mes-moogs-end-structures', 'mns-moogs-nether-structures', 'moogs-structure-lib', 'structory',
+		'structory-towers', 'tidal-towns', 'trek', 'explorations', 'villages-and-pillages', 'adorabuild-structures',
+		'ati-structures-vanilla-edition', 'incendium', 'nullscape',
+	],
+]
+def testEnv = project.findProperty('testEnv')?.toString()
+if (testEnv && !testEnvironments.containsKey(testEnv)) {
+	throw new GradleException("Unknown test environment ${testEnv}; pick from ${testEnvironments.keySet()}")
+}
+
 if (!project.hasProperty('noDevMods')) {
-	def wanted = project.findProperty('devMods')?.toString()?.split(',')?.collect { it.trim() }?.findAll { it }
+	def wanted = testEnv ? testEnvironments[testEnv]
+		: project.findProperty('devMods')?.toString()?.split(',')?.collect { it.trim() }?.findAll { it }
 	def known = devMods + optionalDevMods
 	def unknown = (wanted ?: []) - known.keySet() - devShaderPacks.keySet()
 	if (unknown) {
 		throw new GradleException("Unknown dev mods ${unknown}; pick from ${known.keySet() + devShaderPacks.keySet()}")
 	}
 	dependencies {
-		(wanted ? known.subMap(wanted.findAll { known.containsKey(it) }) : devMods).each { slug, ver ->
+		(wanted || testEnv ? known.subMap(wanted.findAll { known.containsKey(it) }) : devMods).each { slug, ver ->
 			localRuntime "maven.modrinth:${slug}:${ver}"
 		}
 	}
@@ -91,7 +142,7 @@ if (!project.hasProperty('noDevMods')) {
 		})
 		packFiles.transitive = false
 		// Into the run's directory, which Loom makes the task's working directory only once the task runs.
-		def runs = [runClient: 'client', runClientGameTest: 'clientGameTest']
+		def runs = [runClient: 'client', runClientGameTest: 'clientGameTest', runBenchmark: 'benchmark']
 		tasks.matching { it.name in runs.keySet() }.configureEach { task ->
 			doFirst {
 				def shaderpacks = file("${loom.runs.getByName(runs[task.name]).runDir}/shaderpacks")

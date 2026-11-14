@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"id": "diffusicraft-benchmark",
+	"version": "1.0.0",
+	"name": "Diffusicraft Benchmark",
+	"description": "Flies the real game through a fixed route and records its frames and ticks. Development only, never shipped.",
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"io.github.elpideus.diffusicraft.benchmark.Benchmark"
+		]
+	},
+	"mixins": [
+		"diffusicraft-benchmark.mixins.json"
+	],
+	"depends": {
+		"diffusicraft": "*"
+	}
+}

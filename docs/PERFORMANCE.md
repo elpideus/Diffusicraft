@@ -46,6 +46,59 @@ Options:
 The test uses the models and runtimes installed in the shared storage directory. Download them in game first, or
 with `RuntimeInstallTest`; see [DEVELOPMENT.md](DEVELOPMENT.md#tests).
 
+## Real-time benchmark
+
+`WorldPipelineBenchmarkTest` measures the models. `tools/benchmark.py` measures the game: a real player, in real time,
+in each [test environment](DEVELOPMENT.md#running-the-game). It runs `src/benchmark`, a small mod of its own, because
+Fabric's client game tests run the client and the server in lockstep, where neither a stutter nor a server falling
+behind can show.
+
+```bash
+tools/benchmark.py vanilla-opengl performance
+```
+
+```bash
+tools/benchmark.py --table --out build/benchmarks
+```
+
+| Environment | Mods | Renderer |
+|---|---|---|
+| `vanilla-opengl` | Diffusicraft alone | OpenGL |
+| `vanilla-vulkan` | Diffusicraft alone | Vulkan, on Mesa's driver for the Intel GPU |
+| `performance` | Sodium, Lithium, Iris and the like | OpenGL |
+| `performance-bliss`, `performance-complementary` | The same, with the shader pack on | OpenGL |
+| `modded`, `modded-bliss` | The same, and the fantasy biome and structure mods | OpenGL |
+
+Everything is drawn off screen on the real GPU (`SDL_VIDEO_DRIVER=offscreen`), so nothing opens on the desktop. NVIDIA's
+Vulkan driver cannot run off screen, which is why Vulkan is measured on the Intel GPU: compare `vanilla-vulkan` with
+itself, never with the RTX 3060 of the others.
+
+Options: `--device`, `--size`, `--seed`, `--renderDistance`, `--spawnSeconds`, `--flightSeconds`, `--teleportSeconds`,
+`--out <folder>`, and `--jvmArgs=-XX:+UseZGC` for the game's JVM. The same run goes through Gradle as
+`./gradlew runBenchmark -PtestEnv=<name>`, with `-Pdiffusicraft.benchmark.*` for the options, `-Pdiffusicraft.jfr=<file>`
+for a recording and `-Pdiffusicraft.jvmArgs` for the JVM.
+
+**What a run does.** It creates a world of the default size at render distance 16 and goes through five phases:
+
+- `spawn`: stands where it spawned for 45 s;
+- `flight`: flies 90 s at 22 blocks a second, the speed of a sprint in creative flight, 30 blocks over ordinary land. It
+  takes five pictures on the way and climbs by script, because the space bar climbs at a third of that speed;
+- `rest`: hovers until the far terrain has caught up, for at most 60 s, then turns round at once and takes a picture two
+  frames later, of what the far terrain draws before the renderer knows what is behind the player;
+- `teleport`: jumps more than 40,000 blocks and flies on from there for 60 s, over land nothing has seen yet. The
+  landing is chosen on the coarse map alone, so that planning it computes none of the terrain the player should find
+  missing;
+- `leaving`: leaves the world and quits, so that a crash on the way out shows.
+
+**What it leaves.** In `--out`: `<name>.json`, `<name>.log`, a Java Flight Recording `<name>.jfr`, the pictures, and an
+`hs_err` file if the JVM crashed. A crash report stays in `build/run/benchmark/<environment>/crash-reports`. Read a
+recording with a streaming reader (`jdk.jfr.consumer.RecordingFile`) and not as JSON, which takes tens of gigabytes:
+beside a run that is enough for `systemd-oomd` to kill everything in the same scope.
+
+**Reading the table.** `fps` is the mean; `p50` to `max` are frame times in ms; `>50` and `>100` count the frames over
+50 and 100 ms; `tps`, `mspt50` to `msptMax` are the server's ticks, and `gapMax` the longest time between two ticks;
+`gc n/ms` is the collections and their total. Use the percentiles: a mean of 500 fps says little about a frame of 300 ms.
+
 ## Where the time goes
 
 Inside ONNX Runtime: **99% on the CPU and 97% on CUDA** of the benchmark's wall time is spent in model runs. The

@@ -13,6 +13,7 @@ architecture is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the plan in [do
 env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x24" \
     ./gradlew runClientGameTest -PnoDevMods   # headless UI test, screenshots in build/run/clientGameTest/screenshots
 # add -Pdiffusicraft.gametests=TallDimension,Ultra to run only the game tests whose class names start with those
+tools/benchmark.py vanilla-opengl performance   # real-time benchmark, off screen, on the real GPU; see docs/PERFORMANCE.md
 ```
 
 ## Things to know

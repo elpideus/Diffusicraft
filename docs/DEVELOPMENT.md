@@ -56,6 +56,17 @@ project directly, and Loom generates run configurations.
   OpenGL set `preferredGraphicsBackend:"default"` in `run/options.txt`.
 - **Adding or updating a mod.** Find the version id on the mod's Modrinth *Versions* page (the last part of the
   version URL) and add `'<slug>': '<version id>'`. If it fails to start, add the mod's required dependencies too.
+- **Test environments.** `-PtestEnv=<name>` starts with one of the sets of mods under `testEnvironments` in the same
+  file, in a run directory of its own (`run-envs/<name>`, gitignored), so that their configs never mix:
+  - `vanilla`: Diffusicraft alone, for both of Minecraft's renderers;
+  - `performance`: the usual performance and quality-of-life mods, with Sodium, Lithium and Iris, for Bliss and
+    Complementary Unbound. Nothing that changes how chunks are generated, loaded or lit: such mods stop the game (see
+    [COMPATIBILITY.md](COMPATIBILITY.md#incompatible-mods));
+  - `modded`: `performance` with the biome and structure mods that fit the fantasy of the world, to see that they get
+    along with it and leave its terrain alone.
+
+  [`tools/benchmark.py`](../tools/benchmark.py) measures them (see
+  [PERFORMANCE.md](PERFORMANCE.md#real-time-benchmark)).
 
 Models and runtimes go to the shared storage directory described in [CONFIG.md](CONFIG.md#storagepath), so a dev
 client reuses what your normal game downloaded.

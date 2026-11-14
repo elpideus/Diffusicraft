@@ -22,6 +22,7 @@ Thumbs.db
 
 # fabric dev runs (worlds, logs, downloaded models, dev mods)
 run/
+run-envs/
 run-server/
 
 # model weights must never be committed (downloaded at runtime from Hugging Face)

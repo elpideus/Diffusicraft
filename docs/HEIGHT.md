@@ -186,8 +186,9 @@ Diffusicraft counts them from below the camera instead (see [COMPATIBILITY.md](C
 - **Iris** draws the tall dimension with a shader pack on, its shadow pass included: the test's own pack and Bliss
   both drew the platforms at y = ±16,000 and the chunk at y = 16,340 (`-Pdiffusicraft.gametests=Shaders,TallDimension`,
   see [COMPATIBILITY.md](COMPATIBILITY.md#shaders)).
-- **Untested:** Lithium, FerriteCore, Moonrise and C2ME in a tall dimension. Test each of them in one before relying
-  on it.
+- **Lithium and FerriteCore** run the benchmark's whole route in a tall dimension (see
+  [PERFORMANCE.md](PERFORMANCE.md#real-time-benchmark)). Moonrise and C2ME are
+  [refused](COMPATIBILITY.md#incompatible-mods).
 
 ## Costs
 

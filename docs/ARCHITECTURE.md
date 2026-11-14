@@ -39,6 +39,7 @@ Loom's split source sets keep client-only code out of the server.
 | `src/main/resources/diffusicraft` | `model-manifest.json`, `runtime-manifest.json`: every download, pinned by SHA-256 |
 | `src/test` | JUnit tests. Those tagged `models` need the real models and run only with `-PwithModels` |
 | `src/gametest` | Fabric client game tests: the resource screens, a Diffusicraft world with maps and screenshots, a 1:1 world, a 32,736-block dimension, trees, biomes, saved chunks kept for the far terrain, our far terrain and Voxy's, in singleplayer and on a dedicated server |
+| `src/benchmark` | The real-time benchmark, a mod of its own that `tools/benchmark.py` runs off screen on the real GPU. See [PERFORMANCE.md](PERFORMANCE.md#real-time-benchmark) |
 
 ## Startup
 
