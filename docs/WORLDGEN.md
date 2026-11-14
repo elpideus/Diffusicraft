@@ -411,6 +411,12 @@ Biome mods that add entries to the overworld table get the same parameters, so i
 biomes appear where the real conditions match; the refiner below leaves them as they are. See
 [Other mods' biomes](#other-mods-biomes).
 
+**Over the ground.** All but the depth are the column's, the same at every height. Above the ground the depth only
+grows more negative, which moves every surface biome away by the same amount and so changes nothing between them:
+from two quarts (8 blocks) over the surface up, every quart of a column takes the pick of the lowest of them, made
+once. In the 1:1 size a column is 4,156 quarts tall, where vanilla's has 96, and most of them are air: each chunk
+fills them all, and a structure looks through them for a biome of its own.
+
 ### Refined biomes
 
 Vanilla's table sees five bands of temperature and humidity and nothing of the seasons. That cannot tell tundra from
@@ -652,8 +658,9 @@ Terralith's alone moves every vanilla biome. So `ClimateBiomeSource` reads two l
 
 - **Vanilla's own**, the same with any mod as without. `VanillaBiomeTable` builds it with a copy of
   `OverworldBiomeBuilder` defined from the game's jar in a class loader of its own, out of reach of the mixins of
-  Wilder Wild and FrozenLib, and the source made from it is one none of the libraries hooks: TerraBlender hooks only
-  the lists it set up, and Biolith only the sources whose dimension it knows. The refiner, the sub-biomes and the
+  Wilder Wild and FrozenLib, and none of the libraries reaches what is read from it: TerraBlender hooks only the lists
+  it set up, and Biolith, which answers for the resolvers of every multi-noise source with a slower search of its own,
+  never sees it, because `ClimateBiomeSource` asks the source for each pick itself. The refiner, the sub-biomes and the
   Hollows all work on its picks.
 - **The mods'.** The source is still the overworld's multi-noise source, reading the parameter list as the mods leave
   it, and the libraries add to it as they would to vanilla's. The taller sizes have dimension types of their own, so

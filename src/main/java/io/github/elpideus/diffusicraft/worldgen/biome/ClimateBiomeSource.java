@@ -23,6 +23,8 @@ import net.minecraft.world.level.biome.MultiNoiseBiomeSource;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterList;
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
+import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
@@ -64,6 +66,8 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 	/** The depths of vanilla's cave biomes, between which sulfurous ground has its sulfur caves. */
 	private static final float CAVE_TOP = 0.2f;
 	private static final float CAVE_BOTTOM = 0.9f;
+	/** How far over the ground, in quarts, the picks of a column stop changing; see {@link #overGround}. */
+	private static final int OVER_GROUND = 2;
 
 	private final Holder<MultiNoiseBiomeSourceParameterList> preset;
 	private final HolderSet<Biome> refinements;
@@ -89,8 +93,8 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 
 	/**
 	 * Vanilla's overworld source with the table its code builds ({@link VanillaBiomeTable}). Nothing the mods do to
-	 * the parameter list reaches it: TerraBlender only hooks lists it has set up and Biolith only sources it knows the
-	 * dimension of.
+	 * the parameter list reaches it: TerraBlender only hooks lists it has set up, and {@link #vanilla(Climate.Sampler)}
+	 * goes around Biolith's hook.
 	 */
 	private MultiNoiseBiomeSource base() {
 		MultiNoiseBiomeSource source = base;
@@ -122,7 +126,8 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 		if (world == null) {
 			return super.createResolver(sampler);
 		}
-		return refine(base().createResolver(sampler), super.createResolver(sampler), world);
+		BiomeResolver resolver = refine(vanilla(sampler), super.createResolver(sampler), world);
+		return overGround(resolver, resolver, world);
 	}
 
 	@Override
@@ -134,9 +139,68 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 				quartSizeZ);
 		}
 		// The mods' resolver samples the climate of the whole chunk again, so it is made only for a chunk that needs it.
-		return refine(base().createResolverForChunk(sampler, minQuartX, minQuartY, minQuartZ, quartSizeX, quartSizeY,
+		BiomeResolver resolver = refine(vanilla(sampler, minQuartX, minQuartY, minQuartZ, quartSizeX, quartSizeY,
 			quartSizeZ), new Lazy(() -> super.createResolverForChunk(sampler, minQuartX, minQuartY, minQuartZ,
 			quartSizeX, quartSizeY, quartSizeZ)), world);
+		// What a chunk sampled may stop short of the quart that speaks for the quarts over the ground.
+		return overGround(resolver, createResolver(sampler), world);
+	}
+
+	/**
+	 * The pick of {@link #base()} at each quart. Its own resolvers would do, but Biolith answers for the resolvers of
+	 * every multi-noise source, even one it knows nothing about, with a search of its own that takes far longer than
+	 * vanilla's and here finds what vanilla's finds.
+	 */
+	private BiomeResolver vanilla(Climate.Sampler sampler) {
+		MultiNoiseBiomeSource source = base();
+		return (quartX, quartY, quartZ) -> source.getNoiseBiome(sampler.sample(quartX, quartY, quartZ));
+	}
+
+	/** The same for a chunk, whose climates are sampled all at once, as vanilla's resolver for a chunk does. */
+	private BiomeResolver vanilla(Climate.Sampler sampler, int minQuartX, int minQuartY, int minQuartZ, int quartSizeX,
+								  int quartSizeY, int quartSizeZ) {
+		MultiNoiseBiomeSource source = base();
+		DensityVolume volume = new DensityVolume(quartSizeX, quartSizeY, quartSizeZ, QuartPos.toBlock(minQuartX),
+			QuartPos.toBlock(minQuartY), QuartPos.toBlock(minQuartZ), 4, 4, 4);
+		DensityBuffer temperature = DensityBuffer.createUnpooled(volume.size());
+		DensityBuffer humidity = DensityBuffer.createUnpooled(volume.size());
+		DensityBuffer continentalness = DensityBuffer.createUnpooled(volume.size());
+		DensityBuffer erosion = DensityBuffer.createUnpooled(volume.size());
+		DensityBuffer depth = DensityBuffer.createUnpooled(volume.size());
+		DensityBuffer weirdness = DensityBuffer.createUnpooled(volume.size());
+		sampler.temperature().sampleVolume(temperature, volume);
+		sampler.humidity().sampleVolume(humidity, volume);
+		sampler.continentalness().sampleVolume(continentalness, volume);
+		sampler.erosion().sampleVolume(erosion, volume);
+		sampler.depth().sampleVolume(depth, volume);
+		sampler.weirdness().sampleVolume(weirdness, volume);
+		return (quartX, quartY, quartZ) -> {
+			int index = volume.indexUnchecked(quartX - minQuartX, quartY - minQuartY, quartZ - minQuartZ);
+			return source.getNoiseBiome(Climate.target(temperature.get(index), humidity.get(index),
+				continentalness.get(index), erosion.get(index), depth.get(index), weirdness.get(index)));
+		};
+	}
+
+	/**
+	 * Has the quarts well over the ground share one pick, the lowest of theirs, made by {@code anywhere}, and leaves
+	 * the rest to {@code resolver}. Of the climate only the depth changes up there, which moves every surface biome away
+	 * alike and so changes nothing between them, and that is most of a tall column: of the quarts of each chunk, and of those each structure looks through for a biome
+	 * of its own.
+	 */
+	private BiomeResolver overGround(BiomeResolver resolver, BiomeResolver anywhere, BiomeWorld world) {
+		return (quartX, quartY, quartZ) -> {
+			Columns.Entry column = Columns.CACHE.get().entry(world, quartX, quartZ);
+			int lowest = QuartPos.fromBlock((int) Math.floor(column.column.surfaceY)) + OVER_GROUND;
+			if (quartY < lowest) {
+				return resolver.getNoiseBiome(quartX, quartY, quartZ);
+			}
+			Holder<Biome> biome = column.overGround(this);
+			if (biome == null) {
+				biome = anywhere.getNoiseBiome(quartX, lowest, quartZ);
+				column.overGround(this, biome);
+			}
+			return biome;
+		};
 	}
 
 	/**
@@ -322,6 +386,8 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			private boolean hollowPrepared;
 			/** Whether the column lies in a region open to other mods' biomes: -1 until first asked, then 0 or 1. */
 			private byte open;
+			private @Nullable Holder<Biome> overGround;
+			private @Nullable ClimateBiomeSource overGroundSource;
 
 			void reset(BiomeWorld world, int blockX, int blockZ) {
 				this.world = world;
@@ -333,6 +399,7 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 				hollowBiome = null;
 				hollowPrepared = false;
 				open = -1;
+				overGround = null;
 			}
 
 			boolean open() {
@@ -341,6 +408,16 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 						ModdedBiomes.share()) ? 1 : 0);
 				}
 				return open == 1;
+			}
+
+			/** What {@code source} picked over the ground here, or {@code null}. */
+			@Nullable Holder<Biome> overGround(ClimateBiomeSource source) {
+				return overGroundSource == source ? overGround : null;
+			}
+
+			void overGround(ClimateBiomeSource source, Holder<Biome> biome) {
+				overGroundSource = source;
+				overGround = biome;
 			}
 
 			Holder<Biome> refine(Holder<Biome> biome, ClimateBiomeSource source) {
