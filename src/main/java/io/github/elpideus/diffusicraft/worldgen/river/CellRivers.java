@@ -152,10 +152,6 @@ final class CellRivers {
 		return count == 0;
 	}
 
-	int segmentCount() {
-		return count;
-	}
-
 	/** Attribute {@code attribute} of segment {@code s}: {@link #AI} and the others. */
 	float segment(int s, int attribute) {
 		return segments[s * STRIDE + attribute];

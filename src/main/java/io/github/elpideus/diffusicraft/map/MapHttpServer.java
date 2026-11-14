@@ -82,11 +82,6 @@ final class MapHttpServer implements AutoCloseable {
 			return Integer.parseInt(value.trim());
 		}
 
-		long longParam(String name, long fallback) {
-			String value = query.get(name);
-			return value == null ? fallback : Long.parseLong(value.trim());
-		}
-
 		/**
 		 * Whether the browser still waits for the response. Browsers close the connection when they abort a request,
 		 * and send nothing else on it before the response, so a closed stream means the request was dropped.

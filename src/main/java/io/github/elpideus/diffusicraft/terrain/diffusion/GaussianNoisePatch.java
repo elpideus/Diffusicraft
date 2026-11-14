@@ -80,9 +80,4 @@ public final class GaussianNoisePatch {
     public static float[][][] generate(long baseSeed, int y0, int x0, int h, int w, int channels) {
         return generate(baseSeed, y0, x0, h, w, channels, DEFAULT_TILE_H, DEFAULT_TILE_W);
     }
-
-    /** Generate with tile size matching the requested region (per-tile in pipeline). */
-    public static float[][][] generateTileSeeded(long baseSeed, int y0, int x0, int h, int w, int channels) {
-        return generate(baseSeed, y0, x0, h, w, channels, h, w);
-    }
 }
