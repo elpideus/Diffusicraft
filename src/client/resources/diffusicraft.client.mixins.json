@@ -8,6 +8,7 @@
 		"CreateWorldScreenMoreTabMixin",
 		"CreateWorldScreenWorldTabMixin",
 		"GuiMixin",
+		"LocalPlayerMixin",
 		"WorldCreationUiStateMixin",
 		"clouds.AtmosphericFogEnvironmentMixin",
 		"clouds.CameraMixin",
