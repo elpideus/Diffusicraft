@@ -16,10 +16,10 @@ import org.jspecify.annotations.Nullable;
  *     few faces. So do the highest floor of a cave in each column, the highest lake in one and the highest ceiling.
  *     The other tops, under a bridge or an overhang, are kept one by one.</li>
  *     <li><b>Sides</b> show the part of a run its neighbour does not cover. Along the tile's edges, whose neighbours
- *     may be of another level, the solid runs show their sides down to a little under the ground there, a skirt that
- *     closes the cracks between tiles, and through the depths where the tile has caves, so that a cave that runs a
- *     little differently in the tile beside it, sampled more or less finely, meets rock there and not a hole. Water
- *     has none, which would show as walls under the sea.</li>
+ *     may be of another level, or rough, the solid runs show their sides all the way down, so that no crack between
+ *     tiles shows the sky, and in the dark through the depths where the tile has caves, so that a cave that runs a
+ *     little differently in the tile beside it, sampled more or less finely, meets rock there and not a lit wall.
+ *     Water has none, which would show as walls under the sea.</li>
  *     <li><b>Bottoms</b> show under a solid run with air under it, such as a bridge or the ceiling of a cave.</li>
  * </ul>
  *
@@ -30,10 +30,10 @@ import org.jspecify.annotations.Nullable;
 public final class LodMesher {
 	/** Sky light of the faces under something: an overhang, a bridge, the ground under a tree. */
 	public static final int SHADED = LodGrid.FULL_SKY - 2;
-	/** How far below the lowest ground along a tile's edge its skirts reach, in steps. */
+	/** How far below the lowest ground along a tile's edge the sky lights its sides in a tile with caves, in steps. */
 	private static final int SKIRT = 2;
 	/**
-	 * Steps beyond a tile's edge a skirt follows the slope down: as far as the column of a tile two levels coarser
+	 * Steps beyond a tile's edge that light follows the slope down: as far as the column of a tile two levels coarser
 	 * may lie from the edge column it meets.
 	 */
 	private static final int SLOPE_STEPS = 3;
@@ -219,11 +219,11 @@ public final class LodMesher {
 	}
 
 	/**
-	 * Block Y the skirt of a column on the tile's edge reaches down to: a little under the lowest ground of the column
-	 * and of its neighbours along the edge, where the tile next to it may stand a little lower, and further down where
-	 * the ground falls towards the edge, as far as it would go on falling for {@value #SLOPE_STEPS} steps past it. A
-	 * coarser tile beside it meets the edge with a column whose ground lies that far out, so on a steep slope a skirt
-	 * of a fixed depth leaves a crack the sky shows through.
+	 * Block Y the sides of a column on the edge of a tile with caves stay lit down to: a little under the lowest ground
+	 * of the column and of its neighbours along the edge, where the tile next to it may stand a little lower, and
+	 * further down where the ground falls towards the edge, as far as it would go on falling for
+	 * {@value #SLOPE_STEPS} steps past it. A coarser tile beside it meets the edge with a column whose ground lies that
+	 * far out, so on a steep slope a skirt of a fixed depth leaves a dark crack.
 	 */
 	private static int skirt(LodGrid grid, int column, Direction side, int step) {
 		int width = grid.width();
@@ -278,7 +278,7 @@ public final class LodMesher {
 		int z = column / width + side.getStepZ();
 		boolean edge = x < 0 || x >= width || z < 0 || z >= width;
 		int neighbour = edge ? column : z * width + x;
-		int skirt = edge ? skirt(grid, column, side, step) : Integer.MIN_VALUE;
+		int skirt = edge && caves != 0 ? skirt(grid, column, side, step) : Integer.MIN_VALUE;
 		// Faces under the water in front of them darken with depth, as the water's floor does.
 		int ground = ground(grid, neighbour);
 		int surface = grid.surface(neighbour);
@@ -286,30 +286,38 @@ public final class LodMesher {
 			: Integer.MIN_VALUE;
 		int start = grid.firstRun(column);
 		int end = start + grid.runs(column);
+		// A tall column has hundreds of runs. Both columns' rise in order, so a run of the neighbour's that ends under
+		// one of these ends under all the next, and each column is walked once.
+		int nStart = grid.firstRun(neighbour);
+		int nEnd = nStart + grid.runs(neighbour);
 		for (int run = start; run < end; run++) {
 			byte kind = grid.kind(run);
 			if (kind == LodGrid.AIR || kind == LodGrid.CAVE || edge && kind == LodGrid.WATER) {
 				continue;
 			}
-			int bottom = Math.max(grid.bottom(run), skirt);
+			int bottom = grid.bottom(run);
 			int top = grid.top(run);
 			if (edge) {
-				if (bottom < top) {
-					side(grid, column, side, step, bottom, top, run, waterTop, solid);
+				// The whole run, in the dark through the depths of the caves, under the skirt.
+				int darkTop = caves == 0 ? bottom : Math.clamp(Math.min(skirt, (int) caves), bottom, top);
+				int darkBottom = caves == 0 ? bottom : Math.clamp((int) (caves >> 32), bottom, darkTop);
+				if (darkTop < top) {
+					side(grid, column, side, step, darkTop, top, run, waterTop, solid);
 				}
-				// Under the skirt, in the dark, through the depths of the caves.
-				int low = Math.max(grid.bottom(run), (int) (caves >> 32));
-				int high = Math.min(Math.min(top, skirt), (int) caves);
-				if (caves != 0 && low < high) {
-					side(grid, column, side, step, low, high, run, solid, 0);
+				if (darkBottom < darkTop) {
+					side(grid, column, side, step, darkBottom, darkTop, run, solid, 0);
+				}
+				if (bottom < darkBottom) {
+					side(grid, column, side, step, bottom, darkBottom, run, waterTop, solid);
 				}
 				continue;
 			}
 			// The parts of [bottom, top) that the neighbour's runs do not cover.
 			Faces faces = kind == LodGrid.WATER ? water : solid;
 			int from = bottom;
-			int nStart = grid.firstRun(neighbour);
-			int nEnd = nStart + grid.runs(neighbour);
+			while (nStart < nEnd && grid.top(nStart) <= bottom) {
+				nStart++;
+			}
 			for (int n = nStart; n < nEnd && from < top; n++) {
 				byte covering = grid.kind(n);
 				if (grid.top(n) <= from || !(isSolid(covering) || kind == LodGrid.WATER && covering == LodGrid.WATER)) {
@@ -319,25 +327,23 @@ public final class LodMesher {
 					break;
 				}
 				if (grid.bottom(n) > from) {
-					side(grid, column, side, step, from, grid.bottom(n), run, faces, sky(grid, neighbour, grid.bottom(n),
+					side(grid, column, side, step, from, grid.bottom(n), run, faces, sky(grid, nStart, nEnd, grid.bottom(n),
 						waterTop));
 				}
 				from = Math.max(from, grid.top(n));
 			}
 			if (from < top) {
-				side(grid, column, side, step, from, top, run, faces, sky(grid, neighbour, top, waterTop));
+				side(grid, column, side, step, from, top, run, faces, sky(grid, nStart, nEnd, top, waterTop));
 			}
 		}
 	}
 
 	/**
 	 * The sky light in front of a side that the neighbour leaves open up to block Y {@code top}, from what the
-	 * neighbour holds right under it: none in a cave or a lake in one, less the deeper under its water, full in the
-	 * open air.
+	 * neighbour's runs {@code [start, end)} hold right under it: none in a cave or a lake in one, less the deeper under
+	 * its water, full in the open air.
 	 */
-	private static int sky(LodGrid grid, int neighbour, int top, int waterTop) {
-		int start = grid.firstRun(neighbour);
-		int end = start + grid.runs(neighbour);
+	private static int sky(LodGrid grid, int start, int end, int top, int waterTop) {
 		for (int n = start; n < end && grid.bottom(n) < top; n++) {
 			if (grid.top(n) >= top) {
 				byte kind = grid.kind(n);

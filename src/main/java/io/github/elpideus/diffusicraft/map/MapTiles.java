@@ -93,8 +93,8 @@ final class MapTiles {
 
 	private final MapLevel level;
 	private final @Nullable Path dir;
-	private final LifoExecutor fine;
-	private final LifoExecutor fast;
+	private final MapExecutor fine;
+	private final MapExecutor fast;
 	private final int fineZoom;
 	private final int maxZoom;
 	/** For each zoom level coarser than the fine one, the tiles with fine ones under them. */
@@ -110,7 +110,7 @@ final class MapTiles {
 	private boolean warned;
 
 	/** Tiles of {@code level}, kept under {@code dir} if it is not null, drawn on the two executors. */
-	MapTiles(MapLevel level, @Nullable Path dir, LifoExecutor fine, LifoExecutor fast) {
+	MapTiles(MapLevel level, @Nullable Path dir, MapExecutor fine, MapExecutor fast) {
 		this.level = level;
 		this.dir = dir;
 		this.fine = fine;
@@ -209,7 +209,7 @@ final class MapTiles {
 		return job;
 	}
 
-	private LifoExecutor executor(Key key) {
+	private MapExecutor executor(Key key) {
 		return key.kind == Kind.FINE ? fine : fast;
 	}
 

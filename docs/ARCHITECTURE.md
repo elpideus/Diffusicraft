@@ -5,19 +5,18 @@ three layers:
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ client: resource screen, launch hook, Create World button, Mod Menu, toasts │
+│ client: screens, Create World, Mod Menu, far terrain renderer            │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ worldgen: world presets, density functions, climate -> biome parameters    │
+│ worldgen: presets, density, climate -> biomes, rivers, far terrain data  │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ terrain.diffusion: Terrain Diffusion pipeline -> elevation + climate       │
+│ terrain.diffusion: Terrain Diffusion pipeline -> elevation + climate     │
 ├──────────────────────────────────────────────────────────────────────────┤
-│ runtime: config, downloads, GPU runtimes, native library selection         │
+│ runtime: config, downloads, GPU runtimes, native library selection       │
 └──────────────────────────────────────────────────────────────────────────┘
           ONNX Runtime 1.31 (CPU bundled; CUDA / ROCm installed at runtime)
 ```
 
-The pipeline, the runtime management, the UI and the first world generator exist today. What comes next is in
-[ROADMAP.md](ROADMAP.md).
+What comes next is in [ROADMAP.md](ROADMAP.md).
 
 ## Source layout
 
@@ -26,18 +25,22 @@ Loom's split source sets keep client-only code out of the server.
 | Path | Contents |
 |---|---|
 | `src/main/java/.../diffusicraft` | Entrypoints: `Diffusicraft` (common), `DiffusicraftPreLaunch`, mixin plugin |
-| `.../runtime` | Everything downloaded or native: `Resources` (facade), `DiffusicraftConfig`, `RuntimeManifest`, `RuntimeInstaller`, `Downloader`, `RemoteZip`, `SystemLibraries`, `NativeRuntime`, `Hardware`, `Platform`, `Job` |
+| `.../runtime` | Everything downloaded or native: `Resources` (facade), `DiffusicraftConfig`, `RuntimeManifest`, `RuntimeInstaller`, `Downloader`, `RemoteZip`, `SystemLibraries`, `NativeRuntime`, `NativeHeap`, `Hardware`, `Platform`, `Job` |
 | `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, `HalfPrecision` (the fp16 decoder copy, with `Protobuf`), ... |
 | `.../terrain/geography` | The map the coarse model is conditioned on: `Geography` (continents, plates, hotspots, climate) and where the world spawn lies (`SpawnKind`). See [WORLDGEN.md](WORLDGEN.md#the-geography) |
 | `.../terrain/diffusion/tensor` | `WindowedTensor` (lazy, concurrent, cached tiling) and its stores |
-| `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `TerrainSurface`, `TerrainPrefetcher`, `ClimateMapping`, `TerrainFields`, `density/` (density function types). See [WORLDGEN.md](WORLDGEN.md) |
+| `.../worldgen` | The world generator: `WorldScale`, `TerrainField`, `TerrainSurface`, `TerrainPrefetcher`, `ClimateMapping`, `TerrainFields`, `WorldSpawn`; `density/` (density function types), `biome/`, `material/` (the ground), `geology/`, `river/`, `feature/`, and `lod/`, the columns of the far terrain. See [WORLDGEN.md](WORLDGEN.md) and [LOD.md](LOD.md) |
+| `.../block` | `DiffusicraftBlocks`: the new rocks, soils and plants, with the glowworm silk and selenite |
+| `.../compat` | `IncompatibleMods`, which stops the game when a mod that rewrites the chunk system is installed ([COMPATIBILITY.md](COMPATIBILITY.md#incompatible-mods)); `dh/`, `tectonic/` and `biolith/`, loaded or read only with those mods |
 | `.../height`, `.../mixin/height` | Build height beyond 4064: `ExtendedHeight` (the numbers and the network format), `SharedContainerData` and `NoThreadingDetector` (memory per empty section), `AirSections` (empty sections left out of saves), `RenderWindow` (the rows the client renders), and the mixins that apply them. See [HEIGHT.md](HEIGHT.md) |
-| `.../map` | The relief map: `ReliefMap` (the command, and the map's lifetime with the server), `MapService` and `MapHttpServer` (the web server and its routes), `MapTiles` (drawing, keeping and mixing the tiles), `LevelMap` (a tile from the terrain), `MapRaster` (the tile format), `LifoExecutor`. The page is `src/main/resources/diffusicraft/map/index.html`. See [MAP.md](MAP.md#how-it-works) |
-| `src/main/resources/data` | World presets, noise settings, density functions and dimension types, written by `tools/worldgen_data.py` |
+| `.../map` | The relief map: `ReliefMap` (the command, and the map's lifetime with the server), `MapService` and `MapHttpServer` (the web server and its routes), `MapTiles` (drawing, keeping and mixing the tiles), `LevelMap` (a tile from the terrain), `MapRaster` (the tile format), `MapExecutor`. The page is `src/main/resources/diffusicraft/map/index.html`. See [MAP.md](MAP.md#how-it-works) |
+| `src/main/resources/data` | World presets, noise settings, density functions and dimension types, written by `tools/worldgen_data.py`; biomes, their features and tags, written by `tools/biomes.py`; copies of vanilla's data, written by `tools/vanilla_copies.py` |
 | `src/client/java/.../client` | `DiffusicraftClient` (toasts); `screen/` (resource screen, and the settings screen Mod Menu opens); `mixin/` (launch hook, Create World button, default world type, size slider, model check and far-terrain question on Create, render grid, and where the far terrain is drawn, its fog and the far plane; `mixin/iris/`: what a shader pack asks of Distant Horizons, answered for our far terrain); `worldgen/` (the world sizes, their slider and what far-terrain mods do with the taller ones); `height/` (the render grid's window of rows); `compat/` (Mod Menu; the heights of Sodium's build tasks and which sections it has built; Voxy's heights and its far terrain, filled from the terrain; `iris/`: our far terrain drawn with a shader pack's programs for Distant Horizons); `lod/` (`FarTerrain`, our far terrain's renderer, with its meshes, colours, materials and pipelines; `RemoteLods`: the far terrain a server sends; `SeenChunks`: the chunks this client saw of a server that does not share what players built) |
 | `src/main/resources/diffusicraft` | `model-manifest.json`, `runtime-manifest.json`: every download, pinned by SHA-256 |
 | `src/test` | JUnit tests. Those tagged `models` need the real models and run only with `-PwithModels` |
 | `src/gametest` | Fabric client game tests: the resource screens, a Diffusicraft world with maps and screenshots, a 1:1 world, a 32,736-block dimension, trees, biomes, saved chunks kept for the far terrain, our far terrain and Voxy's, in singleplayer and on a dedicated server |
+| `src/benchmark` | The real-time benchmark, a mod of its own that `tools/benchmark.py` runs off screen on the real GPU. See [PERFORMANCE.md](PERFORMANCE.md#real-time-benchmark) |
+| `src/voxyStubs` | Our own declarations of the Voxy members Diffusicraft uses, which is All Rights Reserved. Never bundled |
 
 ## Startup
 
@@ -62,7 +65,7 @@ Loom's split source sets keep client-only code out of the server.
 
 ## Resource management (`runtime`)
 
-`Resources` is the single entry point used by the screens, the server and, later, the world generator.
+`Resources` is the single entry point used by the screens, the server and the world generator.
 
 - **Status.** A snapshot of models and runtimes, recomputed on a background executor after every change. It uses
   metadata only: `.verified` and `.installed` markers, never re-hashing.
@@ -167,12 +170,12 @@ The generator is described in [WORLDGEN.md](WORLDGEN.md). In short:
 - **`TerrainPrefetcher`.** It computes tiles on a background thread where the players are heading, before chunk
   generation asks for them. `PlayerPrefetch` tells it where they are from the server tick. See
   [PERFORMANCE.md](PERFORMANCE.md#generating-ahead).
-- **Far terrain.** `worldgen.lod` samples columns of the finished surface without chunks (`LodSampler`) for Distant
-  Horizons, and cuts them into voxels for Voxy (`LodGrid`). On a server, `LodFeed` sends the grids to the clients
-  that ask for them, and `client.lod.RemoteLods` asks. See [COMPATIBILITY.md](COMPATIBILITY.md#voxy). Where players
-  have been, the columns come from the chunks as they were last saved (`ChunkColumns`, kept by `LodStore`), so that
-  builds show from afar. A server sends them only with `shareBuilds` on; otherwise it sends the terrain as generated,
-  and each client lays over it the chunks it saw itself (`client.lod.SeenChunks`). Where neither mod is installed,
-  `client.lod.FarTerrain` draws them itself past the chunks, through the shader pack's programs for Distant Horizons
-  when Iris runs one (`client.compat.iris`). See [LOD.md](LOD.md).
+- **Far terrain.** `worldgen.lod` samples columns of the finished surface without chunks (`LodSampler`), and
+  `client.lod.FarTerrain` draws them past the chunks, through the shader pack's programs for Distant Horizons when
+  Iris runs one (`client.compat.iris`). Where players have been, the columns come from the chunks as they were last
+  saved (`ChunkColumns`, kept by `LodStore`), so that builds show from afar. On a server, `LodFeed` sends the grids
+  to the clients that ask for them, and `client.lod.RemoteLods` asks. A server sends the chunks saved only with
+  `shareBuilds` on; otherwise it sends the terrain as generated, and each client lays over it the chunks it saw
+  itself (`client.lod.SeenChunks`). See [LOD.md](LOD.md). With Distant Horizons or Voxy installed, the same columns
+  go to them instead; see [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
 - **Sizes.** `WorldScale` maps meters to blocks for the six world sizes, from Ultra (1:1) to Vanilla (1:32).

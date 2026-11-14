@@ -222,8 +222,14 @@ public final class ResourceManagerScreen extends Screen {
 	}
 
 	void confirmRemove(RuntimeManifest.Runtime runtime) {
-		long bytes = runtime.components().stream()
-			.mapToLong(c -> Files.isDirectory(resources.installer().directory(c)) ? c.installedBytes(resources.platform()) : 0)
+		Resources.Status status = resources.status();
+		RuntimeInstaller.RuntimeStatus rs = status == null ? null : status.runtime(runtime.id()).orElse(null);
+		if (rs == null) {
+			return;
+		}
+		long bytes = rs.components().stream()
+			.filter(c -> c.state() == RuntimeInstaller.ComponentState.INSTALLED)
+			.mapToLong(c -> c.component().installedBytes(resources.platform()))
 			.sum();
 		minecraft.gui.setScreen(new ConfirmScreen(remove -> {
 			if (remove) {
@@ -234,12 +240,13 @@ public final class ResourceManagerScreen extends Screen {
 	}
 
 	void openFolder(Path folder) {
-		try {
-			Files.createDirectories(folder);
-		} catch (IOException e) {
-			Diffusicraft.LOGGER.warn("Cannot create {}: {}", folder, e.toString());
-		}
-		Blaze3D.openPath(folder);
+		CompletableFuture.runAsync(() -> {
+			try {
+				Files.createDirectories(folder);
+			} catch (IOException e) {
+				Diffusicraft.LOGGER.warn("Cannot create {}: {}", folder, e.toString());
+			}
+		}).thenRun(() -> minecraft.execute(() -> Blaze3D.openPath(folder)));
 	}
 
 	void openLink(URI uri) {

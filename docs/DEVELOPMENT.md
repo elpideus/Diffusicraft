@@ -23,7 +23,7 @@ project directly, and Loom generates run configurations.
 - **Directories.** The client runs in `run/` and the server (`./gradlew runServer`) in `run-server/`. Both are
   gitignored.
 - **Dev modpack.** The client starts with the dev modpack: Sodium, Iris, Distant Horizons and SeedGen, Biomes O'
-  Plenty with TerraBlender, C2ME, Lithium, Mod Menu and others. These are the compatibility targets. The list is in
+  Plenty with TerraBlender, Lithium, Mod Menu and others. These are the compatibility targets. The list is in
   [`gradle/dev-mods.gradle`](../gradle/dev-mods.gradle), pinned by Modrinth version id.
 - **Licensing.** Dev mods are `localRuntime` only: never compiled against, never bundled, never a dependency. Some
   are All Rights Reserved and can only ever be used this way. The optional integrations, Mod Menu and the Distant
@@ -43,9 +43,9 @@ project directly, and Loom generates run configurations.
   terrain mods of [MOD_SURVEY.md](MOD_SURVEY.md) that work with Diffusicraft on 26.3, with their libraries: Terralith
   and Tectonic (`lithostitched`), Wilder Wild (`frozenlib`), Terrestria, Promenade, Climate Rivers (`lithostitched`,
   `puzzles-lib`, `forge-config-api-port`), William Wythers' Overhauled Overworld (`wwoo`, with `cristel-lib` and
-  `cloth-config`), Ecologics and Geophilic. Wilder Wild does not start beside C2ME (`c2me-fabric`) or Lithium, both in
-  the modpack: in a development run FrozenLib loads Minecraft's `CompoundTag` from Wilder Wild's mixin plugin, before
-  their mixins into it apply, so leave those two out to try it.
+  `cloth-config`), Ecologics and Geophilic. Wilder Wild does not start beside Lithium, which is in the modpack: in a
+  development run FrozenLib loads Minecraft's `CompoundTag` from Wilder Wild's mixin plugin, before Lithium's mixins
+  into it apply, so leave Lithium out to try it.
 - **Shader packs.** Named in `-PdevMods` as well, the packs under `devShaderPacks`, Bliss
   (`-PdevMods=sodium,iris,bliss-shader`) and Complementary Unbound (`complementary-unbound`), go into the client's
   `shaderpacks` folder as `<slug>.zip`. Like the mods, they are pinned by Modrinth version id and never leave the dev
@@ -56,6 +56,17 @@ project directly, and Loom generates run configurations.
   OpenGL set `preferredGraphicsBackend:"default"` in `run/options.txt`.
 - **Adding or updating a mod.** Find the version id on the mod's Modrinth *Versions* page (the last part of the
   version URL) and add `'<slug>': '<version id>'`. If it fails to start, add the mod's required dependencies too.
+- **Test environments.** `-PtestEnv=<name>` starts with one of the sets of mods under `testEnvironments` in the same
+  file, in a run directory of its own (`run-envs/<name>`, gitignored), so that their configs never mix:
+  - `vanilla`: Diffusicraft alone, for both of Minecraft's renderers;
+  - `performance`: the usual performance and quality-of-life mods, with Sodium, Lithium and Iris, for Bliss and
+    Complementary Unbound. Nothing that changes how chunks are generated, loaded or lit: such mods stop the game (see
+    [COMPATIBILITY.md](COMPATIBILITY.md#incompatible-mods));
+  - `modded`: `performance` with the biome and structure mods that fit the fantasy of the world, to see that they get
+    along with it and leave its terrain alone.
+
+  [`tools/benchmark.py`](../tools/benchmark.py) measures them (see
+  [PERFORMANCE.md](PERFORMANCE.md#real-time-benchmark)).
 
 Models and runtimes go to the shared storage directory described in [CONFIG.md](CONFIG.md#storagepath), so a dev
 client reuses what your normal game downloaded.

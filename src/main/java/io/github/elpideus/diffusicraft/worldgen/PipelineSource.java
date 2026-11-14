@@ -68,13 +68,14 @@ final class PipelineSource implements TerrainSource {
 	private WorldPipeline pipeline() {
 		WorldPipeline p = pipeline;
 		if (p == null) {
+			// Outside the lock: TerrainFields closes this source under its own, which models() takes.
+			ModelBundle models = TerrainFields.models();
 			synchronized (this) {
 				if (closed) {
 					throw new IllegalStateException("The terrain source for seed " + seed + " is closed");
 				}
 				p = pipeline;
 				if (p == null) {
-					ModelBundle models = TerrainFields.models();
 					Path root = TerrainFields.storageRoot();
 					DiskWindowStore store = root == null ? null
 						: new DiskWindowStore(root.resolve(models.revision()).resolve("map" + Geography.VERSION)

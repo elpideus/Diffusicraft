@@ -13,6 +13,7 @@ architecture is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the plan in [do
 env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x24" \
     ./gradlew runClientGameTest -PnoDevMods   # headless UI test, screenshots in build/run/clientGameTest/screenshots
 # add -Pdiffusicraft.gametests=TallDimension,Ultra to run only the game tests whose class names start with those
+tools/benchmark.py vanilla-opengl performance   # real-time benchmark, off screen, on the real GPU; see docs/PERFORMANCE.md
 ```
 
 ## Things to know
@@ -29,13 +30,21 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   tick.
 - **Mixin targets** that break on Minecraft updates:
   - client: `Gui.addInitialScreens`, `CreateWorldScreen$MoreTab.<init>`, `CreateWorldScreen$WorldTab.<init>` and its
-    `customizeTypeButton`, `CreateWorldScreen.onCreate`, `WorldCreationUiState.<init>`, and for the far terrain
+    `customizeTypeButton`, `CreateWorldScreen.onCreate`, `WorldCreationUiState.<init>`, the head of `LocalPlayer.tick`
+    (which holds a player over a chunk that has not arrived), and for the far terrain
     (`client/mixin/lod`) the head of `LevelRenderer.addMainPass`, the tail of `LevelRenderer.executeSolid`, the first
-    `Math.max` in `Camera.update` (its far plane) and the return of `FogRenderer.setupFog`, and for the clouds
+    `Math.max` in `Camera.update` (its far plane), the return of `FogRenderer.setupFog` and the return of
+    `SectionRenderDispatcher.RenderSection.getVisibility` (no fade from the fog colour over far terrain), and for the clouds
     (`client/mixin/clouds`) the drawing `CloudRenderer.prepare` (wrapped, named by its descriptor beside the one that
     reloads the clouds) and its calls to `Std140Builder.putVec3`, the first write of `FogData.cloudEnd` in
     `AtmosphericFogEnvironment.setupFog` and the same `Math.max` in `Camera.update`;
-  - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the synthetic
+  - common: `DedicatedServerProperties.<init>` (its read of `WorldPresets.NORMAL`), the private static
+    `WorldDimensions.checkStability` (which keeps a Diffusicraft dimension from counting as experimental), the heads of
+    `ServerChunkCache.getChunk` and `hasChunk`, with `ServerPlayer.doTick`,
+    `ServerGamePacketListenerImpl.handlePlayerPositionChange` and `ServerLevel.tickCustomSpawners` wrapped around them
+    (neither a player's own tick nor a spawner looking around one waits for a chunk), as are the call to
+    `TimerQueue.tick` in `ServerLevel.tickTime` and the second call to `executeTagFunctions` in
+    `ServerFunctionManager.tick` (data packs' scheduled and tick functions, not their load functions), the synthetic
     `ChunkGeneratorStructureState.lambda$generateRingPositions$0`, whose name changes if Mojang adds a lambda before it,
     the call to `Stream.collect` in `ChunkGeneratorStructureState.createForNormal` (where a Diffusicraft world's villages
     and pillager outposts take Diffusicraft's spreads),
@@ -47,13 +56,16 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     of its constructor, so that the far terrain's threads can fill it beside the chunks'), the call to
     `FeaturePlacer.placeWithBiomeCheck` in
     `ChunkGenerator.applyBiomeDecoration` (which also places the river falls and boulders after `spring_water`), the
+    call to `BiomeSource.createResolverForChunk` in `ChunkGenerator.doCreateBiomes` (where a biome source that wraps
+    Diffusicraft's, as Lithostitched's does, shares one pick over the ground), the
     call to `WorldGenLevel.setBlock` in `SpringFeature.place`, the call to `SerializableChunkData.copyOf` in
     `ChunkMap.save(ChunkAccess)` (which hands each saved chunk to the far terrain's store),
     `NoiseChunk.<init>` (its `aquifer` field, which every caller reads through `aquifer()`), `RandomState.create` (its
     head too, where vanilla's noises are swapped for Diffusicraft's copies and the loaded noise router and aquifers
     are put back) and `createClimateSampler`, the interface added to `Climate.Sampler`, the `0.05F` in
     `Biome.getHeightAdjustedTemperature`, the accessors for `ChunkGenerator.featuresPerStep` (where the far terrain
-    finds the redwoods' places among the trees), `MaterialRuleContext.randomState`, `RandomState.random`, the
+    finds the redwoods' places among the trees), `MaterialRuleContext`'s `randomState`, `system`, `expectedVolume`,
+    `densitySamplers`, `biomeGetter` and `context` (`VeinsRule` builds a context of its own from them), `RandomState.random`, the
     `NoiseGeneratorSettings` fields `materialRule`, `noiseRouter` and `aquifers` (kept as loaded at the end of the
     constructor, because TerraBlender and FrozenLib change what the rule's accessor returns, Biolith replaces the rule
     and Lithostitched the router and aquifers), and the invokers of `MaterialRuleContext`'s
@@ -66,7 +78,10 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
   - height (`mixin/height`): the `30000000`, `3.0E7`, `29999984` and `2097152` literals in vanilla, the locals of
     `SerializableChunkData.parse` and `copyOf` and of `FriendlyByteBuf.read/writeBlockPos`, and the internals of
     `PalettedContainer`, its `Strategy` and `SingleValuePalette` (opened by `diffusicraft.classtweaker`); on the client
-    (`client/mixin/height`), `new RotatingSectionStorage` in `ViewArea.<init>` and `SectionUpdateTracker.<init>`.
+    (`client/mixin/height`), `new RotatingSectionStorage` in `ViewArea.<init>` and `SectionUpdateTracker.<init>`, the
+    first `new LongOpenHashSet` in `SectionOcclusionGraph.<init>` (its `emptySections`, which `SectionSet` replaces),
+    the call to `setSectionRangeDirty` in `ClientPacketListener.enableChunkLight` and the second int local of
+    `ClientLevel.pollLightUpdates`; in common, the first `LongSet.add` in `LayerLightSectionStorage.markNewInconsistencies`.
     The full table is in [docs/HEIGHT.md](docs/HEIGHT.md#mixin-targets);
   - Distant Horizons (`mixin/dh`, applied only when it is installed): the height getters of its `ChunkWrapper`
     (`getExclusiveMaxBuildHeight()`, `getMaxNonEmptyHeight`, `getSolidHeightMapValue` and
@@ -77,7 +92,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     Biolith wraps to run its surface builders, the call to `Holder.unwrapKey` in `BiomeCoordinator.handleWorldStarting`,
     its `SurfaceRuleCollector.OVERWORLD.getAllBootstrapped`, read by reflection in `compat.biolith.BiolithRules`, and
     `biolith$getDimensionType`, the method Biolith adds to every biome source, which `ClimateBiomeSource` overrides.
-    Check them on every update of either mod.
+    Lithostitched (`mixin/lithostitched`): its static `StructureAttributeHandler.tick(ServerLevel)`, wrapped so that its
+    look for the structure each player stands in never waits for a chunk. Check them on every update of these mods.
   - Voxy (`client/mixin/voxy`, applied only when it is installed): the `new RenderDistanceTracker` in
     `VoxyRenderSystem.<init>`, `WorldUpdater.insertUpdate`, the call to `SectionLoader.load` in
     `ActiveSectionTracker.acquire(long, boolean)`, the private `VoxyInstance.createWorld`, the interface added to
@@ -86,7 +102,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     update.
   - Sodium (`client/mixin/sodium`, applied only when it is installed): the `-128` inlined once in
     `TaskCollectingTree.addPendingSection` and in `DeferredTaskList.dequeueNextSectionPos`, `getPendingTaskLists`
-    returning the `DeferredTaskList`, and `AbstractSectionVisitor.baseOffsetY`, plus
+    returning the `DeferredTaskList`, `AbstractSectionVisitor.baseOffsetY` and the third argument of
+    `UniformBufferManager.writeMeshTimes` (a negative time turns its chunk fade off), plus
     `SodiumWorldRenderer.instanceNullable()`, `isSectionReady(int, int, int)` and `isBoxVisible` (six doubles),
     which `client.compat.sodium.SodiumSections` calls through method handles for the far terrain. `ChunkMask` and
     `far_terrain.fsh` repeat the distance test of `TraversableTree` (a cylinder from the camera itself) and the
@@ -109,12 +126,16 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `_vert_position` and `_vert_normal` that Iris's `DHTerrainTransformer` declares. `OverdrawTests` reads the source
     as Iris prints it: preprocessed, with no comments, and the first output as `layout(location = 0) out vec4`. Check
     them all on every Iris update.
+- **Incompatible mods.** `conflicts` in `fabric.mod.json` lists the mods that change how chunks are generated, loaded
+  or lit, and `compat.IncompatibleMods` stops the game when one is there, never `breaks`, whose error blames
+  Diffusicraft. It draws its window through Fabric Loader's internal `FabricGuiEntry` and `FabricStatusTree`: check
+  them on every Loader update. See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md#incompatible-mods).
 - **Positions.** `BlockPos` packs 24/16/24 bits, not 26/12/26, and worlds end at ±8,000,000. Never pack positions by
   hand or assume ±30,000,000: use `BlockPos.asLong`/`of`, and the numbers in `ExtendedHeight`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
   `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py`,
-  `tools/block_assets.py` (blocks) or `tools/biomes.py` (biomes, their features and tags) and rerun it, never the
-  JSON or the textures.
+  `tools/block_assets.py` (blocks), `tools/biomes.py` (biomes, their features and tags) or `tools/gui_assets.py` (GUI
+  sprites) and rerun it, never the JSON or the textures.
 - **Optional mods.** Mod Menu, Iris and the Distant Horizons API are `compileOnly`, never bundled. Code that touches
   them (`client.compat`, `compat.dh`) loads only when the mod is installed; keep their classes out of everything else.
 - **Untested paths.** The AMD ROCm/MIGraphX path has never run on AMD hardware. Say so when touching it.

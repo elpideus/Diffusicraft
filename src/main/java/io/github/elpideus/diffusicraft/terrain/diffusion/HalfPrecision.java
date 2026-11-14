@@ -111,7 +111,7 @@ final class HalfPrecision {
 		try (OrtSession.SessionOptions options = new OrtSession.SessionOptions()) {
 			options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT);
 			options.setOptimizedModelFilePath(folded.toAbsolutePath().toString());
-			OnnxModel.environment().createSession(source.toAbsolutePath().toString(), options).close();
+			OnnxModel.createSession(source, options).close();
 		}
 	}
 

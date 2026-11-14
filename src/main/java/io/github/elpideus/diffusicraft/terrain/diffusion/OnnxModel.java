@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -38,9 +39,30 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <p>{@link #run} is thread-safe. Concurrent runs are limited by a shared semaphore because each run already
  * uses many threads (CPU) or the whole device (GPU); oversubscribing only adds contention.
+ *
+ * <p>A thread inside ONNX Runtime when the process exits crashes it: the exit keeps no thread in native code from
+ * running, and then C++ destroys the library's statics under it, its log sink first. So {@link #open}, {@link #run} and
+ * {@link #close} count themselves, and the exit waits for that count to reach zero.
  */
 public final class OnnxModel implements AutoCloseable {
 	private static final Logger LOGGER = LoggerFactory.getLogger(OnnxModel.class);
+	/** Threads in ONNX Runtime's native code right now. */
+	private static final AtomicInteger NATIVE_CALLS = new AtomicInteger();
+	/** How long the exit waits for them: longer than a run or a model load takes, even on a CPU. */
+	private static final long EXIT_WAIT_NANOS = 15_000_000_000L;
+
+	static {
+		Runtime.getRuntime().addShutdownHook(Thread.ofPlatform().name("Diffusicraft ONNX exit").unstarted(() -> {
+			long deadline = System.nanoTime() + EXIT_WAIT_NANOS;
+			while (NATIVE_CALLS.get() > 0 && System.nanoTime() < deadline) {
+				try {
+					Thread.sleep(5);
+				} catch (InterruptedException e) {
+					return;
+				}
+			}
+		}));
+	}
 
 	public enum Device {
 		/** Best available: CUDA, then MIGraphX/ROCm, DirectML, CoreML, WebGPU, then the CPU. */
@@ -134,12 +156,22 @@ public final class OnnxModel implements AutoCloseable {
 				options.setIntraOpNumThreads(settings.intraOpThreads());
 			}
 			addProvider(options, provider, settings);
-			OrtSession session = environment().createSession(file.toAbsolutePath().toString(), options);
+			OrtSession session = createSession(file, options);
 			LOGGER.info("Loaded model '{}' on {} in {} ms", name, provider, (System.nanoTime() - start) / 1_000_000);
 			return new OnnxModel(name, session, provider, settings.permits());
 		} catch (OrtException | RuntimeException | LinkageError e) {
 			LOGGER.warn("Could not load model '{}' with {}: {}", name, provider, e.toString());
 			throw e instanceof OrtException ort ? ort : new OrtException(e.toString());
+		}
+	}
+
+	/** Opens a session in a way the process can exit around. */
+	static OrtSession createSession(Path file, OrtSession.SessionOptions options) throws OrtException {
+		NATIVE_CALLS.incrementAndGet();
+		try {
+			return environment().createSession(file.toAbsolutePath().toString(), options);
+		} finally {
+			NATIVE_CALLS.decrementAndGet();
 		}
 	}
 
@@ -258,19 +290,19 @@ public final class OnnxModel implements AutoCloseable {
 	public float[] run(float[] x, long[] xShape, float[] noiseLabels, float[][] cond, long[][] condShapes) {
 		OrtEnvironment env = environment();
 		Map<String, OnnxTensor> feed = new LinkedHashMap<>();
-		boolean acquired = false;
+		// The tensors are native too, so they wait here as well, and those waiting hold no native memory.
+		permits.acquireUninterruptibly();
+		NATIVE_CALLS.incrementAndGet();
 		try {
+			if (closed) {
+				throw new IllegalStateException("Model '" + name + "' is closed");
+			}
 			feed.put("x", OnnxTensor.createTensor(env, FloatBuffer.wrap(x), xShape));
 			feed.put("noise_labels", OnnxTensor.createTensor(env, FloatBuffer.wrap(noiseLabels), new long[]{noiseLabels.length}));
 			if (cond != null) {
 				for (int i = 0; i < cond.length; i++) {
 					feed.put("cond_" + i, OnnxTensor.createTensor(env, FloatBuffer.wrap(cond[i]), condShapes[i]));
 				}
-			}
-			permits.acquireUninterruptibly();
-			acquired = true;
-			if (closed) {
-				throw new IllegalStateException("Model '" + name + "' is closed");
 			}
 			long start = System.nanoTime();
 			try (OrtSession.Result result = session.run(feed)) {
@@ -286,12 +318,11 @@ public final class OnnxModel implements AutoCloseable {
 		} catch (OrtException e) {
 			throw new IllegalStateException("Inference failed for model '" + name + "' on " + provider, e);
 		} finally {
-			if (acquired) {
-				permits.release();
-			}
 			for (OnnxTensor tensor : feed.values()) {
 				tensor.close();
 			}
+			NATIVE_CALLS.decrementAndGet();
+			permits.release();
 		}
 	}
 
@@ -299,6 +330,7 @@ public final class OnnxModel implements AutoCloseable {
 	@Override
 	public void close() {
 		permits.acquireUninterruptibly();
+		NATIVE_CALLS.incrementAndGet();
 		try {
 			if (!closed) {
 				closed = true;
@@ -307,6 +339,7 @@ public final class OnnxModel implements AutoCloseable {
 		} catch (OrtException e) {
 			LOGGER.warn("Failed to close model '{}': {}", name, e.toString());
 		} finally {
+			NATIVE_CALLS.decrementAndGet();
 			permits.release();
 		}
 	}

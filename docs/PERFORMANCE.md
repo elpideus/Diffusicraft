@@ -46,6 +46,182 @@ Options:
 The test uses the models and runtimes installed in the shared storage directory. Download them in game first, or
 with `RuntimeInstallTest`; see [DEVELOPMENT.md](DEVELOPMENT.md#tests).
 
+## Real-time benchmark
+
+`WorldPipelineBenchmarkTest` measures the models. `tools/benchmark.py` measures the game: a real player, in real time,
+in each [test environment](DEVELOPMENT.md#running-the-game). It runs `src/benchmark`, a small mod of its own, because
+Fabric's client game tests run the client and the server in lockstep, where neither a stutter nor a server falling
+behind can show.
+
+```bash
+tools/benchmark.py vanilla-opengl performance
+```
+
+```bash
+tools/benchmark.py --table --out build/benchmarks
+```
+
+| Environment | Mods | Renderer |
+|---|---|---|
+| `vanilla-opengl` | Diffusicraft alone | OpenGL |
+| `vanilla-vulkan` | Diffusicraft alone | Vulkan, on Mesa's driver for the Intel GPU |
+| `performance` | Sodium, Lithium, Iris and the like | OpenGL |
+| `performance-bliss`, `performance-complementary` | The same, with the shader pack on | OpenGL |
+| `modded`, `modded-bliss` | The same, and the fantasy biome and structure mods | OpenGL |
+
+Everything is drawn off screen on the real GPU (`SDL_VIDEO_DRIVER=offscreen`), so nothing opens on the desktop. NVIDIA's
+Vulkan driver cannot run off screen, which is why Vulkan is measured on the Intel GPU: compare `vanilla-vulkan` with
+itself, never with the RTX 3060 of the others.
+
+Options: `--device`, `--size`, `--seed`, `--renderDistance`, `--spawnSeconds`, `--flightSeconds`, `--teleportSeconds`,
+`--out <folder>`, and `--jvmArgs=-XX:+UseZGC` for the game's JVM. The same run goes through Gradle as
+`./gradlew runBenchmark -PtestEnv=<name>`, with `-Pdiffusicraft.benchmark.*` for the options, `-Pdiffusicraft.jfr=<file>`
+for a recording and `-Pdiffusicraft.jvmArgs` for the JVM.
+
+**What a run does.** It creates a world of the default size at render distance 16 and goes through five phases:
+
+- `spawn`: stands where it spawned for 45 s;
+- `flight`: flies 90 s at 22 blocks a second, the speed of a sprint in creative flight, 30 blocks over ordinary land. It
+  takes five pictures on the way and climbs by script, because the space bar climbs at a third of that speed;
+- `rest`: hovers until the far terrain has caught up, for at most 60 s, then turns round at once and takes a picture two
+  frames later, of what the far terrain draws before the renderer knows what is behind the player;
+- `teleport`: jumps more than 40,000 blocks and flies on from there for 60 s, over land nothing has seen yet. The
+  landing is chosen on the coarse map alone, so that planning it computes none of the terrain the player should find
+  missing;
+- `leaving`: leaves the world and quits, so that a crash on the way out shows.
+
+**What it leaves.** In `--out`: `<name>.json`, `<name>.log`, a Java Flight Recording `<name>.jfr`, the pictures, and an
+`hs_err` file if the JVM crashed. A crash report stays in `build/run/benchmark/<environment>/crash-reports`. Read a
+recording with a streaming reader (`jdk.jfr.consumer.RecordingFile`) and not as JSON, which takes tens of gigabytes:
+beside a run that is enough for `systemd-oomd` to kill everything in the same scope.
+
+**Reading the table.** `fps` is the mean; `p50` to `max` are frame times in ms; `>50` and `>100` count the frames over
+50 and 100 ms; `tps`, `mspt50` to `msptMax` are the server's ticks, and `gapMax` the longest time between two ticks;
+`gc n/ms` is the collections and their total. Use the percentiles: a mean of 500 fps says little about a frame of 300 ms.
+
+### Results
+
+Seed 20261052, at the 1:1 scale, on the Core i7-12700K and the RTX 3060 (12 GB), with terrain on CUDA. Times are in ms,
+and `rest` is left out. Each environment ran once. All runs flew the whole 1,948 blocks of the route and the player
+never sank into the ground. The far terrain had caught up by the end of the flight in all but the two `modded` runs,
+where it was still 115 tiles short after the 60 s of `rest` (see below).
+
+The rows do not all come from one build. The fixes for biome mods and data packs came after most of the runs, and
+change nothing these show without such mods: `vanilla-opengl` flew at 433 fps with a 99.9th percentile of 44 ms before
+them, and at 446 fps and 41 ms after. `modded-bliss` ran before data packs' functions stopped waiting for chunks, hence
+its tick of 17.8 s after the teleport, which `modded` no longer has. `performance`, its shader packs and
+`vanilla-vulkan` ran with a light game open beside them.
+
+| Environment | Phase | fps | p50 | p99 | p99.9 | Max | Frames > 50 | TPS | Tick p99 | Tick max |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `vanilla-opengl` | spawn | 693 | 1.1 | 6.1 | 19 | 44 | 0 | 20.0 | 40 | 83 |
+| | flight | 446 | 1.9 | 7.5 | 41 | 82 | 20 | 20.0 | 48 | 119 |
+| | teleport | 476 | 1.9 | 5.4 | 26 | 67 | 11 | 20.0 | 44 | 434 |
+| `performance` | spawn | 508 | 1.4 | 9.7 | 37 | 77 | 11 | 20.0 | 63 | 89 |
+| | flight | 354 | 2.0 | 19.1 | 76 | 122 | 58 | 20.0 | 65 | 118 |
+| | teleport | 407 | 2.0 | 10.9 | 56 | 282 | 26 | 20.0 | 49 | 720 |
+| `performance-bliss` | spawn | 92 | 9.1 | 37.3 | 65 | 102 | 14 | 20.0 | 55 | 97 |
+| | flight | 71 | 11.6 | 55.6 | 103 | 128 | 79 | 20.0 | 66 | 198 |
+| | teleport | 108 | 7.2 | 20.7 | 96 | 254 | 28 | 20.0 | 50 | 204 |
+| `performance-complementary` | spawn | 108 | 8.3 | 29.4 | 57 | 74 | 9 | 20.0 | 48 | 78 |
+| | flight | 99 | 8.0 | 43.3 | 99 | 109 | 75 | 20.0 | 61 | 113 |
+| | teleport | 122 | 6.7 | 21.1 | 91 | 195 | 25 | 20.0 | 50 | 441 |
+| `vanilla-vulkan` (Intel UHD 770) | spawn | 76 | 12.5 | 30.5 | 51 | 52 | 4 | 20.0 | 60 | 103 |
+| | flight | 37 | 28.9 | 66.6 | 92 | 103 | 68 | 20.0 | 57 | 203 |
+| | teleport | 46 | 22.5 | 47.4 | 76 | 79 | 26 | 20.0 | 47 | 386 |
+| `modded` | spawn | 863 | 0.9 | 5.1 | 33 | 69 | 9 | 20.0 | 55 | 94 |
+| | flight | 952 | 0.9 | 4.2 | 17 | 111 | 32 | 20.0 | 33 | 102 |
+| | teleport | 1669 | 0.4 | 2.8 | 8 | 201 | 13 | 20.0 | 50 | 643 |
+| `modded-bliss` | spawn | 118 | 8.0 | 27.0 | 54 | 107 | 11 | 20.0 | 52 | 83 |
+| | flight | 110 | 8.6 | 21.3 | 86 | 110 | 42 | 20.0 | 36 | 156 |
+| | teleport | 164 | 5.2 | 11.3 | 72 | 256 | 11 | 14.0 | 72 | 17830 |
+
+`modded` draws faster than the rest, most likely because its far terrain, which falls behind, holds less: about
+300 MiB of meshes at rest, where the others held 660 to 690 MiB, and 770 MiB at most. An earlier run over mountains
+reached 2.2 GiB. `modded` took 60 s to load into the world, against 32 s for `vanilla-opengl`.
+
+### What it found
+
+- **Waiting for a chunk.** A player's own tick could wait for a chunk that had not been generated, which held the
+  whole server: 17.5 s behind after a teleport, at 14 TPS. Now no player waits (`UnloadedChunks`), and the client holds
+  a player over a chunk that has not arrived instead of letting them sink into the ground. A client without Diffusicraft
+  on a Diffusicraft server has no such hold, and can still sink.
+- **Spawners.** `CatSpawner` and the other spawners that look around a player read chunks that were still being
+  generated, which stopped the server for 15 s once. They no longer wait for a chunk either. The stall was rare, so that
+  clean runs since support this fix without proving it.
+- **Bursts of light updates** after a teleport took a frame of 1.4 s under vanilla and 1.6 s under Sodium. The client
+  now takes at most 64 of them a frame, and the worst frame under vanilla is the 59 ms of the table.
+- **Empty sections.** The set of empty sections that the renderer copies for every search of what the camera can see
+  held millions of numbers under a tall sky. `SectionSet` keeps one bit per row, and a copy shares its columns until
+  one side writes to them.
+- **Veins.** A vein rule filled its buffers for the whole height of a chunk, which came to megabytes of the collector's
+  largest allocations. `VeinsRule` compiles it for the band it can reach. Ores stayed equal to within the difference
+  between two runs of the same code.
+- **Building the far terrain.** It now builds the tiles whose chunks have not come first, nearest first, so that it
+  keeps up with a sprint on ordinary land, where it used to end the flight with 234 of 316 tiles to build.
+- **The far terrain asked the server for chunks.** It grows the trees and structures of far land in a sketch of the
+  level, and some of them reach past it into the real one: vanilla's cats choose their coat among the structures around
+  them, and Villages & Pillages checks every tree for a village. Off the server thread such a read has the server
+  generate that chunk, and holds its tick until it is done. In one run of `modded` the far terrain's threads waited
+  920 s in all for chunks, and the server fell under 1 TPS; Diffusicraft alone lost 0.8 s to the cats. While a thread
+  sketches, every chunk now reads as empty (see [LOD.md](LOD.md#structures-farstructures-and-farsketch)).
+- **Biomes in a tall world.** With biome mods, choosing biomes took most of the time of the threads that generate the
+  world. Biolith answers for the resolvers of every multi-noise source with a search of its own, slower than vanilla's,
+  which came to 64% of their samples in `modded`. And a structure looks through every quart of a column for a biome it
+  may stand in, 4,156 quarts at 1:1. `ClimateBiomeSource` now asks vanilla's list itself, and from just over the ground
+  up a column shares one pick (see [WORLDGEN.md](WORLDGEN.md#biome-parameters)). In `modded`, loading into the world
+  went from 102 to 67 s, the first ground after a teleport from 32 to 18 s, as without the mods, and the TPS in flight
+  from 10.4 to 20. Alone, biomes went from 15% of those threads' samples to 6%.
+- **Lithostitched.** It puts a biome source of its own in front of the world's, which samples the climate and its own
+  regions at every quart besides asking Diffusicraft's. Filling the chunks' biomes through it took 55% of the samples
+  of the threads that generate the world in `modded`. Its chunks now share one pick from just over the ground up too
+  (`ChunkGeneratorMixin`), and that came to 11%, while those threads did 38% less work over the same route. It also
+  looks every few ticks for the structure each player stands in, and that read waited for the chunk under the player:
+  16 s after a teleport. It now skips a player whose chunk has not come (`StructureAttributeHandlerMixin`).
+- **Data packs.** With Lithostitched's wait gone, the server still stopped 17 s after a teleport: Incendium checks
+  every second whether each player stands in one of its biomes, from a function it schedules, and reading the biome
+  waited for the chunk. The functions data packs schedule or tick no longer wait for a chunk; their load functions
+  still do. After the teleport `modded` now keeps 20 TPS, and its longest tick went from 17.4 s to 0.6 s.
+- **Memory across worlds.** Each world loads the models again, on whichever thread first needs them, and glibc kept
+  the gigabytes a load frees in that thread's arena: the game grew by about 4 GB for every world opened in one run,
+  until the system ran out, which stopped the client game tests twice. Once the models close, `NativeHeap` has the
+  JVM trim the native heap, which gives back about 4 GB in under a second. Over the six worlds of `SpawnViewGameTest`
+  the game then peaked at 11.3 GB, where it had reached its cap of 18 GB by the fifth (under Xvfb, where what the GPU
+  would hold is in the system's memory too).
+- **C2ME.** At the spawn of `performance` the 99th percentile frame was 15.6 ms with it and 7.3 ms without, and after a
+  teleport the frames per second were 442 and 697. Other fixes landed between those two runs, so that this shows that
+  leaving it out costs nothing, not how much of the gain is its own. See
+  [COMPATIBILITY.md](COMPATIBILITY.md#incompatible-mods).
+
+What is left:
+
+- **Garbage collection.** The longest pauses, about 150 ms, are G1 copying young chunks that survive: 1.17 GB in one
+  collection. Chunks would need to share their empty sections to bring that down, which reaches far into vanilla.
+- **Saving chunks.** The largest ticks after a teleport are `ChunkMap.save`, which copies the light of each section in
+  `SerializableChunkData.copyOf`. The server keeps 20 TPS through them, and limiting them is unsafe.
+- **ZGC.** One run of `performance` with `-XX:+UseZGC` against one with G1: in flight the 99.9th
+  percentile frame was 44 ms against 76 and 15 frames took over 50 ms against 58, and after the teleport 29 ms against
+  56 and 3 frames against 26. But the worst frame of the teleport took 408 ms against 282, and the longest tick 1.1 s
+  against 0.7 s. It makes the flight smoother; one run each is too few to say more, and the collector is the player's
+  choice, in their launcher.
+- **World generation on the game's threads.** Of the worker threads' samples in `vanilla-opengl`, 35% are
+  `buildSurface`, which goes through every block of a column, 16% the noise fill, 12% `SculkPatchFeature` in the deep
+  dark, and 6% biomes. The terrain's own reads come to about 2%.
+- **The first chunk after a teleport** takes 11 to 19 s, while the models compute the terrain there. The far terrain
+  shows the land in the meantime.
+- **Incendium's first start.** Its load function forces chunk 0, 0 to load for its own use, which on a new world holds
+  the server about 15 s while the models compute that chunk, 8 km from the spawn. A forced chunk must load, so it
+  waits.
+- **The far terrain with many mods** falls behind. In `modded` it still had about 115 tiles to build after the 60 s
+  of `rest`, where `vanilla-opengl` had none, and its threads ran all the time. Of their samples, 35% decide which trees
+  stand under which, a search that grows with the size of the largest tree and goes through every kind of tree in turn,
+  of which the mods bring many; 27% sketch the mods' structures, most of it Lithostitched's assembly of jigsaw
+  structures; and 23% are the sketches' biomes asked of Lithostitched's source quart by quart. Its feed also learns the
+  shapes of the mods' trees on the server thread when the first player joins: 0.45 s, once.
+- **Sodium, the frame of a teleport.** The worst frames under Sodium, 233 to 322 ms, are the first after a teleport.
+  Over 200 ms of one is `RenderSectionManager.onChunkRemoved` going through every section of every chunk left behind,
+  which grows with the height of the world. It happens once, at the moment the view changes anyway.
+
 ## Where the time goes
 
 Inside ONNX Runtime: **99% on the CPU and 97% on CUDA** of the benchmark's wall time is spent in model runs. The

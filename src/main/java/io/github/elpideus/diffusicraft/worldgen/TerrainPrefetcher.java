@@ -93,13 +93,6 @@ public final class TerrainPrefetcher implements AutoCloseable {
 		return prefetched.sum();
 	}
 
-	/** Whether every tile of the current plan is in memory or being computed. */
-	public boolean caughtUp() {
-		synchronized (lock) {
-			return plan.stream().allMatch(r -> r.field().hasTile(r.ti(), r.tj()));
-		}
-	}
-
 	/** Stops planning. A tile being computed is finished, or fails if its models are closed meanwhile. */
 	@Override
 	public void close() {

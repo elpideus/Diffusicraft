@@ -57,8 +57,8 @@ public final class ReliefMap implements AutoCloseable {
 	private static @Nullable ReliefMap map;
 
 	private final MinecraftServer server;
-	private final LifoExecutor fine = new LifoExecutor("Diffusicraft relief map terrain", 2);
-	private final LifoExecutor fast = new LifoExecutor("Diffusicraft relief map", 2);
+	private final MapExecutor fine = new MapExecutor("Diffusicraft relief map terrain", 2);
+	private final MapExecutor fast = new MapExecutor("Diffusicraft relief map", 2);
 	private final MapService service;
 	private final String base;
 	/** Whether only the server's machine can open the map. */
@@ -66,16 +66,23 @@ public final class ReliefMap implements AutoCloseable {
 
 	private ReliefMap(MinecraftServer server, List<LevelMap> levels, DiffusicraftConfig config) throws IOException {
 		this.server = server;
-		Path root = cacheRoot(server);
-		List<MapTiles> tiles = new ArrayList<>();
-		for (LevelMap level : levels) {
-			Identifier id = Identifier.parse(level.id());
-			Path dir = root == null ? null : root.resolve(id.getNamespace()).resolve(id.getPath());
-			tiles.add(new MapTiles(level, dir, fine, fast));
+		InetAddress address;
+		try {
+			Path root = cacheRoot(server);
+			List<MapTiles> tiles = new ArrayList<>();
+			for (LevelMap level : levels) {
+				Identifier id = Identifier.parse(level.id());
+				Path dir = root == null ? null : root.resolve(id.getNamespace()).resolve(id.getPath());
+				tiles.add(new MapTiles(level, dir, fine, fast));
+			}
+			address = InetAddress.getByName(config.reliefMapAddress.isEmpty() ? "127.0.0.1"
+				: config.reliefMapAddress);
+			this.service = new MapService(tiles, new ServerGame(), fine, address, config.reliefMapPort);
+		} catch (IOException | RuntimeException e) {
+			fine.close();
+			fast.close();
+			throw e;
 		}
-		InetAddress address = InetAddress.getByName(config.reliefMapAddress.isEmpty() ? "127.0.0.1"
-			: config.reliefMapAddress);
-		this.service = new MapService(tiles, new ServerGame(), fine, address, config.reliefMapPort);
 		this.local = address.isLoopbackAddress();
 		this.base = config.reliefMapUrl.isEmpty() ? "http://" + host(server, address) + ":" + service.port()
 			: config.reliefMapUrl.replaceAll("/+$", "");

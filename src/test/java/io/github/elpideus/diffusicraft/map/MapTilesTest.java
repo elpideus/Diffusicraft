@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class MapTilesTest {
-	private final LifoExecutor fine = new LifoExecutor("test fine", 1);
-	private final LifoExecutor fast = new LifoExecutor("test fast", 1);
+	private final MapExecutor fine = new MapExecutor("test fine", 1);
+	private final MapExecutor fast = new MapExecutor("test fast", 1);
 
 	@AfterEach
 	void close() {

@@ -186,8 +186,9 @@ Diffusicraft counts them from below the camera instead (see [COMPATIBILITY.md](C
 - **Iris** draws the tall dimension with a shader pack on, its shadow pass included: the test's own pack and Bliss
   both drew the platforms at y = ±16,000 and the chunk at y = 16,340 (`-Pdiffusicraft.gametests=Shaders,TallDimension`,
   see [COMPATIBILITY.md](COMPATIBILITY.md#shaders)).
-- **Untested:** Lithium, FerriteCore, Moonrise and C2ME in a tall dimension. Test each of them in one before relying
-  on it.
+- **Lithium and FerriteCore** run the benchmark's whole route in a tall dimension (see
+  [PERFORMANCE.md](PERFORMANCE.md#real-time-benchmark)). Moonrise and C2ME are
+  [refused](COMPATIBILITY.md#incompatible-mods).
 
 ## Costs
 
@@ -341,6 +342,10 @@ These break when Mojang changes them. Check them on every Minecraft update:
 | `sodium.DeferredTaskListMixin` (client, Sodium) | `DeferredTaskList.dequeueNextSectionPos` | `SECTION_Y_MIN` (−128) inlined once, to unpack the height |
 | `sodium.AbstractSectionVisitorMixin` (client, Sodium) | `AbstractSectionVisitor` | the `baseOffsetY` field, the lowest section of the search, which `TaskCollectingTree` inherits |
 | `RenderGridMixin` (client) | `ViewArea.<init>`, `SectionUpdateTracker.<init>` | `new RotatingSectionStorage(radius, minSectionY, maxSectionY, …)`; the `RotatingSectionStorage` methods that `WindowedSectionStorage` overrides |
+| `SectionOcclusionGraphMixin` (client) | `SectionOcclusionGraph.<init>` | `emptySections` being the first `LongOpenHashSet` it makes, and used only through what `SectionSet` overrides: `clone`, `clear`, `contains`, `add`, `addAll`, `remove`, `size`, `isEmpty` and `iterator` |
+| `ClientPacketListenerMixin` (client) | `ClientPacketListener.enableChunkLight` | its last call being `setSectionRangeDirty` over the 3×3 columns, full height; only rows up to the terrain being worth rebuilding |
+| `ClientLevelMixin` (client) | `ClientLevel.pollLightUpdates` | the number of updates to run being its second int local |
+| `LayerLightSectionStorageMixin` | `LayerLightSectionStorage.markNewInconsistencies` | the first `LongSet.add` being the removal loop's write of `changedSections`, and only `isEmpty` and `clear` reading the set after it (`swapSectionMap`, straight after in `LightEngine.runLightUpdates`) |
 
 Also search the new version for other uses of `30000000`, `3.0E7` and `29999984`, and for code that packs positions
 without `BlockPos.asLong`.

@@ -20,6 +20,8 @@ final class FarMeshWriter {
 	/** How much the water lets through of what lies under it. */
 	private static final int WATER_ALPHA = 191;
 	private static final int MAX_Y = 0xFFFF;
+	/** The blocks over the foot of a face written for the faces that have none: as high as they go. */
+	private static final int NO_FOOT = 255;
 
 	private FarMeshWriter() {
 	}
@@ -38,11 +40,12 @@ final class FarMeshWriter {
 			int minY = Math.min(solid.minY, water.minY);
 			int maxY = Math.max(solid.maxY, water.maxY);
 			if (quads == 0) {
-				return new FarMesh.Data(tile, null, 0, 0, bottom, bottom);
+				return new FarMesh.Data(tile, null, 0, 0, bottom, bottom, bottom);
 			}
 			ByteBuffer vertices = MemoryUtil.memAlloc(quads * QUAD);
 			vertices.put(solid.buffer.flip()).put(water.buffer.flip()).flip();
-			return new FarMesh.Data(tile, vertices, solid.count, water.count, minY, maxY);
+			return new FarMesh.Data(tile, vertices, solid.count, water.count, minY, maxY,
+				Math.min(solid.groundY, water.groundY));
 		} finally {
 			solid.free();
 			water.free();
@@ -57,51 +60,53 @@ final class FarMeshWriter {
 	 */
 	private static void quad(ByteBuffer buffer, Direction side, int x0, int y0, int z0, int x1, int y1, int z1,
 							 int light, int color, int alpha, int material) {
+		int top = side.getAxis().isVertical() ? NO_FOOT : Math.min(y1 - y0, NO_FOOT);
+		int foot = side.getAxis().isVertical() ? NO_FOOT : 0;
 		switch (side) {
 			case UP -> {
-				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
-				vertex(buffer, x0, y0, z1, light, color, alpha, material, side);
-				vertex(buffer, x1, y0, z1, light, color, alpha, material, side);
-				vertex(buffer, x1, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side, foot);
+				vertex(buffer, x0, y0, z1, light, color, alpha, material, side, foot);
+				vertex(buffer, x1, y0, z1, light, color, alpha, material, side, foot);
+				vertex(buffer, x1, y0, z0, light, color, alpha, material, side, foot);
 			}
 			case DOWN -> {
-				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
-				vertex(buffer, x1, y0, z0, light, color, alpha, material, side);
-				vertex(buffer, x1, y0, z1, light, color, alpha, material, side);
-				vertex(buffer, x0, y0, z1, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side, foot);
+				vertex(buffer, x1, y0, z0, light, color, alpha, material, side, foot);
+				vertex(buffer, x1, y0, z1, light, color, alpha, material, side, foot);
+				vertex(buffer, x0, y0, z1, light, color, alpha, material, side, foot);
 			}
 			case NORTH -> {
-				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
-				vertex(buffer, x0, y1, z0, light, color, alpha, material, side);
-				vertex(buffer, x1, y1, z0, light, color, alpha, material, side);
-				vertex(buffer, x1, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side, foot);
+				vertex(buffer, x0, y1, z0, light, color, alpha, material, side, top);
+				vertex(buffer, x1, y1, z0, light, color, alpha, material, side, top);
+				vertex(buffer, x1, y0, z0, light, color, alpha, material, side, foot);
 			}
 			case SOUTH -> {
-				vertex(buffer, x1, y0, z0, light, color, alpha, material, side);
-				vertex(buffer, x1, y1, z0, light, color, alpha, material, side);
-				vertex(buffer, x0, y1, z0, light, color, alpha, material, side);
-				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x1, y0, z0, light, color, alpha, material, side, foot);
+				vertex(buffer, x1, y1, z0, light, color, alpha, material, side, top);
+				vertex(buffer, x0, y1, z0, light, color, alpha, material, side, top);
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side, foot);
 			}
 			case WEST -> {
-				vertex(buffer, x0, y0, z1, light, color, alpha, material, side);
-				vertex(buffer, x0, y1, z1, light, color, alpha, material, side);
-				vertex(buffer, x0, y1, z0, light, color, alpha, material, side);
-				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z1, light, color, alpha, material, side, foot);
+				vertex(buffer, x0, y1, z1, light, color, alpha, material, side, top);
+				vertex(buffer, x0, y1, z0, light, color, alpha, material, side, top);
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side, foot);
 			}
 			case EAST -> {
-				vertex(buffer, x0, y0, z0, light, color, alpha, material, side);
-				vertex(buffer, x0, y1, z0, light, color, alpha, material, side);
-				vertex(buffer, x0, y1, z1, light, color, alpha, material, side);
-				vertex(buffer, x0, y0, z1, light, color, alpha, material, side);
+				vertex(buffer, x0, y0, z0, light, color, alpha, material, side, foot);
+				vertex(buffer, x0, y1, z0, light, color, alpha, material, side, top);
+				vertex(buffer, x0, y1, z1, light, color, alpha, material, side, top);
+				vertex(buffer, x0, y0, z1, light, color, alpha, material, side, foot);
 			}
 		}
 	}
 
 	private static void vertex(ByteBuffer buffer, int x, int y, int z, int light, int color, int alpha, int material,
-							   Direction side) {
+							   Direction side, int foot) {
 		buffer.putShort((short) x).putShort((short) y).putShort((short) z).putShort((short) light)
 			.put((byte) ARGB.red(color)).put((byte) ARGB.green(color)).put((byte) ARGB.blue(color)).put((byte) alpha)
-			.put((byte) material).put((byte) side.ordinal()).put((byte) 0).put((byte) 0);
+			.put((byte) material).put((byte) side.ordinal()).put((byte) foot).put((byte) 0);
 	}
 
 	private static final class Quads implements LodMesher.Faces {
@@ -115,6 +120,7 @@ final class FarMeshWriter {
 		int count;
 		int minY = Integer.MAX_VALUE;
 		int maxY = Integer.MIN_VALUE;
+		int groundY = Integer.MAX_VALUE;
 
 		Quads(LodTiles.Tile tile, int bottom, LodColors colors, FarMaterials materials, int alpha) {
 			this.cornerX = tile.minBlockX();
@@ -137,6 +143,9 @@ final class FarMeshWriter {
 			int yb = Math.clamp(y1 - bottom, 0, MAX_Y);
 			minY = Math.min(minY, bottom + ya);
 			maxY = Math.max(maxY, bottom + yb);
+			if (side == Direction.UP) {
+				groundY = Math.min(groundY, bottom + ya);
+			}
 			quad(buffer, side, x0, ya, z0, x1, yb, z1, light, color, alpha, materials.of(state));
 			count++;
 		}

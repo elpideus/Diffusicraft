@@ -368,6 +368,11 @@ public final class TerrainField implements AutoCloseable {
 		return source.coarse(ci0, cj0, ci1, cj1);
 	}
 
+	/** The long fjords over a window of native pixels, or null if none comes near it; see {@link Glaciation#carving}. */
+	public Glaciation.@Nullable Carving carving(int i0, int j0, int h, int w) {
+		return source.carving(i0, j0, h, w);
+	}
+
 	/** Tiles currently held in memory. */
 	public int cachedTiles() {
 		return tiles.size();

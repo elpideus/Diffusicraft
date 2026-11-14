@@ -32,12 +32,24 @@ public final class HollowLakes {
 		int top = world.hollows().highestCavern();
 		return new Aquifer() {
 			private boolean own;
+			private @Nullable Thread thread;
+			private @Nullable Cache cache;
 
 			@Override
 			public @Nullable BlockState computeSubstance(int x, int y, int z, double density) {
-				BlockState state = density <= 0 && y < top ? CACHE.get().substance(world, x, y, z) : null;
+				BlockState state = density <= 0 && y < top ? cache().substance(world, x, y, z) : null;
 				own = state != null;
 				return own ? state : aquifer.computeSubstance(x, y, z, density);
+			}
+
+			/** The fill asks for every block of open space, where a thread local costs more than the answer does. */
+			private Cache cache() {
+				Thread current = Thread.currentThread();
+				if (current != thread) {
+					thread = current;
+					cache = CACHE.get();
+				}
+				return cache;
 			}
 
 			@Override

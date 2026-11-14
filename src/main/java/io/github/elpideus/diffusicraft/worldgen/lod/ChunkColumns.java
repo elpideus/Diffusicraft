@@ -1,5 +1,6 @@
 package io.github.elpideus.diffusicraft.worldgen.lod;
 
+import it.unimi.dsi.fastutil.objects.Reference2BooleanOpenHashMap;
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalBlockTags;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
@@ -52,8 +53,9 @@ public final class ChunkColumns {
 	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 	private static final BlockState CAVE_AIR = Blocks.CAVE_AIR.defaultBlockState();
 
-	private final Predicate<BlockState> solid;
-	private final Predicate<BlockState> leaves;
+	private final Remembered solid;
+	private final Remembered leaves;
+	private final Remembered ores = new Remembered(state -> state.is(ConventionalBlockTags.ORES));
 	private final int[] tops = new int[256];
 	private final int[] grounds = new int[256];
 	/** The block Y each column keeps its blocks one by one from. */
@@ -78,8 +80,8 @@ public final class ChunkColumns {
 	}
 
 	ChunkColumns(Predicate<BlockState> solid, Predicate<BlockState> leaves) {
-		this.solid = solid;
-		this.leaves = leaves;
+		this.solid = new Remembered(solid);
+		this.leaves = new Remembered(leaves);
 	}
 
 	/**
@@ -131,6 +133,9 @@ public final class ChunkColumns {
 	 */
 	public void read(LevelChunkSection[] sections, @Nullable DataLayer[] sky, int minSectionY, int bottom,
 					 LodSampler.Sink sink) {
+		solid.forget();
+		leaves.forget();
+		ores.forget();
 		this.sections = sections;
 		this.sky = sky;
 		if (layers.length < sky.length) {
@@ -344,7 +349,7 @@ public final class ChunkColumns {
 	 */
 	private BlockState face(int x, int y, int z, int from, int to, BlockState upper) {
 		BlockState state = get(x, y, z);
-		if (!state.is(ConventionalBlockTags.ORES)) {
+		if (!ores.test(state)) {
 			return state;
 		}
 		if (y >= bandHigh) {
@@ -364,9 +369,9 @@ public final class ChunkColumns {
 		to = Math.max(to, from + 1);
 		int middle = from + (to - from) / 2;
 		BlockState state = get(x, middle, z);
-		for (int d = 1; state.is(ConventionalBlockTags.ORES) && (middle - d >= from || middle + d < to); d++) {
+		for (int d = 1; ores.test(state) && (middle - d >= from || middle + d < to); d++) {
 			for (int y : new int[]{middle + d, middle - d}) {
-				if (y >= from && y < to && !get(x, y, z).is(ConventionalBlockTags.ORES)) {
+				if (y >= from && y < to && !ores.test(get(x, y, z))) {
 					return get(x, y, z);
 				}
 			}
@@ -466,5 +471,26 @@ public final class ChunkColumns {
 	private Holder<Biome> biome(int x, int y, int z) {
 		int index = Math.clamp(SectionPos.blockToSectionCoord(y) - minSectionY, 0, sections.length - 1);
 		return sections[index].getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(y) & 3, QuartPos.fromBlock(z));
+	}
+
+	/**
+	 * A test that asks about each block state once: a column has few, and a tag test on every block is most of what
+	 * reading a chunk costs. Forgotten with each chunk, as tags can change between two.
+	 */
+	private static final class Remembered {
+		private final Predicate<BlockState> test;
+		private final Reference2BooleanOpenHashMap<BlockState> answers = new Reference2BooleanOpenHashMap<>();
+
+		Remembered(Predicate<BlockState> test) {
+			this.test = test;
+		}
+
+		boolean test(BlockState state) {
+			return answers.computeIfAbsent(state, test);
+		}
+
+		void forget() {
+			answers.clear();
+		}
 	}
 }

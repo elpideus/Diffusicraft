@@ -8,7 +8,8 @@
   verified.
 - [MAP.md](MAP.md): the relief map in the browser: opening it, finding places and their coordinates, and sharing it
   from a server.
-- [COMPATIBILITY.md](COMPATIBILITY.md): other mods: Distant Horizons, biome mods, C2ME, shaders and structures.
+- [COMPATIBILITY.md](COMPATIBILITY.md): other mods: Distant Horizons, biome mods, the mods it refuses, shaders and
+  structures.
 
 **For contributors**
 

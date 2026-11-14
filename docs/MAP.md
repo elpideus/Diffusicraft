@@ -91,8 +91,10 @@ The code is in `src/main/java/.../map`, with the page in `src/main/resources/dif
 - **`MapTiles`** draws, keeps and mixes the tiles of one level. Zoom level `z` draws `2^z` blocks per pixel. Levels up
   to the *fine* one, about one terrain pixel per pixel, are drawn from the full-resolution terrain; coarser levels from
   the coarse map, with the fine tiles drawn so far shrunk over them. Each fine tile bumps the level's revision, and
-  `api/state` tells the page which coarser tiles to fetch again. Tiles are drawn newest request first (`LifoExecutor`):
-  someone panning wants where they are now before where they were.
+  `api/state` tells the page which coarser tiles to fetch again. Tiles are drawn in the order they were asked for
+  (`MapExecutor`): the page asks for the nearest first and drops those that leave the screen, so someone panning gets
+  where they are now without the tiles still on screen starving behind every new request. A click on the map goes
+  first. A tile that waits three minutes is answered 503 and the page asks for it again.
 - **`LevelMap`** draws a tile. Fine tiles sample the terrain with `LodSampler`, the same columns that Distant Horizons
   and Voxy get. Coarse tiles interpolate the coarse map's elevation bicubically and take the colours from a coarse
   grid of columns. Both are hillshaded.

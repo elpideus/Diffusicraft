@@ -1,9 +1,9 @@
 # Far terrain
 
-Diffusicraft is getting a far terrain of its own, so that it no longer needs Distant Horizons or Voxy. It is meant
-to show what players built, to work with shader packs, and to cost as little as possible on top of 1:1 world
-generation, which already keeps a computer busy. This page describes the design and how far along it is. The parts
-used with Distant Horizons and Voxy today are described in [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
+Diffusicraft has a far terrain of its own, so that it needs neither Distant Horizons nor Voxy. It shows what players
+built, works with shader packs, and costs as little as it can on top of 1:1 world generation, which already keeps a
+computer busy. This page describes how it is built and what is left. The parts used with Distant Horizons and Voxy
+are described in [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
 
 ## What it borrows
 
@@ -24,10 +24,10 @@ taken from them. Voxy is All Rights Reserved and Distant Horizons is LGPL.
   closed space, so a column whose level has columns more than 8 blocks apart keeps only what the sky can reach.
   The finer levels keep the caves, which the sky does not light (see [below](#caves-farhollows)).
 - **A rough surface first**, as Distant Horizons' generator builds one before it generates any chunk. A tile whose
-  terrain the models have not computed yet is built from what they have: without the rivers, or from the coarse map
-  alone. The models compute what is missing later, one tile at a time and only while chunk generation leaves them
-  idle, and the tile is then built again in full. The far terrain fills the view in seconds and never makes a chunk
-  wait.
+  terrain the models have not computed yet is built from what they have: without the rivers, or from the terrain
+  around it and the coarse map. The models compute what is missing later, one tile at a time and only while chunk
+  generation leaves them idle, and the tile is then built again in full. The far terrain fills the view in seconds
+  and never makes a chunk wait.
 
 ## Built so far
 
@@ -86,9 +86,10 @@ good (`SERVER_STOPPED`).
   Each page notes the build that generated it: `generation` in `diffusicraft-build.properties`, a digest the build
   works out of everything under `src/main`, the models' manifest among it. A page of another build is generated
   again, since other code or data may shape other terrain, and a build without the digest keeps none.
-- **Threads.** Everything runs on one low-priority thread per store. Saved chunks are read 32 at a time, and each
-  page they touch is rewritten once; between batches the thread serves the pages the far terrain asked for
-  meanwhile, so a flight that saves a hundred chunks a second does not hold up its reads. A chunk saved again before
+- **Threads.** Everything runs on one low-priority thread per store. Saved chunks are read 32 at a time, 4 at a time
+  while the far terrain is asking for pages, and each page they touch is rewritten once; between batches the thread
+  serves the pages asked for meanwhile, so a flight that saves a hundred chunks a second does not hold up its reads
+  (a slice of 32 kept each tile waiting most of a second). A chunk saved again before
   it was read is read once, as it is now. Vanilla saves a chunk again whenever anything in it changed, as grass
   spreads or a crop grows, so a page whose columns come out as they were is neither written nor rebuilt. The last
   192 pages stay in memory, and the last 4096 found missing, so that asking for them again reads nothing.
@@ -107,7 +108,16 @@ A grid that reads the full-resolution terrain needs its own tiles and, for its r
 - **`FULL`** runs the models over every tile the grid needs, as chunk generation does. Voxy asks for its grids so.
 - **`ROUGH`** never runs them. It samples the grid as finely as the terrain computed so far allows
   (`LodSampler.available`): in full once every tile it needs is in memory, without the rivers once its own tiles
-  are, and from the coarse map before then. The grid is marked rough unless it came out in full.
+  are, and in part before then. The grid is marked rough unless it came out in full.
+
+  A grid sampled in part (`RoughGround`) reads the terrain where it is computed. Elsewhere it starts from the coarse
+  map, one pixel of which is 7.7 km of ground at 1:1, sunk into the long fjords, which the coarse map alone sets:
+  the mean of a range of mountains stands hundreds of blocks over the sea of the fjord through it, which left tiles
+  on walls of bare rock over that sea. Around a tile computed comes the relief of that tile over the coarse map,
+  mirrored across its edge, fading out over 64 pixels, so that the ground meets the tile at its height and goes on
+  as rugged as it is. The tiles around a point are weighted by how near they are, closest first without limit, so
+  the ground is one surface, whichever grid samples it. At the same moment two grids meet, and a grid built again
+  once more of the terrain is computed comes down onto it.
 - **`REFINE`** runs the models over one missing tile at most, and only while they are idle
   (`TerrainField.prefetchWhenIdle`): no tile is being computed, none was for the last half second, and no other
   refinement is computing one. It returns the grid in full once nothing is missing, and no grid until then.
@@ -133,9 +143,16 @@ the water's surface. So where a cell is a column, near the chunks, a house keeps
 block by block, and further out its outline, never a solid box. A cell is paved where the structures lie on the
 ground, as a village's paths do. No tree grows on such a cell. A structure may sit a block or two off where it
 generates: it stands on the far ground, which lacks the ledges and gullies, and the earth vanilla heaps up and cuts
-away round some structures. Grids sampled without the rivers or from the coarse map show no structures, so the
-starts kept are all made on the finished terrain. A structure that fails to place in a sketch is left out with one
+away round some structures. Rough grids show no structures, so the starts kept are all made on the finished
+terrain. A structure that fails to place in a sketch is left out with one
 warning in the log.
+
+A `FarSketch` gives the real level to whatever calls `getLevel`, as features and templates expect. A mod that reads a
+chunk through it would stop the worker on the server's thread, and with it the tick: Villages & Pillages does for
+every tree, and vanilla's cats for the structure they spawn in. So everything placed in a sketch runs inside
+`UnloadedChunks.sketching`, where every chunk that is not loaded reads as empty instead. Such a check then finds
+nothing, so that a far tree may stand in a village where the real chunk has none.
+
 Vanilla caches a template's blocks by kind in a map that only one thread was meant to fill at a time. The far
 terrain's workers place pieces beside the chunks' own, so `StructureTemplatePaletteMixin` makes that map a concurrent
 one: before, two threads filling it at once threw, and could have thrown in the chunks' generation.
@@ -250,19 +267,30 @@ These parts are unit-tested and feed the renderer below.
     that the floor of a Grand Hollow takes few faces too. The other tops, under a bridge or an overhang, stay one per
     column.
   - **Sides.** A side shows only the part of a run that the neighbouring column leaves open.
-  - **Skirts.** Along a tile's edges, the neighbour may be a tile of another level, so the solid runs show their
-    sides down to two steps under the ground of the column and of its neighbours along the edge. Where the ground
-    rises away from the edge, the skirt also reaches as far down as the slope goes three steps on past it, where the
-    column of a tile two levels coarser may meet the edge. This skirt closes the cracks between tiles, even on steep
-    mountainsides. It also runs through the depths where the tile has caves, so that a cave that runs a little
-    differently in the tile beside it, sampled more or less finely, meets rock there and not a hole. Water has no
-    skirt, which would show as walls under the sea.
+  - **Skirts.** Along a tile's edges the solid runs show their sides all the way down. The tile beside may be of
+    another level, or built rough a moment before the terrain around it was computed, or come from a server, which
+    has no way to tell the client that terrain was computed around a rough tile: the sky must not show through. So
+    the wall reaches the bottom of the world; the neighbour's ground hides what it does not need. In a tile with
+    caves, the sides stay lit down to two steps under the ground of the column and of its
+    neighbours along the edge, further down where the ground falls towards the edge, as far as the slope goes three
+    steps on past it, and are dark from there through the depths of the caves, so that a cave that runs a little
+    differently in the tile beside it, sampled more or less finely, meets rock in the dark and not a lit wall. Cave
+    runs stay open, so the walls do not close a Grand Hollow off at each tile. Water has no skirt, which would show
+    as walls under the sea. A tile's walls do not count towards what the chunks must cover before it can be left out
+    (`FarMesh.groundY`), or no tile would ever be.
   - **Bottoms.** The underside of a bridge, an overhang or the ceiling of a cave shows.
   - **Light.** The ground under something takes a little less sky light. Faces under water darken with depth, as
     the world's do. The faces in a cave, and those in or under the water of a lake in one, take no sky light at all,
     so that the caves stay as dark as the world's own and a shader pack does not light them as if the sun reached
     them. Water without sky light is drawn opaque, with the land (`FarMeshWriter`): Bliss's `dh_water` lights all
     water as open to the sky, reflecting it, whatever light it has, so a far cave lake glowed under it.
+- **Shading (`far_terrain.fsh`, client).** A far face has one colour, and from below a mountainside shows faces of
+  one orientation alone, which read as a flat painted wall beside the chunks. What sets the chunks apart from there is
+  not their textures, whose mipmaps are their mean at a few pixels a block, but smooth lighting, which darkens the
+  foot of every step, and the blocks that differ from one another. So the fragment shader darkens the foot of a side
+  face and adds noise anchored to the world along the plane of the face: a grain from block to block and patches 4, 16
+  and 64 blocks across, each faded out before its cells shrink to a pixel, where it would shimmer. Water takes
+  neither. Shader packs shade far terrain with their own `dh_terrain`.
 - **Colours (`LodColors`, client).** Each block has a colour for its top, bottom and sides: the average of the
   textures its model shows there, weighted by the area each covers, leaving out see-through pixels. The parts the
   world tints, such as grass, leaves and water, take the same tints for the column's biome, through the game's own
@@ -278,15 +306,20 @@ These parts are unit-tested and feed the renderer below.
   so what players built shows. Its store tells the renderer which pages changed, and those tiles are built again.
   On a server, from the far terrain the server sends (`RemoteLods`), with the chunks this client saw laid over it
   where the server does not share what players built (see [above](#on-a-server-lodfeed-remotelods-and-seenchunks)).
-- **Building.** Two low-priority worker threads sample a tile's grid, mesh it and write its vertices off the heap.
-  At most six tiles are built at once, nearest first, and tiles whose terrain changed go before new ones. Each tile
-  is built rough first (see [above](#using-them-lodgridsample)). Once every tile wanted is built, the nearest rough
-  one is refined, one at a time; a tile whose terrain is not ready is asked for again a second later. The render
+- **Building.** Two to four low-priority worker threads, a quarter of the processors, sample a tile's grid, mesh it
+  and write its vertices off the heap. At most six tiles are built at once: first those missing, nearest first, with
+  the tiles under chunks that have already come after all the others, since those only fill in what the chunks leave
+  out, and last the tiles whose terrain changed, which must not keep the view from filling. Each tile
+  is built rough first (see [above](#using-them-lodgridsample)). Once a second, while nothing else waits, the rough
+  tiles with more of the terrain around them computed than when they were built are built again, so that they keep
+  meeting it. Once every tile wanted is built, the nearest rough one is refined, one at a time; a tile whose terrain
+  is not ready is asked for again a second later. The render
   thread only uploads finished meshes, at most 4 MB a frame, so a burst of tiles does not stall it. `LodView` keeps
   a coarse tile drawn until every finer tile wanted within it is built, and finer tiles until the coarse tile that
   replaces them is, so there are no holes while the player moves.
 - **Vertices.** 16 bytes each: the position from the tile's corner as unsigned shorts, the sky and block light, the
-  colour, the material and the side the face looks to. A tile's solid quads and water quads share one buffer, and
+  colour, the material, the side the face looks to and how many blocks the vertex stands over the foot of its face.
+  A tile's solid quads and water quads share one buffer, and
   its corner goes to the shader in a uniform of its own, so the far terrain is exact at ±8,000,000 blocks.
 - **Drawing.** At the end of the world's solid pass, after the chunks, with one draw call per tile and per layer.
   The far terrain shares the chunks' depth buffer, fog, lightmap and face shading. Tiles outside the view are
@@ -324,6 +357,10 @@ These parts are unit-tested and feed the renderer below.
   Fog under water, in lava and from blindness or darkness stays as it is. Sodium reads the fog at the same point,
   for its chunks' own fog and for how far it draws them, and the far terrain stretches it first, so that Sodium's
   chunks fade as vanilla's do.
+- **No fade from the fog.** Vanilla brings a new section in from the colour of the fog, and Sodium from nothing, which
+  over far terrain would show a pale patch of a section that the mask has already taken over. While the far terrain
+  is drawn, each section shows at once: `RenderSectionMixin` has `getVisibility` answer fully visible, and under
+  Sodium `UniformBufferManagerMixin` writes a negative time, which turns its fade off.
 
 ### Under a shader pack: `IrisFarTerrain` (client, with Iris)
 
@@ -384,7 +421,7 @@ plays its part for Iris:
 1. **Coarser levels from finer ones.** Far levels now keep one column out of each square of 2ᴸ × 2ᴸ, as the sampler
    does. Building them from the level below, as Voxy builds its coarser sections, would keep thin builds and roads
    visible from further away.
-2. **Workers that yield.** The far terrain's two workers run at the lowest thread priority, which Linux ignores. A
+2. **Workers that yield.** The far terrain's workers run at the lowest thread priority, which Linux ignores. A
    duty cycle, as Distant Horizons gives its own threads, sleeping after each tile about as long as it took, would
    leave the chunks and the game more of the CPU while tiles build. Pausing new builds while the player flies fast,
    when the tiles chosen are stale before they are done, would help as well.

@@ -20,12 +20,28 @@ import java.util.function.Function;
 /**
  * Lets the strata rule find the world's random state, and through it the terrain field the chunk was built from. The
  * invokers let the LOD sampler run the world's material rules on single columns, without a chunk; see
- * {@link io.github.elpideus.diffusicraft.worldgen.lod.LodSampler}.
+ * {@link io.github.elpideus.diffusicraft.worldgen.lod.LodSampler}. The other accessors let
+ * {@link io.github.elpideus.diffusicraft.worldgen.material.VeinsRule} make a context over a smaller volume.
  */
 @Mixin(MaterialRuleContext.class)
 public interface MaterialRuleContextAccessor {
 	@Accessor("randomState")
 	RandomState diffusicraft$randomState();
+
+	@Accessor("system")
+	MaterialSystem diffusicraft$system();
+
+	@Accessor("expectedVolume")
+	DensityVolume diffusicraft$expectedVolume();
+
+	@Accessor("densitySamplers")
+	DensitySamplerSet diffusicraft$densitySamplers();
+
+	@Accessor("biomeGetter")
+	Function<BlockPos, Holder<Biome>> diffusicraft$biomeGetter();
+
+	@Accessor("context")
+	WorldGenerationContext diffusicraft$context();
 
 	@Invoker("<init>")
 	static MaterialRuleContext diffusicraft$create(MaterialSystem system, RandomState randomState,

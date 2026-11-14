@@ -8,8 +8,18 @@
         "type": "diffusicraft:river",
         "scale": "vanilla"
       },
-      "diffusicraft:minecraft/overworld/copper_ore_vein",
-      "diffusicraft:minecraft/overworld/iron_ore_vein",
+      {
+        "type": "diffusicraft:veins",
+        "min_y": -64,
+        "max_y": 64,
+        "rule": {
+          "type": "minecraft:sequence",
+          "sequence": [
+            "diffusicraft:minecraft/overworld/copper_ore_vein",
+            "diffusicraft:minecraft/overworld/iron_ore_vein"
+          ]
+        }
+      },
       {
         "type": "diffusicraft:strata",
         "scale": "vanilla",

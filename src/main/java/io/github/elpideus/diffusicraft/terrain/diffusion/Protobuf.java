@@ -88,25 +88,6 @@ final class Protobuf {
 		throw new IllegalArgumentException("varint too long");
 	}
 
-	/** The varints of a repeated integer field, packed or not. */
-	static List<Long> varints(List<Field> fields, int number) {
-		List<Long> values = new ArrayList<>();
-		for (Field f : fields) {
-			if (f.number() != number) {
-				continue;
-			}
-			if (f.wireType() == VARINT) {
-				values.add(f.value());
-			} else if (f.wireType() == LENGTH_DELIMITED) {
-				int[] p = {f.start()};
-				while (p[0] < f.end()) {
-					values.add(varint(f.buffer(), p));
-				}
-			}
-		}
-		return values;
-	}
-
 	static Field first(List<Field> fields, int number) {
 		for (Field f : fields) {
 			if (f.number() == number) {

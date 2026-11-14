@@ -47,7 +47,8 @@ import org.lwjgl.system.MemoryUtil;
  * <p>The texture's columns and rows are slots that rotate as the camera moves, as the world's own grid of sections
  * does: section {@code (x, y, z)} always lives in slot {@code (x mod size, y mod rows, z mod size)}. Moving the
  * camera clears the slots of the sections that enter the mask, and the others keep what they held. The sections are
- * looked up a few lines of chunks at a time, so that a large render distance spreads the work over several frames.
+ * looked up a few lines of chunks at a time, so that a large render distance spreads the work over several frames and
+ * a high frame rate does not repeat it.
  *
  * <p>Under a shader pack, the pack's programs for Distant Horizons are given the same test, and read the texture and
  * the uniform's values through {@link FarTerrain#chunkMask} and {@link FarTerrain#chunkMaskInfo}.
@@ -58,6 +59,8 @@ final class ChunkMask implements AutoCloseable {
 	private static final float REACH_MARGIN = 0.0625F;
 	/** Most sections looked up in a frame: the whole mask at a render distance of 12, a twentieth of it at 32. */
 	private static final int SECTIONS_PER_FRAME = 16384;
+	/** Sections looked up in a nanosecond, {@link #SECTIONS_PER_FRAME} at 60 frames a second, however fast the frames come. */
+	private static final double SECTIONS_PER_NANOSECOND = 0.001;
 	private static final byte DRAWN = (byte) 0xFF;
 	private static final boolean SODIUM = FabricLoader.getInstance().isModLoaded("sodium");
 
@@ -94,6 +97,9 @@ final class ChunkMask implements AutoCloseable {
 	private int lowest = Integer.MIN_VALUE;
 	/** The line of chunks, counted from the mask's northern edge, to look up next. */
 	private int nextLine;
+	/** How many sections this frame may look up, below 0 while the last line looked up is still being paid for. */
+	private double lookUps;
+	private long lastUpdate;
 	private int dirtyFrom = Integer.MAX_VALUE;
 	private int dirtyTo = -1;
 	private boolean infoWritten;
@@ -124,7 +130,10 @@ final class ChunkMask implements AutoCloseable {
 	 */
 	void update(ClientLevel level, @Nullable ViewArea viewArea, int viewDistance, Vec3 camera, float fogEnd) {
 		RenderWindow window = WindowedSectionStorage.windowFor(level.getMinSectionY(), level.getMaxSectionY(), viewDistance);
-		int rows = window == null ? level.getSectionsCount() : window.rows();
+		// At a render distance of 64, which takes a mod, all the rows may not fit in the widest texture of the GPU. The
+		// mask then ends a few rows short of the world's, where far terrain shows through chunks 64 sections away.
+		int rows = Math.min(window == null ? level.getSectionsCount() : window.rows(),
+			RenderSystem.getDevice().getDeviceInfo().limits().maxTextureSize() / (2 * viewDistance + 1));
 		if (viewDistance != this.viewDistance || rows != this.rows || level.getMinSectionY() != minSectionY) {
 			resize(viewDistance, rows, level.getMinSectionY());
 		}
@@ -139,10 +148,13 @@ final class ChunkMask implements AutoCloseable {
 			moveTo(cx, cz, lowest);
 		}
 		SectionOcclusionGraph graph = viewArea == null ? null : Minecraft.getInstance().levelRenderer.sectionOcclusionGraph();
-		for (int looked = 0, lines = 0; looked < SECTIONS_PER_FRAME && lines < size; lines++) {
+		long now = System.nanoTime();
+		lookUps = Math.min(SECTIONS_PER_FRAME, lookUps + (now - lastUpdate) * SECTIONS_PER_NANOSECOND);
+		lastUpdate = now;
+		for (int lines = 0; lookUps > 0 && lines < size; lines++) {
 			lookUp(level, viewArea, graph, nextLine);
 			nextLine = (nextLine + 1) % size;
-			looked += size * rows;
+			lookUps -= size * rows;
 		}
 		if (dirtyTo >= dirtyFrom) {
 			upload.clear();

@@ -247,8 +247,9 @@ def material_rule(scale):
     return {"type": f"{NS}:world", "rule": {"type": "minecraft:sequence", "sequence": [
         "minecraft:bedrock_floor",
         {"type": f"{NS}:river", "scale": scale},
-        "minecraft:overworld/copper_ore_vein",
-        "minecraft:overworld/iron_ore_vein",
+        {"type": f"{NS}:veins", "min_y": -64, "max_y": 64, "rule": {"type": "minecraft:sequence", "sequence": [
+            "minecraft:overworld/copper_ore_vein",
+            "minecraft:overworld/iron_ore_vein"]}},
         {"type": f"{NS}:strata", "scale": scale, "surface": {"type": "minecraft:sequence", "sequence": [
             {"type": f"{NS}:other_mods", "rule": {
                 "type": "minecraft:condition", "if_true": {"type": "minecraft:above_preliminary_surface"},

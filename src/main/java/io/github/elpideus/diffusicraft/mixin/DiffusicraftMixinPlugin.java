@@ -19,6 +19,7 @@ public final class DiffusicraftMixinPlugin implements IMixinConfigPlugin {
 	private static final Map<String, String> MODS = Map.of(
 		PACKAGE + "mixin.biolith.", "biolith",
 		PACKAGE + "mixin.dh.", "distanthorizons",
+		PACKAGE + "mixin.lithostitched.", "lithostitched",
 		PACKAGE + "mixin.tectonic.", "tectonic",
 		PACKAGE + "client.mixin.iris.", "iris",
 		PACKAGE + "client.mixin.shaderpack.", "iris",

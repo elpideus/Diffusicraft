@@ -5,6 +5,7 @@ import io.github.elpideus.diffusicraft.worldgen.CoarseClimate;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
 import io.github.elpideus.diffusicraft.worldgen.TerrainField;
 import io.github.elpideus.diffusicraft.worldgen.TerrainSurface;
+import io.github.elpideus.diffusicraft.worldgen.UnloadedChunks;
 import io.github.elpideus.diffusicraft.worldgen.WorldScale;
 import io.github.elpideus.diffusicraft.worldgen.biome.BiomeWorld;
 import io.github.elpideus.diffusicraft.worldgen.river.RiverColumn;
@@ -73,8 +74,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>A narrower grid can also be sampled at less than its full detail ({@link Detail}), so that what draws it need not
  * wait for the models: without the rivers, which need the tiles {@value Rivers#RING} rings around it, once its own
- * tiles are computed, and from the coarse map before then. {@link #available} says how finely the terrain computed so
- * far samples a grid, and {@link #prepare} computes what the grid lacks, a tile at a time, while the models are idle.
+ * tiles are computed, and from what those tiles are known to hold before then ({@link RoughGround}). {@link #available}
+ * says how finely the terrain computed so far samples a grid, and {@link #prepare} computes what the grid lacks, a tile
+ * at a time, while the models are idle.
  *
  * <p>Thread-safe: each call to {@link #sample} works on its own state.
  */
@@ -129,6 +131,8 @@ public final class LodSampler {
 		FULL,
 		/** The full-resolution terrain without the rivers, their lakes and their valleys. */
 		RIVERLESS,
+		/** The full-resolution terrain where it is computed, and the coarse map and the fjords elsewhere: no rivers. */
+		PARTIAL,
 		/** The coarse map alone. */
 		COARSE
 	}
@@ -240,14 +244,23 @@ public final class LodSampler {
 				new Grid(minX, minZ, width, step).sample(false, sink);
 				return null;
 			});
+			case PARTIAL -> {
+				Grid grid = new Grid(minX, minZ, width, step);
+				grid.known = new RoughGround(field, scale, scale.toPixel(minZ - step), scale.toPixel(minX - step),
+					scale.toPixel(minZ + (width + 1) * step), scale.toPixel(minX + (width + 1) * step));
+				CoarseClimate.call(() -> {
+					grid.sample(true, sink);
+					return null;
+				});
+			}
 			case COARSE -> sampleCoarse(minX, minZ, width, step, sink);
 		}
 	}
 
 	/**
 	 * The finest detail a grid can be sampled at from the terrain the models have computed, without running them: in
-	 * full once the tiles it and its rivers need are in memory, without the rivers once its own are, and from the
-	 * coarse map until then.
+	 * full once the tiles it and its rivers need are in memory, without the rivers once its own are, and in part until
+	 * then.
 	 */
 	public Detail available(int minX, int minZ, int width, int step) {
 		if (coarse(width, step)) {
@@ -259,10 +272,20 @@ public final class LodSampler {
 		int own = 2 * (tiles[2] - tiles[0] + 1) * (tiles[3] - tiles[1] + 1);
 		for (int t = 0; t < needed.length; t += 2) {
 			if (!field.tileReady(needed[t], needed[t + 1])) {
-				return t < own ? Detail.COARSE : Detail.RIVERLESS;
+				return t < own ? Detail.PARTIAL : Detail.RIVERLESS;
 			}
 		}
 		return Detail.FULL;
+	}
+
+	/**
+	 * Which of the terrain tiles that shape a grid at {@link Detail#PARTIAL} are computed, as a number that changes
+	 * when they do: a grid sampled at that detail is worth sampling again when this has changed since.
+	 */
+	public long computed(int minX, int minZ, int width, int step) {
+		return coarse(width, step) ? 0L : RoughGround.computed(field, scale.toPixel(minZ - step),
+			scale.toPixel(minX - step), scale.toPixel(minZ + (width + 1) * step),
+			scale.toPixel(minX + (width + 1) * step));
 	}
 
 	/**
@@ -355,6 +378,8 @@ public final class LodSampler {
 		/** The rivers and the full-resolution ground, or {@code null} in a grid of the coarse map. */
 		private @Nullable Rivers rivers;
 		private @Nullable TerrainSurface terrain;
+		/** What stands in for the coarse map's ground in a grid at {@link Detail#PARTIAL}. */
+		private @Nullable RoughGround known;
 		private BiomeResolver biomes;
 		/** The biome the material rules see. */
 		private Holder<Biome> biome;
@@ -408,11 +433,13 @@ public final class LodSampler {
 			TreeCover.Crown crown = new TreeCover.Crown();
 			GreatTrees.Stand giants = greatTrees == null ? null : greatTrees.stand(this::dryGround, biomes);
 			FarTrees.Crowns crowns = farTrees == null || terrain == null || step > FarTrees.MAX_STEP ? null
-				: farTrees.grow(minX, minZ, width, step, this::fineLand, this::soil, defaultBlock, biomes);
+				: UnloadedChunks.sketching(() ->
+					farTrees.grow(minX, minZ, width, step, this::fineLand, this::soil, defaultBlock, biomes));
 			// Only over the full terrain with its rivers, which the starts kept for later grids are made on.
 			FarStructures.Cell[] built = structures == null || rivers == null || terrain == null
 				|| step > FarStructures.MAX_STEP ? null
-				: structures.sketch(minX, minZ, width, step, this::land, biomes, defaultBlock);
+				: UnloadedChunks.sketching(() ->
+					structures.sketch(minX, minZ, width, step, this::land, biomes, defaultBlock));
 			FarHollows caves = step > CAVE_STEP ? null : new FarHollows(world, minY, this::hollowsSurface,
 				block(minX, 0), block(minZ, 0), block(minX, width - 1), block(minZ, width - 1));
 
@@ -544,10 +571,8 @@ public final class LodSampler {
 			}
 			for (int b = 0; b < span; b++) {
 				int z = block(minZ, b - 1);
-				double i = scale.toPixel(z);
 				for (int a = 0; a < span; a++) {
 					int x = block(minX, a - 1);
-					double j = scale.toPixel(x);
 					int k = b * span + a;
 					float surfaceY;
 					if (corners != null) {
@@ -560,7 +585,7 @@ public final class LodSampler {
 								corners[c + 1], corners[c + cells], corners[c + cells + 1]);
 						}
 					} else {
-						surfaceY = coarse ? scale.surfaceY(field.coarseElevation(i, j)) : surface.shore(x, z);
+						surfaceY = coarse ? coarseSurface(x, z) : surface.shore(x, z);
 					}
 					int top = Mth.ceil(surfaceY) - 1;
 					bed[k] = Integer.MIN_VALUE;
@@ -583,6 +608,12 @@ public final class LodSampler {
 			}
 		}
 
+		/** The ground of column {@code (x, z)} in a grid that does not read the full-resolution terrain throughout. */
+		private float coarseSurface(int x, int z) {
+			return known != null ? known.surfaceY(x, z)
+				: scale.surfaceY(field.coarseElevation(scale.toPixel(z), scale.toPixel(x)));
+		}
+
 		/**
 		 * The first block over the ground of column {@code (x, z)}, as {@link #land} finds the ground, or
 		 * {@link Integer#MIN_VALUE} if the sea or a river covers it: where a giant may stand.
@@ -597,8 +628,7 @@ public final class LodSampler {
 		 * them, but without the ledges and the gullies.
 		 */
 		private FarSketch.Land land(int x, int z) {
-			return land(x, z, terrain != null ? terrain.shore(x, z)
-				: scale.surfaceY(field.coarseElevation(scale.toPixel(z), scale.toPixel(x))));
+			return land(x, z, terrain != null ? terrain.shore(x, z) : coarseSurface(x, z));
 		}
 
 		/**
@@ -786,8 +816,7 @@ public final class LodSampler {
 
 		/** The surface the Hollows keep their roof under, as the chunks find it, or the coarse map's. */
 		private int hollowsSurface(int x, int z) {
-			return (int) Math.floor(terrain != null ? terrain.y(x, z)
-				: scale.surfaceY(field.coarseElevation(scale.toPixel(z), scale.toPixel(x))));
+			return (int) Math.floor(terrain != null ? terrain.y(x, z) : coarseSurface(x, z));
 		}
 
 		/**

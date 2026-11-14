@@ -59,15 +59,16 @@ final class MapService implements AutoCloseable {
 
 	private final List<MapTiles> levels;
 	private final Game game;
-	private final LifoExecutor fine;
+	private final MapExecutor fine;
 	private final MapHttpServer http;
 	private final byte[] page;
 	/** The owner of each token: a player, or none for the console. */
 	private final Map<String, Optional<UUID>> tokens = new ConcurrentHashMap<>();
 	private final Map<Optional<UUID>, String> tokenOf = new ConcurrentHashMap<>();
+	private volatile boolean closed;
 
 	/** Serves {@code levels} on {@code address} and {@code port}, any free port if 0. */
-	MapService(List<MapTiles> levels, Game game, LifoExecutor fine, InetAddress address, int port) throws IOException {
+	MapService(List<MapTiles> levels, Game game, MapExecutor fine, InetAddress address, int port) throws IOException {
 		this.levels = levels;
 		this.game = game;
 		this.fine = fine;
@@ -216,16 +217,23 @@ final class MapService implements AutoCloseable {
 		MapLevel level = tiles(exchange).level();
 		int x = exchange.intParam("x"), z = exchange.intParam("z");
 		CompletableFuture<MapLevel.@Nullable Point> future = new CompletableFuture<>();
-		fine.submit(() -> {
+		fine.submitNow(() -> {
+			if (future.isDone()) {
+				return;
+			}
 			try {
 				future.complete(level.point(x, z));
 			} catch (Throwable t) {
 				future.completeExceptionally(t);
 			}
 		});
-		MapLevel.Point point = await(exchange, future, () -> {
-		});
-		if (point == null && !future.isDone()) {
+		MapLevel.Point point;
+		try {
+			point = await(exchange, future, () -> future.cancel(false));
+		} catch (TimeoutException e) {
+			return busy();
+		}
+		if (point == null && future.isCancelled()) {
 			return null;
 		}
 		JsonObject json = new JsonObject();
@@ -274,31 +282,42 @@ final class MapService implements AutoCloseable {
 			return MapHttpServer.Response.text(404, "No such tile");
 		}
 		MapTiles.Ticket ticket = tiles.request(zoom, x, y);
-		byte[] bytes = await(exchange, ticket.tile, ticket::release);
+		byte[] bytes;
+		try {
+			bytes = await(exchange, ticket.tile, ticket::release);
+		} catch (TimeoutException e) {
+			return busy();
+		}
 		if (bytes == null) {
 			return null;
 		}
 		return new MapHttpServer.Response(200, "application/octet-stream", bytes, true, Map.of());
 	}
 
+	/** The answer to a request that waited too long: the page asks again later. */
+	private static MapHttpServer.Response busy() {
+		return MapHttpServer.Response.text(503, "The terrain is busy");
+	}
+
 	/**
-	 * The future's value once it is done, or {@code null} if the browser gave up first. {@code release} runs once the
-	 * request no longer waits, whatever the outcome.
+	 * The future's value once it is done, or {@code null} if the browser gave up or the map closed first. {@code release}
+	 * runs once the request no longer waits, whatever the outcome.
+	 *
+	 * @throws TimeoutException if the value took too long
 	 */
-	private static <T> @Nullable T await(MapHttpServer.Exchange exchange, CompletableFuture<T> future,
-										  Runnable release) throws Exception {
+	private <T> @Nullable T await(MapHttpServer.Exchange exchange, CompletableFuture<T> future, Runnable release)
+		throws Exception {
 		long start = System.nanoTime();
 		try {
 			while (true) {
 				try {
 					return future.get(POLL_MS, TimeUnit.MILLISECONDS);
 				} catch (TimeoutException e) {
-					if (!exchange.alive()) {
+					if (closed || !exchange.alive()) {
 						return null;
 					}
 					if (System.nanoTime() - start > TILE_TIMEOUT_NS) {
-						throw new IOException("Gave up waiting after " + TimeUnit.NANOSECONDS.toSeconds(TILE_TIMEOUT_NS)
-							+ " s");
+						throw e;
 					}
 				} catch (CancellationException e) {
 					// Dropped: nobody waited for it when its turn came.
@@ -314,6 +333,7 @@ final class MapService implements AutoCloseable {
 
 	@Override
 	public void close() {
+		closed = true;
 		http.close();
 	}
 
