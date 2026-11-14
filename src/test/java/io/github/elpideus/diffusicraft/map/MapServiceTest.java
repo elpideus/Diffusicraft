@@ -23,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MapServiceTest {
 	private static final UUID PLAYER = new UUID(1, 2);
 
-	private final LifoExecutor fine = new LifoExecutor("test fine", 1);
-	private final LifoExecutor fast = new LifoExecutor("test fast", 1);
+	private final MapExecutor fine = new MapExecutor("test fine", 1);
+	private final MapExecutor fast = new MapExecutor("test fast", 1);
 	private final HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
 	private MapService service;
 	private String base;

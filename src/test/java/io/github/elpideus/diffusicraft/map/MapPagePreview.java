@@ -167,7 +167,7 @@ class MapPagePreview {
 
 	@Test
 	void serve() throws Exception {
-		LifoExecutor fine = new LifoExecutor("preview fine", 2), fast = new LifoExecutor("preview fast", 2);
+		MapExecutor fine = new MapExecutor("preview fine", 2), fast = new MapExecutor("preview fast", 2);
 		MapTiles tiles = new MapTiles(new NoiseLevel(), null, fine, fast);
 		UUID player = new UUID(7, 7);
 		long start = System.currentTimeMillis();

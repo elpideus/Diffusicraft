@@ -227,19 +227,19 @@ final class MapHttpServer implements AutoCloseable {
 		int q = target.indexOf('?');
 		String path = q < 0 ? target : target.substring(0, q);
 		Map<String, String> query = new HashMap<>();
-		if (q >= 0) {
-			for (String pair : target.substring(q + 1).split("&")) {
-				if (pair.isEmpty()) {
-					continue;
-				}
-				int eq = pair.indexOf('=');
-				String key = eq < 0 ? pair : pair.substring(0, eq);
-				String value = eq < 0 ? "" : pair.substring(eq + 1);
-				query.put(URLDecoder.decode(key, StandardCharsets.UTF_8), URLDecoder.decode(value,
-					StandardCharsets.UTF_8));
-			}
-		}
 		try {
+			if (q >= 0) {
+				for (String pair : target.substring(q + 1).split("&")) {
+					if (pair.isEmpty()) {
+						continue;
+					}
+					int eq = pair.indexOf('=');
+					String key = eq < 0 ? pair : pair.substring(0, eq);
+					String value = eq < 0 ? "" : pair.substring(eq + 1);
+					query.put(URLDecoder.decode(key, StandardCharsets.UTF_8), URLDecoder.decode(value,
+						StandardCharsets.UTF_8));
+				}
+			}
 			return handler.handle(new Exchange(method, path, query, connection, in));
 		} catch (IllegalArgumentException e) {
 			return Response.text(400, String.valueOf(e.getMessage()));
