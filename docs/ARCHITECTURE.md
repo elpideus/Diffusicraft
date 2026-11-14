@@ -26,7 +26,7 @@ Loom's split source sets keep client-only code out of the server.
 | Path | Contents |
 |---|---|
 | `src/main/java/.../diffusicraft` | Entrypoints: `Diffusicraft` (common), `DiffusicraftPreLaunch`, mixin plugin |
-| `.../runtime` | Everything downloaded or native: `Resources` (facade), `DiffusicraftConfig`, `RuntimeManifest`, `RuntimeInstaller`, `Downloader`, `RemoteZip`, `SystemLibraries`, `NativeRuntime`, `Hardware`, `Platform`, `Job` |
+| `.../runtime` | Everything downloaded or native: `Resources` (facade), `DiffusicraftConfig`, `RuntimeManifest`, `RuntimeInstaller`, `Downloader`, `RemoteZip`, `SystemLibraries`, `NativeRuntime`, `NativeHeap`, `Hardware`, `Platform`, `Job` |
 | `.../terrain/diffusion` | The inference pipeline: `WorldPipeline`, `ModelBundle`, `OnnxModel`, `ModelAssets`, `EDMScheduler`, `LaplacianUtils`, `HalfPrecision` (the fp16 decoder copy, with `Protobuf`), ... |
 | `.../terrain/geography` | The map the coarse model is conditioned on: `Geography` (continents, plates, hotspots, climate) and where the world spawn lies (`SpawnKind`). See [WORLDGEN.md](WORLDGEN.md#the-geography) |
 | `.../terrain/diffusion/tensor` | `WindowedTensor` (lazy, concurrent, cached tiling) and its stores |

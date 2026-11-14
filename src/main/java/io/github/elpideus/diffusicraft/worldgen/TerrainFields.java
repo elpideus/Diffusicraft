@@ -3,6 +3,7 @@ package io.github.elpideus.diffusicraft.worldgen;
 import io.github.elpideus.diffusicraft.Diffusicraft;
 import io.github.elpideus.diffusicraft.mixin.RandomStateAccessor;
 import io.github.elpideus.diffusicraft.runtime.Job;
+import io.github.elpideus.diffusicraft.runtime.NativeHeap;
 import io.github.elpideus.diffusicraft.runtime.Resources;
 import io.github.elpideus.diffusicraft.terrain.diffusion.ModelBundle;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -23,11 +24,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Fields are created when the density functions compile (once per world and dimension) but load nothing until
  * the first chunk needs terrain. Each reads the pipeline through {@link Uplift}, which raises the mountains. The models
- * are loaded once and freed when the server stops, which gives the GPU memory back to the game, and stay refused until
- * the next server starts: the far terrain and the relief map finish their work after a server stops, and would load
- * them all over again, for a world that is gone and sometimes while the game quits. Pipeline windows are cached on disk
- * in {@code <world>/diffusicraft/<model revision>/map<map version>/<seed>} so a world reloads quickly and stays
- * identical even if the model files change.
+ * are loaded once and freed when the server stops, which gives the GPU memory back to the game and, through
+ * {@link NativeHeap}, the system the memory their loading took, and stay refused until the next server starts: the far
+ * terrain and the relief map finish their work after a server stops, and would load them all over again, for a world
+ * that is gone and sometimes while the game quits. Pipeline windows are cached on disk in
+ * {@code <world>/diffusicraft/<model revision>/map<map version>/<seed>} so a world reloads quickly and stays identical
+ * even if the model files change.
  */
 public final class TerrainFields {
 	/** The seed of a world's terrain is derived from the world seed and this name. */
@@ -137,6 +139,7 @@ public final class TerrainFields {
 		if (models != null) {
 			models.close();
 			models = null;
+			NativeHeap.trim();
 		}
 		storageRoot = null;
 	}
