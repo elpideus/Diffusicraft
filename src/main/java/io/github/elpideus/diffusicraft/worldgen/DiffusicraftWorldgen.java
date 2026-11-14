@@ -30,6 +30,7 @@ import io.github.elpideus.diffusicraft.worldgen.material.OtherModsRule;
 import io.github.elpideus.diffusicraft.worldgen.material.RiverRule;
 import io.github.elpideus.diffusicraft.worldgen.material.SplitRule;
 import io.github.elpideus.diffusicraft.worldgen.material.StrataRule;
+import io.github.elpideus.diffusicraft.worldgen.material.VeinsRule;
 import io.github.elpideus.diffusicraft.worldgen.material.WorldRule;
 import io.github.elpideus.diffusicraft.worldgen.river.Rivers;
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
@@ -98,6 +99,7 @@ public final class DiffusicraftWorldgen {
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("river"), RiverRule.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("world"), WorldRule.CODEC);
 		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("other_mods"), OtherModsRule.CODEC);
+		Registry.register(BuiltInRegistries.MATERIAL_RULE_TYPE, Diffusicraft.id("veins"), VeinsRule.CODEC);
 		Registry.register(BuiltInRegistries.BIOME_SOURCE, Diffusicraft.id("climate"), ClimateBiomeSource.CODEC);
 		Registry.register(BuiltInRegistries.PLACEMENT_MODIFIER_TYPE, Diffusicraft.id("hollow_surface"),
 			HollowSurfacePlacement.CODEC);

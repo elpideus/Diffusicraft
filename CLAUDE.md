@@ -58,7 +58,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     head too, where vanilla's noises are swapped for Diffusicraft's copies and the loaded noise router and aquifers
     are put back) and `createClimateSampler`, the interface added to `Climate.Sampler`, the `0.05F` in
     `Biome.getHeightAdjustedTemperature`, the accessors for `ChunkGenerator.featuresPerStep` (where the far terrain
-    finds the redwoods' places among the trees), `MaterialRuleContext.randomState`, `RandomState.random`, the
+    finds the redwoods' places among the trees), `MaterialRuleContext`'s `randomState`, `system`, `expectedVolume`,
+    `densitySamplers`, `biomeGetter` and `context` (`VeinsRule` builds a context of its own from them), `RandomState.random`, the
     `NoiseGeneratorSettings` fields `materialRule`, `noiseRouter` and `aquifers` (kept as loaded at the end of the
     constructor, because TerraBlender and FrozenLib change what the rule's accessor returns, Biolith replaces the rule
     and Lithostitched the router and aquifers), and the invokers of `MaterialRuleContext`'s
