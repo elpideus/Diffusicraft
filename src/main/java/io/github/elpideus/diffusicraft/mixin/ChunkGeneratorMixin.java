@@ -4,12 +4,16 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.github.elpideus.diffusicraft.worldgen.DiffusicraftWorldgen;
+import io.github.elpideus.diffusicraft.worldgen.biome.ClimateBiomeSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.BiomeResolver;
+import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.placement.FeaturePlacer;
@@ -25,6 +29,9 @@ import java.util.Optional;
  * rivers and their boulders after vanilla's water springs; see {@link DiffusicraftWorldgen#leavesOut} and
  * {@link DiffusicraftWorldgen#afterSprings}. Biomes are shared by every world, so their lists cannot drop or add
  * them. The features keep their places in the order, so the others are seeded as before.
+ *
+ * <p>And has the quarts well over the ground of a chunk share one pick whatever biome source a mod puts in front of
+ * Diffusicraft's; see {@link ClimateBiomeSource#overGround(BiomeSource, BiomeResolver, Climate.Sampler)}.
  */
 @Mixin(ChunkGenerator.class)
 abstract class ChunkGeneratorMixin {
@@ -60,5 +67,15 @@ abstract class ChunkGeneratorMixin {
 			}
 		}
 		return placed;
+	}
+
+	@WrapOperation(method = "doCreateBiomes", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/biome/"
+		+ "BiomeSource;createResolverForChunk(Lnet/minecraft/world/level/biome/Climate$Sampler;IIIIII)"
+		+ "Lnet/minecraft/world/level/biome/BiomeResolver;"))
+	private BiomeResolver diffusicraft$overGround(BiomeSource source, Climate.Sampler sampler, int minQuartX,
+												  int minQuartY, int minQuartZ, int quartSizeX, int quartSizeY,
+												  int quartSizeZ, Operation<BiomeResolver> original) {
+		return ClimateBiomeSource.overGround(source, original.call(source, sampler, minQuartX, minQuartY, minQuartZ,
+			quartSizeX, quartSizeY, quartSizeZ), sampler);
 	}
 }

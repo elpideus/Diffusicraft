@@ -54,6 +54,8 @@ tools/benchmark.py vanilla-opengl performance   # real-time benchmark, off scree
     of its constructor, so that the far terrain's threads can fill it beside the chunks'), the call to
     `FeaturePlacer.placeWithBiomeCheck` in
     `ChunkGenerator.applyBiomeDecoration` (which also places the river falls and boulders after `spring_water`), the
+    call to `BiomeSource.createResolverForChunk` in `ChunkGenerator.doCreateBiomes` (where a biome source that wraps
+    Diffusicraft's, as Lithostitched's does, shares one pick over the ground), the
     call to `WorldGenLevel.setBlock` in `SpringFeature.place`, the call to `SerializableChunkData.copyOf` in
     `ChunkMap.save(ChunkAccess)` (which hands each saved chunk to the far terrain's store),
     `NoiseChunk.<init>` (its `aquifer` field, which every caller reads through `aquifer()`), `RandomState.create` (its

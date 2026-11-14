@@ -17,6 +17,7 @@ import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeResolver;
+import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSource;
@@ -127,7 +128,7 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			return super.createResolver(sampler);
 		}
 		BiomeResolver resolver = refine(vanilla(sampler), super.createResolver(sampler), world);
-		return overGround(resolver, resolver, world);
+		return overGround(this, resolver, resolver, world);
 	}
 
 	@Override
@@ -143,7 +144,19 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			quartSizeZ), new Lazy(() -> super.createResolverForChunk(sampler, minQuartX, minQuartY, minQuartZ,
 			quartSizeX, quartSizeY, quartSizeZ)), world);
 		// What a chunk sampled may stop short of the quart that speaks for the quarts over the ground.
-		return overGround(resolver, createResolver(sampler), world);
+		return overGround(this, resolver, createResolver(sampler), world);
+	}
+
+	/**
+	 * The resolver of a chunk from {@code source}, which a mod put in front of a Diffusicraft world's own, with the
+	 * quarts well over the ground sharing one pick as they do in this source's ({@link #overGround}). Lithostitched does
+	 * so to add biomes, and samples the climate and its own regions at each quart besides asking this source: in a
+	 * tall world that is thousands of quarts a column, where vanilla's has 96.
+	 */
+	public static BiomeResolver overGround(BiomeSource source, BiomeResolver resolver, Climate.Sampler sampler) {
+		BiomeWorld world = BiomeWorld.of(sampler);
+		return world == null || source instanceof ClimateBiomeSource ? resolver
+			: overGround(source, resolver, resolver, world);
 	}
 
 	/**
@@ -185,19 +198,20 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 	 * Has the quarts well over the ground share one pick, the lowest of theirs, made by {@code anywhere}, and leaves
 	 * the rest to {@code resolver}. Of the climate only the depth changes up there, which moves every surface biome away
 	 * alike and so changes nothing between them, and that is most of a tall column: of the quarts of each chunk, and of those each structure looks through for a biome
-	 * of its own.
+	 * of its own. The pick is kept for {@code source}, whose resolvers these are.
 	 */
-	private BiomeResolver overGround(BiomeResolver resolver, BiomeResolver anywhere, BiomeWorld world) {
+	private static BiomeResolver overGround(BiomeSource source, BiomeResolver resolver, BiomeResolver anywhere,
+		BiomeWorld world) {
 		return (quartX, quartY, quartZ) -> {
 			Columns.Entry column = Columns.CACHE.get().entry(world, quartX, quartZ);
 			int lowest = QuartPos.fromBlock((int) Math.floor(column.column.surfaceY)) + OVER_GROUND;
 			if (quartY < lowest) {
 				return resolver.getNoiseBiome(quartX, quartY, quartZ);
 			}
-			Holder<Biome> biome = column.overGround(this);
+			Holder<Biome> biome = column.overGround(source);
 			if (biome == null) {
 				biome = anywhere.getNoiseBiome(quartX, lowest, quartZ);
-				column.overGround(this, biome);
+				column.overGround(source, biome);
 			}
 			return biome;
 		};
@@ -387,7 +401,7 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			/** Whether the column lies in a region open to other mods' biomes: -1 until first asked, then 0 or 1. */
 			private byte open;
 			private @Nullable Holder<Biome> overGround;
-			private @Nullable ClimateBiomeSource overGroundSource;
+			private @Nullable BiomeSource overGroundSource;
 
 			void reset(BiomeWorld world, int blockX, int blockZ) {
 				this.world = world;
@@ -411,11 +425,11 @@ public final class ClimateBiomeSource extends MultiNoiseBiomeSource {
 			}
 
 			/** What {@code source} picked over the ground here, or {@code null}. */
-			@Nullable Holder<Biome> overGround(ClimateBiomeSource source) {
+			@Nullable Holder<Biome> overGround(BiomeSource source) {
 				return overGroundSource == source ? overGround : null;
 			}
 
-			void overGround(ClimateBiomeSource source, Holder<Biome> biome) {
+			void overGround(BiomeSource source, Holder<Biome> biome) {
 				overGroundSource = source;
 				overGround = biome;
 			}

@@ -415,7 +415,9 @@ biomes appear where the real conditions match; the refiner below leaves them as 
 grows more negative, which moves every surface biome away by the same amount and so changes nothing between them:
 from two quarts (8 blocks) over the surface up, every quart of a column takes the pick of the lowest of them, made
 once. In the 1:1 size a column is 4,156 quarts tall, where vanilla's has 96, and most of them are air: each chunk
-fills them all, and a structure looks through them for a biome of its own.
+fills them all, and a structure looks through them for a biome of its own. A biome source that a mod puts in front of
+Diffusicraft's, as Lithostitched does to add biomes, samples the climate and its own regions at every quart besides
+asking Diffusicraft's, so `ChunkGeneratorMixin` gives the chunks it fills the same rule.
 
 ### Refined biomes
 
