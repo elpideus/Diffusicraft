@@ -134,8 +134,8 @@ tools/benchmark.py vanilla-opengl performance   # real-time benchmark, off scree
   hand or assume ±30,000,000: use `BlockPos.asLong`/`of`, and the numbers in `ExtendedHeight`.
 - **World generation** is described in [docs/WORLDGEN.md](docs/WORLDGEN.md). The data under
   `src/main/resources/data` and the block assets are generated: edit `tools/worldgen_data.py`,
-  `tools/block_assets.py` (blocks) or `tools/biomes.py` (biomes, their features and tags) and rerun it, never the
-  JSON or the textures.
+  `tools/block_assets.py` (blocks), `tools/biomes.py` (biomes, their features and tags) or `tools/gui_assets.py` (GUI
+  sprites) and rerun it, never the JSON or the textures.
 - **Optional mods.** Mod Menu, Iris and the Distant Horizons API are `compileOnly`, never bundled. Code that touches
   them (`client.compat`, `compat.dh`) loads only when the mod is installed; keep their classes out of everything else.
 - **Untested paths.** The AMD ROCm/MIGraphX path has never run on AMD hardware. Say so when touching it.

@@ -40,8 +40,9 @@ geography, climate and geology.
   - The CPU build is bundled.
   - The NVIDIA CUDA runtime is a one-click download from official sources. It is about 6× faster than the CPU.
   - AMD ROCm (MIGraphX) is experimental, with your own ONNX Runtime build.
-- **Distant Horizons.** With Distant Horizons installed, its far terrain, trees included, comes straight from the
-  terrain without generating chunks, and the far horizon costs no model inference. See
+- **A far terrain of its own.** The world runs on past the chunks to the horizon, trees, structures and what players
+  built included, without generating chunks, and with the shader packs that shade Distant Horizons. See
+  [LOD.md](docs/LOD.md). With Distant Horizons or Voxy installed, the same terrain goes to them instead. See
   [COMPATIBILITY.md](docs/COMPATIBILITY.md).
 - **A relief map.** `/diffusicraft map` opens the world in your browser, shaded by its relief, with the land drawn
   before anyone has walked there. Click a place for its coordinates and a `/tp` to copy, or search for a biome. See

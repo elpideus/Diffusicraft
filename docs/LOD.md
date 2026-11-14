@@ -1,9 +1,9 @@
 # Far terrain
 
-Diffusicraft is getting a far terrain of its own, so that it no longer needs Distant Horizons or Voxy. It is meant
-to show what players built, to work with shader packs, and to cost as little as possible on top of 1:1 world
-generation, which already keeps a computer busy. This page describes the design and how far along it is. The parts
-used with Distant Horizons and Voxy today are described in [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
+Diffusicraft has a far terrain of its own, so that it needs neither Distant Horizons nor Voxy. It shows what players
+built, works with shader packs, and costs as little as it can on top of 1:1 world generation, which already keeps a
+computer busy. This page describes how it is built and what is left. The parts used with Distant Horizons and Voxy
+are described in [COMPATIBILITY.md](COMPATIBILITY.md#voxy).
 
 ## What it borrows
 
