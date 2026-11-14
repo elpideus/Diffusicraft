@@ -350,6 +350,10 @@ These parts are unit-tested and feed the renderer below.
   Fog under water, in lava and from blindness or darkness stays as it is. Sodium reads the fog at the same point,
   for its chunks' own fog and for how far it draws them, and the far terrain stretches it first, so that Sodium's
   chunks fade as vanilla's do.
+- **No fade from the fog.** Vanilla brings a new section in from the colour of the fog, and Sodium from nothing, which
+  over far terrain would show a pale patch of a section that the mask has already taken over. While the far terrain
+  is drawn, each section shows at once: `RenderSectionMixin` has `getVisibility` answer fully visible, and under
+  Sodium `UniformBufferManagerMixin` writes a negative time, which turns its fade off.
 
 ### Under a shader pack: `IrisFarTerrain` (client, with Iris)
 

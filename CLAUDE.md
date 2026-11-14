@@ -32,7 +32,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `customizeTypeButton`, `CreateWorldScreen.onCreate`, `WorldCreationUiState.<init>`, the head of `LocalPlayer.tick`
     (which holds a player over a chunk that has not arrived), and for the far terrain
     (`client/mixin/lod`) the head of `LevelRenderer.addMainPass`, the tail of `LevelRenderer.executeSolid`, the first
-    `Math.max` in `Camera.update` (its far plane) and the return of `FogRenderer.setupFog`, and for the clouds
+    `Math.max` in `Camera.update` (its far plane), the return of `FogRenderer.setupFog` and the return of
+    `SectionRenderDispatcher.RenderSection.getVisibility` (no fade from the fog colour over far terrain), and for the clouds
     (`client/mixin/clouds`) the drawing `CloudRenderer.prepare` (wrapped, named by its descriptor beside the one that
     reloads the clouds) and its calls to `Std140Builder.putVec3`, the first write of `FogData.cloudEnd` in
     `AtmosphericFogEnvironment.setupFog` and the same `Math.max` in `Camera.update`;
@@ -95,7 +96,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     update.
   - Sodium (`client/mixin/sodium`, applied only when it is installed): the `-128` inlined once in
     `TaskCollectingTree.addPendingSection` and in `DeferredTaskList.dequeueNextSectionPos`, `getPendingTaskLists`
-    returning the `DeferredTaskList`, and `AbstractSectionVisitor.baseOffsetY`, plus
+    returning the `DeferredTaskList`, `AbstractSectionVisitor.baseOffsetY` and the third argument of
+    `UniformBufferManager.writeMeshTimes` (a negative time turns its chunk fade off), plus
     `SodiumWorldRenderer.instanceNullable()`, `isSectionReady(int, int, int)` and `isBoxVisible` (six doubles),
     which `client.compat.sodium.SodiumSections` calls through method handles for the far terrain. `ChunkMask` and
     `far_terrain.fsh` repeat the distance test of `TraversableTree` (a cylinder from the camera itself) and the
