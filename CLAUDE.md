@@ -67,7 +67,8 @@ env -u WAYLAND_DISPLAY SDL_VIDEO_DRIVER=x11 xvfb-run -a -s "-screen 0 1600x900x2
     `SerializableChunkData.parse` and `copyOf` and of `FriendlyByteBuf.read/writeBlockPos`, and the internals of
     `PalettedContainer`, its `Strategy` and `SingleValuePalette` (opened by `diffusicraft.classtweaker`); on the client
     (`client/mixin/height`), `new RotatingSectionStorage` in `ViewArea.<init>` and `SectionUpdateTracker.<init>`, the
-    call to `setSectionRangeDirty` in `ClientPacketListener.enableChunkLight` and the second int local of
+    first `new LongOpenHashSet` in `SectionOcclusionGraph.<init>` (its `emptySections`, which `SectionSet` replaces),
+    the call to `setSectionRangeDirty` in `ClientPacketListener.enableChunkLight` and the second int local of
     `ClientLevel.pollLightUpdates`; in common, the first `LongSet.add` in `LayerLightSectionStorage.markNewInconsistencies`.
     The full table is in [docs/HEIGHT.md](docs/HEIGHT.md#mixin-targets);
   - Distant Horizons (`mixin/dh`, applied only when it is installed): the height getters of its `ChunkWrapper`

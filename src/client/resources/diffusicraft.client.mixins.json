@@ -15,6 +15,7 @@
 		"height.ClientLevelMixin",
 		"height.ClientPacketListenerMixin",
 		"height.RenderGridMixin",
+		"height.SectionOcclusionGraphMixin",
 		"iris.DHCompatMixin",
 		"iris.LevelRendererMixin",
 		"iris.StandardMacrosMixin",
