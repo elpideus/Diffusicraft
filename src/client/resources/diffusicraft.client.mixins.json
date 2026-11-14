@@ -12,6 +12,8 @@
 		"clouds.AtmosphericFogEnvironmentMixin",
 		"clouds.CameraMixin",
 		"clouds.CloudRendererMixin",
+		"height.ClientLevelMixin",
+		"height.ClientPacketListenerMixin",
 		"height.RenderGridMixin",
 		"iris.DHCompatMixin",
 		"iris.LevelRendererMixin",

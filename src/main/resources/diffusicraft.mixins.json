@@ -31,6 +31,7 @@
 		"height.EntityMixin",
 		"height.ForceLoadCommandMixin",
 		"height.FriendlyByteBufMixin",
+		"height.LayerLightSectionStorageMixin",
 		"height.LevelChunkMixin",
 		"height.LevelChunkSectionMixin",
 		"height.LevelMixin",
