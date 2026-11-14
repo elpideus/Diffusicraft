@@ -86,9 +86,10 @@ good (`SERVER_STOPPED`).
   Each page notes the build that generated it: `generation` in `diffusicraft-build.properties`, a digest the build
   works out of everything under `src/main`, the models' manifest among it. A page of another build is generated
   again, since other code or data may shape other terrain, and a build without the digest keeps none.
-- **Threads.** Everything runs on one low-priority thread per store. Saved chunks are read 32 at a time, and each
-  page they touch is rewritten once; between batches the thread serves the pages the far terrain asked for
-  meanwhile, so a flight that saves a hundred chunks a second does not hold up its reads. A chunk saved again before
+- **Threads.** Everything runs on one low-priority thread per store. Saved chunks are read 32 at a time, 4 at a time
+  while the far terrain is asking for pages, and each page they touch is rewritten once; between batches the thread
+  serves the pages asked for meanwhile, so a flight that saves a hundred chunks a second does not hold up its reads
+  (a slice of 32 kept each tile waiting most of a second). A chunk saved again before
   it was read is read once, as it is now. Vanilla saves a chunk again whenever anything in it changed, as grass
   spreads or a crop grows, so a page whose columns come out as they were is neither written nor rebuilt. The last
   192 pages stay in memory, and the last 4096 found missing, so that asking for them again reads nothing.

@@ -57,12 +57,14 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -113,6 +115,8 @@ public final class LodStore implements AutoCloseable {
 	private static final int CACHED_MISSING = 4096;
 	/** Chunks read before the pages they touch are written, so that a page asked for meanwhile waits for no more. */
 	private static final int DRAIN_SLICE = 32;
+	/** Most chunks read in a slice while pages are being asked for: a tile being built waits for the slice to end. */
+	private static final int DRAIN_SLICE_ASKED = 4;
 	private static final Logger LOGGER = LogUtils.getLogger();
 	/**
 	 * A digest of the code and data that shape the generated terrain, from {@code diffusicraft-build.properties}, which
@@ -169,6 +173,8 @@ public final class LodStore implements AutoCloseable {
 		}
 	});
 	private boolean draining;
+	/** How many pages were asked for and not read yet. */
+	private final AtomicInteger asked = new AtomicInteger();
 	/** How many chunks were handed over and not read yet, for the debug screen. */
 	private volatile int backlog;
 	/** The places of the saved chunks still to read again (see {@link #catchUp}). Read on the store's thread only. */
@@ -380,8 +386,8 @@ public final class LodStore implements AutoCloseable {
 	}
 
 	/**
-	 * Reads the chunks handed over, {@value #DRAIN_SLICE} at a time, and updates each page they touch once. The rest
-	 * waits behind the pages asked for meanwhile, unless the store is closing.
+	 * Reads the chunks handed over, {@value #DRAIN_SLICE} at a time, or {@value #DRAIN_SLICE_ASKED} while pages are being
+	 * asked for, and updates each page they touch once. The rest waits behind those pages, unless the store is closing.
 	 */
 	private void drain() {
 		while (drainSlice()) {
@@ -394,10 +400,10 @@ public final class LodStore implements AutoCloseable {
 		}
 	}
 
-	/** Reads the next {@value #DRAIN_SLICE} chunks handed over and updates their pages; whether more are left. */
+	/** Reads the next slice of the chunks handed over and updates their pages; whether more are left. */
 	private boolean drainSlice() {
 		Map<Long, Map<Integer, LodColumn>>[] changes = newChanges();
-		for (int n = 0; n < DRAIN_SLICE; n++) {
+		for (int n = 0; n < (asked.get() > 0 ? DRAIN_SLICE_ASKED : DRAIN_SLICE); n++) {
 			Saved chunk;
 			synchronized (saved) {
 				Iterator<Saved> first = saved.values().iterator();
@@ -509,7 +515,11 @@ public final class LodStore implements AutoCloseable {
 
 	/** The stored columns of the page at {@code (pageX, pageZ)} of a level, or {@code null} if it has none. */
 	public CompletableFuture<@Nullable Page> page(int level, int pageX, int pageZ) {
-		return CompletableFuture.supplyAsync(() -> load(level, ChunkPos.pack(pageX, pageZ)), thread);
+		asked.incrementAndGet();
+		return CompletableFuture.supplyAsync(() -> {
+			asked.decrementAndGet();
+			return load(level, ChunkPos.pack(pageX, pageZ));
+		}, thread);
 	}
 
 	private @Nullable Page load(int level, long key) {
@@ -518,15 +528,17 @@ public final class LodStore implements AutoCloseable {
 		if (page != null || missing.contains(cached)) {
 			return page;
 		}
-		Optional<CompoundTag> tag = workers[level].loadAsync(ChunkPos.unpack(key)).join();
-		if (tag.isEmpty()) {
-			missing.add(cached);
-			return null;
-		}
 		try {
+			Optional<CompoundTag> tag = workers[level].loadAsync(ChunkPos.unpack(key)).join();
+			if (tag.isEmpty()) {
+				missing.add(cached);
+				return null;
+			}
 			page = read(tag.get());
 		} catch (RuntimeException e) {
+			// Counted as missing, or every tile over it would try again. The next chunk saved there writes a new page.
 			LOGGER.warn("Dropping unreadable page {} of level {} of the far terrain", ChunkPos.unpack(key), level, e);
+			missing.add(cached);
 			return null;
 		}
 		if (page != null) {
@@ -543,25 +555,22 @@ public final class LodStore implements AutoCloseable {
 		if (GENERATION.isEmpty()) {
 			return null;
 		}
-		Optional<CompoundTag> tag;
 		open.readLock().lock();
 		try {
 			if (closed) {
 				return null;
 			}
-			tag = generated[level].loadAsync(new ChunkPos(pageX, pageZ)).join();
-		} finally {
-			open.readLock().unlock();
-		}
-		if (tag.isEmpty() || !GENERATION.equals(tag.get().getStringOr("generation", ""))) {
-			return null;
-		}
-		try {
+			Optional<CompoundTag> tag = generated[level].loadAsync(new ChunkPos(pageX, pageZ)).join();
+			if (tag.isEmpty() || !GENERATION.equals(tag.get().getStringOr("generation", ""))) {
+				return null;
+			}
 			return readGrid(tag.get());
 		} catch (RuntimeException e) {
 			LOGGER.warn("Dropping unreadable generated page {}, {} of level {} of the far terrain", pageX, pageZ, level,
 				e);
 			return null;
+		} finally {
+			open.readLock().unlock();
 		}
 	}
 
@@ -767,7 +776,7 @@ public final class LodStore implements AutoCloseable {
 	private void closeQuietly() {
 		try {
 			close();
-		} catch (IOException e) {
+		} catch (IOException | RuntimeException e) {
 			LOGGER.warn("Could not close the far terrain store", e);
 		}
 	}
@@ -789,11 +798,23 @@ public final class LodStore implements AutoCloseable {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
+		// One file that fails to write must not leave the others open: the next world of the session reads them.
+		IOException failed = null;
 		for (IOWorker[] kind : List.of(workers, generated)) {
 			for (IOWorker worker : kind) {
-				worker.synchronize(true).join();
-				worker.close();
+				try {
+					worker.synchronize(true).join();
+					worker.close();
+				} catch (IOException | CompletionException e) {
+					if (failed == null) {
+						failed = new IOException("Could not close the far terrain store", e);
+					}
+					failed.addSuppressed(e);
+				}
 			}
+		}
+		if (failed != null) {
+			throw failed;
 		}
 	}
 }
